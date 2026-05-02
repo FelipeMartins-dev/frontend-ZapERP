@@ -93,6 +93,33 @@ function isConversaEmAtendimentoBadge(c) {
   return s === "em_atendimento" || s === "aguardando_cliente";
 }
 
+const EMPTY_PENDENTES_SET = new Set();
+
+/**
+ * Cliente foi o último a falar (ou há novas mensagens) e a equipe deve responder.
+ * Alinha ao selo “Cliente aguardando sua resposta” e, para supervisores, a `/supervisao/clientes-pendentes`.
+ */
+function isConversaAguardandoFuncionario(c, pendentesIdSet) {
+  if (!c || isGroupConversation(c)) return false;
+  if (c?.id != null && pendentesIdSet?.has?.(String(c.id))) return true;
+  if (c?.atendente_id == null) return false;
+  if (getStatusAtendimentoEffective(c) !== "em_atendimento") return false;
+  if (isConversaAguardandoCliente(c)) return false;
+  const lastDir = getLastDirection(c);
+  const unread = Number(c?.unread_count ?? c?.unread ?? 0);
+  const hintNovaMsg =
+    !lastDir && (Boolean(c?.tem_novas_mensagens_em_atendimento) || unread > 0);
+  return lastDir === "in" || hintNovaMsg;
+}
+
+/** Fundo suave “Em atendimento” sem urgência de resposta (ex.: última msg da equipe ou aguardando cliente). */
+function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow) {
+  if (!c || semConversaRow || isGroupConversation(c)) return "";
+  if (isConversaAguardandoFuncionario(c, pendentesIdSet)) return "chat-list-row--atendimento-alerta";
+  if (isConversaEmAtendimentoBadge(c)) return "chat-list-row--atendimento-calm";
+  return "";
+}
+
 /**
  * Modo admin por funcionário (payload pode ter vários status_atendimento).
  * Inclui só conversas assumidas por esse utilizador; grupos e itens sem atendente_id ficam de fora.
@@ -926,10 +953,16 @@ function ChatRow({
   setUnread,
   isMenuOpen,
   onToggleMenu,
+  pendentesFuncionarioSet = EMPTY_PENDENTES_SET,
 }) {
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
   const semConversa = Boolean(chat?.sem_conversa && chat?.cliente_id);
+  const atendimentoRowClass = atendimentoRowVisualClass(
+    chat,
+    pendentesFuncionarioSet,
+    semConversa
+  );
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
@@ -1031,7 +1064,7 @@ function ChatRow({
   return (
     <button
       type="button"
-      className={`chat-list-row ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""}`}
+      className={`chat-list-row ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass}`.trim()}
       onClick={handleClick}
       disabled={opening}
       data-chat-id={id ?? undefined}
@@ -1120,6 +1153,10 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
   const b = next.chat || {};
   const pa = rowPrefs(a);
   const pb = rowPrefs(b);
+  const semA = Boolean(a.sem_conversa && a.cliente_id);
+  const semB = Boolean(b.sem_conversa && b.cliente_id);
+  const setA = prev.pendentesFuncionarioSet;
+  const setB = next.pendentesFuncionarioSet;
   return (
     String(a.id) === String(b.id) &&
     prev.active === next.active &&
@@ -1139,7 +1176,10 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     getLastDirection(a) === getLastDirection(b) &&
     String(a.ultima_atividade ?? "") === String(b.ultima_atividade ?? "") &&
     String(a?.ultima_mensagem?.id ?? a?.ultima_mensagem?.whatsapp_id ?? "") ===
-      String(b?.ultima_mensagem?.id ?? b?.ultima_mensagem?.whatsapp_id ?? "")
+      String(b?.ultima_mensagem?.id ?? b?.ultima_mensagem?.whatsapp_id ?? "") &&
+    semA === semB &&
+    setA === setB &&
+    atendimentoRowVisualClass(a, setA, semA) === atendimentoRowVisualClass(b, setB, semB)
   );
 });
 
@@ -1250,6 +1290,10 @@ export default function ChatList() {
   /** Supervisão: resumo para badge e lista de conversas pendentes do funcionário. */
   const [supervisaoResumo, setSupervisaoResumo] = useState(null);
   const [pendentesFuncionarioIds, setPendentesFuncionarioIds] = useState([]);
+  const pendentesFuncionarioSet = useMemo(
+    () => new Set((pendentesFuncionarioIds || []).map((x) => String(x))),
+    [pendentesFuncionarioIds]
+  );
 
   // Status de conexão Z-API: null=não verificado, true=conectado, false=desconectado
   const [zapiConnected, setZapiConnected] = useState(null);
@@ -2554,6 +2598,7 @@ export default function ChatList() {
                 setUnread={setUnread}
                 isMenuOpen={String(openConversationId) === String(c?.id)}
                 onToggleMenu={openMenu}
+                pendentesFuncionarioSet={pendentesFuncionarioSet}
               />
             );
           })
