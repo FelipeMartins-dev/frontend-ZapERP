@@ -112,10 +112,31 @@ function isConversaAguardandoFuncionario(c, pendentesIdSet) {
   return lastDir === "in" || hintNovaMsg;
 }
 
-/** Fundo suave “Em atendimento” sem urgência de resposta (ex.: última msg da equipe ou aguardando cliente). */
-function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow) {
+/**
+ * Classe do balão: calmo = em atendimento sem urgência; alerta = cliente aguardando o funcionário
+ * (inclui mesma regra da bolinha verde/laranja para o responsável — antes o class era calculado antes do dot).
+ */
+function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow, currentUserId) {
   if (!c || semConversaRow || isGroupConversation(c)) return "";
-  if (isConversaAguardandoFuncionario(c, pendentesIdSet)) return "chat-list-row--atendimento-alerta";
+  const isResponsavel =
+    currentUserId != null &&
+    c?.atendente_id != null &&
+    String(c.atendente_id) === String(currentUserId);
+  const stAt = getStatusAtendimentoEffective(c);
+  const isHumanAtendimentoRow = stAt === "em_atendimento" || stAt === "aguardando_cliente";
+  const lastDir = getLastDirection(c);
+  const unread = Number(c?.unread_count ?? c?.unread ?? 0);
+  const hintNovaMsg =
+    !lastDir &&
+    (Boolean(c?.tem_novas_mensagens_em_atendimento) || unread > 0);
+  const showAtendimentoDot =
+    isResponsavel &&
+    isHumanAtendimentoRow &&
+    (lastDir === "in" || hintNovaMsg);
+
+  if (isConversaAguardandoFuncionario(c, pendentesIdSet) || showAtendimentoDot) {
+    return "chat-list-row--atendimento-alerta";
+  }
   if (isConversaEmAtendimentoBadge(c)) return "chat-list-row--atendimento-calm";
   return "";
 }
@@ -958,10 +979,12 @@ function ChatRow({
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
   const semConversa = Boolean(chat?.sem_conversa && chat?.cliente_id);
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const atendimentoRowClass = atendimentoRowVisualClass(
     chat,
     pendentesFuncionarioSet,
-    semConversa
+    semConversa,
+    currentUserId
   );
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
@@ -1011,7 +1034,6 @@ function ChatRow({
   const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec });
   const previewNode = semConversa ? <span className="chat-list-previewText">Sem mensagens</span> : <PreviewLine chat={chat} audioDurationSec={audioSec} />;
   const unread = Number(chat?.unread_count ?? chat?.unread ?? 0);
-  const currentUserId = useAuthStore((s) => s.user?.id);
   const isResponsavel =
     !isGroup &&
     currentUserId != null &&
@@ -1179,7 +1201,8 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
       String(b?.ultima_mensagem?.id ?? b?.ultima_mensagem?.whatsapp_id ?? "") &&
     semA === semB &&
     setA === setB &&
-    atendimentoRowVisualClass(a, setA, semA) === atendimentoRowVisualClass(b, setB, semB)
+    atendimentoRowVisualClass(a, setA, semA, useAuthStore.getState().user?.id) ===
+      atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id)
   );
 });
 

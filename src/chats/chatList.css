@@ -1109,33 +1109,37 @@ a { color: inherit; text-decoration: none; }
   border-color: rgba(148, 163, 184, 0.28);
 }
 
-/* Cliente aguardando resposta do funcionário — alerta premium (destaque claro sem ruído) */
+/* Cliente aguardando o funcionário — balão bem distinto do “em atendimento calmo” / lista base */
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active) {
   background: linear-gradient(
-    105deg,
-    rgba(251, 146, 60, 0.11) 0%,
-    rgba(251, 146, 60, 0.03) 28%,
-    rgba(36, 40, 50, 0.97) 52%
+    108deg,
+    rgba(251, 146, 60, 0.26) 0%,
+    rgba(251, 146, 60, 0.12) 18%,
+    rgba(62, 48, 40, 0.78) 42%,
+    rgba(30, 34, 44, 0.96) 88%
   );
-  border-color: rgba(251, 191, 36, 0.38);
+  border-color: rgba(251, 191, 36, 0.48);
   box-shadow:
-    inset 4px 0 0 rgba(253, 186, 116, 0.98),
-    inset 0 0 0 1px rgba(251, 191, 36, 0.14),
-    0 2px 18px rgba(251, 146, 60, 0.16);
+    inset 4px 0 0 rgba(253, 186, 116, 1),
+    inset 0 0 0 1px rgba(251, 191, 36, 0.2),
+    0 0 0 1px rgba(251, 146, 60, 0.12),
+    0 4px 24px rgba(251, 146, 60, 0.22);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active):hover {
   background: linear-gradient(
-    105deg,
-    rgba(251, 146, 60, 0.14) 0%,
-    rgba(251, 146, 60, 0.05) 30%,
-    rgba(42, 46, 56, 0.98) 55%
+    108deg,
+    rgba(251, 146, 60, 0.3) 0%,
+    rgba(251, 146, 60, 0.14) 22%,
+    rgba(72, 54, 44, 0.82) 46%,
+    rgba(36, 40, 50, 0.98) 90%
   );
-  border-color: rgba(252, 211, 77, 0.48);
+  border-color: rgba(252, 211, 77, 0.55);
   box-shadow:
     inset 4px 0 0 rgba(252, 211, 77, 1),
-    inset 0 0 0 1px rgba(252, 211, 77, 0.18),
-    0 4px 22px rgba(251, 146, 60, 0.22);
+    inset 0 0 0 1px rgba(252, 211, 77, 0.22),
+    0 0 0 1px rgba(251, 146, 60, 0.18),
+    0 6px 28px rgba(251, 146, 60, 0.28);
 }
 
 /* Tema claro: índigo suave vs âmbar — contraste limpo */
