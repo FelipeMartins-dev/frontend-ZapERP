@@ -460,6 +460,16 @@
   flex-shrink: 0;
 }
 
+.wa-atendToolbar-primaryRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .wa-atendToolbar-overflowWrap {
   position: relative;
 }
@@ -5844,7 +5854,7 @@
 /* =========================================================
    RESPONSIVIDADE MOBILE — estilo WhatsApp Mobile
    Cabeçalho position:fixed + --wa-mobile-header-h (JS). Só .wa-messages rola.
-   Sem relógio/histórico; avatar oculto; tags + ações + ⋮; visual enxuto.
+   Avatar oculto; 1:1 com .wa-header--atendMobile: barra Assumir/Transf./Enc. + ⋯ (resto no menu).
 ========================================================= */
 
 @media (max-width: 640px) {
@@ -6094,6 +6104,83 @@
     align-self: center;
     justify-self: end;
     overflow: visible;
+  }
+
+  /* Atendimento 1:1 no telefone: linha 1 = voltar + nome/status/setor + ⋯ absoluto; linha 2 = só Assumir / Transf. / Encerrar */
+  .wa-header.wa-header--atendMobile {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: start;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-back {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-left {
+    grid-column: 2;
+    grid-row: 1;
+    padding-right: 46px;
+    min-width: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-right {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 100%;
+    justify-self: stretch;
+    align-self: stretch;
+    margin-top: 2px;
+    padding-top: 4px;
+    border-top: 1px solid color-mix(in srgb, var(--wa-panel-border) 85%, transparent);
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-iconsLine {
+    display: none !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-innerRow {
+    width: 100%;
+    justify-content: stretch;
+    flex-wrap: nowrap;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-actionsRow {
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-actions {
+    width: 100%;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact {
+    width: 100%;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-primaryRow {
+    justify-content: center;
+    width: 100%;
+    padding: 2px 0 4px;
+  }
+
+  /* Fixed: o ⋯ fica no canto da 1.ª linha (nome); `relative` no toolbar colaria ao bloco da 2.ª linha */
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowWrap {
+    position: fixed;
+    top: calc(var(--wa-vv-top, 0px) + max(6px, env(safe-area-inset-top, 0px)));
+    right: max(10px, env(safe-area-inset-right, 0px));
+    z-index: 40;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-prepend {
+    display: none !important;
   }
 
   /* Direita: ícones opcionais + CRM + contato — flex, sem rolagem horizontal */

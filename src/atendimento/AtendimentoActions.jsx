@@ -100,6 +100,33 @@ function AtendimentoActionIcon({ id }) {
   }
 }
 
+/** No menu ⋯ (mobile): ícone opcional por ação secundária */
+function renderOverflowSheetIcon(id) {
+  switch (id) {
+    case "aguardar_cliente":
+      return <IconAtendWait />;
+    case "retomar_atendimento":
+      return (
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12a9 9 0 1 1-3.57-7.19" />
+          <path d="M21 3v7h-7" />
+        </svg>
+      );
+    case "reabrir":
+      return (
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 13a7 7 0 1 0-9.89-9.89L6 7" />
+          <path d="M6 3v4h4" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+/** Mobile: só estas ficam na barra; o resto vai para o menu ⋯ */
+const MOBILE_TOOLBAR_PINNED = new Set(["assumir", "transferir", "encerrar"]);
+
 /**
  * @param {object} props
  * @param {boolean} [props.compactToolbar] — mobile: ações de atendimento em fileira; menu "…" só para extras (overflowTop)
@@ -462,12 +489,12 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
 
   const overflowExtra = typeof overflowTop === "function" ? overflowTop(closeMenu) : null;
   const compactOverflowActions = compactToolbar
-    ? actions.filter((a) => a.id === "aguardar_cliente")
+    ? actions.filter((a) => !MOBILE_TOOLBAR_PINNED.has(a.id))
     : [];
   const compactInlineActions = compactToolbar
-    ? actions.filter((a) => a.id !== "aguardar_cliente")
+    ? actions.filter((a) => MOBILE_TOOLBAR_PINNED.has(a.id))
     : actions;
-  /** No compacto: mantém ações críticas visíveis e move "Aguardar cliente" para o menu "…". */
+  /** Mobile: barra só com Assumir / Transferir / Encerrar; demais no ⋯ + extras (Histórico, tags…). */
   const showCompactOverflowMenu =
     compactToolbar && (Boolean(overflowExtra) || compactOverflowActions.length > 0);
 
@@ -602,7 +629,9 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       <div className="wa-atendToolbar wa-atendToolbar--compact" ref={menuWrapRef}>
         {prepend ? <div className="wa-atendToolbar-prepend">{prepend}</div> : null}
 
-        {compactInlineActions.map((a) => renderToolbarButton(a))}
+        <div className="wa-atendToolbar-primaryRow">
+          {compactInlineActions.map((a) => renderToolbarButton(a))}
+        </div>
 
         {showCompactOverflowMenu ? (
           <div className="wa-atendToolbar-overflowWrap">
@@ -611,7 +640,7 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
               className="wa-header-btn wa-header-btn--micro wa-atendToolbar-overflowTrigger"
               aria-expanded={menuOpen}
               aria-haspopup="menu"
-              aria-label="Tags, dados do contato e mais"
+              aria-label="Mais opções"
               title="Mais opções"
               onClick={() => setMenuOpen((v) => !v)}
             >
@@ -627,28 +656,31 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
                 />
                 <div className="wa-atendToolbar-dropdown" role="menu" aria-label="Mais opções">
                   <div className="wa-atendToolbar-menuExtras">
-                    {compactOverflowActions.map((a) => (
-                      <button
-                        key={a.id}
-                        type="button"
-                        className="wa-atendToolbar-sheetBtn"
-                        onClick={() => {
-                          a.onClick?.();
-                          closeMenu();
-                        }}
-                        disabled={busy}
-                        title={a.title}
-                        aria-label={a.ariaLabel}
-                      >
-                        {a.id === "aguardar_cliente" ? (
-                          <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                            <IconAtendWait />
-                          </span>
-                        ) : null}
-                        <span className="wa-atendToolbar-sheetLabel">{a.labelLong}</span>
-                      </button>
-                    ))}
                     {overflowExtra}
+                    {compactOverflowActions.map((a) => {
+                      const sheetIcon = renderOverflowSheetIcon(a.id);
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          className="wa-atendToolbar-sheetBtn"
+                          onClick={() => {
+                            a.onClick?.();
+                            closeMenu();
+                          }}
+                          disabled={busy}
+                          title={a.title}
+                          aria-label={a.ariaLabel}
+                        >
+                          {sheetIcon ? (
+                            <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+                              {sheetIcon}
+                            </span>
+                          ) : null}
+                          <span className="wa-atendToolbar-sheetLabel">{a.labelLong}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </>

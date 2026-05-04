@@ -4958,7 +4958,10 @@ export default function ConversaView() {
         ) : null}
 
         {/* HEADER — nome + meta (status/setor) + ações; mobile: toolbar compacta */}
-        <div ref={waHeaderRef} className={`wa-header ${isGroup ? "wa-header--group" : ""}`}>
+        <div
+          ref={waHeaderRef}
+          className={`wa-header ${isGroup ? "wa-header--group" : ""} ${headerCompact && !isGroup ? "wa-header--atendMobile" : ""}`}
+        >
           <button
             type="button"
             className="wa-header-back"
@@ -5113,7 +5116,7 @@ export default function ConversaView() {
                     crmEnabled={mostrarEnviarCrm}
                   />
                 ) : null}
-                {!isGroup && conversaId && canConsultarProdutos ? (
+                {!headerCompact && !isGroup && conversaId && canConsultarProdutos ? (
                   <button
                     type="button"
                     className={`wa-header-btn wa-productsQuickBtn ${showProdutosPanel ? "isActive" : ""}`}
@@ -5131,23 +5134,23 @@ export default function ConversaView() {
                   <div className="wa-actions">
                     <AtendimentoActions
                       compactToolbar={headerCompact}
-                      prepend={
-                        headerCompact && !isGroup ? (
-                          <button
-                            type="button"
-                            className={`wa-header-btn wa-header-btn--micro wa-header-historyBtn ${showTimeline ? "isActive" : ""}`}
-                            onClick={toggleTimeline}
-                            title="Histórico de atendimentos (Ctrl/Cmd + H)"
-                            aria-label="Histórico"
-                          >
-                            <IconClock />
-                          </button>
-                        ) : undefined
-                      }
                       overflowTop={
                         headerCompact
                           ? (close) => (
                               <>
+                                <button
+                                  type="button"
+                                  className="wa-atendToolbar-sheetBtn"
+                                  onClick={() => {
+                                    toggleTimeline();
+                                    close();
+                                  }}
+                                >
+                                  <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+                                    <IconClock />
+                                  </span>
+                                  <span className="wa-atendToolbar-sheetLabel">Histórico de atendimentos</span>
+                                </button>
                                 {podeGerenciarTags ? (
                                   <button
                                     type="button"

@@ -58,6 +58,9 @@ api.interceptors.response.use(
           message: err?.response?.data?.error || "Você não tem permissão para acessar este recurso.",
         })
       } else if (status >= 500) {
+        if (err?.config?.skipGlobal500Toast === true) {
+          return Promise.reject(err)
+        }
         show({ type: "error", title: "Erro no servidor", message: err?.response?.data?.error || "Tente novamente em instantes." })
       } else if (status === 429) {
         show({ type: "warning", title: "Muitas requisições", message: "Aguarde um momento antes de tentar de novo." })

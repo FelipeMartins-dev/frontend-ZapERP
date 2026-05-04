@@ -1,4 +1,5 @@
 import api from "../api/http";
+import { getApiBaseUrl } from "../api/baseUrl";
 
 const PRINT_HTML = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -28,8 +29,41 @@ const PRINT_HTML = `<!DOCTYPE html>
 </html>`;
 
 /**
+ * URLs absolutas para outros domínios (ex.: S3 UltraMsg) falham no browser por CORS
+ * se o axios buscar direto — o backend expõe GET /media/proxy com JWT.
+ */
+export function isCrossOriginMediaUrl(urlStr) {
+  const s = String(urlStr).trim();
+  if (!s || s.startsWith("blob:") || s.startsWith("data:")) return false;
+  if (s.startsWith("/")) return false;
+
+  let u;
+  try {
+    u = new URL(s);
+  } catch {
+    return false;
+  }
+
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+
+  let apiOrigin = null;
+  try {
+    apiOrigin = new URL(getApiBaseUrl()).origin;
+  } catch {
+    apiOrigin = null;
+  }
+
+  if (apiOrigin && u.origin === apiOrigin) return false;
+
+  if (typeof window !== "undefined" && u.origin === window.location.origin) return false;
+
+  return true;
+}
+
+/**
  * Obtém Blob da mídia para impressão.
- * URLs relativas/absolutas da API usam axios (Bearer); blob:/data: via fetch.
+ * URLs da própria API: axios (Bearer). blob:/data:/ fetch local.
+ * URLs externas (S3, etc.): proxy autenticado /media/proxy.
  */
 export async function fetchMediaBlobForPrint(url) {
   if (!url) throw new Error("NO_URL");
@@ -39,7 +73,14 @@ export async function fetchMediaBlobForPrint(url) {
     if (!res.ok) throw new Error("FETCH_FAILED");
     return await res.blob();
   }
-  const { data } = await api.get(u, { responseType: "blob" });
+
+  const path = isCrossOriginMediaUrl(u) ? `/media/proxy?url=${encodeURIComponent(u)}` : u;
+
+  const { data } = await api.get(path, {
+    responseType: "blob",
+    skipGlobal403Toast: true,
+    skipGlobal500Toast: true,
+  });
   if (!(data instanceof Blob)) throw new Error("INVALID_BLOB");
   return data;
 }
