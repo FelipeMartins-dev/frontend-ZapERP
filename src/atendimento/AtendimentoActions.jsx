@@ -61,6 +61,45 @@ function IconDotsHorizontal() {
   );
 }
 
+function IconAtendTransfer() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+    </svg>
+  );
+}
+
+function IconAtendWait() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+
+function IconAtendClose() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function AtendimentoActionIcon({ id }) {
+  switch (id) {
+    case "transferir":
+      return <IconAtendTransfer />;
+    case "aguardar_cliente":
+      return <IconAtendWait />;
+    case "encerrar":
+      return <IconAtendClose />;
+    default:
+      return null;
+  }
+}
+
 /**
  * @param {object} props
  * @param {boolean} [props.compactToolbar] — mobile: ações de atendimento em fileira; menu "…" só para extras (overflowTop)
@@ -519,6 +558,7 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       : null;
 
   function renderToolbarButton(a) {
+    const icon = <AtendimentoActionIcon id={a.id} />;
     return (
       <button
         key={a.id}
@@ -529,6 +569,11 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
         title={a.title}
         aria-label={a.ariaLabel}
       >
+        {icon ? (
+          <span className="wa-atendBtn-icon" aria-hidden>
+            {icon}
+          </span>
+        ) : null}
         <span className="wa-atendLabel--long">{a.labelLong}</span>
         <span className="wa-atendLabel--short">{a.labelShort}</span>
       </button>
@@ -595,6 +640,11 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
                         title={a.title}
                         aria-label={a.ariaLabel}
                       >
+                        {a.id === "aguardar_cliente" ? (
+                          <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+                            <IconAtendWait />
+                          </span>
+                        ) : null}
                         <span className="wa-atendToolbar-sheetLabel">{a.labelLong}</span>
                       </button>
                     ))}

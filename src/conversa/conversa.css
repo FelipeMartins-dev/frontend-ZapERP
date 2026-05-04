@@ -734,47 +734,57 @@
 }
 
 /* -------------------------
-   TRANSFERIR (azul discreto)
+   TRANSFERIR (azul — ação de encaminhar)
 ------------------------- */
 .wa-actions .wa-btn-transferir{
-  background: transparent;
-  color: var(--wa-text);
-  border-color: color-mix(in srgb, currentColor 24%, transparent);
-  transition: background 0.12s ease, box-shadow 0.12s ease;
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 .wa-actions .wa-btn-transferir:hover:not(:disabled){
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  box-shadow: none;
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.38);
 }
 
 /* -------------------------
-   AGUARDAR CLIENTE (manual — slate/ciano discreto)
+   AGUARDAR CLIENTE (âmbar/laranja — pausa aguardando resposta)
 ------------------------- */
 .wa-actions .wa-btn-aguardar-cliente{
-  background: transparent;
-  color: var(--wa-text);
-  border-color: color-mix(in srgb, currentColor 24%, transparent);
+  background: #ea580c;
+  color: #fff;
+  border-color: #ea580c;
   box-shadow: none;
-  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .wa-actions .wa-btn-aguardar-cliente:hover:not(:disabled){
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  border-color: color-mix(in srgb, currentColor 30%, transparent);
-  color: var(--wa-text);
-  box-shadow: none;
+  background: #c2410c;
+  border-color: #c2410c;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
 }
 .wa-actions .wa-btn-aguardar-cliente:active:not(:disabled){
   transform: translateY(0);
 }
 [data-theme="dark"] .wa-actions .wa-btn-aguardar-cliente{
-  background: transparent;
-  color: var(--wa-text);
-  border-color: color-mix(in srgb, currentColor 24%, transparent);
-  box-shadow: none;
+  background: #ea580c;
+  color: #fff;
+  border-color: #ea580c;
 }
 [data-theme="dark"] .wa-actions .wa-btn-aguardar-cliente:hover:not(:disabled){
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  background: #f97316;
+  border-color: #f97316;
+}
+
+/* Ícone + texto nas ações de atendimento */
+.wa-atendBtn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wa-atendBtn-icon svg {
+  display: block;
 }
 
 /* -------------------------
@@ -6161,6 +6171,11 @@
     letter-spacing: 0.02em;
   }
 
+  .wa-atendToolbar--compact .wa-atendBtn-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
   .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
     width: 32px !important;
     height: 32px !important;
@@ -6522,7 +6537,7 @@
   }
 }
 
-/* ----- Enviar conversa ao CRM (header) ----- */
+/* ----- Enviar conversa ao CRM (header) — verde sólido ----- */
 .wa-crmSendBtn {
   display: inline-flex;
   align-items: center;
@@ -6532,22 +6547,18 @@
   width: auto !important;
   height: 36px !important;
   border-radius: 10px !important;
-  border: 1px solid color-mix(in srgb, var(--wa-accent, #00a884) 35%, transparent) !important;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--wa-accent, #00a884) 14%, transparent),
-    color-mix(in srgb, var(--wa-accent, #00a884) 6%, transparent)
-  ) !important;
-  color: var(--wa-accent, #00a884) !important;
+  border: 1px solid transparent !important;
+  background: var(--wa-accent, #059669) !important;
+  color: #fff !important;
   font-size: 12px !important;
   font-weight: 700 !important;
   letter-spacing: 0.02em;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
 }
 
 .wa-crmSendBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--wa-accent, #00a884) 18%, transparent) !important;
-  border-color: color-mix(in srgb, var(--wa-accent, #00a884) 55%, transparent) !important;
+  background: color-mix(in srgb, var(--wa-accent, #059669) 88%, #000) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--wa-accent, #059669) 42%, transparent) !important;
 }
 
 .wa-crmSendBtn:disabled {
@@ -6556,8 +6567,8 @@
 }
 
 .wa-crmSendBtn--successPulse {
-  border-color: color-mix(in srgb, var(--wa-accent, #00a884) 70%, transparent) !important;
-  color: var(--wa-accent, #00a884) !important;
+  border-color: transparent !important;
+  color: #fff !important;
   animation: waCrmSendSuccess 0.45s ease;
 }
 

@@ -29,6 +29,11 @@ import { fetchChats, abrirConversaCliente, abrirConversaPorTelefone } from "../c
 import { forwardAtendimentoMessageToColaborador } from "../api/internalChatService";
 import { getDisplayName } from "../chats/chatList";
 import { getApiBaseUrl } from "../api/baseUrl";
+import {
+  openConversationPrint,
+  getPrintRequestErrorInfo,
+  printErrorToastPayload,
+} from "../api/printConversaService";
 import { getSocket } from "../socket/socket";
 import { saveReplyMeta } from "./replyMeta";
 import { isNearBottom, scrollToBottom } from "./scrollUtils";
@@ -483,6 +488,16 @@ function IconTag(props) {
     <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
       <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
       <path d="M7 7h.01" />
+    </svg>
+  );
+}
+
+function IconPrint(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M6 9V2h12v7" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 14h12v8H6z" />
     </svg>
   );
 }
@@ -1990,6 +2005,8 @@ export default function ConversaView() {
   const [autoCorrectFlash, setAutoCorrectFlash] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [sending, setSending] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
+  const printBusyRef = useRef(false);
 
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [emojiQuery, setEmojiQuery] = useState("");
@@ -2580,6 +2597,37 @@ export default function ConversaView() {
     },
     [toastT]
   );
+
+  const handlePrintConversa = useCallback(async () => {
+    if (!conversaId || printBusyRef.current) return;
+    printBusyRef.current = true;
+    setPrintLoading(true);
+    try {
+      await openConversationPrint(conversaId);
+    } catch (err) {
+      if (err?.code === "POPUP_BLOCKED") {
+        showToast({
+          type: "warning",
+          title: "Pop-up bloqueado",
+          message: "Permita pop-ups para este site para abrir a página de impressão.",
+        });
+        return;
+      }
+      if (String(err?.message) === "invalid_id") {
+        showToast({
+          type: "error",
+          title: "Conversa inválida",
+          message: "Selecione uma conversa para imprimir.",
+        });
+        return;
+      }
+      const info = await getPrintRequestErrorInfo(err);
+      showToast(printErrorToastPayload(info.status, info.message));
+    } finally {
+      printBusyRef.current = false;
+      setPrintLoading(false);
+    }
+  }, [conversaId, showToast]);
 
   useEffect(() => {
     if (!composerAppendQueue) return;
@@ -5025,6 +5073,19 @@ export default function ConversaView() {
                     <span aria-hidden="true">📦</span>
                   </button>
                 ) : null}
+                {conversaId && (!headerCompact || isGroup) ? (
+                  <button
+                    type="button"
+                    className="wa-header-btn wa-printChatBtn"
+                    onClick={handlePrintConversa}
+                    disabled={!conversaId || printLoading}
+                    title="Imprimir conversa"
+                    aria-label="Imprimir conversa"
+                    aria-busy={printLoading}
+                  >
+                    <IconPrint />
+                  </button>
+                ) : null}
               </div>
 
               {!isGroup ? (
@@ -5095,6 +5156,22 @@ export default function ConversaView() {
                                       📦
                                     </span>
                                     <span className="wa-atendToolbar-sheetLabel">Consultar produtos</span>
+                                  </button>
+                                ) : null}
+                                {conversaId ? (
+                                  <button
+                                    type="button"
+                                    className="wa-atendToolbar-sheetBtn"
+                                    onClick={() => {
+                                      handlePrintConversa();
+                                      close();
+                                    }}
+                                    disabled={printLoading}
+                                  >
+                                    <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+                                      <IconPrint />
+                                    </span>
+                                    <span className="wa-atendToolbar-sheetLabel">Imprimir</span>
                                   </button>
                                 ) : null}
                                 <button
