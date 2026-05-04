@@ -5854,7 +5854,7 @@
 /* =========================================================
    RESPONSIVIDADE MOBILE — estilo WhatsApp Mobile
    Cabeçalho position:fixed + --wa-mobile-header-h (JS). Só .wa-messages rola.
-   Avatar oculto; 1:1 com .wa-header--atendMobile: barra Assumir/Transf./Enc. + ⋯ (resto no menu).
+   Avatar oculto; 1:1 com .wa-header--atendMobile: uma linha — nome+meta compactos | Transf./Enc./⋯
 ========================================================= */
 
 @media (max-width: 640px) {
@@ -6106,11 +6106,12 @@
     overflow: visible;
   }
 
-  /* Atendimento 1:1 no telefone: linha 1 = voltar + nome/status/setor + ⋯ absoluto; linha 2 = só Assumir / Transf. / Encerrar */
+  /* Atendimento 1:1 no telefone: uma única linha — voltar | nome + meta compactos | Transf. / Encerr. / ⋯ */
   .wa-header.wa-header--atendMobile {
-    grid-template-columns: 40px minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    align-items: start;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-rows: auto;
+    align-items: center;
+    column-gap: 6px;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-back {
@@ -6122,20 +6123,21 @@
   .wa-header.wa-header--atendMobile .wa-header-left {
     grid-column: 2;
     grid-row: 1;
-    padding-right: 46px;
+    padding-right: 0;
     min-width: 0;
+    align-self: center;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-right {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-    max-width: 100%;
-    justify-self: stretch;
-    align-self: stretch;
-    margin-top: 2px;
-    padding-top: 4px;
-    border-top: 1px solid color-mix(in srgb, var(--wa-panel-border) 85%, transparent);
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+    max-width: none;
+    justify-self: end;
+    align-self: center;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-iconsLine {
@@ -6143,44 +6145,115 @@
   }
 
   .wa-header.wa-header--atendMobile .wa-header-innerRow {
-    width: 100%;
-    justify-content: stretch;
+    width: auto;
+    justify-content: flex-end;
     flex-wrap: nowrap;
+    gap: 4px;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-actionsRow {
-    width: 100%;
-    flex: 1 1 auto;
+    width: auto;
+    flex: 0 0 auto;
     min-width: 0;
   }
 
   .wa-header.wa-header--atendMobile .wa-actions {
-    width: 100%;
+    width: auto;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact {
-    width: 100%;
+    width: auto;
+    max-width: none;
     flex-wrap: nowrap;
-    align-items: flex-start;
-    gap: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar-primaryRow {
-    justify-content: center;
-    width: 100%;
-    padding: 2px 0 4px;
+    justify-content: flex-end;
+    align-items: center;
+    width: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0;
+    gap: 4px;
   }
 
-  /* Fixed: o ⋯ fica no canto da 1.ª linha (nome); `relative` no toolbar colaria ao bloco da 2.ª linha */
   .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowWrap {
-    position: fixed;
-    top: calc(var(--wa-vv-top, 0px) + max(6px, env(safe-area-inset-top, 0px)));
-    right: max(10px, env(safe-area-inset-right, 0px));
-    z-index: 40;
+    position: relative;
+    flex-shrink: 0;
+    top: auto;
+    right: auto;
+    z-index: 6;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar-prepend {
     display: none !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-titleBlock {
+    gap: 1px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-name {
+    font-size: 14px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip {
+    gap: 4px;
+    padding-bottom: 0;
+    margin-top: 1px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 6px;
+    min-height: 16px;
+    max-width: min(42vw, 160px);
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-setorBtn {
+    padding: 2px 6px !important;
+    min-height: 17px !important;
+    font-size: 9px !important;
+    border-radius: 8px !important;
+    line-height: 1.1 !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-primary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-transferir,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-danger,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-secondary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-aguardar-cliente {
+    min-height: 26px !important;
+    height: 26px !important;
+    padding: 0 5px !important;
+    font-size: 9px !important;
+    border-radius: 6px !important;
+    line-height: 1.1 !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn-icon svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger svg {
+    width: 14px !important;
+    height: 14px !important;
   }
 
   /* Direita: ícones opcionais + CRM + contato — flex, sem rolagem horizontal */
