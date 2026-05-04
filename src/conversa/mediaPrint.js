@@ -86,7 +86,13 @@ export async function fetchMediaBlobForPrint(url) {
 }
 
 /**
- * Abre janela mínima com <img> + CSS de impressão, chama print() após load.
+ * Imprime um blob de imagem com iframe oculto no documento atual (sem nova janela).
+ *
+ * - Escreve o HTML no `contentDocument` do iframe (não usa `window.open`; evita `noopener`
+ *   e perda de referência ao documento da aba).
+ * - Define `img.src` com object URL do blob; em `onload` chama `contentWindow.print()`.
+ * - Remove o iframe e faz `revokeObjectURL` após `afterprint` (com fallback por tempo).
+ *
  * @param {Blob} blob
  */
 export function printImageBlob(blob) {
@@ -95,51 +101,96 @@ export function printImageBlob(blob) {
   }
 
   const objectUrl = URL.createObjectURL(blob);
-  const win = window.open("", "_blank", "noopener,noreferrer");
 
-  if (!win) {
-    URL.revokeObjectURL(objectUrl);
-    const err = new Error("POPUP_BLOCKED");
-    err.code = "POPUP_BLOCKED";
-    throw err;
-  }
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Impressão");
+  iframe.setAttribute("aria-hidden", "true");
+  Object.assign(iframe.style, {
+    position: "fixed",
+    right: "0",
+    bottom: "0",
+    width: "0",
+    height: "0",
+    border: "0",
+    opacity: "0",
+    pointerEvents: "none",
+    visibility: "hidden",
+  });
 
-  win.document.open();
-  win.document.write(PRINT_HTML);
-  win.document.close();
-
-  const img = win.document.getElementById("printImg");
-  if (!img) {
-    URL.revokeObjectURL(objectUrl);
-    try {
-      win.close();
-    } catch (_) {}
-    throw new Error("PRINT_DOM");
-  }
-
+  let cleaned = false;
   const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
     try {
       URL.revokeObjectURL(objectUrl);
     } catch (_) {}
+    try {
+      iframe.remove();
+    } catch (_) {}
+  };
+
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument;
+  const win = iframe.contentWindow;
+  if (!doc || !win) {
+    cleanup();
+    throw new Error("PRINT_IFRAME");
+  }
+
+  doc.open();
+  doc.write(PRINT_HTML);
+  doc.close();
+
+  const img = doc.getElementById("printImg");
+  if (!img) {
+    cleanup();
+    throw new Error("PRINT_DOM");
+  }
+
+  let printFlowStarted = false;
+
+  const startPrintFlow = () => {
+    if (printFlowStarted) return;
+    printFlowStarted = true;
+
+    let fallbackId = null;
+    const safeCleanup = () => {
+      if (fallbackId != null) {
+        clearTimeout(fallbackId);
+        fallbackId = null;
+      }
+      cleanup();
+    };
+
+    fallbackId = window.setTimeout(safeCleanup, 120_000);
+    win.addEventListener("afterprint", safeCleanup, { once: true });
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        try {
+          win.focus();
+          win.print();
+        } catch (_) {
+          safeCleanup();
+        }
+      });
+    });
   };
 
   img.onload = () => {
-    try {
-      win.focus();
-      win.print();
-    } catch (_) {}
-    setTimeout(cleanup, 120_000);
+    startPrintFlow();
   };
 
   img.onerror = () => {
     cleanup();
-    try {
-      win.close();
-    } catch (_) {}
-    throw new Error("IMG_LOAD");
   };
 
   img.src = objectUrl;
+
+  if (img.complete && img.naturalWidth > 0) {
+    startPrintFlow();
+  }
 }
 
 /** Fetch autenticado + impressão só da imagem (sem UI do chat). */
