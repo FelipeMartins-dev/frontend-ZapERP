@@ -30,10 +30,10 @@ import { forwardAtendimentoMessageToColaborador } from "../api/internalChatServi
 import { getDisplayName } from "../chats/chatList";
 import { getApiBaseUrl } from "../api/baseUrl";
 import {
-  openConversationPrint,
-  getPrintRequestErrorInfo,
-  printErrorToastPayload,
-} from "../api/printConversaService";
+  printImageFromUrl,
+  printImageBlob,
+  captureVideoFrameToPngBlob,
+} from "./mediaPrint";
 import { getSocket } from "../socket/socket";
 import { saveReplyMeta } from "./replyMeta";
 import { isNearBottom, scrollToBottom } from "./scrollUtils";
@@ -282,6 +282,17 @@ function getMediaUrl(url, urlAbsoluta) {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   const base = getApiBaseUrl();
   return base.replace(/\/$/, "") + (url.startsWith("/") ? url : "/" + url);
+}
+
+/** Visualizador de mídia: tipos em que a impressão faz sentido (imagem / vídeo-quadro). */
+function mediaViewerSupportsPrint(viewerType, fileName) {
+  const t = String(viewerType || "").toLowerCase();
+  if (t === "video" || t === "imagem" || t === "figurinha") return true;
+  if (t === "arquivo") {
+    const fn = String(fileName || "").toLowerCase();
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fn);
+  }
+  return false;
 }
 
 function fileToPreviewURL(file) {
@@ -2005,8 +2016,6 @@ export default function ConversaView() {
   const [autoCorrectFlash, setAutoCorrectFlash] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [sending, setSending] = useState(false);
-  const [printLoading, setPrintLoading] = useState(false);
-  const printBusyRef = useRef(false);
 
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [emojiQuery, setEmojiQuery] = useState("");
@@ -2026,6 +2035,9 @@ export default function ConversaView() {
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreview, setPendingPreview] = useState(null);
   const [mediaViewer, setMediaViewer] = useState(null); // { url, type, fileName }
+  const [mediaPrintLoading, setMediaPrintLoading] = useState(false);
+  const mediaViewerImgRef = useRef(null);
+  const mediaViewerVideoRef = useRef(null);
   const [localReactions, setLocalReactions] = useState({});
   const [reactionLoading, setReactionLoading] = useState({});
 
@@ -2598,37 +2610,6 @@ export default function ConversaView() {
     [toastT]
   );
 
-  const handlePrintConversa = useCallback(async () => {
-    if (!conversaId || printBusyRef.current) return;
-    printBusyRef.current = true;
-    setPrintLoading(true);
-    try {
-      await openConversationPrint(conversaId);
-    } catch (err) {
-      if (err?.code === "POPUP_BLOCKED") {
-        showToast({
-          type: "warning",
-          title: "Pop-up bloqueado",
-          message: "Permita pop-ups para este site para abrir a página de impressão.",
-        });
-        return;
-      }
-      if (String(err?.message) === "invalid_id") {
-        showToast({
-          type: "error",
-          title: "Conversa inválida",
-          message: "Selecione uma conversa para imprimir.",
-        });
-        return;
-      }
-      const info = await getPrintRequestErrorInfo(err);
-      showToast(printErrorToastPayload(info.status, info.message));
-    } finally {
-      printBusyRef.current = false;
-      setPrintLoading(false);
-    }
-  }, [conversaId, showToast]);
-
   useEffect(() => {
     if (!composerAppendQueue) return;
     const value = composerAppendQueue;
@@ -2666,6 +2647,76 @@ export default function ConversaView() {
   const closeMediaViewer = useCallback(() => {
     setMediaViewer(null);
   }, []);
+
+  const handleMediaViewerPrint = useCallback(async () => {
+    if (!mediaViewer?.url || mediaPrintLoading) return;
+    if (!mediaViewerSupportsPrint(mediaViewer.type, mediaViewer.fileName)) {
+      showToast({
+        type: "info",
+        title: "Impressão",
+        message: "Use Abrir arquivo no navegador e imprima a partir de lá.",
+      });
+      return;
+    }
+
+    setMediaPrintLoading(true);
+    try {
+      if (mediaViewer.type === "video") {
+        const v = mediaViewerVideoRef.current;
+        if (!v) {
+          showToast({ type: "error", title: "Impressão", message: "Vídeo indisponível no visualizador." });
+          return;
+        }
+        if (v.readyState < 2) {
+          showToast({
+            type: "warning",
+            title: "Aguarde",
+            message: "Carregue o vídeo antes de imprimir.",
+          });
+          return;
+        }
+        let blob;
+        try {
+          blob = await captureVideoFrameToPngBlob(v);
+        } catch (e) {
+          const msg = String(e?.message || "");
+          if (msg === "VIDEO_FRAME_TAINTED" || msg === "VIDEO_NOT_READY") {
+            showToast({
+              type: "error",
+              title: "Não foi possível capturar o quadro",
+              message:
+                msg === "VIDEO_NOT_READY"
+                  ? "O vídeo ainda não tem dimensões. Aguarde um instante."
+                  : "Limitação do navegador com esta origem de mídia. Baixe o arquivo e imprima localmente, se necessário.",
+            });
+            return;
+          }
+          throw e;
+        }
+        printImageBlob(blob);
+        return;
+      }
+
+      await printImageFromUrl(mediaViewer.url);
+    } catch (err) {
+      if (err?.code === "POPUP_BLOCKED") {
+        showToast({
+          type: "warning",
+          title: "Pop-up bloqueado",
+          message: "Permita pop-ups para este site para abrir a janela de impressão.",
+        });
+        return;
+      }
+      console.error(err);
+      showToast({
+        type: "error",
+        title: "Falha ao imprimir",
+        message: "Não foi possível preparar a impressão. Tente de novo.",
+      });
+    } finally {
+      setMediaPrintLoading(false);
+    }
+  }, [mediaViewer, mediaPrintLoading, showToast]);
 
   useEffect(() => {
     if (!mediaViewer) return;
@@ -5073,19 +5124,6 @@ export default function ConversaView() {
                     <span aria-hidden="true">📦</span>
                   </button>
                 ) : null}
-                {conversaId && (!headerCompact || isGroup) ? (
-                  <button
-                    type="button"
-                    className="wa-header-btn wa-printChatBtn"
-                    onClick={handlePrintConversa}
-                    disabled={!conversaId || printLoading}
-                    title="Imprimir conversa"
-                    aria-label="Imprimir conversa"
-                    aria-busy={printLoading}
-                  >
-                    <IconPrint />
-                  </button>
-                ) : null}
               </div>
 
               {!isGroup ? (
@@ -5156,22 +5194,6 @@ export default function ConversaView() {
                                       📦
                                     </span>
                                     <span className="wa-atendToolbar-sheetLabel">Consultar produtos</span>
-                                  </button>
-                                ) : null}
-                                {conversaId ? (
-                                  <button
-                                    type="button"
-                                    className="wa-atendToolbar-sheetBtn"
-                                    onClick={() => {
-                                      handlePrintConversa();
-                                      close();
-                                    }}
-                                    disabled={printLoading}
-                                  >
-                                    <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                      <IconPrint />
-                                    </span>
-                                    <span className="wa-atendToolbar-sheetLabel">Imprimir</span>
                                   </button>
                                 ) : null}
                                 <button
@@ -6013,24 +6035,59 @@ export default function ConversaView() {
             onMouseDown={(e) => e.target === e.currentTarget && closeMediaViewer()}
           >
             <div className="wa-mediaViewer" onMouseDown={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="wa-mediaViewer-close"
-                onClick={closeMediaViewer}
-                title="Fechar (Esc)"
-                aria-label="Fechar"
-              >
-                <IconClose />
-              </button>
+              <div className="wa-mediaViewer-actions">
+                {mediaViewerSupportsPrint(mediaViewer.type, mediaViewer.fileName) ? (
+                  <button
+                    type="button"
+                    className="wa-mediaViewer-print"
+                    onClick={handleMediaViewerPrint}
+                    disabled={mediaPrintLoading}
+                    title="Imprimir"
+                    aria-label="Imprimir"
+                    aria-busy={mediaPrintLoading}
+                  >
+                    <IconPrint />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="wa-mediaViewer-close"
+                  onClick={closeMediaViewer}
+                  title="Fechar (Esc)"
+                  aria-label="Fechar"
+                >
+                  <IconClose />
+                </button>
+              </div>
               {mediaViewer.type === "video" ? (
-                <video src={mediaViewer.url} controls autoPlay playsInline className="wa-mediaViewer-video" />
+                <div className="wa-mediaViewer-videoWrap">
+                  <video
+                    ref={mediaViewerVideoRef}
+                    src={mediaViewer.url}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="wa-mediaViewer-video"
+                  />
+                  <p className="wa-mediaViewer-videoPrintHint" role="note">
+                    A impressão usa o quadro exibido no momento. Navegadores costumam não imprimir o elemento de vídeo
+                    diretamente; usamos a imagem do frame atual.
+                  </p>
+                </div>
               ) : mediaViewer.type === "arquivo" ? (
                 (() => {
                   const fn = (mediaViewer.fileName || "").toLowerCase();
                   const isPdf = fn.endsWith(".pdf");
                   const isImg = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fn);
                   if (isImg) {
-                    return <img src={mediaViewer.url} alt={mediaViewer.fileName || "Arquivo"} className="wa-mediaViewer-img" />;
+                    return (
+                      <img
+                        ref={mediaViewerImgRef}
+                        src={mediaViewer.url}
+                        alt={mediaViewer.fileName || "Arquivo"}
+                        className="wa-mediaViewer-img"
+                      />
+                    );
                   }
                   if (isPdf) {
                     return <iframe src={mediaViewer.url} title={mediaViewer.fileName || "Documento"} className="wa-mediaViewer-iframe" />;
@@ -6047,6 +6104,7 @@ export default function ConversaView() {
                 })()
               ) : (
                 <img
+                  ref={mediaViewerImgRef}
                   src={mediaViewer.url}
                   alt={mediaViewer.type === "figurinha" ? "Figurinha" : "Imagem"}
                   className="wa-mediaViewer-img"

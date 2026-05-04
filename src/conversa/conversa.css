@@ -3212,11 +3212,43 @@
   background: #000;
 }
 
-.wa-mediaViewer-close {
+.wa-mediaViewer-actions {
   position: absolute;
   top: 12px;
   right: 12px;
-  z-index: 10;
+  z-index: 12;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.wa-mediaViewer-print {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.wa-mediaViewer-print:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(1.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.wa-mediaViewer-print:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wa-mediaViewer-close {
   width: 40px;
   height: 40px;
   display: flex;
@@ -3233,6 +3265,26 @@
   background: rgba(255, 255, 255, 0.35);
   transform: scale(1.06);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.wa-mediaViewer-videoWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+  max-height: min(90vh, 98vh);
+}
+
+.wa-mediaViewer-videoPrintHint {
+  margin: 0;
+  padding: 0 14px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+  max-width: min(420px, 92vw);
 }
 
 .wa-mediaViewer-img {
