@@ -8,7 +8,6 @@ import {
   removerReacao,
   enviarContato,
   registrarLigacao,
-  enviarLink,
   encaminharArquivo,
   encaminharMensagemViaAPI,
   assumirChat,
@@ -2081,11 +2080,6 @@ export default function ConversaView() {
   const [tagMutatingId, setTagMutatingId] = useState(null);
   const [showClienteSide, setShowClienteSide] = useState(false);
   const [showTransferirSetor, setShowTransferirSetor] = useState(false);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-  const [linkTitulo, setLinkTitulo] = useState("");
-  const [linkDescricao, setLinkDescricao] = useState("");
-  const [linkImagem, setLinkImagem] = useState("");
   const [pixModalOpen, setPixModalOpen] = useState(false);
   const [pixConfigLoading, setPixConfigLoading] = useState(false);
   const [pixConfigLoaded, setPixConfigLoaded] = useState(false);
@@ -2140,7 +2134,7 @@ export default function ConversaView() {
 
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
-  const galleryInputRef = useRef(null);
+  const fototecaInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const audioInputRef = useRef(null);
   const stickerInputRef = useRef(null);
@@ -2777,9 +2771,9 @@ export default function ConversaView() {
     cameraInputRef.current?.click();
   }, [conversaId, showToast]);
 
-  const openGalleryPicker = useCallback(() => {
+  const openFototecaPicker = useCallback(() => {
     if (!conversaId) return;
-    galleryInputRef.current?.click();
+    fototecaInputRef.current?.click();
   }, [conversaId]);
 
   const openAudioPicker = useCallback(() => {
@@ -3277,6 +3271,49 @@ export default function ConversaView() {
     [handleDropFile]
   );
 
+  const handleFototecaInputChange = useCallback(
+    async (e) => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      e.target.value = "";
+      if (!files.length || !conversaId) return;
+      if (!podeEnviar) {
+        showToast({
+          type: "warning",
+          title: "Conversa não assumida",
+          message: "Clique em Assumir para enviar mensagens.",
+        });
+        return;
+      }
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append("file", files[i]);
+      }
+      setSending(true);
+      try {
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
+          headers: { "Content-Type": false },
+        });
+        const hasIds = Array.isArray(data?.ids) && data.ids.length > 0;
+        if (!hasIds && (!data?.id || Number(data?.conversa_id) !== Number(conversaId))) {
+          await refresh({ silent: true });
+        }
+      } catch (err) {
+        console.error("Erro ao enviar fotos da galeria:", err);
+        const is403 = err?.response?.status === 403;
+        const apiMsg = err?.response?.data?.error;
+        showToast({
+          type: "error",
+          title: is403 ? "Acesso restrito" : "Falha ao enviar",
+          message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar as fotos. Tente novamente."),
+        });
+      } finally {
+        setSending(false);
+        focusMessageInput();
+      }
+    },
+    [conversaId, podeEnviar, refresh, showToast, focusMessageInput]
+  );
+
   const handleConfirmSendFile = useCallback(async () => {
     if (!pendingFile) return;
     await handleEnviarArquivo(pendingFile);
@@ -3675,67 +3712,6 @@ export default function ConversaView() {
     buildPixMessagePreview,
     handleEnviar,
   ]);
-
-  const handleEnviarLink = useCallback(async () => {
-    if (!conversaId) return;
-    if (!podeEnviar) {
-      showToast({
-        type: "warning",
-        title: "Conversa não assumida",
-        message: "Clique em Assumir para enviar mensagens.",
-      });
-      return;
-    }
-    const url = safeString(linkUrl);
-    if (!url) return;
-    const titulo = safeString(linkTitulo);
-    const descricao = safeString(linkDescricao);
-    const imagem = safeString(linkImagem);
-
-    const chatParaNome = fromChat ?? conversa;
-    const replyMeta =
-      replyTo
-        ? {
-            name: getReplySenderLabel(replyTo, nome, chatParaNome),
-            snippet: snippetFromMsg(replyTo),
-            ts: Date.now(),
-            replyToId: pickReplyToIdForApi(replyTo),
-          }
-        : null;
-
-    setSending(true);
-    try {
-      const res = await enviarLink(conversaId, {
-        url,
-        titulo,
-        descricao,
-        imagem,
-        texto: descricao || url,
-        reply_meta: replyMeta || undefined,
-      });
-      setShowLinkModal(false);
-      setLinkUrl("");
-      setLinkTitulo("");
-      setLinkDescricao("");
-      setLinkImagem("");
-      setReplyTo(null);
-      if (res?.mensagem?.id && replyMeta) {
-        saveReplyMeta(conversaId, res.mensagem.id, replyMeta);
-      }
-    } catch (err) {
-      console.error("Erro ao enviar link:", err);
-      const is403 = err?.response?.status === 403;
-      const apiMsg = err?.response?.data?.error;
-      showToast({
-        type: "error",
-        title: is403 ? "Acesso restrito" : "Falha ao enviar link",
-        message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar o link. Verifique sua conexão."),
-      });
-    } finally {
-      setSending(false);
-      focusMessageInput();
-    }
-  }, [conversaId, linkUrl, linkTitulo, linkDescricao, linkImagem, replyTo, nome, showToast, podeEnviar, focusMessageInput]);
 
   const onEscape = useCallback(() => {
     if (isRecording) handleCancelRecording();
@@ -5894,87 +5870,6 @@ export default function ConversaView() {
             document.body
           )}
 
-        {showLinkModal &&
-          createPortal(
-            <div className="wa-modalOverlay" role="dialog" aria-label="Enviar link" onMouseDown={() => !sending && setShowLinkModal(false)}>
-              <div className="wa-modal" onMouseDown={(e) => e.stopPropagation()}>
-                <div className="wa-modal-head">
-                  <div className="wa-modal-title">Enviar link</div>
-                  <button
-                    type="button"
-                    className="wa-iconBtn"
-                    onClick={() => setShowLinkModal(false)}
-                    title="Fechar"
-                    disabled={sending}
-                  >
-                    <IconClose />
-                  </button>
-                </div>
-                <div className="wa-modal-body">
-                  <div className="wa-field">
-                    <label className="wa-label">URL</label>
-                    <input
-                      className="wa-input"
-                      type="url"
-                      value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
-                      placeholder="https://exemplo.com"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="wa-field">
-                    <label className="wa-label">Título (opcional)</label>
-                    <input
-                      className="wa-input"
-                      value={linkTitulo}
-                      onChange={(e) => setLinkTitulo(e.target.value)}
-                      placeholder="Título do link"
-                    />
-                  </div>
-                  <div className="wa-field">
-                    <label className="wa-label">Descrição (opcional)</label>
-                    <textarea
-                      className="wa-input"
-                      rows={3}
-                      value={linkDescricao}
-                      onChange={(e) => setLinkDescricao(e.target.value)}
-                      placeholder="Texto que acompanha o link"
-                    />
-                  </div>
-                  <div className="wa-field">
-                    <label className="wa-label">Imagem (URL opcional)</label>
-                    <input
-                      className="wa-input"
-                      type="url"
-                      value={linkImagem}
-                      onChange={(e) => setLinkImagem(e.target.value)}
-                      placeholder="https://exemplo.com/imagem.jpg"
-                    />
-                  </div>
-                </div>
-                <div className="wa-modal-footer">
-                  <button
-                    type="button"
-                    className="wa-btn wa-btn-ghost"
-                    onClick={() => setShowLinkModal(false)}
-                    disabled={sending}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-btn wa-btn-primary"
-                    onClick={handleEnviarLink}
-                    disabled={sending || !safeString(linkUrl)}
-                  >
-                    {sending ? "Enviando..." : "Enviar link"}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
-
         {replyTo && !isRecording ? (
           <div className="wa-replyBar" role="region" aria-label="Respondendo">
             <div className="wa-replyBar-bar" aria-hidden="true" />
@@ -6519,9 +6414,9 @@ export default function ConversaView() {
                       <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">📄</span>
                       <span>Documento</span>
                     </button>
-                    <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { setShowLinkModal(true); setAttachMenuOpen(false); }}>
-                      <span className="wa-attachItem-icon wa-attachIcon-link" aria-hidden="true">🔗</span>
-                      <span>Enviar link</span>
+                    <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { openFototecaPicker(); setAttachMenuOpen(false); }}>
+                      <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">🖼️</span>
+                      <span>Galeria</span>
                     </button>
                     <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { openCameraPicker(); setAttachMenuOpen(false); }}>
                       <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">📷</span>
@@ -6630,11 +6525,12 @@ export default function ConversaView() {
                 onChange={handleFileInputChange}
               />
               <input
-                ref={galleryInputRef}
+                ref={fototecaInputRef}
                 type="file"
                 style={{ display: "none" }}
-                accept="image/*,video/*"
-                onChange={handleFileInputChange}
+                accept="image/*"
+                multiple
+                onChange={handleFototecaInputChange}
               />
               <input
                 ref={cameraInputRef}
