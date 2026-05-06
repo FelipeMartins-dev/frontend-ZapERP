@@ -1251,17 +1251,20 @@
 
 .wa-row-in {
   justify-content: flex-start;
+  align-items: flex-end;
 }
 
 .wa-row-out {
   justify-content: flex-end;
+  align-items: flex-end;
 }
 
 /* Faixa do gesto “arrastar para responder” — pan-y preserva rolagem vertical da lista */
 .wa-swipeReplyTrack {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 100%;
+  /* Coluna única de bolhas (esq./dir.) com largura máxima consistente — conteúdo define altura */
+  max-width: min(78%, 420px);
   width: fit-content;
   touch-action: pan-y;
 }
@@ -1290,7 +1293,7 @@
 
   width: fit-content;
   min-width: 0;
-  max-width: min(65%, 420px);
+  max-width: 100%;
 
   padding: 6px 42px 8px 10px;
 
@@ -1527,9 +1530,11 @@
 
 @media (max-width:768px){
 
-  .wa-bubble{
+  .wa-swipeReplyTrack {
+    max-width: min(85%, 480px);
+  }
 
-    max-width:85%;
+  .wa-bubble{
 
     font-size:13px;
   }
@@ -6638,8 +6643,11 @@
     padding: 0;
   }
 
+  .wa-swipeReplyTrack {
+    max-width: min(88%, 520px);
+  }
+
   .wa-bubble {
-    max-width: 90%;
     padding: 6px 9px 8px 9px;
     font-size: 12px;
   }

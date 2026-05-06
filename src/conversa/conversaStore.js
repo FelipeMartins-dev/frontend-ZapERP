@@ -35,12 +35,32 @@ function isOutgoingLike(msg) {
 
 function normalizeMsgForStore(msg) {
   if (!msg || typeof msg !== "object") return msg
-  const normalized = { ...msg }
-  const createdMs = toMillis(normalized?.criado_em)
-  if (!Number.isFinite(createdMs)) {
-    normalized.criado_em = new Date().toISOString()
+  const n = { ...msg }
+  const altTs = n.created_at ?? n.timestamp ?? n.data_criacao ?? n.ts
+  let ms = toMillis(n.criado_em)
+  if (!Number.isFinite(ms)) ms = toMillis(altTs)
+  if (!Number.isFinite(ms) && typeof altTs === "number" && Number.isFinite(altTs)) ms = altTs
+  if (!Number.isFinite(ms)) {
+    n.criado_em = new Date().toISOString()
+  } else if (!n.criado_em || !String(n.criado_em).trim()) {
+    n.criado_em = new Date(ms).toISOString()
   }
-  return normalized
+  return n
+}
+
+/** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
+function sortMensagensChronological(arr) {
+  return [...(arr || [])].sort((a, b) => {
+    const ta = toMillis(a?.criado_em) || 0
+    const tb = toMillis(b?.criado_em) || 0
+    if (ta !== tb) return ta - tb
+    const ida = Number(a?.id)
+    const idb = Number(b?.id)
+    if (Number.isFinite(ida) && Number.isFinite(idb) && ida !== idb) return ida - idb
+    const wa = String(a?.whatsapp_id || "").localeCompare(String(b?.whatsapp_id || ""))
+    if (wa !== 0) return wa
+    return String(a?.tempId || "").localeCompare(String(b?.tempId || ""))
+  })
 }
 
 function getCurrentUserFromStorage() {
@@ -167,11 +187,7 @@ export const useConversaStore = create((set, get) => ({
         mensagens.forEach((m) => {
           if (m?.id != null) byId.set(String(m.id), m)
         })
-        mensagens = Array.from(byId.values()).sort(
-          (a, b) =>
-            (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
-            (Number(a.id) - Number(b.id))
-        )
+        mensagens = sortMensagensChronological(Array.from(byId.values()))
       } else {
         mensagens = []
       }
@@ -268,13 +284,9 @@ export const useConversaStore = create((set, get) => ({
     byId.forEach((v, k) => { if (!k.startsWith("temp-")) combined.set(k, v) })
     byWa.forEach((v, k) => { if (!combined.has(String(v?.id)) && v?.id) combined.set(String(v.id), v); else if (!v?.id) combined.set(`wa-${k}`, v) })
     byId.forEach((v, k) => { if (k.startsWith("temp-")) combined.set(k, v) })
-    return Array.from(combined.values())
-      .filter((m) => m?.id || m?.whatsapp_id || m?.tempId)
-      .sort((a, b) =>
-        (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
-        (Number(a.id || 0) - Number(b.id || 0)) ||
-        String(a.tempId || "").localeCompare(String(b.tempId || ""))
-      )
+    return sortMensagensChronological(
+      Array.from(combined.values()).filter((m) => m?.id || m?.whatsapp_id || m?.tempId)
+    )
   },
 
   refresh: async (opts = {}) => {
@@ -395,11 +407,7 @@ export const useConversaStore = create((set, get) => ({
         const merged = [...filtradas, ...atual]
         const byId = new Map()
         merged.forEach((m) => byId.set(String(m.id), m))
-        const sorted = Array.from(byId.values()).sort(
-          (a, b) =>
-            (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
-            (Number(a.id) - Number(b.id))
-        )
+        const sorted = sortMensagensChronological(Array.from(byId.values()))
         return {
           mensagens: attachReplyMeta(selectedId, sorted),
           cursor: nextCursor,
@@ -418,20 +426,22 @@ export const useConversaStore = create((set, get) => ({
      Nunca append cego: verifica id OU (conversa_id + whatsapp_id).
      Após qualquer upsert: SEMPRE ordenar por criado_em ASC = última posição.
   ===================================================== */
-  _sortMensagensByCriadoEmAsc: (arr) =>
-    [...arr].sort((a, b) =>
-      (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
-      (Number(a.id) - Number(b.id)) ||
-      String(a.tempId || "").localeCompare(String(b.tempId || ""))
-    ),
+  _sortMensagensByCriadoEmAsc: (arr) => sortMensagensChronological(arr),
 
   anexarMensagem: (msg) => {
     msg = normalizeMsgForStore(msg)
     const conversaId = msg?.conversa_id ?? get().conversa?.id
     if (!conversaId) return
-    // UPSERT: id OU (conversa_id + whatsapp_id) — inbound pode vir sem id (backend envia whatsapp_id)
-    const key = msg?.whatsapp_id ?? msg?.id ?? msg?.tempId ??
-      (msg?.direcao === "in" ? `in-${conversaId}-${msg?.criado_em || Date.now()}-${String(msg?.texto || msg?.conteudo || "").slice(0, 50)}` : null)
+    // UPSERT: id OU (conversa_id + whatsapp_id) — inbound pode vir sem id/whatsapp_id e sem direcao === "in" literal
+    const explicitKey = msg?.whatsapp_id ?? msg?.id ?? msg?.tempId
+    const textoSnippet = String(msg?.texto ?? msg?.conteudo ?? "").slice(0, 160)
+    const tipo = String(msg?.tipo ?? "")
+    const rem = String(msg?.remetente_nome ?? msg?.remetente_telefone ?? msg?.pushname ?? "")
+    const inboundSynthetic =
+      !explicitKey && !isOutgoingLike(msg)
+        ? `in-${conversaId}-${msg?.criado_em ?? ""}-${tipo}-${rem}-${textoSnippet}`
+        : null
+    const key = explicitKey ?? inboundSynthetic ?? null
     if (!key) return
     set((state) => {
       const list = state.mensagens || []

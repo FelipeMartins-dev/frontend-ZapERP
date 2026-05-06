@@ -6587,7 +6587,7 @@ export default function ConversaView() {
                 placeholder={podeEnviar ? "Digite uma mensagem" : (conversa?.mensagens_bloqueadas ? "Este atendimento foi assumido por outro usuário." : "Assuma esta conversa para responder")}
                 className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""}`}
                 onKeyDown={handleKeyDownInput}
-                disabled={sending || !conversaId || !podeEnviar}
+                disabled={!conversaId || !podeEnviar}
                 aria-label={podeEnviar ? "Digite sua resposta. Enter para enviar, Shift+Enter para nova linha, Esc para fechar painéis." : (conversa?.mensagens_bloqueadas ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens." : "Assuma esta conversa para responder.")}
                 rows={1}
                 enterKeyHint="send"

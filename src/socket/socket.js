@@ -471,7 +471,11 @@ export function initSocket(token) {
     const conversaId = msg?.conversa_id
     if (!conversaId) return
     if (shouldIgnoreByCompany(msg)) return
-    if (msg.fromMe && !msg.direcao) msg = { ...msg, direcao: "out" }
+    // Direção vazia quebrava UI/store (mensagens recebidas eram descartadas no dedupe).
+    const dirRaw = String(msg?.direcao ?? "").trim()
+    if (!dirRaw) {
+      msg = { ...msg, direcao: msg?.fromMe ? "out" : "in" }
+    }
 
     const chatStore = useChatStore.getState()
     const convStore = useConversaStore.getState()
