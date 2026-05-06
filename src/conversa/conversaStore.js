@@ -15,6 +15,34 @@ import { attachReplyMeta } from "./replyMeta"
 
 const PAGE_LIMIT = 50
 
+function toMillis(value) {
+  if (!value) return NaN
+  const ms = new Date(value).getTime()
+  return Number.isFinite(ms) ? ms : NaN
+}
+
+function isOutgoingLike(msg) {
+  const dir = String(msg?.direcao || "").toLowerCase().trim()
+  if (dir === "out") return true
+  if (dir === "in") return false
+  if (dir === "sent" || dir === "sending" || dir === "outbound" || dir === "enviado" || dir === "enviada") return true
+  if (dir === "received" || dir === "inbound" || dir === "recebido" || dir === "recebida") return false
+  const fromMe = msg?.fromMe ?? msg?.from_me ?? msg?.isFromMe ?? msg?.is_from_me
+  if (fromMe === true || fromMe === 1 || String(fromMe).toLowerCase() === "true") return true
+  if (fromMe === false || fromMe === 0 || String(fromMe).toLowerCase() === "false") return false
+  return false
+}
+
+function normalizeMsgForStore(msg) {
+  if (!msg || typeof msg !== "object") return msg
+  const normalized = { ...msg }
+  const createdMs = toMillis(normalized?.criado_em)
+  if (!Number.isFinite(createdMs)) {
+    normalized.criado_em = new Date().toISOString()
+  }
+  return normalized
+}
+
 function getCurrentUserFromStorage() {
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem("zap_erp_auth") : null
@@ -141,7 +169,7 @@ export const useConversaStore = create((set, get) => ({
         })
         mensagens = Array.from(byId.values()).sort(
           (a, b) =>
-            new Date(a.criado_em || 0) - new Date(b.criado_em || 0) ||
+            (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
             (Number(a.id) - Number(b.id))
         )
       } else {
@@ -243,7 +271,7 @@ export const useConversaStore = create((set, get) => ({
     return Array.from(combined.values())
       .filter((m) => m?.id || m?.whatsapp_id || m?.tempId)
       .sort((a, b) =>
-        new Date(a.criado_em || 0) - new Date(b.criado_em || 0) ||
+        (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
         (Number(a.id || 0) - Number(b.id || 0)) ||
         String(a.tempId || "").localeCompare(String(b.tempId || ""))
       )
@@ -369,7 +397,7 @@ export const useConversaStore = create((set, get) => ({
         merged.forEach((m) => byId.set(String(m.id), m))
         const sorted = Array.from(byId.values()).sort(
           (a, b) =>
-            new Date(a.criado_em || 0) - new Date(b.criado_em || 0) ||
+            (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
             (Number(a.id) - Number(b.id))
         )
         return {
@@ -392,12 +420,13 @@ export const useConversaStore = create((set, get) => ({
   ===================================================== */
   _sortMensagensByCriadoEmAsc: (arr) =>
     [...arr].sort((a, b) =>
-      new Date(a.criado_em || 0) - new Date(b.criado_em || 0) ||
+      (toMillis(a?.criado_em) || 0) - (toMillis(b?.criado_em) || 0) ||
       (Number(a.id) - Number(b.id)) ||
       String(a.tempId || "").localeCompare(String(b.tempId || ""))
     ),
 
   anexarMensagem: (msg) => {
+    msg = normalizeMsgForStore(msg)
     const conversaId = msg?.conversa_id ?? get().conversa?.id
     if (!conversaId) return
     // UPSERT: id OU (conversa_id + whatsapp_id) — inbound pode vir sem id (backend envia whatsapp_id)
@@ -443,7 +472,7 @@ export const useConversaStore = create((set, get) => ({
 
       // Reconciliação: socket nova_mensagem fromMe → SUBSTITUIR temp otimista, NUNCA duplicar
       // Funciona com whatsapp_id OU id (backend pode enviar um ou outro)
-      const isFromMe = msg?.direcao === "out" || msg?.fromMe
+      const isFromMe = isOutgoingLike(msg)
       const textoIn = (msg.texto || msg.conteudo || "").toString().trim()
       const recentMs = 90_000
       const now = Date.now()
@@ -453,30 +482,14 @@ export const useConversaStore = create((set, get) => ({
         // 1) Procurar temp otimista (tempId, direcao out, recente)
         for (let i = list.length - 1; i >= 0; i--) {
           const m = list[i]
-          if (m?.tempId && m?.direcao === "out") {
-            const ts = new Date(m?.criado_em || 0).getTime()
-            if (now - ts < recentMs) {
+          if (m?.tempId && isOutgoingLike(m)) {
+            const ts = toMillis(m?.criado_em)
+            if (Number.isFinite(ts) && now - ts < recentMs) {
               const textoMatch = !textoIn || (m.texto || m.conteudo || "").toString().trim() === textoIn
               if (textoMatch) {
                 replaceIdx = i
                 break
               }
-            }
-          }
-        }
-        // 2) Procurar msg out recente sem id (optimistic) ou sem whatsapp_id — mesma mensagem
-        if (replaceIdx < 0) {
-          for (let i = list.length - 1; i >= 0; i--) {
-            const m = list[i]
-            if (m?.direcao !== "out") continue
-            const ts = new Date(m?.criado_em || 0).getTime()
-            if (now - ts > recentMs) break
-            const textoMatch = !textoIn || (m.texto || m.conteudo || "").toString().trim() === textoIn
-            if (!textoMatch) continue
-            // Temp sem id real, ou msg com id mas sem whatsapp_id
-            if ((m.tempId || !m.id) || (m.id && !m.whatsapp_id && msg.whatsapp_id)) {
-              replaceIdx = i
-              break
             }
           }
         }
@@ -487,8 +500,8 @@ export const useConversaStore = create((set, get) => ({
           if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
           if (msg.status != null) merged.status = msg.status
           if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-          const tsExisting = new Date(existing?.criado_em || 0).getTime()
-          const tsMsg = new Date(msg?.criado_em || 0).getTime()
+          const tsExisting = toMillis(existing?.criado_em)
+          const tsMsg = toMillis(msg?.criado_em)
           if (tsExisting > tsMsg || !msg.criado_em) merged.criado_em = existing.criado_em
           const next = [...list]
           next[replaceIdx] = merged
@@ -499,17 +512,17 @@ export const useConversaStore = create((set, get) => ({
       // Cenário 3: API chegou depois do socket (reconciliarMensagem chama anexarMensagem)
       // Socket já substituiu temp; realMsg tem id da API mas nossa msg tem whatsapp_id sem id
       // Procurar msg "out" recente com whatsapp_id mas sem id → merge id + reply_meta da API
-      const isFromMeAlt = msg?.direcao === "out" || msg?.fromMe
+      const isFromMeAlt = isOutgoingLike(msg)
       if (msg.id && isFromMeAlt) {
         const now = Date.now()
         const recentMs = 90_000
         const textoIn = (msg.texto || msg.conteudo || "").toString().trim()
         for (let i = list.length - 1; i >= 0; i--) {
           const m = list[i]
-          if (m?.direcao !== "out") continue
+          if (!isOutgoingLike(m)) continue
           if (m?.tempId) continue
-          const ts = new Date(m?.criado_em || 0).getTime()
-          if (now - ts > recentMs) break
+          const ts = toMillis(m?.criado_em)
+          if (!Number.isFinite(ts) || now - ts > recentMs) break
           const textoMatch = !textoIn || (m.texto || m.conteudo || "").toString().trim() === textoIn
           if (m.whatsapp_id && !m.id && textoMatch) {
             const merged = { ...m, ...msg, conversa_id: convId }
@@ -541,7 +554,7 @@ export const useConversaStore = create((set, get) => ({
               : `legacy-${i}`
         byId.set(k, m)
       })
-      const newMsg = { ...msg }
+      const newMsg = normalizeMsgForStore({ ...msg })
       if (convId) newMsg.conversa_id = convId
       const newConvId = newMsg?.conversa_id ?? convId
       const newK = msg.whatsapp_id
@@ -609,9 +622,9 @@ export const useConversaStore = create((set, get) => ({
         let fallbackIdx = -1
         for (let i = list.length - 1; i >= 0; i--) {
           const m = list[i]
-          if (m?.direcao !== "out") continue
-          const ts = new Date(m?.criado_em || 0).getTime()
-          if (now - ts > recentMs) break
+          if (!isOutgoingLike(m)) continue
+          const ts = toMillis(m?.criado_em)
+          if (!Number.isFinite(ts) || now - ts > recentMs) break
           // Match: tem id/whatsapp_id OU é a última out recente (tempId ou id)
           const hasMatch = (waId && String(m.whatsapp_id) === String(waId)) ||
             (mensagemId && String(m.id) === String(mensagemId))
