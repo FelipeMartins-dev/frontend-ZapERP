@@ -1925,32 +1925,42 @@ function useStableTimeout() {
   return { set, clear };
 }
 
-function useAutoScroll({ conversaId, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef }) {
+function useAutoScroll({ conversaId, loading, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef }) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
+  /** Após `carregarConversa`, o painel de mensagens só tem altura real quando `loading` vira false — scroll antes disso não chega ao fim. */
+  const pendingJumpToBottomRef = useRef(false);
 
   useEffect(() => {
     const conversaIdAtual = conversaId ? String(conversaId) : null;
     const container = messagesContainerRef?.current;
 
-    // primeira conversa carregada
-    if (!prevConversaIdRef.current && conversaIdAtual) {
+    if (!conversaIdAtual) {
+      prevConversaIdRef.current = null;
+      prevLastKeyRef.current = null;
+      pendingJumpToBottomRef.current = false;
+      return;
+    }
+
+    // primeira conversa / primeira seleção desta sessão no painel
+    if (!prevConversaIdRef.current) {
       prevConversaIdRef.current = conversaIdAtual;
       prevLastKeyRef.current = lastMsgKey;
-      requestAnimationFrame(() => scrollToBottom(container, "auto"));
+      shouldStickToBottomRef.current = true;
+      pendingJumpToBottomRef.current = true;
       return;
     }
 
     // troca de conversa
-    if (conversaIdAtual && prevConversaIdRef.current !== conversaIdAtual) {
+    if (prevConversaIdRef.current !== conversaIdAtual) {
       prevConversaIdRef.current = conversaIdAtual;
       prevLastKeyRef.current = lastMsgKey;
       shouldStickToBottomRef.current = true;
-      requestAnimationFrame(() => scrollToBottom(container, "auto"));
+      pendingJumpToBottomRef.current = true;
       return;
     }
 
-    // novas mensagens
+    // novas mensagens (mesma conversa)
     if (lastMsgKey && lastMsgKey !== prevLastKeyRef.current) {
       const fromMe =
         isOutgoingMessage(lastMsg) ||
@@ -1964,6 +1974,19 @@ function useAutoScroll({ conversaId, lastMsgKey, lastMsg, myUserId, messagesCont
 
     prevLastKeyRef.current = lastMsgKey;
   }, [conversaId, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef]);
+
+  useEffect(() => {
+    if (!conversaId) return;
+    if (!pendingJumpToBottomRef.current) return;
+    if (loading) return;
+    const container = messagesContainerRef?.current;
+    pendingJumpToBottomRef.current = false;
+    shouldStickToBottomRef.current = true;
+    requestAnimationFrame(() => {
+      scrollToBottom(container, "auto");
+      requestAnimationFrame(() => scrollToBottom(container, "auto"));
+    });
+  }, [conversaId, loading, messagesContainerRef, shouldStickToBottomRef]);
 }
 
 function useGlobalHotkeys({ onToggleTimeline, onFocusInput, onEscape, disabled }) {
@@ -2255,6 +2278,9 @@ export default function ConversaView() {
   }, [texto, syncTextareaHeight]);
 
   const conversaId = conversa?.id || null;
+  /** Enquanto `carregarConversa` limpa `conversa`, `selectedId` mantém o chat — necessário para scroll até à última mensagem não falhar a meio do load. */
+  const scrollThreadId =
+    selectedId != null && selectedId !== "" ? selectedId : conversaId;
 
   useEffect(() => {
     resetAutocorrectTracking();
@@ -2629,7 +2655,15 @@ export default function ConversaView() {
     return `${diffD} dia(s)`;
   }, [mensagens]);
 
-  useAutoScroll({ conversaId, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef });
+  useAutoScroll({
+    conversaId: scrollThreadId,
+    loading,
+    lastMsgKey,
+    lastMsg,
+    myUserId,
+    messagesContainerRef,
+    shouldStickToBottomRef,
+  });
 
   const showToast = useCallback(
     (next) => {
