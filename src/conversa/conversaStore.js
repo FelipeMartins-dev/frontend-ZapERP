@@ -33,6 +33,34 @@ function isOutgoingLike(msg) {
   return false
 }
 
+/** Chave estável quando id/whatsapp_id/tempId ausentes — evita sumir mensagens no merge/refresh. */
+export function stableSyntheticMessageKey(m, conversaId) {
+  const textoSnippet = String(m?.texto ?? m?.conteudo ?? "").slice(0, 160)
+  const tipo = String(m?.tipo ?? "")
+  const rem = String(m?.remetente_nome ?? m?.remetente_telefone ?? m?.pushname ?? "")
+  const ts = String(m?.criado_em ?? "")
+  const dir = isOutgoingLike(m) ? "o" : "i"
+  return `syn:${conversaId}:${dir}:${ts}:${tipo}:${rem}:${textoSnippet}`
+}
+
+/** Chave única para Map dedupe (lista + merge API). */
+export function mapDedupeKey(m, conversaId) {
+  const conv = String(conversaId ?? "")
+  if (m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") return `wa-${conv}-${String(m.whatsapp_id)}`
+  if (m?.id != null) return `id-${String(m.id)}`
+  if (m?.tempId != null) return `temp-${String(m.tempId)}`
+  return stableSyntheticMessageKey(m, conversaId)
+}
+
+/** Chave estável para React (evita colisão e remount errado). */
+export function getMessageListReactKey(m, conversaId) {
+  if (!m) return "unknown"
+  if (m.tempId != null && String(m.tempId).trim() !== "") return String(m.tempId)
+  if (m.id != null) return String(m.id)
+  if (m.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") return `wa-${String(m.whatsapp_id)}`
+  return stableSyntheticMessageKey(m, conversaId)
+}
+
 function normalizeMsgForStore(msg) {
   if (!msg || typeof msg !== "object") return msg
   const n = { ...msg }
@@ -183,11 +211,15 @@ export const useConversaStore = create((set, get) => ({
       const nextCursor = data?.next_cursor ?? conversa?.next_cursor ?? null
 
       if (Array.isArray(mensagens)) {
-        const byId = new Map()
-        mensagens.forEach((m) => {
-          if (m?.id != null) byId.set(String(m.id), m)
+        const byKey = new Map()
+        mensagens.forEach((raw) => {
+          if (!raw) return
+          const copy = normalizeMsgForStore({ ...raw, conversa_id: normalizedId })
+          const k = mapDedupeKey(copy, normalizedId)
+          const prev = byKey.get(k)
+          byKey.set(k, prev ? { ...prev, ...copy } : copy)
         })
-        mensagens = sortMensagensChronological(Array.from(byId.values()))
+        mensagens = sortMensagensChronological(Array.from(byKey.values()))
       } else {
         mensagens = []
       }
@@ -259,34 +291,17 @@ export const useConversaStore = create((set, get) => ({
   /** UPSERT: mescla mensagens da API com as existentes. Preserva mensagens que chegaram via socket e ainda não estão na API (evita "aparecer e sumir"). */
   _mergeMensagensFromApi: (existing, fromApi, conversaId) => {
     if (!Array.isArray(fromApi)) fromApi = []
-    const byId = new Map()
-    const byWa = new Map()
-    existing.forEach((m) => {
-      const copy = { ...m, conversa_id: conversaId }
-      if (m?.id) byId.set(String(m.id), copy)
-      else if (m?.whatsapp_id) byWa.set(String(m.whatsapp_id), copy)
-      else byId.set(`temp-${m?.tempId || Math.random()}`, copy)
-    })
-    fromApi.forEach((m) => {
-      const copy = { ...m, conversa_id: conversaId }
-      const id = m?.id
-      const waId = m?.whatsapp_id
-      if (id) {
-        const cur = byId.get(String(id)) || byWa.get(String(waId || ""))
-        byId.set(String(id), { ...cur, ...copy })
-        if (waId) byWa.set(String(waId), byId.get(String(id)))
-      } else if (waId) {
-        const cur = byWa.get(String(waId))
-        byWa.set(String(waId), { ...cur, ...copy })
-      }
-    })
-    const combined = new Map()
-    byId.forEach((v, k) => { if (!k.startsWith("temp-")) combined.set(k, v) })
-    byWa.forEach((v, k) => { if (!combined.has(String(v?.id)) && v?.id) combined.set(String(v.id), v); else if (!v?.id) combined.set(`wa-${k}`, v) })
-    byId.forEach((v, k) => { if (k.startsWith("temp-")) combined.set(k, v) })
-    return sortMensagensChronological(
-      Array.from(combined.values()).filter((m) => m?.id || m?.whatsapp_id || m?.tempId)
-    )
+    const map = new Map()
+    const put = (raw) => {
+      if (!raw) return
+      const copy = normalizeMsgForStore({ ...raw, conversa_id: conversaId })
+      const k = mapDedupeKey(copy, conversaId)
+      const prev = map.get(k)
+      map.set(k, prev ? { ...prev, ...copy } : copy)
+    }
+    existing.forEach(put)
+    fromApi.forEach(put)
+    return sortMensagensChronological(Array.from(map.values()))
   },
 
   refresh: async (opts = {}) => {
@@ -432,24 +447,14 @@ export const useConversaStore = create((set, get) => ({
     msg = normalizeMsgForStore(msg)
     const conversaId = msg?.conversa_id ?? get().conversa?.id
     if (!conversaId) return
-    // UPSERT: id OU (conversa_id + whatsapp_id) — inbound pode vir sem id/whatsapp_id e sem direcao === "in" literal
-    const explicitKey = msg?.whatsapp_id ?? msg?.id ?? msg?.tempId
-    const textoSnippet = String(msg?.texto ?? msg?.conteudo ?? "").slice(0, 160)
-    const tipo = String(msg?.tipo ?? "")
-    const rem = String(msg?.remetente_nome ?? msg?.remetente_telefone ?? msg?.pushname ?? "")
-    const inboundSynthetic =
-      !explicitKey && !isOutgoingLike(msg)
-        ? `in-${conversaId}-${msg?.criado_em ?? ""}-${tipo}-${rem}-${textoSnippet}`
-        : null
-    const key = explicitKey ?? inboundSynthetic ?? null
-    if (!key) return
+    const key = mapDedupeKey(msg, conversaId)
     set((state) => {
       const list = state.mensagens || []
       const convId = state.conversa?.id ?? conversaId
 
       // UPSERT: por id OU por (conversa_id + whatsapp_id) — evita "aparecer e sumir"
       const findExisting = () => {
-        if (msg.id) {
+        if (msg.id != null) {
           const byId = list.findIndex((m) => String(m.id) === String(msg.id))
           if (byId >= 0) return byId
         }
@@ -551,31 +556,17 @@ export const useConversaStore = create((set, get) => ({
         }
       }
 
-      // Nova mensagem: adicionar com dedupe por Map
-      const byId = new Map()
-      list.forEach((m, i) => {
-        const msgConvId = m?.conversa_id ?? convId
-        const k = m.whatsapp_id
-          ? `wa-${String(msgConvId || "")}-${String(m.whatsapp_id)}`
-          : m.id
-            ? String(m.id)
-            : m.tempId
-              ? `temp-${m.tempId}`
-              : `legacy-${i}`
-        byId.set(k, m)
+      // Nova mensagem: adicionar com dedupe por Map (chaves estáveis — sem legacy-${i})
+      const byKey = new Map()
+      list.forEach((m) => {
+        const mk = mapDedupeKey(m, convId)
+        byKey.set(mk, m)
       })
       const newMsg = normalizeMsgForStore({ ...msg })
       if (convId) newMsg.conversa_id = convId
-      const newConvId = newMsg?.conversa_id ?? convId
-      const newK = msg.whatsapp_id
-        ? `wa-${String(newConvId || "")}-${String(msg.whatsapp_id)}`
-        : msg.id
-          ? String(msg.id)
-          : msg.tempId
-            ? `temp-${msg.tempId}`
-            : key
-      byId.set(newK, newMsg)
-      return { mensagens: get()._sortMensagensByCriadoEmAsc(Array.from(byId.values())) }
+      const newK = mapDedupeKey(newMsg, convId)
+      byKey.set(newK, newMsg)
+      return { mensagens: get()._sortMensagensByCriadoEmAsc(Array.from(byKey.values())) }
     })
   },
 

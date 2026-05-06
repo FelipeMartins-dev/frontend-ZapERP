@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useConversaStore } from "./conversaStore";
+import { useConversaStore, getMessageListReactKey } from "./conversaStore";
 import {
   enviarMensagem,
   excluirMensagem,
@@ -5483,7 +5483,7 @@ export default function ConversaView() {
             <>
               {mensagensComSeparadores.map((item) => {
               if (item.__type === "day") return <DaySeparator key={item.id} label={item.label} />;
-              const msgKey = item.tempId || item.id;
+              const msgKey = getMessageListReactKey(item, conversaId);
               return (
                 <Bubble
                   key={msgKey}

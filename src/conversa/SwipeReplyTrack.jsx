@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** Arraste máximo visual (px) — bolha volta com mola ao soltar. */
 const MAX_SHIFT = 76;
@@ -54,6 +54,10 @@ export function SwipeReplyTrack({ enabled, outgoing, onCommit, gestureBlocked, c
     shiftRef.current = 0;
     setShift(0);
   }, []);
+
+  useEffect(() => {
+    if (!enabled) resetVisual(false);
+  }, [enabled, resetVisual]);
 
   const handlePointerDown = useCallback(
     (e) => {

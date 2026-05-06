@@ -1261,12 +1261,24 @@
 
 /* Faixa do gesto “arrastar para responder” — pan-y preserva rolagem vertical da lista */
 .wa-swipeReplyTrack {
-  flex: 0 1 auto;
-  min-width: 0;
+  /* Não encolher o flex (evita bolha “indo pra esquerda” em mobile) */
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  min-width: min-content;
   /* Coluna única de bolhas (esq./dir.) com largura máxima consistente — conteúdo define altura */
   max-width: min(78%, 420px);
   width: fit-content;
   touch-action: pan-y;
+}
+
+.wa-row-out .wa-swipeReplyTrack {
+  margin-inline-start: auto;
+  margin-inline-end: 0;
+}
+
+.wa-row-in .wa-swipeReplyTrack {
+  margin-inline-end: auto;
+  margin-inline-start: 0;
 }
 
 .wa-swipeReplyShift {
@@ -1304,8 +1316,8 @@
   line-height: 1.4;
   font-size: 14px;
 
-  overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
 
   box-sizing: border-box;
 
@@ -1382,9 +1394,9 @@
   max-width:100%;
   min-width:0;
 
-  word-break:break-word;
+  word-break:normal;
+  overflow-wrap:anywhere;
   white-space:pre-wrap;
-  overflow-wrap:break-word;
 
   padding-bottom:0;
 
@@ -1406,7 +1418,7 @@
 
   color:var(--wa-text);
 
-  word-break:break-word;
+  word-break:normal;
   overflow-wrap:anywhere;
 }
 
@@ -3769,6 +3781,10 @@
   opacity: 0.7;
   margin-bottom: 4px;
   line-height: 1.2;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .wa-bubble-out:hover .wa-bubble-atendente {
   opacity: 0.9;
