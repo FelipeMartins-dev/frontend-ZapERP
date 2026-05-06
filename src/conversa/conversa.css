@@ -1259,31 +1259,62 @@
   align-items: flex-end;
 }
 
+/* Com faixa de swipe (mobile): coluna com largura máxima preenche até o limite e a bolha cola à direita */
+.wa-row-out:has(> .wa-swipeReplyTrack) {
+  justify-content: flex-start;
+}
+
 /* Faixa do gesto “arrastar para responder” — pan-y preserva rolagem vertical da lista */
 .wa-swipeReplyTrack {
-  /* Não encolher o flex (evita bolha “indo pra esquerda” em mobile) */
-  flex: 0 0 auto;
-  flex-shrink: 0;
-  min-width: min-content;
-  /* Coluna única de bolhas (esq./dir.) com largura máxima consistente — conteúdo define altura */
-  max-width: min(78%, 420px);
-  width: fit-content;
   touch-action: pan-y;
+  box-sizing: border-box;
+  /* Coluna com largura máxima fixa; a bolha alinha dentro (evita “andar” à esquerda quando o texto cresce) */
+  max-width: min(78%, 420px);
 }
 
 .wa-row-out .wa-swipeReplyTrack {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: min(78%, 420px);
   margin-inline-start: auto;
   margin-inline-end: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .wa-row-in .wa-swipeReplyTrack {
-  margin-inline-end: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: min(78%, 420px);
+  margin-inline-end: 0;
   margin-inline-start: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: flex-end;
 }
 
 .wa-swipeReplyShift {
   will-change: transform;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
 }
+
+.wa-row-out .wa-swipeReplyShift {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.wa-row-in .wa-swipeReplyShift {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+}
+
 
 .wa-swipeReplyShift.wa-swipeReplyShift--spring {
   transition: transform 0.22s cubic-bezier(0.22, 0.82, 0.22, 1);
@@ -1543,6 +1574,11 @@
 @media (max-width:768px){
 
   .wa-swipeReplyTrack {
+    max-width: min(85%, 480px);
+  }
+
+  .wa-row-out .wa-swipeReplyTrack,
+  .wa-row-in .wa-swipeReplyTrack {
     max-width: min(85%, 480px);
   }
 
@@ -6660,6 +6696,11 @@
   }
 
   .wa-swipeReplyTrack {
+    max-width: min(88%, 520px);
+  }
+
+  .wa-row-out .wa-swipeReplyTrack,
+  .wa-row-in .wa-swipeReplyTrack {
     max-width: min(88%, 520px);
   }
 
