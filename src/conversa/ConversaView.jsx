@@ -6445,9 +6445,9 @@ export default function ConversaView() {
                 </button>
                 {attachMenuOpen ? (
                   <div className="wa-attachMenu" role="menu" aria-label="Anexos">
-                    <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { openFilePicker(); setAttachMenuOpen(false); }}>
+                    <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { openFototecaPicker(); setAttachMenuOpen(false); }}>
                       <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">📄</span>
-                      <span>Documento</span>
+                      <span>Fototeca/Galeria</span>
                     </button>
                     <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { openFototecaPicker(); setAttachMenuOpen(false); }}>
                       <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">🖼️</span>
@@ -6457,18 +6457,6 @@ export default function ConversaView() {
                       <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">📷</span>
                       <span>Câmera</span>
                     </button>
-                    {headerCompact ? (
-                      <>
-                        <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { stickerInputRef.current?.click(); setAttachMenuOpen(false); }}>
-                          <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">🖼️</span>
-                          <span>Figurinha</span>
-                        </button>
-                        <button type="button" className="wa-attachItem" role="menuitem" onClick={() => { openAudioPicker(); setAttachMenuOpen(false); }}>
-                          <span className="wa-attachItem-icon wa-attachIcon-audio" aria-hidden="true">🎵</span>
-                          <span>Áudio</span>
-                        </button>
-                      </>
-                    ) : null}
                     <button
                       type="button"
                       className="wa-attachItem"
