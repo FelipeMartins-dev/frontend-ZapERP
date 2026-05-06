@@ -137,6 +137,41 @@ function safeString(v) {
   return String(v ?? "").trim();
 }
 
+function isOutgoingMessage(msg) {
+  const raw = safeString(msg?.direcao).toLowerCase();
+  if (raw === "out") return true;
+  if (raw === "in") return false;
+
+  const outgoingLike = new Set([
+    "sent",
+    "send",
+    "sending",
+    "enviado",
+    "enviada",
+    "saida",
+    "output",
+    "outbound",
+  ]);
+  const incomingLike = new Set([
+    "received",
+    "receive",
+    "recebido",
+    "recebida",
+    "entrada",
+    "input",
+    "inbound",
+  ]);
+
+  if (outgoingLike.has(raw)) return true;
+  if (incomingLike.has(raw)) return false;
+
+  const fromMe = msg?.from_me ?? msg?.fromMe ?? msg?.is_from_me ?? msg?.isFromMe;
+  if (fromMe === true || fromMe === 1 || String(fromMe).toLowerCase() === "true") return true;
+  if (fromMe === false || fromMe === 0 || String(fromMe).toLowerCase() === "false") return false;
+
+  return false;
+}
+
 // Deixa URLs em texto azuis e clicáveis (http/https)
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
 
@@ -616,7 +651,7 @@ const TickSvg = ({ kind }) => (
 );
 
 function MessageTicks({ msg, isGroup }) {
-  const out = msg?.direcao === "out";
+  const out = isOutgoingMessage(msg);
   if (!out) return null;
 
   const raw = msg?.status_mensagem ?? msg?.status ?? msg?.situacao;
@@ -1249,7 +1284,7 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
 function getReplySenderLabel(replyMsg, peerName, chat) {
   const contactDisplayName = chat ? getDisplayName(chat) : null;
   if (!replyMsg) return contactDisplayName || "Contato";
-  const out = String(replyMsg?.direcao || "").toLowerCase() === "out";
+  const out = isOutgoingMessage(replyMsg);
   if (out) return "Você";
   const groupSender = safeString(replyMsg?.remetente_nome || replyMsg?.remetente_telefone);
   if (groupSender) return groupSender;
@@ -1297,7 +1332,7 @@ const Bubble = memo(function Bubble({
   mostrarNomeAoCliente = true,
   swipeReplyEnabled = false,
 }) {
-  const out = msg?.direcao === "out";
+  const out = isOutgoingMessage(msg);
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
     if (currentUserId == null) return false;
@@ -1918,7 +1953,7 @@ function useAutoScroll({ conversaId, lastMsgKey, lastMsg, myUserId, messagesCont
     // novas mensagens
     if (lastMsgKey && lastMsgKey !== prevLastKeyRef.current) {
       const fromMe =
-        lastMsg?.direcao === "out" ||
+        isOutgoingMessage(lastMsg) ||
         lastMsg?.fromMe === true ||
         (myUserId != null && lastMsg?.autor_usuario_id != null && String(lastMsg.autor_usuario_id) === String(myUserId));
       const shouldAutoScroll = Boolean(shouldStickToBottomRef.current || fromMe);
@@ -4618,17 +4653,17 @@ export default function ConversaView() {
         out.push({ __type: "day", id: `day-${label}-${i}`, label });
       }
 
-      const dir = String(msg?.direcao || "").toLowerCase();
-      const prevDir = String(prev?.direcao || "").toLowerCase();
+      const outMsg = isOutgoingMessage(msg);
+      const prevOut = isOutgoingMessage(prev);
       const curSender = senderKey(msg);
       const prevSender = senderKey(prev);
 
       // WhatsApp-like (grupos): nome só na primeira msg do bloco; depois só as mensagens.
       const showRemetente =
         isGroup &&
-        dir !== "out" &&
+        !outMsg &&
         Boolean(curSender) &&
-        (isNewDay || !prev || prevDir === "out" || curSender !== prevSender);
+        (isNewDay || !prev || prevOut || curSender !== prevSender);
 
       const reaction = reactionsByMsgId[String(msg.id)];
 
