@@ -10,6 +10,8 @@ import {
   isGroupConversation,
   getStatusAtendimentoEffective,
   isAguardandoClienteManual,
+  isVCardText,
+  parseVCardMeta,
 } from "../utils/conversaUtils";
 import api from "../api/http";
 import { getApiBaseUrl } from "../api/baseUrl";
@@ -313,21 +315,7 @@ function isContactMessage(last) {
   const tipo = String(last?.tipo || "").toLowerCase();
   if (tipo === "contact") return true;
   const txt = last?.texto ?? last?.conteudo ?? last?.body ?? "";
-  return typeof txt === "string" && txt.includes("BEGIN:VCARD");
-}
-
-/** Extrai nome do vCard (FN:) quando contact_meta for null */
-function extrairNomeVCard(texto) {
-  if (!texto || typeof texto !== "string") return null;
-  const m = texto.match(/FN:([^\r\n]+)/i);
-  return m ? m[1].trim() : null;
-}
-
-/** Extrai primeiro telefone do vCard (TEL:) quando contact_meta for null */
-function extrairTelefoneVCard(texto) {
-  if (!texto || typeof texto !== "string") return null;
-  const m = texto.match(/TEL[^:]*:([^\r\n]+)/i);
-  return m ? m[1].trim() : null;
+  return typeof txt === "string" && isVCardText(txt);
 }
 
 /** Formata telefone para preview compacto */
@@ -509,10 +497,9 @@ function getPreview(chat, { audioDurationSec } = {}) {
 
   if (tipo === "contact") {
     const meta = last?.contact_meta;
-    const nome = meta?.nome || extrairNomeVCard(txt) || "Contato";
-    const telefone = meta?.telefone || extrairTelefoneVCard(txt);
-    const phoneStr = telefone ? ` · ${formatPhonePreview(telefone)}` : "";
-    return `${outPrefix}📇 Contato: ${nome}${phoneStr}`;
+    const parsed = parseVCardMeta(txt) || {};
+    const nome = (meta?.nome && String(meta.nome).trim()) || parsed.nome || "Contato";
+    return `${outPrefix}📇 ${nome}`;
   }
 
   if (tipo === "location") {
@@ -718,8 +705,9 @@ function PreviewLine({ chat, audioDurationSec }) {
 
   if (tipo === "contact") {
     const meta = last?.contact_meta;
-    const nome = meta?.nome || extrairNomeVCard(txt) || "Contato";
-    const telefone = meta?.telefone || extrairTelefoneVCard(txt);
+    const parsed = parseVCardMeta(txt) || {};
+    const nome = (meta?.nome && String(meta.nome).trim()) || parsed.nome || "Contato";
+    const telefone = meta?.telefone || parsed.telefone;
     const fotoPerfil = meta?.foto_perfil && String(meta.foto_perfil).trim().startsWith("http")
       ? String(meta.foto_perfil).trim()
       : null;
@@ -731,7 +719,6 @@ function PreviewLine({ chat, audioDurationSec }) {
       .toUpperCase()
       .slice(0, 2) || "?";
 
-    const phoneStr = telefone ? ` · ${formatPhonePreview(telefone)}` : "";
     return (
       <span className="chat-list-previewLine chat-list-previewLine--contact">
         {out ? <ChatTicks status={status} isGroup={isGroup} /> : null}
@@ -748,8 +735,8 @@ function PreviewLine({ chat, audioDurationSec }) {
           ) : (
             <span className="chat-list-previewContactInitials" aria-hidden="true">{iniciais}</span>
           )}
-          <span className="chat-list-previewContactText" title={`${nome}${phoneStr}`}>
-            {atendentePrefix}{nome}{phoneStr}
+          <span className="chat-list-previewContactText" title={telefone ? formatPhonePreview(telefone) : nome}>
+            {atendentePrefix}{nome}
           </span>
         </span>
       </span>

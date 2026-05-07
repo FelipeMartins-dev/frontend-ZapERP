@@ -2010,114 +2010,139 @@ a { color: inherit; text-decoration: none; }
   .chat-list-search-hint { display: none; }
 }
 
-/* Tablet / iPad: melhora de alinhamento e leitura sem afetar desktop/mobile */
-@media (min-width: 721px) and (max-width: 1180px) {
+/* Tablet / iPad (740–1024px): lista compacta, filtros alinhados, sem “balões” excessivos */
+@media (min-width: 740px) and (max-width: 1024px) {
+  .chat-list-search-hint {
+    display: block;
+    font-size: 10px;
+    line-height: 1.25;
+    padding: 2px 0 0;
+    opacity: 0.82;
+  }
+
   .chat-list-header {
-    min-height: 68px;
-    padding: 12px 14px;
-    gap: 10px;
+    min-height: 58px;
+    padding: 8px 12px;
+    gap: 8px;
   }
 
   .chat-list-header-left {
-    gap: 10px;
+    gap: 8px;
+    min-width: 0;
   }
 
   .chat-list-header-actions {
-    gap: 6px;
+    gap: 4px;
+    flex-shrink: 0;
   }
 
   .chat-list-header-btn {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
   }
 
   .chat-list-search-wrap {
-    padding: 12px 14px;
+    padding: 8px 12px;
   }
 
   .chat-list-search-box {
-    min-height: 46px;
-    padding: 10px 14px;
+    min-height: 42px;
+    padding: 8px 12px;
   }
 
   .chat-list-chips--primary {
-    padding: 9px 12px 8px;
+    padding: 7px 10px 6px;
+  }
+
+  .chat-list-chips--primary::after {
+    width: min(200px, calc(100% - 20px));
+    font-size: 8.5px;
   }
 
   .chat-list-chips--secondary {
     justify-content: flex-start;
-    gap: 6px 7px;
-    padding: 8px 12px 10px;
+    align-content: flex-start;
+    gap: 5px 6px;
+    row-gap: 5px;
+    padding: 6px 10px 8px;
   }
 
   .chat-list-chips--secondary .chat-list-chip {
-    height: 24px;
-    min-height: 24px;
-    padding: 0 9px;
-    font-size: 10.5px;
+    height: 23px;
+    min-height: 23px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  .chat-list-chips--secondary .admin-atendente-filter__trigger {
+    height: 23px;
+    min-height: 23px;
+    padding: 0 8px 0 9px;
+    font-size: 10px;
   }
 
   .chat-list-scroll {
-    padding: 10px 10px 14px;
-    gap: 9px;
+    padding: 6px 8px 10px;
+    gap: 6px;
+    scroll-padding-bottom: 8px;
   }
 
   .chat-list-row {
-    gap: 12px;
-    padding: 14px 14px;
-    min-height: 86px;
-    border-radius: 14px;
+    gap: 10px;
+    padding: 9px 11px;
+    min-height: 68px;
+    border-radius: 11px;
   }
 
   .chat-list-avatar {
-    width: 56px;
-    height: 56px;
-    min-width: 56px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
   }
 
   .chat-list-row-main {
-    gap: 4px;
+    gap: 2px;
   }
 
   .chat-list-title {
-    font-size: 15px;
-    line-height: 1.3;
+    font-size: 14px;
+    line-height: 1.28;
   }
 
   .chat-list-subline,
   .chat-list-setor,
   .chat-list-empresa {
-    font-size: 12px;
-    line-height: 1.3;
+    font-size: 11px;
+    line-height: 1.25;
   }
 
   .chat-list-preview {
-    font-size: 13px;
-    line-height: 1.35;
+    font-size: 12.5px;
+    line-height: 1.3;
   }
 
   .chat-list-time {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .chat-list-status {
-    min-height: 21px;
-    height: 21px;
-    padding: 0 9px;
-    font-size: 10.5px;
+    min-height: 19px;
+    height: 19px;
+    padding: 0 7px;
+    font-size: 10px;
   }
 
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client),
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-badge-await) {
-    min-height: 92px;
-    padding-top: 15px;
-    padding-bottom: 15px;
+    min-height: 76px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   .chat-row-action-trigger {
-    right: 10px;
-    width: 26px;
-    height: 26px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
   }
 }
 

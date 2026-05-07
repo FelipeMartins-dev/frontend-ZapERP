@@ -18,10 +18,17 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Tablet (640-1024px) */
-@media (max-width: 1024px) {
+/* Tablet / iPad (641–1024px): equilíbia sidebar legível e área do chat (mobile usa regra própria abaixo) */
+@media (min-width: 641px) and (max-width: 1024px) {
   .atendimento-layout {
-    grid-template-columns: clamp(300px, 35vw, 360px) 1fr;
+    grid-template-columns: minmax(292px, min(37vw, 356px)) minmax(0, 1fr);
+  }
+}
+
+/* Refino 740–1024px: prioriza largura útil do painel de mensagens */
+@media (min-width: 740px) and (max-width: 1024px) {
+  .atendimento-layout {
+    grid-template-columns: minmax(300px, min(34vw, 332px)) minmax(0, 1fr);
   }
 }
 

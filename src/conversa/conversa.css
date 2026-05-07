@@ -1605,6 +1605,126 @@
 }
 
 /* =========================================================
+   TABLET / IPAD (740–1024px) — atendimento: cabeçalho, composer e bolhas
+   Não altera mobile (≤640) nem desktop largo (>1024).
+========================================================= */
+@media (min-width: 740px) and (max-width: 1024px) {
+  .wa-header {
+    padding: 0 10px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .wa-header-left {
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .wa-header-info {
+    min-width: 0;
+  }
+
+  .wa-header-innerRow {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .wa-atendToolbar--compact {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .wa-atendToolbar-primaryRow {
+    flex-wrap: nowrap;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .wa-header-right {
+    gap: 3px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .wa-header-actionsRow {
+    min-width: 0;
+  }
+
+  .wa-header-actionsRow .wa-actions {
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+
+  .wa-footer {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 10px;
+    min-width: 0;
+  }
+
+  .wa-footer-right {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .wa-autocorrectToggle {
+    gap: 5px;
+    flex-shrink: 0;
+    max-width: 42%;
+  }
+
+  .wa-autocorrectToggle-text {
+    font-size: 11px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wa-footer .wa-iconBtn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .wa-sendBtn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .wa-input {
+    min-width: 120px;
+    flex: 1 1 auto;
+    font-size: 14px;
+    padding: 9px 14px;
+  }
+
+  .wa-recording-bar {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 12px;
+  }
+
+  .wa-bubble {
+    max-width: min(88%, 540px);
+  }
+
+  .wa-swipeReplyTrack {
+    max-width: min(90%, 520px);
+  }
+
+  .wa-row-in .wa-swipeReplyTrack,
+  .wa-row-out .wa-swipeReplyTrack {
+    max-width: min(90%, 520px);
+  }
+}
+
+/* =========================================================
    ESTADO SELECIONADO
 ========================================================= */
 

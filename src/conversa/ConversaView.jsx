@@ -15,7 +15,7 @@ import {
   getPixConfig,
   putPixConfig,
 } from "./conversaService";
-import { isGroupConversation, getStatusAtendimentoEffective } from "../utils/conversaUtils";
+import { isGroupConversation, getStatusAtendimentoEffective, resolveContactMetaFromMessage } from "../utils/conversaUtils";
 import "./conversa.css";
 import api from "../api/http";
 import { useAuthStore } from "../auth/authStore";
@@ -761,30 +761,18 @@ function FileBubbleContent({ msg, mediaUrl, selectMode, onOpenMedia, isGroup, ou
   );
 }
 
-/** Formata telefone para exibição (+55 11 99999-9999) */
-function formatPhoneContact(phone) {
-  let p = String(phone || "").replace(/\D/g, "");
-  if (p.startsWith("55") && p.length > 11) p = p.slice(2);
-  if (p.length >= 10) {
-    const ddd = p.length >= 11 ? p.slice(0, 2) : "";
-    const rest = p.length >= 11 ? p.slice(2) : p;
-    if (ddd && rest.length >= 8) return `+55 ${ddd} ${rest.slice(0, 5)}-${rest.slice(5)}`;
-    return `+55 ${p}`;
-  }
-  return p ? `+${p}` : "";
-}
-
-/** Cartão de contato compartilhado — estilo WhatsApp (foto, nome, horário, status, botões Conversar/Adicionar a um grupo) */
 function ContactBubbleContent({
   msg,
+  contactMeta,
   selectMode,
   isGroup,
   out,
   onConversar,
   onAdicionarGrupo,
 }) {
-  const meta = msg?.contact_meta || { nome: msg?.texto || "Contato", telefone: null, foto_perfil: null };
-  const nome = meta.nome || msg?.texto || "Contato";
+  const meta = contactMeta || resolveContactMetaFromMessage(msg);
+  if (!meta) return null;
+  const nome = meta.nome || "Contato";
   const telefone = meta.telefone || null;
   const fotoPerfil = meta.foto_perfil && String(meta.foto_perfil).trim().startsWith("http")
     ? String(meta.foto_perfil).trim()
@@ -819,7 +807,6 @@ function ContactBubbleContent({
         </div>
         <div className="wa-bubble-contactInfo">
           <span className="wa-bubble-contactName">{nome}</span>
-          {telefone ? <span className="wa-bubble-contactPhone">{formatPhoneContact(telefone)}</span> : null}
           <span className="wa-bubble-contactTimeMeta">
             <span className="wa-bubble-contactTime">{formatHora(msg?.criado_em)}</span>
             <MessageTicks msg={msg} isGroup={Boolean(isGroup)} />
@@ -1022,6 +1009,9 @@ async function copyTextToClipboard(text) {
 }
 
 function snippetFromMsg(msg) {
+  const contactResolved = resolveContactMetaFromMessage(msg);
+  if (contactResolved?.nome) return contactResolved.nome;
+
   const t = safeString(msg?.texto);
   if (t) return t.length > 80 ? `${t.slice(0, 80)}…` : t;
   const tipo = safeString(msg?.tipo);
@@ -1042,7 +1032,6 @@ function snippetFromMsg(msg) {
   if (tipo === "video") return "(vídeo)";
   if (tipo === "sticker") return "(figurinha)";
   if (tipo === "arquivo") return msg?.nome_arquivo ? String(msg.nome_arquivo) : "(arquivo)";
-  if (tipo === "contact") return msg?.contact_meta?.nome || msg?.texto || "(contato)";
   if (tipo === "location") {
     const lm = msg?.location_meta;
     if (lm && typeof lm === "object") {
@@ -1347,7 +1336,8 @@ const Bubble = memo(function Bubble({
   const isVoice = msg?.tipo === "voice";
   const isAudioOrVoice = isAudio || isVoice;
   const isVideo = msg?.tipo === "video";
-  const isContact = msg?.tipo === "contact" && !!msg?.contact_meta;
+  const contactBubbleMeta = useMemo(() => resolveContactMetaFromMessage(msg), [msg]);
+  const isContact = !!contactBubbleMeta;
   const isLocation = msg?.tipo === "location";
   const texto = safeString(msg?.texto);
   const hasText = !!texto;
@@ -1653,6 +1643,7 @@ const Bubble = memo(function Bubble({
               ) : isContact ? (
                 <ContactBubbleContent
                   msg={msg}
+                  contactMeta={contactBubbleMeta}
                   selectMode={selectMode}
                   isGroup={isGroup}
                   out={out}
@@ -1739,6 +1730,7 @@ const Bubble = memo(function Bubble({
           ) : isContact ? (
             <ContactBubbleContent
               msg={msg}
+              contactMeta={contactBubbleMeta}
               selectMode={selectMode}
               isGroup={isGroup}
               out={out}
