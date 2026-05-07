@@ -1744,48 +1744,51 @@
   .wa-footer {
     flex-wrap: nowrap;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px 10px;
+    gap: 6px;
+    padding: 6px 10px 8px;
     min-width: 0;
   }
 
   .wa-footer-right {
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
-  }
-
-  .wa-autocorrectToggle {
-    gap: 5px;
-    flex-shrink: 0;
-    max-width: 42%;
-  }
-
-  .wa-autocorrectToggle-text {
-    font-size: 11px;
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .wa-footer .wa-iconBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
-  .wa-sendBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+  .wa-footer .wa-iconBtn svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .wa-sendBtn,
+  .wa-micBtn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+  }
+
+  .wa-sendBtn svg,
+  .wa-micBtn svg {
+    width: 20px;
+    height: 20px;
   }
 
   .wa-input {
-    min-width: 120px;
-    flex: 1 1 auto;
+    flex: 1 1 0%;
+    min-width: 0;
+    min-height: 38px;
+    max-height: 120px;
     font-size: 14px;
-    padding: 9px 14px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    line-height: 1.35;
   }
 
   .wa-recording-bar {

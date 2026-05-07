@@ -2047,6 +2047,9 @@ export default function ConversaView() {
   const podeGerenciarTags = canTag(user);
   const mostrarEnviarCrm = user?.crm_habilitado !== false;
   const headerCompact = useMatchMedia("(max-width: 640px)");
+  /** Tablet atendimento: mesmo padrão do mobile — correção no menu (+), barra em uma linha */
+  const atendimentoTabletComposer = useMatchMedia("(min-width: 740px) and (max-width: 1024px)");
+  const autocorrectToggleInMenu = headerCompact || atendimentoTabletComposer;
   const composerAppendQueue = useConversaStore((s) => s.composerAppendQueue);
   const clearComposerAppendQueue = useConversaStore((s) => s.clearComposerAppendQueue);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
@@ -6526,7 +6529,7 @@ export default function ConversaView() {
                       <span className="wa-attachItem-icon wa-attachIcon-location" aria-hidden="true">📍</span>
                       <span>Localização</span>
                     </button>
-                    {headerCompact ? (
+                    {autocorrectToggleInMenu ? (
                       <button
                         type="button"
                         className="wa-attachItem wa-attachItem--autocorrect"
@@ -6562,21 +6565,23 @@ export default function ConversaView() {
                   <IconSticker />
                 </button>
               </div>
-              <label
-                className={`wa-autocorrectToggle ${autoCorrectEnabled ? "isEnabled" : ""}`}
-                title="Ativar ou desativar correção ortográfica automática"
-              >
-                <input
-                  type="checkbox"
-                  checked={autoCorrectEnabled}
-                  onChange={(e) => updateAutoCorrectPreference(e.target.checked)}
-                  aria-label="Correção automática"
-                />
-                <span className="wa-autocorrectToggle-track" aria-hidden="true">
-                  <span className="wa-autocorrectToggle-thumb" />
-                </span>
-                <span className="wa-autocorrectToggle-text">Correção automática</span>
-              </label>
+              {!autocorrectToggleInMenu ? (
+                <label
+                  className={`wa-autocorrectToggle ${autoCorrectEnabled ? "isEnabled" : ""}`}
+                  title="Ativar ou desativar correção ortográfica automática"
+                >
+                  <input
+                    type="checkbox"
+                    checked={autoCorrectEnabled}
+                    onChange={(e) => updateAutoCorrectPreference(e.target.checked)}
+                    aria-label="Correção automática"
+                  />
+                  <span className="wa-autocorrectToggle-track" aria-hidden="true">
+                    <span className="wa-autocorrectToggle-thumb" />
+                  </span>
+                  <span className="wa-autocorrectToggle-text">Correção automática</span>
+                </label>
+              ) : null}
               <input
                 ref={fileInputRef}
                 type="file"
