@@ -1610,18 +1610,85 @@
 ========================================================= */
 @media (min-width: 740px) and (max-width: 1024px) {
   .wa-header {
-    padding: 0 10px;
+    padding: 8px 10px 10px;
     gap: 8px;
     align-items: center;
+    overflow-x: clip;
+    min-width: 0;
   }
 
   .wa-header-left {
     gap: 10px;
     min-width: 0;
+    flex: 1 1 0;
   }
 
   .wa-header-info {
     min-width: 0;
+  }
+
+  .wa-header-name {
+    max-width: 100%;
+  }
+
+  /* Uma linha: status + setor + botão; rolagem horizontal se faltar largura (evita “Transferir setor” descendo sobre o thread) */
+  .wa-header-metaStrip {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+    mask-size: 100% 100%;
+    mask-repeat: no-repeat;
+  }
+
+  [data-theme="dark"] .wa-header-metaStrip {
+    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+  }
+
+  .wa-header-metaStrip::-webkit-scrollbar {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+
+  .wa-header-metaItem {
+    flex: 0 1 auto;
+    max-width: min(160px, 32vw);
+  }
+
+  .wa-header-metaStrip .wa-status-pill--meta {
+    flex: 0 0 auto;
+    max-width: min(148px, 28vw);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wa-header-setorBtn {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+
+  /* Rótulos curtos (como ≤640px): libera largura para ícones + Assumir / Transferir */
+  .wa-header-setorBtn .wa-setorBtn-label--full {
+    display: none;
+  }
+
+  .wa-header-setorBtn .wa-setorBtn-label--short {
+    display: inline;
+  }
+
+  .wa-header-actionsRow .wa-actions .wa-atendLabel--long {
+    display: none;
+  }
+
+  .wa-header-actionsRow .wa-actions .wa-atendLabel--short {
+    display: inline;
   }
 
   .wa-header-innerRow {
@@ -1643,9 +1710,17 @@
   }
 
   .wa-header-right {
-    gap: 3px;
+    gap: 4px;
     flex-shrink: 0;
     align-self: center;
+    min-width: min-content;
+  }
+
+  .wa-header-right .wa-header-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
   .wa-header-actionsRow {
@@ -1654,7 +1729,16 @@
 
   .wa-header-actionsRow .wa-actions {
     flex-wrap: nowrap;
-    gap: 5px;
+    gap: 4px;
+  }
+
+  .wa-header-actionsRow .wa-actions button {
+    height: 30px;
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    gap: 4px;
   }
 
   .wa-footer {
