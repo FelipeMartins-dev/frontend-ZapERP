@@ -45,6 +45,7 @@ import * as cfg from "../api/configService";
 import SidebarCliente from "./SidebarCliente";
 import { SwipeReplyTrack } from "./SwipeReplyTrack";
 import { useMatchMedia } from "../hooks/useMatchMedia";
+import { WA_ATENDIMENTO_CHAT_HISTORY_KEY } from "../atendimento/atendimentoMobileHistory";
 import { getAutocorrectEdit } from "../utils/autocorrectText";
 import EmptyState from "../components/feedback/EmptyState";
 import DSToast from "../components/feedback/Toast";
@@ -5010,7 +5011,17 @@ export default function ConversaView() {
           <button
             type="button"
             className="wa-header-back"
-            onClick={() => setSelectedId(null)}
+            onClick={() => {
+              if (
+                headerCompact &&
+                typeof window !== "undefined" &&
+                window.history.state?.[WA_ATENDIMENTO_CHAT_HISTORY_KEY]
+              ) {
+                window.history.back();
+                return;
+              }
+              setSelectedId(null);
+            }}
             aria-label="Voltar para lista de conversas"
             title="Voltar"
           >
