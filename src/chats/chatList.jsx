@@ -1161,11 +1161,13 @@ function ChatRow({
           <UnreadBadge n={unread} />
         </div>
       </div>
-      <ConversationActionMenuTrigger
-        conversationId={id}
-        isOpen={isMenuOpen}
-        onToggle={onToggleMenu}
-      />
+      {!semConversa ? (
+        <ConversationActionMenuTrigger
+          conversationId={id}
+          isOpen={isMenuOpen}
+          onToggle={onToggleMenu}
+        />
+      ) : null}
     </button>
   );
 }
@@ -1179,8 +1181,14 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
   const semB = Boolean(b.sem_conversa && b.cliente_id);
   const setA = prev.pendentesFuncionarioSet;
   const setB = next.pendentesFuncionarioSet;
+  const identityOk =
+    semA && semB
+      ? String(a.cliente_id) === String(b.cliente_id)
+      : !semA && !semB
+        ? String(a.id) === String(b.id)
+        : false;
   return (
-    String(a.id) === String(b.id) &&
+    identityOk &&
     prev.active === next.active &&
     prev.isMenuOpen === next.isMenuOpen &&
     Number(a.unread_count ?? a.unread ?? 0) === Number(b.unread_count ?? b.unread ?? 0) &&
@@ -2604,9 +2612,11 @@ export default function ChatList() {
         ) : (
           chatsFiltrados.map((c) => {
             const id = c?.id;
-            if (id == null || id === "") return null;
-            const rowKey = String(id);
-            const active = id != null && String(selectedId) === String(id);
+            const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
+            if (!clienteSemConv && (id == null || id === "")) return null;
+            const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id);
+            const active =
+              !clienteSemConv && id != null && String(selectedId) === String(id);
 
             return (
               <MemoChatRow
