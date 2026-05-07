@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { shallow } from "zustand/shallow";
 import { useConversaStore, getMessageListReactKey } from "./conversaStore";
 import {
   enviarMensagem,
@@ -36,6 +37,7 @@ import {
 import { getSocket } from "../socket/socket";
 import { saveReplyMeta } from "./replyMeta";
 import { isNearBottom, scrollToBottom } from "./scrollUtils";
+import { ConversaMessageVirtualList } from "./ConversaMessageVirtualList";
 import {
   listarTags,
   adicionarTagConversa,
@@ -2020,25 +2022,65 @@ export default function ConversaView() {
     mensagens,
     loading,
     loadError,
-    refresh,
-    loadMore,
     loadingMore,
     hasMore,
     cursor,
+  } = useConversaStore(
+    (s) => ({
+      conversa: s.conversa,
+      mensagens: s.mensagens,
+      loading: s.loading,
+      loadError: s.loadError,
+      loadingMore: s.loadingMore,
+      hasMore: s.hasMore,
+      cursor: s.cursor,
+    }),
+    shallow
+  );
+
+  const { tags, atendimentos, atendimentosLoading } = useConversaStore(
+    (s) => ({
+      tags: s.tags,
+      atendimentos: s.atendimentos,
+      atendimentosLoading: s.atendimentosLoading,
+    }),
+    shallow
+  );
+
+  const selectedId = useConversaStore((s) => s.selectedId);
+  const setSelectedId = useConversaStore((s) => s.setSelectedId);
+
+  /** Só a entrada da conversa atual — não re-renderiza quando outro chat recebe typing_start. */
+  const typingInfo = useConversaStore((s) => {
+    const id = s.conversa?.id ?? s.selectedId;
+    if (id == null || id === "") return null;
+    return s.typing[String(id)] ?? null;
+  });
+
+  const {
+    refresh,
+    loadMore,
     carregarConversa,
     anexarMensagem,
     removerMensagem,
     removerMensagemTemp,
-    tags,
-    atendimentos,
-    atendimentosLoading,
     carregarAtendimentos,
-    setSelectedId,
-    selectedId,
-    typing,
     clearTyping,
     assumirConversa,
-  } = useConversaStore();
+  } = useConversaStore(
+    (s) => ({
+      refresh: s.refresh,
+      loadMore: s.loadMore,
+      carregarConversa: s.carregarConversa,
+      anexarMensagem: s.anexarMensagem,
+      removerMensagem: s.removerMensagem,
+      removerMensagemTemp: s.removerMensagemTemp,
+      carregarAtendimentos: s.carregarAtendimentos,
+      clearTyping: s.clearTyping,
+      assumirConversa: s.assumirConversa,
+    }),
+    shallow
+  );
 
   const user = useAuthStore((s) => s.user);
   const myUserId = user?.id != null ? Number(user.id) : null;
@@ -2187,6 +2229,8 @@ export default function ConversaView() {
   const [msgInfo, setMsgInfo] = useState(null);
 
   const bottomRef = useRef(null);
+  const virtualThreadRef = useRef(null);
+  const mensagensComSeparadoresRef = useRef([]);
   const fileInputRef = useRef(null);
   const fototecaInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -2373,7 +2417,6 @@ export default function ConversaView() {
     };
   }, [conversaId]);
 
-  const typingInfo = conversaId ? typing[String(conversaId)] : null;
   const isSomeoneTyping = Boolean(
     typingInfo &&
     typingInfo.usuario_id !== myUserId &&
@@ -4200,6 +4243,12 @@ export default function ConversaView() {
 
   const scrollToMsg = useCallback((msgId) => {
     if (!msgId) return;
+    const list = mensagensComSeparadoresRef.current;
+    const idx = list.findIndex((it) => it && it.__type === "msg" && String(it.id) === String(msgId));
+    if (idx >= 0 && virtualThreadRef.current?.scrollToIndex) {
+      virtualThreadRef.current.scrollToIndex(idx, { align: "center", behavior: "smooth" });
+      return;
+    }
     const el = document.querySelector(`[data-msg-id="${String(msgId)}"]`);
     el?.scrollIntoView?.({ behavior: "smooth", block: "center" });
   }, []);
@@ -4702,6 +4751,8 @@ export default function ConversaView() {
 
     return out;
   }, [mensagens, isGroup]);
+
+  mensagensComSeparadoresRef.current = mensagensComSeparadores;
 
   const showAssumeEmptyCta = useMemo(() => {
     if (!conversa?.id || conversa?.mensagens_bloqueadas) return false;
@@ -5520,47 +5571,50 @@ export default function ConversaView() {
               </div>
             </div>
           ) : (
-            <>
-              {mensagensComSeparadores.map((item) => {
-              if (item.__type === "day") return <DaySeparator key={item.id} label={item.label} />;
-              const msgKey = getMessageListReactKey(item, conversaId);
-              return (
-                <Bubble
-                  key={msgKey}
-                  msg={item}
-                  showRemetente={Boolean(item.__showRemetente)}
-                  isGroup={isGroup}
-                  peerAvatarUrl={avatarUrl}
-                  peerName={nome}
-                  selectMode={selectMode}
-                  selected={selectedSet.has(String(msgKey))}
-                  onToggleSelected={toggleSelected}
-                  onInfo={handleInfoAction}
-                  onReply={handleReplyAction}
-                  onCopy={handleCopyResult}
-                  onForward={handleForwardAction}
-                  onTogglePin={togglePin}
-                  onToggleStar={toggleStar}
-                  onStartSelect={startSelect}
-                  onDeleteForMe={handleDeleteForMe}
-                  onDeleteForEveryone={handleDeleteForEveryone}
-                  isPinned={pinnedSet.has(String(msgKey))}
-                  isStarred={starredSet.has(String(msgKey))}
-                  currentUserId={myUserId}
-                  onJumpToReply={jumpToReply}
-                  onOpenMedia={openMediaViewer}
-                  localReaction={localReactions[String(msgKey)] || item.__reaction}
-                  onReact={handleSendReaction}
-                  onRemoveReaction={handleRemoveReaction}
-                  reactionBusy={Boolean(reactionLoading[String(msgKey)])}
-                  onConversarContact={handleConversarContact}
-                  onAdicionarGrupoContact={handleAdicionarGrupoContact}
-                  mostrarNomeAoCliente={user?.mostrar_nome_ao_cliente !== false}
-                  swipeReplyEnabled={headerCompact && !selectMode}
-                />
-              );
-            })}
-            </>
+            <ConversaMessageVirtualList
+              ref={virtualThreadRef}
+              scrollRef={messagesContainerRef}
+              items={mensagensComSeparadores}
+              renderItem={(item) => {
+                if (item.__type === "day") return <DaySeparator key={item.id} label={item.label} />;
+                const msgKey = getMessageListReactKey(item, conversaId);
+                return (
+                  <Bubble
+                    key={msgKey}
+                    msg={item}
+                    showRemetente={Boolean(item.__showRemetente)}
+                    isGroup={isGroup}
+                    peerAvatarUrl={avatarUrl}
+                    peerName={nome}
+                    selectMode={selectMode}
+                    selected={selectedSet.has(String(msgKey))}
+                    onToggleSelected={toggleSelected}
+                    onInfo={handleInfoAction}
+                    onReply={handleReplyAction}
+                    onCopy={handleCopyResult}
+                    onForward={handleForwardAction}
+                    onTogglePin={togglePin}
+                    onToggleStar={toggleStar}
+                    onStartSelect={startSelect}
+                    onDeleteForMe={handleDeleteForMe}
+                    onDeleteForEveryone={handleDeleteForEveryone}
+                    isPinned={pinnedSet.has(String(msgKey))}
+                    isStarred={starredSet.has(String(msgKey))}
+                    currentUserId={myUserId}
+                    onJumpToReply={jumpToReply}
+                    onOpenMedia={openMediaViewer}
+                    localReaction={localReactions[String(msgKey)] || item.__reaction}
+                    onReact={handleSendReaction}
+                    onRemoveReaction={handleRemoveReaction}
+                    reactionBusy={Boolean(reactionLoading[String(msgKey)])}
+                    onConversarContact={handleConversarContact}
+                    onAdicionarGrupoContact={handleAdicionarGrupoContact}
+                    mostrarNomeAoCliente={user?.mostrar_nome_ao_cliente !== false}
+                    swipeReplyEnabled={headerCompact && !selectMode}
+                  />
+                );
+              }}
+            />
           )}
 
           <div ref={bottomRef} />

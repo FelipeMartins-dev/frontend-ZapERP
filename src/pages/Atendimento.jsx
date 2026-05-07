@@ -1,12 +1,55 @@
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import ChatList from "../chats/chatList";
-import ConversaView from "../conversa/ConversaView";
+import { SkeletonChatList } from "../components/feedback/Skeleton";
+import "../components/feedback/skeleton.css";
 import { useConversaStore } from "../conversa/conversaStore";
 import { useChatStore } from "../chats/chatsStore";
-import { updateDocumentTitleFromChats } from "../socket/socket";
+import { applyDocumentTitle } from "../socket/socket";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import { WA_ATENDIMENTO_CHAT_HISTORY_KEY } from "../atendimento/atendimentoMobileHistory";
+
+const ChatList = lazy(() => import("../chats/chatList"));
+const ConversaView = lazy(() => import("../conversa/ConversaView"));
+
+function ChatListPanelFallback() {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        background: "var(--ds-surface-1)",
+      }}
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <SkeletonChatList />
+    </div>
+  );
+}
+
+function ConversaPanelFallback() {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--wa-bg, var(--ds-chat-bg))",
+        color: "var(--wa-text-muted, var(--ds-text-muted))",
+        fontSize: 14,
+      }}
+      aria-busy="true"
+      aria-live="polite"
+    >
+      Carregando…
+    </div>
+  );
+}
 
 export default function Atendimento() {
   const location = useLocation();
@@ -14,14 +57,17 @@ export default function Atendimento() {
   const [searchParams] = useSearchParams();
   const carregarConversa = useConversaStore((s) => s.carregarConversa);
   const selectedId = useConversaStore((s) => s.selectedId);
-  const chats = useChatStore((s) => s.chats);
   /** Mesmo breakpoint do header compacto da conversa — só mobile. */
   const isAtendimentoMobileNav = useMatchMedia("(max-width: 640px)");
   const prevSelectedRef = useRef(null);
 
+  const unreadTitleTotal = useChatStore((s) =>
+    (s.chats || []).reduce((acc, c) => acc + (Number(c.unread_count) || 0), 0)
+  );
+
   useEffect(() => {
-    updateDocumentTitleFromChats();
-  }, [chats]);
+    applyDocumentTitle(unreadTitleTotal);
+  }, [unreadTitleTotal]);
 
   const isRoot = location.pathname === "/atendimento";
   const openConversaId = location.state?.openConversaId;
@@ -95,11 +141,19 @@ export default function Atendimento() {
   return (
     <div className={`atendimento-layout ${selectedId ? "conversation-open" : ""}`}>
       <aside className="atendimento-sidebar">
-        <ChatList />
+        <Suspense fallback={<ChatListPanelFallback />}>
+          <ChatList />
+        </Suspense>
       </aside>
 
       <main className="atendimento-chat-area">
-        {isRoot ? <ConversaView /> : <Outlet />}
+        {isRoot ? (
+          <Suspense fallback={<ConversaPanelFallback />}>
+            <ConversaView />
+          </Suspense>
+        ) : (
+          <Outlet />
+        )}
       </main>
     </div>
   );

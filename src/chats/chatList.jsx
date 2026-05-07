@@ -1,4 +1,4 @@
-import { forwardRef, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil } from "./chatService";
 import { useChatStore } from "./chatsStore";
@@ -33,6 +33,7 @@ import ConversationActionMenu from "./ConversationActionMenu";
 import { useConversationActionMenu } from "./useConversationActionMenu";
 import AdminAtendenteFilter from "./AdminAtendenteFilter";
 import { useAdminAtendenteFilter } from "./useAdminAtendenteFilter";
+import { ChatListSearchBox } from "./ChatListSearchBox";
 import { getClientesPendentesSupervisao, getResumoSupervisao } from "../api/supervisaoService";
 import {
   clearConversation,
@@ -180,46 +181,6 @@ function AtendimentoUnreadDot({ show }) {
     />
   );
 }
-
-function useDebounce(value, delay = 250) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
-
-/**
- * Busca isolada da lista: digitação não re-renderiza o ChatList inteiro (só este bloco);
- * o termo debounced sobe para filtro local em `onDebounced`.
- */
-const ChatListSearchBox = memo(
-  forwardRef(function ChatListSearchBox({ onDebounced, clearNonce, className, placeholder }, ref) {
-    const [value, setValue] = useState("");
-    const debounced = useDebounce(value, 200);
-    const onDebouncedRef = useRef(onDebounced);
-    onDebouncedRef.current = onDebounced;
-    useEffect(() => {
-      onDebouncedRef.current(debounced);
-    }, [debounced]);
-
-    useLayoutEffect(() => {
-      setValue("");
-    }, [clearNonce]);
-
-    return (
-      <input
-        ref={ref}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
-        className={className}
-        autoComplete="off"
-      />
-    );
-  })
-);
 
 function parseToDate(ts) {
   if (!ts) return null;

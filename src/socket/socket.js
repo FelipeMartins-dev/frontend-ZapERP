@@ -47,10 +47,16 @@ function applyDocumentTitle(unreadTotal) {
   document.title = unreadTotal > 0 ? `(${unreadTotal}) ${base}` : base
 }
 
+let documentTitleRaf = null
 function updateDocumentTitleFromChats() {
-  const chats = useChatStore.getState().chats || []
-  const total = chats.reduce((acc, c) => acc + (Number(c.unread_count) || 0), 0)
-  applyDocumentTitle(total)
+  if (typeof document === "undefined") return
+  if (documentTitleRaf != null) return
+  documentTitleRaf = requestAnimationFrame(() => {
+    documentTitleRaf = null
+    const chats = useChatStore.getState().chats || []
+    const total = chats.reduce((acc, c) => acc + (Number(c.unread_count) || 0), 0)
+    applyDocumentTitle(total)
+  })
 }
 
 /**

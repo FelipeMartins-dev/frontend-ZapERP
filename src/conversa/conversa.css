@@ -1157,6 +1157,11 @@
   z-index: 1;
 }
 
+/* Conteúdo virtualizado: altura total definida pelo virtualizer; não encolher no flex column */
+.wa-messages-virtual-root {
+  flex-shrink: 0;
+}
+
 .wa-messages::-webkit-scrollbar {
   width: 5px;
 }
