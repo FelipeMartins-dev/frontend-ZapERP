@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil } from "./chatService";
 import { useChatStore } from "./chatsStore";
@@ -189,6 +189,37 @@ function useDebounce(value, delay = 250) {
   }, [value, delay]);
   return debounced;
 }
+
+/**
+ * Busca isolada da lista: digitação não re-renderiza o ChatList inteiro (só este bloco);
+ * o termo debounced sobe para filtro local em `onDebounced`.
+ */
+const ChatListSearchBox = memo(
+  forwardRef(function ChatListSearchBox({ onDebounced, clearNonce, className, placeholder }, ref) {
+    const [value, setValue] = useState("");
+    const debounced = useDebounce(value, 200);
+    const onDebouncedRef = useRef(onDebounced);
+    onDebouncedRef.current = onDebounced;
+    useEffect(() => {
+      onDebouncedRef.current(debounced);
+    }, [debounced]);
+
+    useLayoutEffect(() => {
+      setValue("");
+    }, [clearNonce]);
+
+    return (
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        className={className}
+        autoComplete="off"
+      />
+    );
+  })
+);
 
 function parseToDate(ts) {
   if (!ts) return null;
@@ -1251,11 +1282,12 @@ export default function ChatList() {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  // busca / filtros avançados (mantidos)
-  const [search, setSearch] = useState("");
-  // Prioriza responsividade da digitação antes de aplicar filtros locais.
-  const deferredSearch = useDeferredValue(search);
-  const debouncedSearch = useDebounce(deferredSearch, 180);
+  // busca: termo debounced no pai (filtro); digitação fica no filho para não re-renderizar a lista inteira
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchClearNonce, setSearchClearNonce] = useState(0);
+  const handleSearchDebounced = useCallback((t) => {
+    setDebouncedSearch(t);
+  }, []);
 
   const [statusFilter, setStatusFilter] = useState("todos");
   const [allTags, setAllTags] = useState([]);
@@ -1636,10 +1668,21 @@ export default function ChatList() {
         combined.sort((a, b) => (order === "antigas" ? getTs(a) - getTs(b) : getTs(b) - getTs(a)));
         return combined;
       });
-      void refreshMinhaFila();
-      void refreshEmAtendimentoBadge();
-      void refreshAguardandoClienteBadge();
-      void refreshSupervisaoData();
+      const rid = requestId;
+      const runSecondaryRefreshes = () => {
+        if (rid !== loadRequestIdRef.current) return;
+        void refreshMinhaFila();
+        void refreshEmAtendimentoBadge();
+        void refreshAguardandoClienteBadge();
+        void refreshSupervisaoData();
+      };
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(runSecondaryRefreshes);
+        });
+      } else {
+        setTimeout(runSecondaryRefreshes, 0);
+      }
     } catch (e) {
       if (requestId !== loadRequestIdRef.current) return;
       console.error("Erro ao carregar conversas:", e);
@@ -1725,7 +1768,8 @@ export default function ChatList() {
         // ESC: fecha filtros e limpa busca
         clearAdminAtendenteFilter();
         setShowFilters(false);
-        setSearch("");
+        setSearchClearNonce((n) => n + 1);
+        setDebouncedSearch("");
         setStatusFilter("todos");
         setTagFilter("todas");
         setDepartamentoFilter("todos");
@@ -2397,10 +2441,10 @@ export default function ChatList() {
             </svg>
           </Icon>
 
-          <input
+          <ChatListSearchBox
             ref={searchRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            clearNonce={searchClearNonce}
+            onDebounced={handleSearchDebounced}
             placeholder="Buscar por nome ou telefone"
             className="chat-list-search-input"
           />
