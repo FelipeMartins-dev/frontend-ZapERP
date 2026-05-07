@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil } from "./chatService";
 import { useChatStore } from "./chatsStore";
@@ -1254,6 +1254,7 @@ export default function ChatList() {
   const scrollRef = useRef(null);
   const scrollSaveRef = useRef(0);
   const scrollTopNoncePrevRef = useRef(0);
+  const loadRequestIdRef = useRef(0);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -1265,7 +1266,9 @@ export default function ChatList() {
 
   // busca / filtros avançados (mantidos)
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 220);
+  // Prioriza responsividade da digitação antes de aplicar filtros locais.
+  const deferredSearch = useDeferredValue(search);
+  const debouncedSearch = useDebounce(deferredSearch, 180);
 
   const [statusFilter, setStatusFilter] = useState("todos");
   const [allTags, setAllTags] = useState([]);
@@ -1526,6 +1529,7 @@ export default function ChatList() {
   }, [user, refreshSupervisaoData]);
 
   async function load() {
+    const requestId = ++loadRequestIdRef.current;
     setLoading(true);
     try {
       /** Modo admin por funcionário: prioridade sobre status/minha_fila/atendente dos filtros avançados — ver chatsFiltrados. */
@@ -1579,6 +1583,7 @@ export default function ChatList() {
       }
 
       const data = await fetchChats(params);
+      if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
       if (!adminPorFuncionario && mineOnly && user?.id && !isAppAdmin(user)) {
         list = list.filter((c) => String(c.atendente_id) === String(user.id));
@@ -1603,6 +1608,7 @@ export default function ChatList() {
       );
       // Merge defensivo: nunca sobrescrever contato_nome/foto_perfil com undefined ou string vazia. Preserva chats locais não retornados pela API.
       setChats((prev) => {
+        if (requestId !== loadRequestIdRef.current) return prev;
         const arr = Array.isArray(prev) ? prev : [];
         const byIdPrev = new Map(arr.map((c) => [String(c.id), c]));
         const fromApi = new Set(list.map((c) => String(c?.id)).filter(Boolean));
@@ -1648,10 +1654,13 @@ export default function ChatList() {
       void refreshAguardandoClienteBadge();
       void refreshSupervisaoData();
     } catch (e) {
+      if (requestId !== loadRequestIdRef.current) return;
       console.error("Erro ao carregar conversas:", e);
       setChats([]);
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 
@@ -1665,7 +1674,6 @@ export default function ChatList() {
     atendenteFilter,
     dataInicio,
     dataFim,
-    debouncedSearch,
     mineOnly,
     order,
     adminAtendenteFilterId,
@@ -1866,8 +1874,7 @@ export default function ChatList() {
           );
         });
       } else if (tab === "aguardando_funcionario") {
-        const pendingSet = new Set(pendentesFuncionarioIds.map((id) => String(id)));
-        list = list.filter((c) => pendingSet.has(String(c?.id ?? "")));
+        list = list.filter((c) => pendentesFuncionarioSet.has(String(c?.id ?? "")));
       }
     }
 
@@ -1996,7 +2003,7 @@ export default function ChatList() {
     adminAtendenteFilterId,
     onlyFinalizadasAusencia,
     aguardandoClienteOnly,
-    pendentesFuncionarioIds,
+    pendentesFuncionarioSet,
   ]);
 
   const visibleConversationIds = useMemo(
@@ -2211,21 +2218,45 @@ export default function ChatList() {
     });
   }, [chatsFiltrados, chatListScrollToTopNonce]);
 
-  // KPIs
-  const total = chats.length;
-  const countHoje = chats.filter((c) => {
-    const last = getLastMessage(c);
-    const ts = last?.criado_em || c?.criado_em;
-    return isToday(ts);
-  }).length;
-  const countAbertas = chats.filter((c) => conversaContaComoAbertaNoChip(c)).length;
+  // KPIs derivados da lista base (memoizados para evitar trabalho repetido por render).
+  const baseCounts = useMemo(() => {
+    let hoje = 0;
+    let abertas = 0;
+    let finalizadas = 0;
+    let finalizadasAuto = 0;
+
+    for (const c of chats) {
+      const last = getLastMessage(c);
+      const ts = last?.criado_em || c?.criado_em;
+      if (isToday(ts)) hoje += 1;
+      if (conversaContaComoAbertaNoChip(c)) abertas += 1;
+
+      if (getStatusAtendimentoEffective(c) === "fechada") {
+        finalizadas += 1;
+        if (
+          String(c?.finalizacao_motivo) === "ausencia_cliente" ||
+          c?.finalizada_automaticamente === true
+        ) {
+          finalizadasAuto += 1;
+        }
+      }
+    }
+
+    return {
+      total: chats.length,
+      hoje,
+      abertas,
+      finalizadas,
+      finalizadasAuto,
+    };
+  }, [chats]);
+
+  const total = baseCounts.total;
+  const countHoje = baseCounts.hoje;
+  const countAbertas = baseCounts.abertas;
   const countEmAtendimento = emAtendimentoBadgeCount;
-  const countFinalizadas = chats.filter((c) => getStatusAtendimentoEffective(c) === "fechada").length;
-  const countFinalizadasAuto = chats.filter(
-    (c) =>
-      getStatusAtendimentoEffective(c) === "fechada" &&
-      (String(c?.finalizacao_motivo) === "ausencia_cliente" || c?.finalizada_automaticamente === true)
-  ).length;
+  const countFinalizadas = baseCounts.finalizadas;
+  const countFinalizadasAuto = baseCounts.finalizadasAuto;
   /** Chip: sempre vem do GET dedicado `aguardando_cliente=1` (escopo backend), não do length da lista atual. */
   const countAguardandoCliente = aguardandoClienteBadgeCount;
   const countAguardandoFuncionario = Number(
