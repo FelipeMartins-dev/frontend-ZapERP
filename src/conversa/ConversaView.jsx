@@ -36,7 +36,7 @@ import {
 } from "./mediaPrint";
 import { getSocket } from "../socket/socket";
 import { saveReplyMeta } from "./replyMeta";
-import { isNearBottom, scrollToBottom } from "./scrollUtils";
+import { isNearBottom } from "./scrollUtils";
 import { ConversaMessageVirtualList } from "./ConversaMessageVirtualList";
 import {
   listarTags,
@@ -666,6 +666,17 @@ function IconPlus(props) {
     <svg viewBox="0 0 24 24" width="24" height="24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
       <path d="M12 5v14" />
       <path d="M5 12h14" />
+    </svg>
+  );
+}
+
+function IconDocument(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="1.6" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
     </svg>
   );
 }
@@ -2021,13 +2032,37 @@ function useStableTimeout() {
   return { set, clear };
 }
 
-function useAutoScroll({ conversaId, loading, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef }) {
+function snapThreadToBottom(container, virtualListRef) {
+  try {
+    virtualListRef?.current?.scrollToEnd?.();
+  } catch {
+    /* ignore */
+  }
+  if (container) {
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function useAutoScroll({
+  conversaId,
+  loading,
+  lastMsgKey,
+  lastMsg,
+  myUserId,
+  messagesContainerRef,
+  shouldStickToBottomRef,
+  virtualListRef,
+}) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
   /** Após `carregarConversa`, o painel de mensagens só tem altura real quando `loading` vira false — scroll antes disso não chega ao fim. */
   const pendingJumpToBottomRef = useRef(false);
 
-  useEffect(() => {
+  // useLayoutEffect síncrono: ancora o scroll na base ANTES do browser pintar.
+  // Isso elimina a "animação visível" (smooth scroll que jogava a tela pra cima
+  // quando o usuário enviava uma mensagem). Para mensagens próprias / stick-to-bottom
+  // a nova bolha simplesmente aparece colada no fundo — sem movimento perceptível.
+  useLayoutEffect(() => {
     const conversaIdAtual = conversaId ? String(conversaId) : null;
     const container = messagesContainerRef?.current;
 
@@ -2063,26 +2098,36 @@ function useAutoScroll({ conversaId, loading, lastMsgKey, lastMsg, myUserId, mes
         lastMsg?.fromMe === true ||
         (myUserId != null && lastMsg?.autor_usuario_id != null && String(lastMsg.autor_usuario_id) === String(myUserId));
       const shouldAutoScroll = Boolean(shouldStickToBottomRef.current || fromMe);
-      if (shouldAutoScroll) {
-        requestAnimationFrame(() => scrollToBottom(container, "smooth"));
+      if (shouldAutoScroll && container) {
+        snapThreadToBottom(container, virtualListRef);
+        requestAnimationFrame(() => {
+          snapThreadToBottom(container, virtualListRef);
+          requestAnimationFrame(() => snapThreadToBottom(container, virtualListRef));
+        });
       }
     }
 
     prevLastKeyRef.current = lastMsgKey;
-  }, [conversaId, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef]);
+  }, [conversaId, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
 
-  useEffect(() => {
+  // Ao abrir/trocar conversa: o virtualizer subestima scrollHeight no 1º frame (estimateSize).
+  // useLayoutEffect + scrollToIndex(último) evita ficar no topo com mensagens antigas visíveis.
+  useLayoutEffect(() => {
     if (!conversaId) return;
     if (!pendingJumpToBottomRef.current) return;
     if (loading) return;
     const container = messagesContainerRef?.current;
     pendingJumpToBottomRef.current = false;
     shouldStickToBottomRef.current = true;
-    requestAnimationFrame(() => {
-      scrollToBottom(container, "auto");
-      requestAnimationFrame(() => scrollToBottom(container, "auto"));
-    });
-  }, [conversaId, loading, messagesContainerRef, shouldStickToBottomRef]);
+    snapThreadToBottom(container, virtualListRef);
+    let n = 0;
+    const chain = () => {
+      n += 1;
+      snapThreadToBottom(container, virtualListRef);
+      if (n < 6) requestAnimationFrame(chain);
+    };
+    requestAnimationFrame(chain);
+  }, [conversaId, loading, lastMsgKey, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
 }
 
 function useGlobalHotkeys({ onToggleTimeline, onFocusInput, onEscape, disabled }) {
@@ -2342,6 +2387,7 @@ export default function ConversaView() {
   const fototecaInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const audioInputRef = useRef(null);
+  const documentInputRef = useRef(null);
   const stickerInputRef = useRef(null);
   const inputRef = useRef(null);
   const waShellRef = useRef(null);
@@ -2422,6 +2468,14 @@ export default function ConversaView() {
 
   useLayoutEffect(() => {
     syncTextareaHeight();
+    // Quando o textarea encolhe (ex.: setTexto("") após enviar) o composer fica menor
+    // e a área de mensagens fica maior, fazendo o scrollTop ser "clampeado" pelo browser
+    // — o usuário sente como se a tela tivesse subido. Re-ancoramos no fundo se o usuário
+    // já estava lá, mantendo a base estável e a experiência "lisa".
+    const c = messagesContainerRef.current;
+    if (c && shouldStickToBottomRef.current) {
+      snapThreadToBottom(c, virtualThreadRef);
+    }
   }, [texto, syncTextareaHeight]);
 
   useEffect(() => {
@@ -2920,6 +2974,7 @@ export default function ConversaView() {
     myUserId,
     messagesContainerRef,
     shouldStickToBottomRef,
+    virtualListRef: virtualThreadRef,
   });
 
   const showToast = useCallback(
@@ -3106,6 +3161,11 @@ export default function ConversaView() {
   const openAudioPicker = useCallback(() => {
     if (!conversaId) return;
     audioInputRef.current?.click();
+  }, [conversaId]);
+
+  const openDocumentPicker = useCallback(() => {
+    if (!conversaId) return;
+    documentInputRef.current?.click();
   }, [conversaId]);
 
   const openShareLocation = useCallback(() => {
@@ -6903,6 +6963,16 @@ export default function ConversaView() {
                       type="button"
                       className="wa-attachItem"
                       role="menuitem"
+                      onClick={() => { openDocumentPicker(); setAttachMenuOpen(false); }}
+                      disabled={sending || !conversaId || !podeEnviar}
+                    >
+                      <span className="wa-attachItem-icon wa-attachIcon-document" aria-hidden="true"><IconDocument /></span>
+                      <span>Documentos</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="wa-attachItem"
+                      role="menuitem"
                       onClick={handlePixMenuClick}
                       disabled={pixActionBusy || sending || !conversaId || !podeEnviar}
                     >
@@ -7012,6 +7082,13 @@ export default function ConversaView() {
                 type="file"
                 style={{ display: "none" }}
                 accept="audio/*,.mp3,.m4a,.ogg,.wav,.aac,.opus,.webm"
+                onChange={handleFileInputChange}
+              />
+              <input
+                ref={documentInputRef}
+                type="file"
+                style={{ display: "none" }}
+                accept="*/*"
                 onChange={handleFileInputChange}
               />
               <input
