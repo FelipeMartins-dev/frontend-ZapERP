@@ -1254,6 +1254,39 @@
   margin-top: 14px;
 }
 
+/* Foto/vídeo + legenda em mensagem seguinte: cantos “colados” estilo WhatsApp */
+.wa-row.wa-row--captionBundleTop {
+  margin-bottom: 0;
+}
+
+.wa-row.wa-row--captionBundleTop + .wa-row.wa-row--captionBundleFollow {
+  margin-top: 0;
+}
+
+.wa-row.wa-row--captionBundleFollow {
+  margin-top: 0;
+}
+
+.wa-row-out.wa-row--captionBundleTop .wa-bubble-out {
+  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+
+.wa-row-out.wa-row--captionBundleFollow .wa-bubble-out {
+  border-top-right-radius: 5px;
+  border-top-left-radius: 5px;
+}
+
+.wa-row-in.wa-row--captionBundleTop .wa-bubble-in {
+  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+
+.wa-row-in.wa-row--captionBundleFollow .wa-bubble-in {
+  border-top-right-radius: 5px;
+  border-top-left-radius: 5px;
+}
+
 .wa-row-in {
   justify-content: flex-start;
   align-items: flex-end;
@@ -4620,6 +4653,47 @@
   animation: wa-mediaPreview-fadeIn 0.16s ease-out;
 }
 
+/* Variante: PDF / áudio / outros — fundo um pouco mais claro, cartão central */
+.wa-mediaPreview--file {
+  background: linear-gradient(180deg, #1a2329 0%, #0b141a 45%);
+}
+
+.wa-fileSendPreview-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 100%;
+  padding: 20px 22px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.wa-fileSendPreview-icon {
+  font-size: 40px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.wa-fileSendPreview-meta {
+  min-width: 0;
+  text-align: left;
+}
+
+.wa-fileSendPreview-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e9edef;
+  word-break: break-word;
+}
+
+.wa-fileSendPreview-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(233, 237, 239, 0.65);
+}
+
 @keyframes wa-mediaPreview-fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -4709,15 +4783,16 @@
   align-items: flex-end;
   gap: 10px;
   padding: 10px 14px 14px;
-  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
+  /* Teclado virtual (iOS): --wa-media-preview-kb-inset é atualizado via JS (visualViewport). */
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0) + var(--wa-media-preview-kb-inset, 0px));
   padding-left: calc(14px + env(safe-area-inset-left, 0));
   padding-right: calc(14px + env(safe-area-inset-right, 0));
   background: linear-gradient(0deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0));
 }
 
 main.main-content--crm .wa-mediaPreview-composer {
-  /* main-content já reserva safe-area no mobile — não duplicar aqui. */
-  padding-bottom: 14px;
+  /* main-content já reserva safe-area no mobile — não duplicar; mantém inset do teclado. */
+  padding-bottom: calc(14px + var(--wa-media-preview-kb-inset, 0px));
 }
 
 .wa-mediaPreview-inputWrap {
@@ -4811,10 +4886,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     padding: 8px 10px 10px;
     padding-left: calc(10px + env(safe-area-inset-left, 0));
     padding-right: calc(10px + env(safe-area-inset-right, 0));
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0) + var(--wa-media-preview-kb-inset, 0px));
   }
 
   main.main-content--crm .wa-mediaPreview-composer {
-    padding-bottom: 10px;
+    padding-bottom: calc(10px + var(--wa-media-preview-kb-inset, 0px));
   }
 
   .wa-mediaPreview-sendBtn {
@@ -6401,7 +6477,7 @@ main.main-content--crm .wa-mediaPreview-composer {
 /* =========================================================
    RESPONSIVIDADE MOBILE — estilo WhatsApp Mobile
    Cabeçalho position:fixed + --wa-mobile-header-h (JS). Só .wa-messages rola.
-   Avatar oculto; 1:1 com .wa-header--atendMobile: uma linha — nome+meta compactos | Transf./Enc./⋯
+   Avatar compacto (32px); 1:1 com .wa-header--atendMobile: uma linha — nome+meta compactos | Transf./Enc./⋯
 ========================================================= */
 
 @media (max-width: 640px) {
@@ -6439,9 +6515,22 @@ main.main-content--crm .wa-mediaPreview-composer {
     touch-action: manipulation;
   }
 
-  /* Foto removida no mobile — mais espaço para nome e status */
+  /* Avatar compacto no mobile — identidade visual sem roubar linhas do título */
   .wa-header-left .wa-avatarWrap {
-    display: none !important;
+    display: block !important;
+    flex-shrink: 0;
+  }
+
+  .wa-header-left .wa-avatarButton {
+    padding: 0;
+  }
+
+  .wa-header-left .wa-avatar,
+  .wa-header-left .wa-avatar-img {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
   }
 
   .wa-header-left {
@@ -6771,6 +6860,13 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-size: 9px !important;
     border-radius: 8px !important;
     line-height: 1.1 !important;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep + .wa-header-metaItem + .wa-header-setorBtn,
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta ~ .wa-header-setorBtn {
+    margin-left: 6px;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-primary,

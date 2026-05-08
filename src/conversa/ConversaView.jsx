@@ -200,6 +200,65 @@ function isOutgoingMessage(msg) {
   return false;
 }
 
+/** Segundos máx. entre foto/vídeo e mensagem de texto para agrupar visualmente como legenda. */
+const CAPTION_BUNDLE_MAX_SEC = 5;
+
+function isMediaCaptionBundleTop(msg) {
+  const t = safeString(msg?.tipo).toLowerCase();
+  return t === "imagem" || t === "video";
+}
+
+function isPlainCaptionFollowMessage(msg) {
+  const t = safeString(msg?.tipo).toLowerCase();
+  const nonText = new Set([
+    "imagem",
+    "video",
+    "sticker",
+    "audio",
+    "voice",
+    "arquivo",
+    "location",
+    "contact",
+    "call",
+    "reaction",
+    "link",
+  ]);
+  if (nonText.has(t)) return false;
+  if (resolveContactMetaFromMessage(msg)) return false;
+  const tx = safeString(msg?.texto);
+  if (!tx) return false;
+  if (msg?.encaminhado || tx.startsWith("[Encaminhado]")) return false;
+  return true;
+}
+
+function messageHasReplyMeta(msg) {
+  const rm = msg?.reply_meta;
+  return !!(rm && (safeString(rm.name) || safeString(rm.snippet)));
+}
+
+function sameCaptionBundleAuthor(prev, cur) {
+  const outPrev = isOutgoingMessage(prev);
+  const outCur = isOutgoingMessage(cur);
+  if (outPrev !== outCur) return false;
+  if (outPrev) {
+    return String(prev?.autor_usuario_id ?? "") === String(cur?.autor_usuario_id ?? "");
+  }
+  const key = (m) => {
+    const tel = safeString(m?.remetente_telefone);
+    const n = safeString(m?.remetente_nome);
+    return tel || n || "";
+  };
+  return key(prev) === key(cur);
+}
+
+function captionFollowTimeOk(prev, cur) {
+  const ta = new Date(prev?.criado_em).getTime();
+  const tb = new Date(cur?.criado_em).getTime();
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return false;
+  const deltaSec = (tb - ta) / 1000;
+  return deltaSec >= 0 && deltaSec <= CAPTION_BUNDLE_MAX_SEC;
+}
+
 // Deixa URLs em texto azuis e clicáveis (http/https)
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
 
@@ -1356,6 +1415,8 @@ const Bubble = memo(function Bubble({
   onAdicionarGrupoContact,
   mostrarNomeAoCliente = true,
   swipeReplyEnabled = false,
+  captionBundleTop = false,
+  captionBundleFollow = false,
 }) {
   const out = isOutgoingMessage(msg);
   const canDeleteForEveryone = useMemo(() => {
@@ -1523,7 +1584,9 @@ const Bubble = memo(function Bubble({
 
   return (
       <div
-        className={`wa-row ${out ? "wa-row-out" : "wa-row-in"}${localReaction ? " wa-row--hasReaction" : ""}`}
+        className={`wa-row ${out ? "wa-row-out" : "wa-row-in"}${localReaction ? " wa-row--hasReaction" : ""}${
+          captionBundleTop ? " wa-row--captionBundleTop" : ""
+        }${captionBundleFollow ? " wa-row--captionBundleFollow" : ""}`}
         data-msg-id={msg?.id}
         data-group-start={showRemetente && !out ? "1" : "0"}
       >
@@ -2170,6 +2233,9 @@ export default function ConversaView() {
   /** Legenda opcional digitada no preview (apenas imagem/vídeo, estilo WhatsApp). */
   const [pendingCaption, setPendingCaption] = useState("");
   const pendingCaptionRef = useRef(null);
+  const mediaPreviewRootRef = useRef(null);
+  const pendingBlobUrlRef = useRef(null);
+  const confirmSendLockRef = useRef(false);
   const [mediaViewer, setMediaViewer] = useState(null); // { url, type, fileName }
   const [mediaPrintLoading, setMediaPrintLoading] = useState(false);
   const mediaViewerImgRef = useRef(null);
@@ -2358,6 +2424,24 @@ export default function ConversaView() {
     syncTextareaHeight();
   }, [texto, syncTextareaHeight]);
 
+  useEffect(() => {
+    pendingBlobUrlRef.current = pendingPreview || null;
+  }, [pendingPreview]);
+
+  useEffect(
+    () => () => {
+      const url = pendingBlobUrlRef.current;
+      if (url && String(url).startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    []
+  );
+
   // Auto-grow do textarea de legenda (preview de mídia, estilo WhatsApp).
   useLayoutEffect(() => {
     const el = pendingCaptionRef.current;
@@ -2368,13 +2452,10 @@ export default function ConversaView() {
     el.style.height = `${Math.min(el.scrollHeight, cap)}px`;
   }, [pendingCaption, pendingFile]);
 
-  // Foco automático no campo de legenda quando o preview de imagem/vídeo abre,
-  // só no desktop — no mobile evitamos abrir o teclado de imediato (o usuário
-  // pode querer apenas conferir/cortar a mídia antes de digitar).
+  // Foco automático no campo de legenda quando o preview abre — só no desktop
+  // (no touch evitamos abrir o teclado de imediato).
   useEffect(() => {
     if (!pendingFile) return;
-    const eligible = isImageFile(pendingFile) || isVideoFile(pendingFile);
-    if (!eligible) return;
     if (typeof window === "undefined") return;
     const isCoarse = window.matchMedia?.("(pointer: coarse)")?.matches;
     if (isCoarse) return;
@@ -2382,6 +2463,76 @@ export default function ConversaView() {
       pendingCaptionRef.current?.focus();
     }, 80);
     return () => clearTimeout(t);
+  }, [pendingFile]);
+
+  /* Preview de envio: inset do teclado (iOS) + foco preso com Tab dentro do diálogo. */
+  useEffect(() => {
+    if (!pendingFile) return undefined;
+    const root = mediaPreviewRootRef.current;
+    if (!root) return undefined;
+
+    const previousActive =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const selector =
+      'button:not([disabled]), textarea:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    const getFocusable = () =>
+      Array.from(root.querySelectorAll(selector)).filter(
+        (el) => el instanceof HTMLElement && root.contains(el) && !el.hasAttribute("disabled")
+      );
+
+    const raf = requestAnimationFrame(() => {
+      const nodes = getFocusable();
+      if (nodes.length) nodes[0].focus?.();
+    });
+
+    const onTrapKeyDown = (e) => {
+      if (e.key !== "Tab") return;
+      const nodes = getFocusable();
+      if (nodes.length === 0) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onTrapKeyDown, true);
+
+    const syncKbInset = () => {
+      const vv = window.visualViewport;
+      if (!vv) {
+        root.style.setProperty("--wa-media-preview-kb-inset", "0px");
+        return;
+      }
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      root.style.setProperty("--wa-media-preview-kb-inset", `${Math.round(inset)}px`);
+    };
+    syncKbInset();
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", syncKbInset);
+    vv?.addEventListener("scroll", syncKbInset);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("keydown", onTrapKeyDown, true);
+      vv?.removeEventListener("resize", syncKbInset);
+      vv?.removeEventListener("scroll", syncKbInset);
+      root.style.removeProperty("--wa-media-preview-kb-inset");
+      if (previousActive && typeof previousActive.focus === "function") {
+        try {
+          previousActive.focus();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
   }, [pendingFile]);
 
   const conversaId = conversa?.id || null;
@@ -3393,15 +3544,11 @@ export default function ConversaView() {
       if (opts.forceStickerType) {
         formData.append("tipo", "sticker");
       }
-      // Legenda opcional (estilo WhatsApp): aparece como texto da mensagem
-      // e como caption junto da mídia enviada ao cliente. Backend usa esse
-      // campo no lugar do nome do arquivo quando estiver presente.
+      // Legenda digitada no preview de mídia. É enviada como uma mensagem de
+      // texto SEPARADA logo após o upload (estratégia que funciona com o
+      // backend atual sem precisar mexer no contrato dele). O cliente recebe
+      // a foto e, em seguida, a descrição.
       const legenda = String(opts.caption ?? "").trim();
-      if (legenda) {
-        formData.append("texto", legenda);
-        formData.append("legenda", legenda);
-        formData.append("caption", legenda);
-      }
 
       setSending(true);
       try {
@@ -3411,6 +3558,21 @@ export default function ConversaView() {
         });
 
         clearPending();
+
+        if (legenda) {
+          try {
+            await enviarMensagem(conversaId, legenda);
+          } catch (sendCaptionErr) {
+            console.error("Erro ao enviar legenda da mídia:", sendCaptionErr);
+            setTexto(legenda);
+            showToast({
+              type: "warning",
+              title: "Legenda não enviada",
+              message: "A foto foi enviada. A legenda foi colocada no campo de mensagem — toque em Enviar para tentar de novo.",
+            });
+          }
+        }
+
         if (!opts.waitSocketOnly && (!data?.id || Number(data?.conversa_id) !== Number(conversaId))) {
           await refresh({ silent: true });
         }
@@ -3428,7 +3590,7 @@ export default function ConversaView() {
         focusMessageInput();
       }
     },
-    [conversaId, refresh, showToast, clearPending, anexarMensagem, podeEnviar, focusMessageInput]
+    [conversaId, refresh, showToast, clearPending, anexarMensagem, podeEnviar, focusMessageInput, setTexto]
   );
 
   const handleFileInputChange = useCallback(
@@ -3501,9 +3663,14 @@ export default function ConversaView() {
   );
 
   const handleConfirmSendFile = useCallback(async () => {
-    if (!pendingFile) return;
-    const captionToSend = pendingCaption;
-    await handleEnviarArquivo(pendingFile, { caption: captionToSend });
+    if (!pendingFile || confirmSendLockRef.current) return;
+    confirmSendLockRef.current = true;
+    try {
+      const captionToSend = pendingCaption;
+      await handleEnviarArquivo(pendingFile, { caption: captionToSend });
+    } finally {
+      confirmSendLockRef.current = false;
+    }
   }, [pendingFile, pendingCaption, handleEnviarArquivo]);
 
   const persistRecentSticker = useCallback(
@@ -4828,6 +4995,29 @@ export default function ConversaView() {
       out.push({ ...msg, __type: "msg", __showRemetente: showRemetente, __reaction: reaction });
     }
 
+    /* Foto/vídeo seguido de texto curto (legenda enviada em mensagem separada): une visualmente. */
+    for (let i = 0; i < out.length; i++) {
+      const row = out[i];
+      if (row.__type !== "msg") continue;
+      let prevIdx = -1;
+      for (let j = i - 1; j >= 0; j--) {
+        if (out[j].__type === "msg") {
+          prevIdx = j;
+          break;
+        }
+      }
+      if (prevIdx < 0) continue;
+      const prev = out[prevIdx];
+      const cur = row;
+      if (!isMediaCaptionBundleTop(prev)) continue;
+      if (!isPlainCaptionFollowMessage(cur)) continue;
+      if (messageHasReplyMeta(cur)) continue;
+      if (!sameCaptionBundleAuthor(prev, cur)) continue;
+      if (!captionFollowTimeOk(prev, cur)) continue;
+      out[prevIdx] = { ...prev, __captionBundleTop: true };
+      out[i] = { ...cur, __captionBundleFollow: true };
+    }
+
     return out;
   }, [mensagens, isGroup]);
 
@@ -5690,6 +5880,8 @@ export default function ConversaView() {
                     onAdicionarGrupoContact={handleAdicionarGrupoContact}
                     mostrarNomeAoCliente={user?.mostrar_nome_ao_cliente !== false}
                     swipeReplyEnabled={headerCompact && !selectMode}
+                    captionBundleTop={Boolean(item.__captionBundleTop)}
+                    captionBundleFollow={Boolean(item.__captionBundleFollow)}
                   />
                 );
               }}
@@ -5699,14 +5891,22 @@ export default function ConversaView() {
           <div ref={bottomRef} />
         </div>
 
-        {/* PREVIEW / PENDENCIA DE ARQUIVO — estilo WhatsApp:
-            imagem/vídeo viram overlay com preview grande e campo de legenda;
-            outros arquivos mantêm o card compacto. */}
-        {pendingFile && (isImageFile(pendingFile) || isVideoFile(pendingFile)) ? (
+        {/* PREVIEW antes de enviar — overlay full-screen (mídia ou arquivo) + legenda opcional */}
+        {pendingFile ? (
           <div
-            className="wa-mediaPreview"
+            ref={mediaPreviewRootRef}
+            className={`wa-mediaPreview${isImageFile(pendingFile) || isVideoFile(pendingFile) ? "" : " wa-mediaPreview--file"}`}
             role="dialog"
-            aria-label={isVideoFile(pendingFile) ? "Pré-visualizar vídeo antes de enviar" : "Pré-visualizar imagem antes de enviar"}
+            aria-modal="true"
+            aria-label={
+              isVideoFile(pendingFile)
+                ? "Pré-visualizar vídeo antes de enviar"
+                : isImageFile(pendingFile)
+                  ? "Pré-visualizar imagem antes de enviar"
+                  : isAudioFile(pendingFile)
+                    ? "Revisar áudio antes de enviar"
+                    : "Revisar arquivo antes de enviar"
+            }
             onKeyDown={(e) => {
               if (e.key === "Escape" && !sending) {
                 e.stopPropagation();
@@ -5726,7 +5926,13 @@ export default function ConversaView() {
                 <IconClose />
               </button>
               <span className="wa-mediaPreview-title">
-                {isVideoFile(pendingFile) ? "Enviar vídeo" : "Enviar foto"}
+                {isVideoFile(pendingFile)
+                  ? "Enviar vídeo"
+                  : isImageFile(pendingFile)
+                    ? "Enviar foto"
+                    : isAudioFile(pendingFile)
+                      ? "Enviar áudio"
+                      : "Enviar arquivo"}
               </span>
               <span className="wa-mediaPreview-spacer" aria-hidden="true" />
             </div>
@@ -5740,12 +5946,26 @@ export default function ConversaView() {
                   playsInline
                   preload="metadata"
                 />
-              ) : (
+              ) : isImageFile(pendingFile) ? (
                 <img
                   src={pendingPreview}
                   alt="Pré-visualização da imagem a enviar"
                   className="wa-mediaPreview-media"
                 />
+              ) : (
+                <div className="wa-fileSendPreview-card">
+                  <div className="wa-fileSendPreview-icon" aria-hidden="true">
+                    {isAudioFile(pendingFile) ? "🎧" : "📎"}
+                  </div>
+                  <div className="wa-fileSendPreview-meta">
+                    <div className="wa-fileSendPreview-name">{pendingFile.name}</div>
+                    <div className="wa-fileSendPreview-sub">
+                      {isAudioFile(pendingFile) ? "Áudio pronto para envio" : "Arquivo pronto para envio"}
+                      <span className="wa-dotSep">•</span>
+                      {(pendingFile.size / 1024 / 1024).toFixed(2)} MB
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -5765,7 +5985,7 @@ export default function ConversaView() {
                   rows={1}
                   className="wa-mediaPreview-input"
                   disabled={sending}
-                  aria-label="Legenda da mídia"
+                  aria-label="Legenda ou comentário junto ao envio"
                   enterKeyHint="send"
                   maxLength={1024}
                 />
@@ -5776,39 +5996,10 @@ export default function ConversaView() {
                 disabled={sending}
                 className="wa-mediaPreview-sendBtn"
                 title="Enviar"
-                aria-label="Enviar mídia"
+                aria-label="Confirmar envio"
               >
                 {sending ? <span className="wa-spinner" aria-hidden="true" /> : <IconSend />}
               </button>
-            </div>
-          </div>
-        ) : pendingFile ? (
-          <div className="wa-pending">
-            <div className="wa-pending-card">
-              <div className="wa-pending-left">
-                <div className="wa-pending-fileIcon" aria-hidden="true">
-                  📎
-                </div>
-
-                <div className="wa-pending-meta">
-                  <div className="wa-pending-name">{pendingFile.name}</div>
-                  <div className="wa-pending-sub">
-                    {isAudioFile(pendingFile) ? "Áudio pronto para envio" : "Arquivo pronto para envio"}
-                    <span className="wa-dotSep">•</span>
-                    {(pendingFile.size / 1024 / 1024).toFixed(2)} MB
-                  </div>
-                </div>
-              </div>
-
-              <div className="wa-pending-right">
-                <button type="button" className="wa-btn wa-btn-ghost" onClick={clearPending} disabled={sending}>
-                  Cancelar
-                </button>
-
-                <button type="button" className="wa-btn wa-btn-primary" onClick={handleConfirmSendFile} disabled={sending}>
-                  {sending ? "Enviando..." : "Enviar"}
-                </button>
-              </div>
             </div>
           </div>
         ) : null}

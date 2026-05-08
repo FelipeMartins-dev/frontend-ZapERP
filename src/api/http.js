@@ -1,5 +1,7 @@
 import axios from "axios"
 import { getApiBaseUrl } from "./baseUrl"
+import { disconnectSocket } from "../socket/socket"
+import { useNotificationStore } from "../notifications/notificationStore"
 
 const baseURL = getApiBaseUrl()
 
@@ -35,9 +37,11 @@ api.interceptors.response.use(
     const status = err?.response?.status
     if (status === 401) {
       localStorage.removeItem("zap_erp_auth")
-      import("../socket/socket")
-        .then((m) => m.disconnectSocket && m.disconnectSocket())
-        .catch(() => {})
+      try {
+        disconnectSocket?.()
+      } catch (_) {
+        /* ignore */
+      }
       if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
         window.location.href = "/login"
       }
@@ -46,7 +50,11 @@ api.interceptors.response.use(
     // Feedback global para erros de servidor/rede (evita tela travada sem aviso)
     if (typeof window !== "undefined") {
       const show = (payload) => {
-        import("../notifications/notificationStore").then((m) => m.useNotificationStore?.getState()?.showToast(payload)).catch(() => {})
+        try {
+          useNotificationStore?.getState()?.showToast?.(payload)
+        } catch (_) {
+          /* ignore */
+        }
       }
       if (status === 403) {
         if (err?.config?.skipGlobal403Toast === true) {
