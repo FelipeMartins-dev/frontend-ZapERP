@@ -209,6 +209,70 @@ function shouldIgnoreByCompany(payload) {
 }
 
 /**
+ * Normaliza payload de `nova_mensagem` para reduzir perdas de renderização quando o backend
+ * usa aliases diferentes (chat_id/id/body/message/type/from_me).
+ * Mantém compatibilidade total com o formato atual.
+ * @param {any} raw
+ */
+function normalizeNovaMensagemPayload(raw) {
+  if (!raw || typeof raw !== "object") return raw
+  const nested = raw?.data && typeof raw.data === "object" ? raw.data : null
+  const normalized = nested ? { ...raw, ...nested } : { ...raw }
+
+  // conversa_id pode vir com alias diferentes dependendo do conector.
+  const chatIdRaw = normalized.chat_id ?? normalized.chatId
+  const chatIdLooksJid = typeof chatIdRaw === "string" && chatIdRaw.includes("@")
+  const hasMessageIdentifiers =
+    normalized.mensagem_id != null ||
+    normalized.message_id != null ||
+    normalized.whatsapp_id != null ||
+    normalized.wamid != null
+  const conversaId =
+    normalized.conversa_id ??
+    normalized.id_conversa ??
+    normalized.conversation_id ??
+    normalized.conversationId ??
+    normalized.conversa?.id ??
+    normalized.chat?.id ??
+    (!chatIdLooksJid ? chatIdRaw : null) ??
+    (!hasMessageIdentifiers ? normalized.id : null)
+  if (conversaId != null && conversaId !== "") normalized.conversa_id = conversaId
+
+  // Texto pode vir em campos alternativos para mensagens inbound.
+  const texto = normalized.texto ?? normalized.conteudo ?? normalized.body ?? normalized.message ?? normalized.text ?? normalized.caption
+  if (texto != null && String(texto).trim() !== "") {
+    if (normalized.texto == null || String(normalized.texto).trim() === "") normalized.texto = texto
+    if (normalized.conteudo == null || String(normalized.conteudo).trim() === "") normalized.conteudo = texto
+  }
+
+  // Direção/autor pode vir como from_me/isFromMe; sem direção a UI pode classificar errado.
+  const fromMeRaw = normalized.fromMe ?? normalized.from_me ?? normalized.isFromMe ?? normalized.is_from_me
+  const fromMe =
+    fromMeRaw === true ||
+    fromMeRaw === 1 ||
+    String(fromMeRaw).toLowerCase() === "true"
+  const dirRaw = String(normalized?.direcao ?? "").trim()
+  if (!dirRaw) normalized.direcao = fromMe ? "out" : "in"
+
+  // Tipo pode vir como `type`/`messageType`.
+  if (!normalized.tipo) {
+    const t = String(normalized.type ?? normalized.messageType ?? "").toLowerCase().trim()
+    if (t) {
+      if (t === "image") normalized.tipo = "imagem"
+      else if (t === "video") normalized.tipo = "video"
+      else if (t === "document" || t === "file") normalized.tipo = "arquivo"
+      else if (t === "audio") normalized.tipo = "audio"
+      else if (t === "sticker") normalized.tipo = "sticker"
+      else if (t === "location") normalized.tipo = "location"
+      else if (t === "contact") normalized.tipo = "contact"
+      else normalized.tipo = t
+    }
+  }
+
+  return normalized
+}
+
+/**
  * Encerrada/reaberta podem vir como `{ conversa: {...}, lista_realtime }`.
  * @param {unknown} payload
  */
@@ -473,15 +537,11 @@ export function initSocket(token) {
   /* ===========================
      🔥 NOVA MENSAGEM (COM SOM + BADGE) — de-dup por whatsapp_id
   =========================== */
-  socket.on(SOCKET_EVENTS.NOVA_MENSAGEM, (msg) => {
+  socket.on(SOCKET_EVENTS.NOVA_MENSAGEM, (rawMsg) => {
+    let msg = normalizeNovaMensagemPayload(rawMsg)
     const conversaId = msg?.conversa_id
     if (!conversaId) return
     if (shouldIgnoreByCompany(msg)) return
-    // Direção vazia quebrava UI/store (mensagens recebidas eram descartadas no dedupe).
-    const dirRaw = String(msg?.direcao ?? "").trim()
-    if (!dirRaw) {
-      msg = { ...msg, direcao: msg?.fromMe ? "out" : "in" }
-    }
 
     const chatStore = useChatStore.getState()
     const convStore = useConversaStore.getState()
