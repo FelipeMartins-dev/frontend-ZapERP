@@ -2461,7 +2461,14 @@ export default function ConversaView() {
     return false;
   }, [contextMatches, getAutoContext, normalizeAutoWord]);
 
-  const focusMessageInput = useCallback(() => {
+  const focusMessageInput = useCallback(({ force = false } = {}) => {
+    if (typeof window !== "undefined" && !force) {
+      // Em mobile/touch, refocar após enviar pode fechar/abrir teclado e causar "pulo" visual.
+      // Mantemos o foco apenas se ele já estiver no próprio input.
+      const isCoarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+      const el = inputRef.current;
+      if (isCoarse && el && document.activeElement !== el) return;
+    }
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const el = inputRef.current;
@@ -2486,12 +2493,18 @@ export default function ConversaView() {
     el.style.height = `${next}px`;
   }, []);
 
+  const prevInputHeightRef = useRef(0);
   useLayoutEffect(() => {
+    const el = inputRef.current;
+    const beforeH = el ? el.getBoundingClientRect().height : prevInputHeightRef.current;
     syncTextareaHeight();
-    // Quando o textarea encolhe (ex.: setTexto("") após enviar) o composer fica menor
-    // e a área de mensagens fica maior, fazendo o scrollTop ser "clampeado" pelo browser
-    // — o usuário sente como se a tela tivesse subido. Re-ancoramos no fundo se o usuário
-    // já estava lá, mantendo a base estável e a experiência "lisa".
+    const afterH = el ? el.getBoundingClientRect().height : beforeH;
+    prevInputHeightRef.current = afterH;
+
+    // Só reancora quando o composer ENCOLHE (caso típico após enviar / limpar texto).
+    // Em digitação normal (crescendo) não forçamos scroll para evitar sensação de "bug".
+    const shrank = Number.isFinite(beforeH) && Number.isFinite(afterH) && afterH < beforeH - 0.5;
+    if (!shrank) return;
     const c = messagesContainerRef.current;
     if (c && shouldStickToBottomRef.current) {
       snapThreadToBottom(c, virtualThreadRef, bottomRef);
