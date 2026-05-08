@@ -1262,28 +1262,6 @@ export default function ChatList() {
   const [mineOnly, setMineOnly] = useState(false);
   const [order, setOrder] = useState("recentes");
   const [showFilters, setShowFilters] = useState(false);
-  /** Evita repetir “recentes + topo” no mesmo chat sem fechar. */
-  const lastOpenedConversaListAlignRef = useRef(null);
-
-  /**
-   * Ao abrir qualquer conversa (lista, link, modal): ordenação “Mais recentes”
-   * e rolagem da lista ao topo — onde ficam as conversas com atividade mais recente.
-   */
-  useLayoutEffect(() => {
-    const sid = selectedId != null && selectedId !== "" ? String(selectedId) : null;
-    if (sid == null) {
-      lastOpenedConversaListAlignRef.current = null;
-      return;
-    }
-    if (lastOpenedConversaListAlignRef.current === sid) return;
-    lastOpenedConversaListAlignRef.current = sid;
-    setOrder("recentes");
-    scrollSaveRef.current = 0;
-    const listEl = scrollRef.current;
-    if (listEl) listEl.scrollTop = 0;
-    useChatStore.getState().requestChatListScrollToTop();
-  }, [selectedId]);
-
   /** Filtro avançado: conversas fechadas com finalização por ausência (reforça query GET /chats). */
   const [onlyFinalizadasAusencia, setOnlyFinalizadasAusencia] = useState(false);
   /** Filtro avançado: conversas em atendimento com humano aguardando resposta do cliente. */
