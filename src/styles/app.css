@@ -306,7 +306,7 @@ body {
   color: var(--ds-accent);
 }
 
-/* Bolinha verde “app notification” — só quando MainLayout passa unreadDot (mobile). */
+/* Bolinha verde “app notification” — quando MainLayout passa unreadDot (ex.: atendimento no mobile, chat interno). */
 .sidebar-nav-iconWrap {
   position: relative;
   display: inline-flex;

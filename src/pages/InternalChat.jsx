@@ -34,6 +34,8 @@ import {
   isMessageMine,
 } from "../internal-chat/messageUtils";
 import { useInternalChatSocket } from "../internal-chat/useInternalChatSocket";
+import { useInternalChatNotifyStore } from "../internal-chat/internalChatNotifyStore";
+import { playInternalChatMessagePing } from "../internal-chat/internalChatMessagePing";
 import "./internalChat.css";
 
 const PAGE_SIZE = 40;
@@ -42,10 +44,6 @@ const INTERNAL_CHAT_NOTIF_LS = "internal_chat_desktop_notif";
 function readDocumentTheme() {
   if (typeof document === "undefined") return "light";
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-}
-
-function sumInternalUnread(conversations) {
-  return conversations.reduce((acc, c) => acc + (Number(c.unreadCount) || 0), 0);
 }
 
 function formatActivityShort(ts) {
@@ -149,7 +147,6 @@ export default function InternalChat() {
   const threadRef = useRef(null);
   const conversationsRef = useRef([]);
   const readDebounceRef = useRef(null);
-  const baseDocTitleRef = useRef("");
 
   const [desktopNotifOptIn, setDesktopNotifOptIn] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -203,20 +200,9 @@ export default function InternalChat() {
   }, []);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    baseDocTitleRef.current = document.title.replace(/^\(\d+\)\s+/, "") || document.title;
-    return () => {
-      if (baseDocTitleRef.current) document.title = baseDocTitleRef.current;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const base = baseDocTitleRef.current;
-    if (!base) return;
-    const n = sumInternalUnread(conversations);
-    document.title = n > 0 ? `(${n}) ${base}` : base;
-  }, [conversations]);
+    if (loading) return;
+    useInternalChatNotifyStore.getState().hydrateFromConversations(conversations);
+  }, [conversations, loading]);
 
   useEffect(() => {
     const onVis = () => {
@@ -548,7 +534,21 @@ export default function InternalChat() {
       );
 
       if (shouldBumpUnread && !isOwn) {
+        playInternalChatMessagePing();
         notifyDesktopInternal(convId, preview);
+        if (typeof document !== "undefined" && document.visibilityState === "visible") {
+          try {
+            useNotificationStore.getState().showToast({
+              type: "info",
+              title: "Chat interno",
+              message: preview,
+              actionLabel: "Ver",
+              onAction: () => setSelectedConversationId(String(convId)),
+            });
+          } catch {
+            /* ignore */
+          }
+        }
       }
     },
     onConversationRead: (payload) => {

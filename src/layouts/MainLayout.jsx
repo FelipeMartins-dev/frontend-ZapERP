@@ -8,6 +8,8 @@ import { getOpenConversationNotificationEventName } from "../notifications/deskt
 import { useConversaStore } from "../conversa/conversaStore";
 import { useChatStore } from "../chats/chatsStore";
 import { useMatchMedia } from "../hooks/useMatchMedia";
+import InternalChatGlobalSocketBridge from "../internal-chat/InternalChatGlobalSocketBridge";
+import { useInternalChatNotifyStore, selectInternalChatUnreadTotal } from "../internal-chat/internalChatNotifyStore";
 import "../components/layout/skip-link.css";
 
 const THEME_KEY = "theme";
@@ -36,6 +38,8 @@ export default function MainLayout() {
   });
   /** Bolinha tipo app: só mobile; lista já reflete nova_mensagem + leitura (setUnread ao abrir chat). */
   const showAtendimentoUnreadDot = isMobileBottomNav && unreadAtendimentoTotal > 0;
+  const internalChatUnreadTotal = useInternalChatNotifyStore(selectInternalChatUnreadTotal);
+  const showInternalChatUnreadDot = internalChatUnreadTotal > 0;
   const canAccessConfig = can("config_acessar", user);
   const canAccessDashboard_ = can("dashboard_acessar", user);
   const canAccessChatbot_ = can("chatbot_acessar", user);
@@ -124,6 +128,7 @@ export default function MainLayout() {
         Pular para o conteúdo principal
       </a>
       <GlobalNotifications />
+      <InternalChatGlobalSocketBridge />
       <aside className="sidebar sidebar--compact" aria-label="Menu">
         <div className="sidebar-brand-compact" title="ZapERP — Atendimento inteligente">
           <ZapERPLogo variant="compact" size="sm" title="ZapERP" />
@@ -133,7 +138,13 @@ export default function MainLayout() {
           {canAccessDashboard_ && <NavItem to="/dashboard/ia" label="IA" icon={<IconBot />} />}
           <NavItem to="/atendimento" label="Atendimento" icon={<IconAtendimento />} unreadDot={showAtendimentoUnreadDot} />
           <NavItem to="/crm" label="CRM" icon={<IconCrm />} title="Funil de vendas e leads" />
-          <NavItem to="/chat-interno" label="Chat interno" icon={<IconInternalTeam />} title="Mensagens entre funcionários (não é WhatsApp)" />
+          <NavItem
+            to="/chat-interno"
+            label="Chat interno"
+            icon={<IconInternalTeam />}
+            title="Mensagens entre funcionários (não é WhatsApp)"
+            unreadDot={showInternalChatUnreadDot}
+          />
           {canAccessSupervisao && <NavItem to="/supervisao" label="Supervisão" icon={<IconSupervisao />} />}
           {canAccessConfig && <NavItem to="/configuracoes" label="Configurações" icon={<IconConfig />} />}
           {canAccessChatbot_ && (

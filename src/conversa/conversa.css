@@ -1631,16 +1631,16 @@
 
   .wa-bubble{
 
-    font-size:15px;
+    font-size:16px;
   }
 
   .wa-bubble-text{
 
-    font-size:15px;
+    font-size:16px;
   }
 
   .wa-bubble-audioCaption {
-    font-size: 15px;
+    font-size: 16px;
   }
 }
 
@@ -7058,7 +7058,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     max-width: 70%;
     min-width: var(--wa-bubble-min-width);
     padding: 10px 12px 12px 12px;
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .wa-bubble-sticker .wa-bubble-img,
@@ -7077,7 +7077,12 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-bubble-meta { font-size: 9px; padding: 0 8px; }
 
   .wa-bubble-text {
-    font-size: 15px;
+    font-size: 16px;
+  }
+
+  .wa-bubble-caption {
+    font-size: 14px;
+    line-height: 1.35;
   }
 
   .wa-daySep {
@@ -7299,11 +7304,16 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-bubble {
     padding: 6px 9px 8px 9px;
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .wa-bubble-text {
-    font-size: 14px;
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .wa-bubble-caption {
+    font-size: 13px;
     line-height: 1.35;
   }
 
@@ -7370,9 +7380,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-size: 12px;
   }
 
-  .wa-bubble { padding: 6px 10px 8px; font-size: 14px; }
+  .wa-bubble { padding: 6px 10px 8px; font-size: 15px; }
 
-  .wa-bubble-text { font-size: 14px; }
+  .wa-bubble-text { font-size: 15px; }
+
+  .wa-bubble-caption { font-size: 13px; }
 
   .wa-footer {
     /* Igual ≤480px: main-content já cobre safe-area, não empilhar aqui. */

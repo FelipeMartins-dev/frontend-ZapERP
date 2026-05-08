@@ -3631,11 +3631,10 @@ export default function ConversaView() {
       if (opts.forceStickerType) {
         formData.append("tipo", "sticker");
       }
-      // Legenda digitada no preview de mídia. É enviada como uma mensagem de
-      // texto SEPARADA logo após o upload (estratégia que funciona com o
-      // backend atual sem precisar mexer no contrato dele). O cliente recebe
-      // a foto e, em seguida, a descrição.
       const legenda = String(opts.caption ?? "").trim();
+      if (legenda) {
+        formData.append("caption", legenda);
+      }
 
       setSending(true);
       try {
@@ -3645,20 +3644,6 @@ export default function ConversaView() {
         });
 
         clearPending();
-
-        if (legenda) {
-          try {
-            await enviarMensagem(conversaId, legenda);
-          } catch (sendCaptionErr) {
-            console.error("Erro ao enviar legenda da mídia:", sendCaptionErr);
-            setTexto(legenda);
-            showToast({
-              type: "warning",
-              title: "Legenda não enviada",
-              message: "A foto foi enviada. A legenda foi colocada no campo de mensagem — toque em Enviar para tentar de novo.",
-            });
-          }
-        }
 
         if (!opts.waitSocketOnly && (!data?.id || Number(data?.conversa_id) !== Number(conversaId))) {
           await refresh({ silent: true });
@@ -3677,7 +3662,7 @@ export default function ConversaView() {
         focusMessageInput();
       }
     },
-    [conversaId, refresh, showToast, clearPending, anexarMensagem, podeEnviar, focusMessageInput, setTexto]
+    [conversaId, refresh, showToast, clearPending, podeEnviar, focusMessageInput]
   );
 
   const handleFileInputChange = useCallback(
