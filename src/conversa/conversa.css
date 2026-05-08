@@ -4896,15 +4896,15 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-mediaPreview-sendBtn {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    min-height: 46px;
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
+    min-height: 50px;
   }
 
   .wa-mediaPreview-sendBtn svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
   }
 
   .wa-mediaPreview-input {
@@ -6509,10 +6509,10 @@ main.main-content--crm .wa-mediaPreview-composer {
     display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     flex-shrink: 0;
     touch-action: manipulation;
   }
@@ -6542,7 +6542,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   /* Cabeçalho preso ao topo — uma fileira: voltar | contato+meta | ações (tag, CRM, ⋮) */
   .wa-header {
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
     grid-template-rows: auto;
     align-items: center;
     column-gap: 6px;
@@ -6699,12 +6699,12 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 0 0 auto;
     max-width: min(calc(100vw - 140px), 220px);
     width: auto;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     line-height: 1.2;
     height: auto;
-    min-height: 22px;
-    padding: 4px 10px;
+    min-height: 26px;
+    padding: 5px 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -6746,7 +6746,7 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   /* Atendimento 1:1 no telefone: uma única linha — voltar | nome + meta compactos | Transf. / Encerr. / ⋯ */
   .wa-header.wa-header--atendMobile {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
     grid-template-rows: auto;
     align-items: center;
     column-gap: 6px;
@@ -6849,11 +6849,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 2px 6px;
-    min-height: 16px;
-    max-width: min(42vw, 160px);
+    padding: 5px 11px;
+    min-height: 26px;
+    max-width: min(52vw, 200px);
   }
 
   .wa-header.wa-header--atendMobile .wa-header-setorBtn {
@@ -6876,29 +6876,29 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-danger,
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-secondary,
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-aguardar-cliente {
-    min-height: 26px !important;
-    height: 26px !important;
-    padding: 0 5px !important;
-    font-size: 9px !important;
-    border-radius: 6px !important;
-    line-height: 1.1 !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+    line-height: 1.15 !important;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn-icon svg {
-    width: 11px;
-    height: 11px;
+    width: 14px;
+    height: 14px;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
-    width: 28px !important;
-    height: 28px !important;
-    min-width: 28px !important;
-    min-height: 28px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger svg {
-    width: 14px !important;
-    height: 14px !important;
+    width: 18px !important;
+    height: 18px !important;
   }
 
   /* Direita: ícones opcionais + CRM + contato — flex, sem rolagem horizontal */
@@ -6927,10 +6927,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header-btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
     border-radius: 12px;
     background: var(--ds-hover);
     color: var(--wa-text-muted);
@@ -6939,11 +6939,11 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   /* Relógio e ⋯ menores; botão contato mantém área confortável */
   .wa-header-btn--micro {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
-    border-radius: 10px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    border-radius: 11px !important;
     background: rgba(255, 255, 255, 0.06) !important;
     transform: none !important;
   }
@@ -6953,8 +6953,8 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header-btn--micro svg {
-    width: 16px !important;
-    height: 16px !important;
+    width: 18px !important;
+    height: 18px !important;
   }
 
   .wa-header-btn--micro:hover {
@@ -6991,11 +6991,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   /* Ações CRM em fileira completa (desktop em grid estreito) */
   .wa-header-actionsRow .wa-actions button {
     flex-shrink: 0;
-    min-height: 36px;
-    padding: 0 12px;
-    font-size: 13px;
+    min-height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 9px;
     line-height: 1;
     touch-action: manipulation;
   }
@@ -7018,31 +7018,31 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-atendToolbar--compact .wa-btn-danger,
   .wa-atendToolbar--compact .wa-btn-secondary,
   .wa-atendToolbar--compact .wa-btn-aguardar-cliente {
-    min-height: 28px !important;
-    height: 28px !important;
-    padding: 0 7px !important;
-    font-size: 10px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
-    border-radius: 7px !important;
-    line-height: 1.1 !important;
+    border-radius: 8px !important;
+    line-height: 1.15 !important;
     letter-spacing: 0.02em;
   }
 
   .wa-atendToolbar--compact .wa-atendBtn-icon svg {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
   }
 
   .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
   }
 
   .wa-atendToolbar-overflowTrigger svg {
-    width: 16px !important;
-    height: 16px !important;
+    width: 18px !important;
+    height: 18px !important;
   }
 
   .wa-messages {
@@ -7055,10 +7055,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-bubble {
-    max-width: 70%;
+    max-width: 76%;
     min-width: var(--wa-bubble-min-width);
-    padding: 10px 12px 12px 12px;
-    font-size: 16px;
+    padding: 12px 14px 14px 14px;
+    font-size: 17px;
   }
 
   .wa-bubble-sticker .wa-bubble-img,
@@ -7074,24 +7074,26 @@ main.main-content--crm .wa-mediaPreview-composer {
     max-height: 280px;
   }
 
-  .wa-bubble-meta { font-size: 9px; padding: 0 8px; }
+  .wa-bubble-meta { font-size: 10.5px; padding: 0 8px; }
 
   .wa-bubble-text {
-    font-size: 16px;
+    font-size: 17px;
+    line-height: 1.38;
   }
 
   .wa-bubble-caption {
-    font-size: 14px;
-    line-height: 1.35;
+    font-size: 15px;
+    line-height: 1.38;
   }
 
   .wa-daySep {
-    padding: 12px 0;
+    padding: 14px 0;
   }
 
   .wa-daySep-pill {
-    padding: 5px 12px;
-    font-size: 11px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
   }
 
   .wa-timeline {
@@ -7141,24 +7143,25 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-footer .wa-iconBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
   }
 
   .wa-footer .wa-attachPlus svg,
   .wa-footer .wa-cameraQuickBtn svg,
   .wa-footer .wa-micBtn svg {
-    width: 21px;
-    height: 21px;
+    width: 24px;
+    height: 24px;
   }
 
-  .wa-sendBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+  .wa-sendBtn,
+  .wa-micBtn {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
   }
 
   .wa-input {
@@ -7200,7 +7203,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 }
 
-/* Mobile (480px): visual WhatsApp — header com contato, mensagens compactas, teclas menores */
+/* Mobile (480px): mantém alvos de toque e bolhas legíveis (não reduzir em relação ao ≤640px) */
 @media (max-width: 480px) {
   .wa-shell {
     width: 100%;
@@ -7216,7 +7219,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   /* Refino telas estreitas — cabeçalho continua fixed (≤640px); mantém grid de 1 linha */
   .wa-header {
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
     padding: 6px calc(8px + env(safe-area-inset-left, 0)) 8px calc(8px + env(safe-area-inset-right, 0));
     padding-top: max(6px, env(safe-area-inset-top, 0));
     column-gap: 6px;
@@ -7232,10 +7235,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header-back {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .wa-header-left {
@@ -7244,16 +7247,16 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header-name {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     max-width: 100%;
   }
 
   .wa-header-right .wa-header-btn--micro {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
   }
 
   .wa-header-setorRow {
@@ -7263,30 +7266,29 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header-setorBtn {
-    padding: 2px 6px;
-    font-size: 10px;
+    padding: 3px 8px;
+    font-size: 11px;
   }
 
   .wa-header-right .wa-header-btn {
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    min-height: 38px;
-    border-radius: 11px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
+    border-radius: 12px;
   }
 
   .wa-header-actionsRow .wa-actions button {
-    height: 28px;
-    min-height: 28px;
-    padding: 0 7px;
-    font-size: 10px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 
-  /* Mensagens menores para caber mais na tela */
   .wa-messages {
-    padding: 6px 8px 8px;
-    padding-left: calc(8px + env(safe-area-inset-left, 0));
-    padding-right: calc(8px + env(safe-area-inset-right, 0));
+    padding: 8px 10px 10px;
+    padding-left: calc(10px + env(safe-area-inset-left, 0));
+    padding-right: calc(10px + env(safe-area-inset-right, 0));
   }
 
   .wa-row {
@@ -7303,29 +7305,30 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-bubble {
-    padding: 6px 9px 8px 9px;
-    font-size: 15px;
+    padding: 12px 14px 14px 14px;
+    font-size: 17px;
   }
 
   .wa-bubble-text {
-    font-size: 15px;
-    line-height: 1.35;
+    font-size: 17px;
+    line-height: 1.38;
   }
 
   .wa-bubble-caption {
-    font-size: 13px;
-    line-height: 1.35;
+    font-size: 15px;
+    line-height: 1.38;
   }
 
-  .wa-bubble-meta { font-size: 9px; gap: 2px; padding: 0 6px; }
+  .wa-bubble-meta { font-size: 10px; gap: 2px; padding: 0 8px; }
 
-  .wa-ticks { font-size: 10px; }
+  .wa-ticks { font-size: 11px; }
 
-  .wa-daySep { padding: 5px 0; }
+  .wa-daySep { padding: 12px 0; }
 
   .wa-daySep-pill {
-    padding: 3px 8px;
-    font-size: 10px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
   }
 
   .wa-footer {
@@ -7343,16 +7346,16 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-footer .wa-iconBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
   }
 
-  .wa-footer-right { gap: 4px; }
+  .wa-footer-right { gap: 6px; }
 
   .wa-input {
-    min-height: 40px;
+    min-height: 44px;
     max-height: 120px;
     min-width: 60px;
     padding: 10px 14px;
@@ -7362,10 +7365,10 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-sendBtn,
   .wa-micBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
   }
 }
 
@@ -7380,18 +7383,18 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-size: 12px;
   }
 
-  .wa-bubble { padding: 6px 10px 8px; font-size: 15px; }
+  .wa-bubble { padding: 12px 13px 13px; font-size: 17px; }
 
-  .wa-bubble-text { font-size: 15px; }
+  .wa-bubble-text { font-size: 17px; }
 
-  .wa-bubble-caption { font-size: 13px; }
+  .wa-bubble-caption { font-size: 15px; }
 
   .wa-footer {
     /* Igual ≤480px: main-content já cobre safe-area, não empilhar aqui. */
     padding: 8px 8px 10px;
     padding-left: calc(8px + env(safe-area-inset-left, 0));
     padding-right: calc(8px + env(safe-area-inset-right, 0));
-    gap: 4px;
+    gap: 6px;
   }
 
   main.main-content--crm .wa-footer {
@@ -7399,16 +7402,16 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-footer .wa-iconBtn {
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    min-height: 38px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .wa-input {
     min-width: 0;
     flex: 1 1 0%;
-    min-height: 40px;
+    min-height: 44px;
     max-height: 110px;
     padding: 8px 12px;
     font-size: 16px;
@@ -7416,10 +7419,10 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-sendBtn,
   .wa-micBtn {
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    min-height: 38px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

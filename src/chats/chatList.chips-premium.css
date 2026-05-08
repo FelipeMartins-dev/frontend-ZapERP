@@ -109,22 +109,23 @@
 
 @media (max-width: 640px) {
   .chat-list-chips-wrap {
-    gap: 4px 6px;
-    padding: 6px 10px;
+    gap: 6px 8px;
+    padding: 8px 12px;
     align-content: flex-start;
-    max-height: 86px; /* ~3 linhas de chips compactos */
+    max-height: 104px; /* ~3 linhas com chips mais altos (toque) */
     overflow: hidden;
   }
 
   .chat-list-chips-wrap .chat-list-chip--primary,
   .chat-list-chips-wrap .chat-list-chips--secondary .chat-list-chip {
-    font-size: 11px;
-    padding: 3px 8px;
-    min-height: 22px;
+    font-size: 13px;
+    padding: 6px 12px;
+    min-height: 34px;
   }
 
   .chat-list-chips-wrap .chat-list-chip--primary .chat-list-chip-count,
   .chat-list-chips-wrap .chat-list-chips--secondary .chat-list-chip-count {
-    font-size: 10px;
+    font-size: 11px;
+    padding: 2px 6px;
   }
 }

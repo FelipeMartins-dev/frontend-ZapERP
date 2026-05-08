@@ -618,6 +618,24 @@ body {
     flex: 0 0 auto;
   }
 
+  /* Atendimento (lista visível): barra inferior um pouco mais alta para toque e leitura */
+  .app-layout:has(.atendimento-layout:not(.conversation-open)).app-layout--crm .sidebar-nav--compact .sidebar-nav-item,
+  .app-layout:has(.atendimento-layout:not(.conversation-open)).app-layout--crm .sidebar-footer--compact .sidebar-theme-toggle,
+  .app-layout:has(.atendimento-layout:not(.conversation-open)).app-layout--crm .sidebar-footer--compact .sidebar-logout {
+    min-height: 62px;
+    min-width: 62px;
+    max-width: 90px;
+    padding: 6px 4px;
+    gap: 5px;
+  }
+
+  .app-layout:has(.atendimento-layout:not(.conversation-open)).app-layout--crm .sidebar-nav--compact .sidebar-nav-label,
+  .app-layout:has(.atendimento-layout:not(.conversation-open)).app-layout--crm .sidebar-footer--compact .sidebar-nav-label {
+    font-size: 10px;
+    max-width: 74px;
+    line-height: 1.12;
+  }
+
   .app-layout {
     height: 100vh;
     height: 100dvh;
@@ -639,6 +657,11 @@ body {
   /* Barra CRM com scroll pode ficar um pouco mais alta (ícone + 2 linhas de rótulo) */
   .main-content.main-content--crm {
     padding-bottom: calc(84px + env(safe-area-inset-bottom, 0));
+  }
+
+  /* Lista de atendimento: barra inferior um pouco mais alta — evita corte na última linha da lista */
+  .main-content.main-content--crm:has(.atendimento-layout:not(.conversation-open)) {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0));
   }
 
   /* Atendimento: rolagem só dentro do layout (lista + chat), não no main */

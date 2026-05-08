@@ -188,3 +188,23 @@
   background: var(--cl-surface, #fff);
   border: 1px solid var(--cl-border);
 }
+
+@media (max-width: 640px) {
+  .admin-atendente-filter__trigger {
+    height: 36px;
+    min-height: 36px;
+    padding: 0 12px 0 12px;
+    font-size: 13px;
+    border-radius: 18px;
+  }
+
+  .admin-atendente-filter__clear {
+    width: 28px;
+    height: 28px;
+  }
+
+  .admin-atendente-filter__chev-wrap {
+    width: 22px;
+    height: 22px;
+  }
+}
