@@ -716,6 +716,59 @@ body {
   }
 }
 
+/* Atendimento mobile: tipografia em negrito na lista e no chat */
+@media (max-width: 640px) {
+  .atendimento-sidebar .chat-list-search-input,
+  .atendimento-sidebar .chat-list-title,
+  .atendimento-sidebar .chat-list-preview,
+  .atendimento-sidebar .chat-list-setor,
+  .atendimento-sidebar .chat-list-subline,
+  .atendimento-sidebar .chat-list-empresa,
+  .atendimento-sidebar .chat-list-time,
+  .atendimento-sidebar .chat-list-chip,
+  .atendimento-sidebar .chat-list-status,
+  .atendimento-sidebar .chat-list-unread,
+  .atendimento-sidebar .chat-list-avatar-text,
+  .atendimento-sidebar .chat-list-inline-indicator,
+  .atendimento-sidebar .chat-list-chips--primary::after {
+    font-weight: 700;
+  }
+
+  .atendimento-sidebar .chat-list-header-title {
+    font-weight: 700;
+  }
+
+  .atendimento-sidebar .admin-atendente-filter__trigger,
+  .atendimento-sidebar .admin-atendente-filter__option {
+    font-weight: 700;
+  }
+
+  .atendimento-chat-area .wa-bubble-text,
+  .atendimento-chat-area .wa-bubble-caption,
+  .atendimento-chat-area .wa-daySep-pill,
+  .atendimento-chat-area .wa-input,
+  .atendimento-chat-area .wa-bubble-remetente,
+  .atendimento-chat-area .wa-bubble-remetente-nome,
+  .atendimento-chat-area .wa-bubble-atendente,
+  .atendimento-chat-area .wa-replyCtx-name,
+  .atendimento-chat-area .wa-replyCtx-snippet,
+  .atendimento-chat-area .wa-inlineMeta,
+  .atendimento-chat-area .wa-bubble-meta,
+  .atendimento-chat-area .wa-header-name,
+  .atendimento-chat-area .wa-header-metaItem,
+  .atendimento-chat-area .wa-header-setor,
+  .atendimento-chat-area .wa-status-pill--meta,
+  .atendimento-chat-area .wa-header-setorBtn,
+  .atendimento-chat-area .wa-header-actionsRow .wa-actions button {
+    font-weight: 700;
+  }
+
+  .atendimento-chat-area .wa-header .wa-status-pill--meta,
+  .atendimento-chat-area .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta {
+    font-weight: 700;
+  }
+}
+
 /* Desktop / tablet largo: rótulo "Sair" só na barra mobile */
 .sidebar-footer--compact .sidebar-nav-label {
   display: none;

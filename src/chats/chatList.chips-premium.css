@@ -112,8 +112,8 @@
     gap: 6px 8px;
     padding: 8px 12px;
     align-content: flex-start;
-    max-height: 104px; /* ~3 linhas com chips mais altos (toque) */
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
   }
 
   .chat-list-chips-wrap .chat-list-chip--primary,
