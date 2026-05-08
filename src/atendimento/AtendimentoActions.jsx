@@ -87,6 +87,15 @@ function IconAtendClose() {
   );
 }
 
+function IconAtendReopen() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 13a7 7 0 1 0-9.89-9.89L6 7" />
+      <path d="M6 3v4h4" />
+    </svg>
+  );
+}
+
 function AtendimentoActionIcon({ id }) {
   switch (id) {
     case "transferir":
@@ -95,6 +104,8 @@ function AtendimentoActionIcon({ id }) {
       return <IconAtendWait />;
     case "encerrar":
       return <IconAtendClose />;
+    case "reabrir":
+      return <IconAtendReopen />;
     default:
       return null;
   }
@@ -124,8 +135,8 @@ function renderOverflowSheetIcon(id) {
   }
 }
 
-/** Mobile: só estas ficam na barra; o resto vai para o menu ⋯ */
-const MOBILE_TOOLBAR_PINNED = new Set(["assumir", "transferir", "encerrar"]);
+/** Mobile: estas ficam na barra; o resto vai para o menu ⋯. Reabrir entra na barra quando a conversa está finalizada. */
+const MOBILE_TOOLBAR_PINNED_BASE = ["assumir", "transferir", "encerrar"];
 
 /**
  * @param {object} props
@@ -480,21 +491,24 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       id: "reabrir",
       className: "wa-btn-secondary",
       labelLong: "Reabrir",
-      labelShort: "Reabr.",
+      labelShort: "Reabrir",
       onClick: handleReabrir,
       title: "Reabrir conversa",
       ariaLabel: "Reabrir conversa",
     });
   }
 
+  const mobileToolbarPinned = new Set(MOBILE_TOOLBAR_PINNED_BASE);
+  if (podeReabrir) mobileToolbarPinned.add("reabrir");
+
   const overflowExtra = typeof overflowTop === "function" ? overflowTop(closeMenu) : null;
   const compactOverflowActions = compactToolbar
-    ? actions.filter((a) => !MOBILE_TOOLBAR_PINNED.has(a.id))
+    ? actions.filter((a) => !mobileToolbarPinned.has(a.id))
     : [];
   const compactInlineActions = compactToolbar
-    ? actions.filter((a) => MOBILE_TOOLBAR_PINNED.has(a.id))
+    ? actions.filter((a) => mobileToolbarPinned.has(a.id))
     : actions;
-  /** Mobile: barra só com Assumir / Transferir / Encerrar; demais no ⋯ + extras (Histórico, tags…). */
+  /** Mobile: barra com Assumir / Transferir / Encerrar (+ Reabrir se finalizada); demais no ⋯ + extras. */
   const showCompactOverflowMenu =
     compactToolbar && (Boolean(overflowExtra) || compactOverflowActions.length > 0);
 

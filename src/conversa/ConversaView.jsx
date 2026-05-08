@@ -25,7 +25,7 @@ import AtendimentoActions from "../atendimento/AtendimentoActions";
 import SendToCrmChatButton, { IconFunnelSend } from "./SendToCrmChatButton";
 import ProdutoConsultaPanel from "./ProdutoConsultaPanel";
 import { useChatStore } from "../chats/chatsStore";
-import { fetchChats, abrirConversaCliente, abrirConversaPorTelefone } from "../chats/chatService";
+import { fetchChats, abrirConversaCliente, abrirConversaPorTelefone, conversaFromContatoResponse } from "../chats/chatService";
 import { forwardAtendimentoMessageToColaborador } from "../api/internalChatService";
 import { getDisplayName } from "../chats/chatList";
 import { getApiBaseUrl } from "../api/baseUrl";
@@ -2258,19 +2258,23 @@ export default function ConversaView() {
   /** Tablet atendimento: mesmo padrão do mobile — correção no menu (+), barra em uma linha */
   const atendimentoTabletComposer = useMatchMedia("(min-width: 740px) and (max-width: 1024px)");
   const autocorrectToggleInMenu = headerCompact || atendimentoTabletComposer;
+  /** Mobile/tablet: tecla Retorno do teclado virtual insere nova linha; enviar só pelo botão (evita enterKeyHint=send esconder o enter). */
+  const composerEnterInsertsNewline = headerCompact || atendimentoTabletComposer;
   const composerAppendQueue = useConversaStore((s) => s.composerAppendQueue);
   const clearComposerAppendQueue = useConversaStore((s) => s.clearComposerAppendQueue);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
 
   const podeEnviar = useMemo(() => {
     if (!user?.id || !conversa?.id) return false;
+    /** Grupos: qualquer usuário pode enviar sem assumir atendimento (modelo WhatsApp). */
+    if (isGroupConversation(conversa)) return true;
     if (conversa?.mensagens_bloqueadas) return false;
     const perfil = String(user?.perfil || user?.role || "").toLowerCase();
     if (perfil === "admin") return true;
     const atendenteId = conversa?.atendente_id ?? null;
     if (atendenteId == null || atendenteId === "") return false;
     return String(atendenteId) === String(user.id);
-  }, [user?.id, user?.perfil, user?.role, conversa?.atendente_id, conversa?.id, conversa?.mensagens_bloqueadas]);
+  }, [user?.id, user?.perfil, user?.role, conversa, conversa?.atendente_id, conversa?.id, conversa?.mensagens_bloqueadas]);
 
   const [texto, setTexto] = useState("");
   const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
@@ -4333,6 +4337,11 @@ export default function ConversaView() {
 
       if (key !== "Enter") return;
 
+      if (composerEnterInsertsNewline) {
+        applyAutocorrectFromEvent(e, "\n");
+        return;
+      }
+
       if (e.shiftKey) {
         applyAutocorrectFromEvent(e, "\n");
         return;
@@ -4345,7 +4354,7 @@ export default function ConversaView() {
         : texto;
       handleEnviar(textToSend);
     },
-    [applyAutocorrectFromEvent, handleEnviar, texto]
+    [applyAutocorrectFromEvent, composerEnterInsertsNewline, handleEnviar, texto]
   );
 
   const persistPins = useCallback((next) => {
@@ -4925,7 +4934,7 @@ export default function ConversaView() {
       }
       try {
         const data = await abrirConversaPorTelefone(meta.nome || "Contato", meta.telefone);
-        const conv = data?.conversa || data || null;
+        const conv = data?.conversa ?? conversaFromContatoResponse(data) ?? null;
         if (!conv?.id) throw new Error("Não foi possível abrir a conversa.");
         try { useChatStore.getState().addChat(conv); } catch {}
         setSelectedId(conv.id);
@@ -5109,6 +5118,7 @@ export default function ConversaView() {
   mensagensComSeparadoresRef.current = mensagensComSeparadores;
 
   const showAssumeEmptyCta = useMemo(() => {
+    if (isGroup) return false;
     if (!conversa?.id || conversa?.mensagens_bloqueadas) return false;
     if (conversa?.exibir_cta_assumir_sem_mensagens !== true) return false;
     if (!canAssumir(user)) return false;
@@ -5130,7 +5140,7 @@ export default function ConversaView() {
       convDepId == null ||
       (userDepIds.length > 0 && userDepIds.includes(Number(convDepId)));
     return mesmaSetorOuSemRestricao;
-  }, [conversa, user]);
+  }, [conversa, user, isGroup]);
 
   const [assumeEmptyBusy, setAssumeEmptyBusy] = useState(false);
 
@@ -7135,9 +7145,17 @@ export default function ConversaView() {
                 className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""}`}
                 onKeyDown={handleKeyDownInput}
                 disabled={!conversaId || !podeEnviar}
-                aria-label={podeEnviar ? "Digite sua resposta. Enter para enviar, Shift+Enter para nova linha, Esc para fechar painéis." : (conversa?.mensagens_bloqueadas ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens." : "Assuma esta conversa para responder.")}
+                aria-label={
+                  podeEnviar
+                    ? composerEnterInsertsNewline
+                      ? "Digite sua resposta. Retorno ou Enter para nova linha; use o botão enviar para mandar a mensagem. Esc para fechar painéis."
+                      : "Digite sua resposta. Enter para enviar, Shift+Enter para nova linha, Esc para fechar painéis."
+                    : conversa?.mensagens_bloqueadas
+                      ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens."
+                      : "Assuma esta conversa para responder."
+                }
                 rows={1}
-                enterKeyHint="send"
+                enterKeyHint={composerEnterInsertsNewline ? "enter" : "send"}
               />
 
               {!headerCompact ? (

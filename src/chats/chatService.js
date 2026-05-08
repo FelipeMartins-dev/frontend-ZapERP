@@ -135,6 +135,82 @@ export function conversaFromContatoResponse(data) {
   return data.conversa ?? data.chat ?? null;
 }
 
+/** Apenas dígitos para comparação de telefone. */
+function digitsOnly(v) {
+  return String(v ?? "").replace(/\D/g, "");
+}
+
+/**
+ * Núcleo BR para comparar números (ignora DDI 55 e pequenas diferenças de tamanho).
+ * @param {string} d — só dígitos
+ */
+function digitsCoreBr(d) {
+  let x = String(d || "").replace(/\D/g, "");
+  if (!x) return "";
+  if (x.startsWith("55") && x.length >= 12) x = x.slice(2);
+  return x;
+}
+
+/**
+ * Variantes comuns enviadas à API / usadas na busca (evita falhar quando o número veio sem DDI).
+ * @param {string} telefone
+ * @returns {string[]}
+ */
+export function buildTelefoneVariantsForContato(telefone) {
+  const raw = digitsOnly(telefone);
+  if (!raw) return [];
+  const out = [];
+  const push = (v) => {
+    if (v && !out.includes(v)) out.push(v);
+  };
+  push(raw);
+  if (!raw.startsWith("55") && raw.length >= 10 && raw.length <= 11) {
+    push(`55${raw}`);
+  }
+  if (raw.startsWith("55") && raw.length >= 12) {
+    push(raw.slice(2));
+  }
+  return out;
+}
+
+/**
+ * Encontra chat na lista cujo telefone bate com alguma variante.
+ * @param {any[]} chats
+ * @param {string[]} variants — dígitos
+ */
+function findChatMatchingTelefoneVariants(chats, variants) {
+  if (!Array.isArray(chats) || !variants?.length) return null;
+  const cores = variants.map((v) => digitsCoreBr(v)).filter(Boolean);
+  for (const c of chats) {
+    const fields = [
+      c?.telefone,
+      c?.cliente_telefone,
+      c?.telefone_exibivel,
+      c?.numero,
+      c?.remoteJid,
+      c?.telefone_normalizado,
+    ];
+    for (const f of fields) {
+      const core = digitsCoreBr(f);
+      if (!core) continue;
+      for (const want of cores) {
+        if (want === core || core.endsWith(want) || want.endsWith(core)) {
+          return c;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function pickClienteIdFromContatoResponse(created) {
+  if (!created || typeof created !== "object") return null;
+  if (created.cliente_id != null) return created.cliente_id;
+  const cliente = created.cliente;
+  if (cliente && typeof cliente === "object" && cliente.id != null) return cliente.id;
+  return null;
+}
+
 /** Abre (ou cria) conversa para um cliente da lista — retorna a conversa para abrir no atendimento */
 export async function abrirConversaCliente(cliente_id) {
   const { data } = await api.post("/chats/abrir-conversa", { cliente_id });
@@ -143,22 +219,43 @@ export async function abrirConversaCliente(cliente_id) {
 
 /** Busca ou cria conversa pelo telefone (para cartão de contato compartilhado) */
 export async function abrirConversaPorTelefone(nome, telefone) {
-  const tel = String(telefone || "").replace(/\D/g, "");
-  if (!tel) throw new Error("Telefone obrigatório");
-  const list = await fetchChats({ palavra: tel, incluir_todos_clientes: true });
-  const digitsMatch = (a, b) => {
-    const da = String(a || "").replace(/\D/g, "");
-    const db = String(b || "").replace(/\D/g, "");
-    return da && db && (da.includes(db) || db.includes(da));
-  };
-  const chat = Array.isArray(list)
-    ? list.find((c) => digitsMatch(c?.telefone ?? c?.cliente_telefone ?? c?.telefone_exibivel ?? c?.numero, tel))
-    : null;
-  if (chat?.id) return { conversa: chat };
-  const created = await criarContato(nome || "Contato", telefone);
-  const clienteId = created?.cliente?.id ?? created?.id ?? created?.cliente_id;
-  if (!clienteId) throw new Error("Não foi possível criar o contato.");
-  return abrirConversaCliente(clienteId);
+  const variants = buildTelefoneVariantsForContato(telefone);
+  if (!variants.length) throw new Error("Telefone obrigatório");
+
+  for (const palavra of variants) {
+    try {
+      const list = await fetchChats({ palavra, incluir_todos_clientes: true });
+      const chat = findChatMatchingTelefoneVariants(Array.isArray(list) ? list : [], variants);
+      if (chat?.id) return { conversa: chat };
+    } catch {
+      /* tenta próxima variante na busca */
+    }
+  }
+
+  let lastErr;
+  for (const telTry of variants) {
+    try {
+      const created = await criarContato(nome || "Contato", telTry);
+      const convDirect = conversaFromContatoResponse(created);
+      if (convDirect?.id) return { conversa: convDirect };
+
+      const clienteId = pickClienteIdFromContatoResponse(created);
+      if (clienteId != null) {
+        const opened = await abrirConversaCliente(clienteId);
+        const conv =
+          conversaFromContatoResponse(opened) ??
+          (opened && typeof opened === "object" ? opened.conversa ?? opened.chat : null) ??
+          (opened?.id != null ? opened : null);
+        if (!conv?.id) throw new Error("Não foi possível abrir a conversa.");
+        return { conversa: conv };
+      }
+
+      lastErr = new Error("Resposta ao criar contato não trouxe conversa nem cliente.");
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error("Não foi possível criar o contato.");
 }
 
 /** Sincroniza contatos do celular conectado (UltraMSG Get contacts) → clientes + fotos */

@@ -17,7 +17,7 @@ import {
   normalizeConversation,
   fetchInternalChatStatus,
 } from "../api/internalChatService";
-import { abrirConversaPorTelefone } from "../chats/chatService";
+import { abrirConversaPorTelefone, conversaFromContatoResponse } from "../chats/chatService";
 import { useChatStore } from "../chats/chatsStore";
 import InternalChatThread from "../internal-chat/InternalChatThread";
 import InternalChatCollaboratorListItem from "../internal-chat/InternalChatCollaboratorListItem";
@@ -289,7 +289,7 @@ export default function InternalChat() {
     setConversarComContatoBusy(true);
     try {
       const data = await abrirConversaPorTelefone(nome || "Contato", raw);
-      const conv = data?.conversa || data || null;
+      const conv = data?.conversa ?? conversaFromContatoResponse(data) ?? null;
       if (!conv?.id) throw new Error("Não foi possível abrir a conversa.");
       try {
         useChatStore.getState().addChat(conv);
