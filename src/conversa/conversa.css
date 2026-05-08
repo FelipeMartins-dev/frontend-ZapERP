@@ -1339,7 +1339,8 @@
 .wa-swipeReplyShift {
   will-change: transform;
   flex: 0 1 auto;
-  min-width: 0;
+  /* auto = não encolher abaixo do conteúdo (“Boa tarde” em uma linha) */
+  min-width: auto;
   max-width: 100%;
 }
 
@@ -1360,6 +1361,15 @@
   transition: transform 0.22s cubic-bezier(0.22, 0.82, 0.22, 1);
 }
 
+/* Evita flex encolher a bolha abaixo da largura do texto (“Boa tarde” em duas linhas finas) */
+.wa-swipeReplyShift > .wa-bubble {
+  flex-shrink: 0;
+}
+
+.wa-row > .wa-bubble {
+  flex-shrink: 0;
+}
+
 /* =========================================================
    BOLHAS (BUBBLES) — WhatsApp Web premium
    Largura mínima confortável, máx 68%, padding generoso,
@@ -1376,7 +1386,7 @@
 
   /* Desktop: evita bolha largura da coluna inteira e força quebra de linha no texto. */
   width: fit-content;
-  min-width: 0;
+  min-width: auto;
   max-width: min(78%, 560px);
 
   padding: 6px 42px 8px 10px;
@@ -1388,7 +1398,7 @@
   line-height: 1.4;
   font-size: 14px;
 
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: normal;
 
   box-sizing: border-box;
@@ -1467,7 +1477,7 @@
   min-width:0;
 
   word-break:normal;
-  overflow-wrap:anywhere;
+  overflow-wrap:break-word;
   white-space:pre-wrap;
 
   padding-bottom:0;
@@ -1491,7 +1501,7 @@
   color:var(--wa-text);
 
   word-break:normal;
-  overflow-wrap:anywhere;
+  overflow-wrap:break-word;
   min-width:0;
 }
 
@@ -1515,7 +1525,7 @@
 
 .wa-bubble.hasInlineMeta{
 
-  min-width:0;
+  min-width:auto;
 
   padding:5px 36px 5px 8px;
 }
@@ -1951,6 +1961,15 @@
   padding: 4px 6px 6px 6px;
 }
 
+/* Fotos: sem padding largo de bolha de texto — visual próximo ao WhatsApp */
+.wa-bubble.wa-bubble-media.image-message {
+  padding: 3px;
+}
+
+.wa-bubble.image-message .wa-bubble-mediaStack {
+  gap: 4px;
+}
+
 .wa-bubble-mediaStack {
   display: flex;
   flex-direction: column;
@@ -2011,19 +2030,25 @@
 }
 
 /* ---- Classe semântica: .image-message ---- */
-.wa-bubble.image-message .wa-bubble-img {
-  max-width: 320px;
-  max-height: 320px;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  border-radius: 10px;
+.wa-bubble.image-message .wa-bubble-body {
+  overflow-wrap: break-word;
 }
 
 .wa-bubble.image-message .wa-bubble-imgLink {
-  border-radius: 10px;
-  overflow: hidden;
-  line-height: 0;
+  margin: 0;
+  border-radius: 8px;
+  max-width: min(320px, calc(100vw - 56px));
+}
+
+.wa-bubble.image-message .wa-bubble-img {
+  width: 100%;
+  max-width: min(320px, calc(100vw - 56px));
+  max-height: min(360px, 72vh);
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 8px;
+  vertical-align: bottom;
 }
 
 .wa-bubble-caption {
@@ -2031,8 +2056,14 @@
   line-height: 1.3;
   color: var(--wa-text);
   white-space: pre-wrap;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
   padding-right: 0;
+}
+
+.wa-bubble.image-message .wa-bubble-caption {
+  padding: 6px 10px 8px;
+  margin: 0;
 }
 
 /* Label [Encaminhado] — estilo WhatsApp (legado, usado em FileBubbleContent) */
@@ -7099,9 +7130,12 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-bubble {
     max-width: 76%;
-    min-width: var(--wa-bubble-min-width);
     padding: 12px 14px 14px 14px;
     font-size: 17px;
+  }
+
+  .wa-bubble.wa-bubble-media.image-message {
+    padding: 4px;
   }
 
   .wa-bubble-sticker .wa-bubble-img,
@@ -7112,9 +7146,13 @@ main.main-content--crm .wa-mediaPreview-composer {
     max-height: 120px;
   }
 
+  .wa-bubble.image-message .wa-bubble-imgLink {
+    max-width: min(300px, calc(100vw - 44px));
+  }
+
   .wa-bubble.image-message .wa-bubble-img {
-    max-width: 75vw;
-    max-height: 280px;
+    max-width: min(300px, calc(100vw - 44px));
+    max-height: min(340px, 65vh);
   }
 
   .wa-bubble-meta { font-size: 10.5px; padding: 0 8px; }

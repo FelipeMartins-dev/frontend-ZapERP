@@ -53,6 +53,32 @@ function rowPrefs(c) {
   };
 }
 
+/**
+ * A aba "Minha fila" usa `minhaFilaList` (GET `/chats?minha_fila=1`), separado do array `chats`.
+ * Fixar em "Todas" atualiza só `chats` via store — sem mesclar aqui, o pin não aparece nem no topo em Minha fila.
+ */
+function mergeMinhaFilaPrefsFromChats(rows, chatsCanon) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows;
+  const canon = Array.isArray(chatsCanon) ? chatsCanon : [];
+  const byId = new Map(canon.filter((c) => c?.id != null).map((c) => [String(c.id), c]));
+  return rows.map((row) => {
+    const c = byId.get(String(row?.id));
+    if (!c) return row;
+    const silenciadoMerged =
+      c.silenciado !== undefined || c.silenciada !== undefined
+        ? !!(c.silenciado ?? c.silenciada)
+        : !!(row.silenciado ?? row.silenciada);
+    return {
+      ...row,
+      fixada: c.fixada !== undefined ? !!c.fixada : !!row.fixada,
+      fixada_em: c.fixada_em !== undefined ? c.fixada_em : row.fixada_em,
+      silenciado: silenciadoMerged,
+      silenciada: silenciadoMerged,
+      favorita: c.favorita !== undefined ? !!c.favorita : !!row.favorita,
+    };
+  });
+}
+
 /** Chip “Abertas”: apenas conversas com `status_atendimento === aberta` (fila / não assumidas). */
 function conversaContaComoAbertaNoChip(c) {
   const s = getStatusAtendimentoEffective(c);
@@ -1831,7 +1857,7 @@ export default function ChatList() {
     let list = adminPorFuncionario
       ? [...(Array.isArray(chats) ? chats : [])]
       : tab === "minha_fila"
-        ? [...(Array.isArray(minhaFilaList) ? minhaFilaList : [])]
+        ? mergeMinhaFilaPrefsFromChats([...(Array.isArray(minhaFilaList) ? minhaFilaList : [])], chats)
         : Array.isArray(chats)
           ? [...chats]
           : [];
