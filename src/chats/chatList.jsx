@@ -1827,6 +1827,12 @@ export default function ChatList() {
   function handleSelecionarConversa(chatId) {
     if (chatId == null || chatId === undefined || chatId === "") return;
     const id = Number(chatId) || String(chatId);
+    /* Mobile: evita “flash” da lista em posição antiga antes do layout da conversa —
+       recentes ficam no topo; ao voltar, o usuário vê o topo e pode rolar para baixo. */
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {
+      scrollSaveRef.current = 0;
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    }
     setSelectedId(id);
     carregarConversa(id);
     setUnread(id, 0);
@@ -1838,6 +1844,10 @@ export default function ChatList() {
       const { conversa } = await abrirConversaCliente(cliente_id);
       if (conversa?.id) {
         addChat(conversa);
+        if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {
+          scrollSaveRef.current = 0;
+          if (scrollRef.current) scrollRef.current.scrollTop = 0;
+        }
         setSelectedId(conversa.id);
         carregarConversa(conversa.id);
         setUnread(conversa.id, 0);
@@ -2219,6 +2229,15 @@ export default function ChatList() {
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    const mobile =
+      typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+    /* Com conversa aberta no celular, manter a lista ancorada no topo — updates da lista
+       não devem reaplicar scroll salvo (causa saltos para conversas antigas). */
+    if (mobile && selectedId != null) {
+      scrollSaveRef.current = 0;
+      el.scrollTop = 0;
+      return;
+    }
     const n = chatListScrollToTopNonce;
     if (n !== scrollTopNoncePrevRef.current) {
       scrollTopNoncePrevRef.current = n;
@@ -2234,7 +2253,7 @@ export default function ChatList() {
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = saved;
     });
-  }, [chatsFiltrados, chatListScrollToTopNonce]);
+  }, [chatsFiltrados, chatListScrollToTopNonce, selectedId]);
 
   // KPIs derivados da lista base (memoizados para evitar trabalho repetido por render).
   const baseCounts = useMemo(() => {

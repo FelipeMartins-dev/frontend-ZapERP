@@ -6156,6 +6156,7 @@ export default function ConversaView() {
             }}
           >
             <div className="wa-modal wa-forwardModal" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="wa-forwardSheetHandle" aria-hidden="true" />
               <div className="wa-modal-head">
                 <div className="wa-forwardHeadLeft">
                   <div className="wa-modal-title">{forwardMsgs.length > 1 ? `Encaminhar (${forwardMsgs.length})` : "Encaminhar"}</div>
@@ -6175,10 +6176,14 @@ export default function ConversaView() {
               </div>
               <div className="wa-modal-body wa-forwardBody">
                 <div className="wa-forwardHint">
-                  <div className="wa-forwardPreview">{forwardPreviewLabel}</div>
-                  <div className="wa-forwardSub">
-                    Escolha conversas (até {FORWARD_DEST_MAX}) e confirme, use &quot;Apenas esta&quot; para um destino único, ou colaborador / busca de cliente.
+                  <div className="wa-forwardPreview" title={forwardPreviewLabel}>
+                    {forwardPreviewLabel}
                   </div>
+                  <ol className="wa-forwardSteps">
+                    <li>Marque uma ou mais conversas e toque em <strong>Encaminhar selecionados</strong> no rodapé.</li>
+                    <li>Para <strong>um destino só</strong>, use <strong>Apenas esta</strong> na linha da conversa.</li>
+                    <li><strong>Chat interno</strong> (colaborador) ou <strong>cliente</strong> na busca: toque no cartão para encaminhar direto.</li>
+                  </ol>
                 </div>
 
                 <input
@@ -6256,32 +6261,34 @@ export default function ConversaView() {
                             key={`conv-${c.id}`}
                             className={`wa-forwardItem wa-forwardItem--row ${sel ? "isSelected" : ""}`}
                           >
-                            <label className="wa-forwardItem-checkLabel">
-                              <input
-                                type="checkbox"
-                                className="wa-forwardItem-check"
-                                checked={sel}
-                                onChange={() => toggleForwardConversaSelect(c.id)}
+                            <div className="wa-forwardItem-rowMain">
+                              <label className="wa-forwardItem-checkLabel">
+                                <input
+                                  type="checkbox"
+                                  className="wa-forwardItem-check"
+                                  checked={sel}
+                                  onChange={() => toggleForwardConversaSelect(c.id)}
+                                  disabled={forwardSending}
+                                  aria-label={`Incluir conversa: ${n}`}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                className="wa-forwardItem-main"
+                                onClick={() => !forwardSending && toggleForwardConversaSelect(c.id)}
                                 disabled={forwardSending}
-                                aria-label={`Incluir conversa: ${n}`}
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              className="wa-forwardItem-main"
-                              onClick={() => !forwardSending && toggleForwardConversaSelect(c.id)}
-                              disabled={forwardSending}
-                            >
-                              <div className="wa-forwardItem-name">{n}</div>
-                              {telLinha ? <div className="wa-forwardItem-sub">{telLinha}</div> : null}
-                              {atNome ? (
-                                <div className="wa-forwardItem-atendente" title={atendenteTitle || undefined}>
-                                  Atendente: {atNome}
-                                </div>
-                              ) : (
-                                <div className="wa-forwardItem-atendente wa-forwardItem-atendente--empty">Sem atendente atribuído</div>
-                              )}
-                            </button>
+                              >
+                                <div className="wa-forwardItem-name">{n}</div>
+                                {telLinha ? <div className="wa-forwardItem-sub">{telLinha}</div> : null}
+                                {atNome ? (
+                                  <div className="wa-forwardItem-atendente" title={atendenteTitle || undefined}>
+                                    Atendente: {atNome}
+                                  </div>
+                                ) : (
+                                  <div className="wa-forwardItem-atendente wa-forwardItem-atendente--empty">Sem atendente atribuído</div>
+                                )}
+                              </button>
+                            </div>
                             <button
                               type="button"
                               className="wa-btn wa-btn-ghost wa-forwardItem-solo"
