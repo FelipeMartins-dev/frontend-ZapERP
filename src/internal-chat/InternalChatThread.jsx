@@ -51,7 +51,7 @@ const InternalChatThread = forwardRef(function InternalChatThread(
     () => ({
       scrollToBottomSmooth: () => {
         stickBottomRef.current = true;
-        requestAnimationFrame(() => scrollToBottom("smooth"));
+        requestAnimationFrame(() => scrollToBottom("auto"));
       },
     }),
     [scrollToBottom]
@@ -60,7 +60,7 @@ const InternalChatThread = forwardRef(function InternalChatThread(
   useEffect(() => {
     if (initLoading || olderLoading) return;
     if (stickBottomRef.current) {
-      requestAnimationFrame(() => scrollToBottom(messages.length < 8 ? "auto" : "smooth"));
+      requestAnimationFrame(() => scrollToBottom("auto"));
     }
   }, [messages, initLoading, olderLoading, scrollToBottom]);
 

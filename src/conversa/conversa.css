@@ -1121,6 +1121,8 @@
   position: relative;
   isolation: isolate;
   background: var(--ds-chat-bg);
+  /* Evita scroll anchoring do browser ao inserir bolhas no fim — causava “pulo” ao enviar. */
+  overflow-anchor: none;
 }
 
 /* z-index 0 (não -1): com -1 o padrão ficava atrás do próprio gradiente e sumia */

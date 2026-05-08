@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 /**
@@ -6,9 +6,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
  * O scroll fica no elemento pai (.wa-messages).
  */
 export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVirtualList(
-  { items, scrollRef, overscan = 12, renderItem },
+  { items, scrollRef, overscan = 12, renderItem, onVirtualContentResize },
   ref
 ) {
+  const innerRootRef = useRef(null);
   const count = Array.isArray(items) ? items.length : 0;
 
   const virtualizer = useVirtualizer({
@@ -45,10 +46,35 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     [virtualizer, count]
   );
 
+  useLayoutEffect(() => {
+    if (!onVirtualContentResize) return undefined;
+    const el = innerRootRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    let raf = 0;
+    const run = () => {
+      onVirtualContentResize();
+    };
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        run();
+      });
+    };
+    const ro = new ResizeObserver(schedule);
+    ro.observe(el);
+    schedule();
+    return () => {
+      ro.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [onVirtualContentResize, count]);
+
   if (count === 0) return null;
 
   return (
     <div
+      ref={innerRootRef}
       className="wa-messages-virtual-root"
       style={{
         height: virtualizer.getTotalSize(),

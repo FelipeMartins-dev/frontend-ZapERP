@@ -10,3 +10,17 @@ export function scrollToBottom(container, behavior = "auto") {
   const mode = behavior === "smooth" ? "smooth" : "auto";
   container.scrollTo({ top: container.scrollHeight, behavior: mode });
 }
+
+/** Ancora o fim do thread no rodapé visível (útil com flex + sentinel no fim do scroll). */
+export function scrollBottomAnchorIntoView(anchorEl) {
+  if (!anchorEl || typeof anchorEl.scrollIntoView !== "function") return;
+  try {
+    anchorEl.scrollIntoView({ block: "end", inline: "nearest", behavior: "instant" });
+  } catch {
+    try {
+      anchorEl.scrollIntoView(false);
+    } catch {
+      /* ignore */
+    }
+  }
+}

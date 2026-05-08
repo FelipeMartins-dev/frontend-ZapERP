@@ -36,7 +36,7 @@ import {
 } from "./mediaPrint";
 import { getSocket } from "../socket/socket";
 import { saveReplyMeta } from "./replyMeta";
-import { isNearBottom } from "./scrollUtils";
+import { isNearBottom, scrollBottomAnchorIntoView } from "./scrollUtils";
 import { ConversaMessageVirtualList } from "./ConversaMessageVirtualList";
 import {
   listarTags,
@@ -2032,7 +2032,7 @@ function useStableTimeout() {
   return { set, clear };
 }
 
-function snapThreadToBottom(container, virtualListRef) {
+function snapThreadToBottom(container, virtualListRef, bottomAnchorRef) {
   try {
     virtualListRef?.current?.scrollToEnd?.();
   } catch {
@@ -2041,6 +2041,7 @@ function snapThreadToBottom(container, virtualListRef) {
   if (container) {
     container.scrollTop = container.scrollHeight;
   }
+  scrollBottomAnchorIntoView(bottomAnchorRef?.current);
 }
 
 function useAutoScroll({
@@ -2052,6 +2053,7 @@ function useAutoScroll({
   messagesContainerRef,
   shouldStickToBottomRef,
   virtualListRef,
+  bottomAnchorRef,
 }) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
@@ -2099,16 +2101,25 @@ function useAutoScroll({
         (myUserId != null && lastMsg?.autor_usuario_id != null && String(lastMsg.autor_usuario_id) === String(myUserId));
       const shouldAutoScroll = Boolean(shouldStickToBottomRef.current || fromMe);
       if (shouldAutoScroll && container) {
-        snapThreadToBottom(container, virtualListRef);
+        snapThreadToBottom(container, virtualListRef, bottomAnchorRef);
         requestAnimationFrame(() => {
-          snapThreadToBottom(container, virtualListRef);
-          requestAnimationFrame(() => snapThreadToBottom(container, virtualListRef));
+          snapThreadToBottom(container, virtualListRef, bottomAnchorRef);
+          requestAnimationFrame(() => snapThreadToBottom(container, virtualListRef, bottomAnchorRef));
         });
       }
     }
 
     prevLastKeyRef.current = lastMsgKey;
-  }, [conversaId, lastMsgKey, lastMsg, myUserId, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
+  }, [
+    conversaId,
+    lastMsgKey,
+    lastMsg,
+    myUserId,
+    messagesContainerRef,
+    shouldStickToBottomRef,
+    virtualListRef,
+    bottomAnchorRef,
+  ]);
 
   // Ao abrir/trocar conversa: o virtualizer subestima scrollHeight no 1º frame (estimateSize).
   // useLayoutEffect + scrollToIndex(último) evita ficar no topo com mensagens antigas visíveis.
@@ -2119,15 +2130,24 @@ function useAutoScroll({
     const container = messagesContainerRef?.current;
     pendingJumpToBottomRef.current = false;
     shouldStickToBottomRef.current = true;
-    snapThreadToBottom(container, virtualListRef);
+    const snap = () => snapThreadToBottom(container, virtualListRef, bottomAnchorRef);
+    snap();
     let n = 0;
     const chain = () => {
       n += 1;
-      snapThreadToBottom(container, virtualListRef);
-      if (n < 6) requestAnimationFrame(chain);
+      snap();
+      if (n < 12) requestAnimationFrame(chain);
     };
     requestAnimationFrame(chain);
-  }, [conversaId, loading, lastMsgKey, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
+    const t1 = window.setTimeout(snap, 0);
+    const t2 = window.setTimeout(snap, 48);
+    const t3 = window.setTimeout(snap, 160);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [conversaId, loading, lastMsgKey, messagesContainerRef, shouldStickToBottomRef, virtualListRef, bottomAnchorRef]);
 }
 
 function useGlobalHotkeys({ onToggleTimeline, onFocusInput, onEscape, disabled }) {
@@ -2474,7 +2494,7 @@ export default function ConversaView() {
     // já estava lá, mantendo a base estável e a experiência "lisa".
     const c = messagesContainerRef.current;
     if (c && shouldStickToBottomRef.current) {
-      snapThreadToBottom(c, virtualThreadRef);
+      snapThreadToBottom(c, virtualThreadRef, bottomRef);
     }
   }, [texto, syncTextareaHeight]);
 
@@ -2966,6 +2986,12 @@ export default function ConversaView() {
     return `${diffD} dia(s)`;
   }, [mensagens]);
 
+  const snapIfStickBottom = useCallback(() => {
+    const c = messagesContainerRef.current;
+    if (!c || !shouldStickToBottomRef.current) return;
+    snapThreadToBottom(c, virtualThreadRef, bottomRef);
+  }, []);
+
   useAutoScroll({
     conversaId: scrollThreadId,
     loading,
@@ -2975,6 +3001,7 @@ export default function ConversaView() {
     messagesContainerRef,
     shouldStickToBottomRef,
     virtualListRef: virtualThreadRef,
+    bottomAnchorRef: bottomRef,
   });
 
   const showToast = useCallback(
@@ -5904,6 +5931,7 @@ export default function ConversaView() {
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
               items={mensagensComSeparadores}
+              onVirtualContentResize={snapIfStickBottom}
               renderItem={(item) => {
                 if (item.__type === "day") return <DaySeparator key={item.id} label={item.label} />;
                 const msgKey = getMessageListReactKey(item, conversaId);
