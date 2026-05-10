@@ -1,5 +1,7 @@
 // src/chats/chatService.js
 import api from "../api/http";
+import { criarCliente } from "../api/configService";
+import { parsePostClientesResponse } from "../api/parseCriarClienteResponse";
 
 /**
  * GET /chats pode devolver array cru ou objeto com conversas/chats/items.
@@ -217,6 +219,56 @@ export async function abrirConversaCliente(cliente_id) {
   return data;
 }
 
+/**
+ * Quando POST /chats/contato falha (ex.: “não cadastrou cliente”), abre pelo mesmo caminho do modal Novo contato:
+ * POST /clientes com `abrir_conversa` — encontra ou cria conversa só pelo número (estilo WhatsApp).
+ */
+async function abrirConversaViaPostClientes(nome, telefoneBruto, variants) {
+  const tries = [];
+  const raw = String(telefoneBruto ?? "").trim();
+  if (raw) tries.push(raw);
+  for (const v of variants || []) {
+    const s = String(v ?? "").trim();
+    if (s && !tries.includes(s)) tries.push(s);
+  }
+  let lastErr;
+  for (const tel of tries) {
+    try {
+      const payload = {
+        telefone: tel,
+        abrir_conversa: true,
+      };
+      const nomeTrim = nome != null ? String(nome).trim() : "";
+      if (nomeTrim) payload.nome = nomeTrim;
+
+      const rawRes = await criarCliente(payload);
+      const parsed = parsePostClientesResponse(rawRes);
+
+      if (parsed.conversa?.id != null) {
+        return { conversa: parsed.conversa };
+      }
+
+      const clienteId = parsed.cliente?.id;
+      if (clienteId != null) {
+        const opened = await abrirConversaCliente(clienteId);
+        const conv =
+          conversaFromContatoResponse(opened) ??
+          (opened && typeof opened === "object" ? opened.conversa ?? opened.chat : null) ??
+          (opened?.id != null ? opened : null);
+        if (conv?.id) return { conversa: conv };
+      }
+
+      lastErr = new Error(
+        parsed.conversa_aviso ||
+          "O servidor não retornou uma conversa ao cadastrar o cliente para este número."
+      );
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error("Não foi possível abrir a conversa pelo cadastro de cliente.");
+}
+
 /** Busca ou cria conversa pelo telefone (para cartão de contato compartilhado) */
 export async function abrirConversaPorTelefone(nome, telefone) {
   const variants = buildTelefoneVariantsForContato(telefone);
@@ -255,7 +307,13 @@ export async function abrirConversaPorTelefone(nome, telefone) {
       lastErr = e;
     }
   }
-  throw lastErr || new Error("Não foi possível criar o contato.");
+
+  try {
+    return await abrirConversaViaPostClientes(nome, telefone, variants);
+  } catch (e2) {
+    /* Preferir mensagem da rota alternativa; senão mantém o erro de /chats/contato */
+    throw e2 || lastErr;
+  }
 }
 
 /** Sincroniza contatos do celular conectado (UltraMSG Get contacts) → clientes + fotos */

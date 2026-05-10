@@ -623,6 +623,16 @@ function IconClose(props) {
   );
 }
 
+/** Encaminhar (barra de seleção estilo WhatsApp). */
+function IconForward(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M13 5l7 7-7 7" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
 function IconTag(props) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
@@ -1428,6 +1438,9 @@ const Bubble = memo(function Bubble({
   swipeReplyEnabled = false,
   captionBundleTop = false,
   captionBundleFollow = false,
+  /** Mobile/tablet: sem setinha fixa; menu por long press + folha inferior */
+  mobileMessageChrome = false,
+  menuUsesBottomSheet = false,
 }) {
   const out = isOutgoingMessage(msg);
   const canDeleteForEveryone = useMemo(() => {
@@ -1476,8 +1489,11 @@ const Bubble = memo(function Bubble({
   // pedido do usuário: setinha no hover para mensagens do cliente
   const showMenuButton = !selectMode;
   const [menuOpen, setMenuOpen] = useState(false);
-  const anchorRef = useRef(null);
+  /** Âncora visual do menu: sempre na bolha (desktop e mobile). */
+  const menuAnchorRef = useRef(null);
   const menuElRef = useRef(null);
+  const longPressTimerRef = useRef(null);
+  const longPressCleanupRef = useRef(null);
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
   const isCall = msg?.tipo === "call";
@@ -1487,7 +1503,7 @@ const Bubble = memo(function Bubble({
   useEffect(() => {
     if (!menuOpen) return;
     const onDoc = (e) => {
-      const a = anchorRef.current;
+      const a = menuAnchorRef.current;
       const m = menuElRef.current;
       if (a && a.contains(e.target)) return;
       if (m && m.contains(e.target)) return;
@@ -1497,33 +1513,48 @@ const Bubble = memo(function Bubble({
       if (e.key === "Escape") setMenuOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
+    document.addEventListener("touchstart", onDoc, { passive: true });
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("touchstart", onDoc);
       document.removeEventListener("keydown", onKey);
     };
   }, [menuOpen]);
 
   const computeMenuPosition = useCallback(() => {
-    const a = anchorRef.current;
+    const a = menuAnchorRef.current;
     if (!a) return;
-    const rect = a.getBoundingClientRect();
     const vw = window.innerWidth || 360;
     const vh = window.innerHeight || 640;
 
+    if (menuUsesBottomSheet) {
+      setMenuStyle({
+        position: "fixed",
+        left: 10,
+        right: 10,
+        width: "auto",
+        bottom: 12,
+        top: "auto",
+        maxHeight: "min(58vh, 420px)",
+        overflowY: "auto",
+        zIndex: 9999,
+      });
+      return;
+    }
+
+    const rect = a.getBoundingClientRect();
     const desiredW = 220;
     const w = Math.max(180, Math.min(desiredW, vw - 16));
 
     let left = rect.right - w;
     left = clamp(left, 8, Math.max(8, vw - w - 8));
 
-    // posição preferida: abaixo do botão
     let top = rect.bottom + 6;
     const approxH = menuElRef.current?.offsetHeight || 320;
     let placed = "down";
 
     if (top + approxH > vh - 8) {
-      // tenta acima do botão
       top = rect.top - approxH - 6;
       placed = "up";
     }
@@ -1540,7 +1571,7 @@ const Bubble = memo(function Bubble({
       overflowY: "auto",
       zIndex: 9999,
     });
-  }, []);
+  }, [menuUsesBottomSheet]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -1559,6 +1590,75 @@ const Bubble = memo(function Bubble({
       document.removeEventListener("scroll", onReflow, true);
     };
   }, [menuOpen, computeMenuPosition]);
+
+  const LONG_PRESS_MS = 480;
+  const LONG_PRESS_MOVE_PX = 14;
+
+  const clearLongPressTracking = useCallback(() => {
+    if (longPressTimerRef.current != null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    const rm = longPressCleanupRef.current;
+    longPressCleanupRef.current = null;
+    if (typeof rm === "function") rm();
+  }, []);
+
+  const onBubblePointerDown = useCallback(
+    (e) => {
+      if (!mobileMessageChrome || selectMode || menuOpen) return;
+      if (e.button !== 0) return;
+      const el = e.target;
+      if (el && typeof el.closest === "function") {
+        if (
+          el.closest(
+            ".wa-reactionBtn, .wa-reactionPicker, .wa-msgMenuBtn, .wa-selectChk, .wa-bubble-imgLink, .wa-bubble-videoLink, .wa-bubble-fileAction, .wa-audioPlayBtn, [role=\"slider\"]"
+          )
+        )
+          return;
+        if (el.closest("button, a[href]")) return;
+      }
+      clearLongPressTracking();
+      const x0 = e.clientX;
+      const y0 = e.clientY;
+
+      const onMove = (ev) => {
+        if (
+          Math.abs(ev.clientX - x0) > LONG_PRESS_MOVE_PX ||
+          Math.abs(ev.clientY - y0) > LONG_PRESS_MOVE_PX
+        ) {
+          clearLongPressTracking();
+        }
+      };
+      const onEnd = () => {
+        clearLongPressTracking();
+      };
+
+      window.addEventListener("pointermove", onMove, { passive: true });
+      window.addEventListener("pointerup", onEnd);
+      window.addEventListener("pointercancel", onEnd);
+
+      longPressCleanupRef.current = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onEnd);
+        window.removeEventListener("pointercancel", onEnd);
+      };
+
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTimerRef.current = null;
+        const rmListeners = longPressCleanupRef.current;
+        longPressCleanupRef.current = null;
+        if (typeof rmListeners === "function") rmListeners();
+        try {
+          if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(12);
+        } catch (_) {}
+        setMenuOpen(true);
+      }, LONG_PRESS_MS);
+    },
+    [mobileMessageChrome, selectMode, menuOpen, clearLongPressTracking]
+  );
+
+  useEffect(() => () => clearLongPressTracking(), [clearLongPressTracking]);
 
   const handleToggleSelect = useCallback(
     (e) => {
@@ -1624,6 +1724,7 @@ const Bubble = memo(function Bubble({
         }}
       >
       <div
+        ref={menuAnchorRef}
         className={[
           "wa-bubble",
           out ? "wa-bubble-out" : "wa-bubble-in",
@@ -1637,14 +1738,16 @@ const Bubble = memo(function Bubble({
           isAudioOrVoice ? "wa-bubble-audio audio-message" : "",
           isVideo ? "wa-bubble-video" : "",
           selected ? "isSelected" : "",
-        ].join(" ")}
+          mobileMessageChrome ? "wa-bubble--mobileUx" : "",
+        ].filter(Boolean).join(" ")}
         onClick={selectMode ? handleToggleSelect : undefined}
+        onPointerDown={mobileMessageChrome && !selectMode ? onBubblePointerDown : undefined}
+        onContextMenu={mobileMessageChrome ? (ev) => ev.preventDefault() : undefined}
         role="group"
         aria-label="Mensagem"
       >
-        {showMenuButton ? (
+        {showMenuButton && !mobileMessageChrome ? (
           <button
-            ref={anchorRef}
             type="button"
             className={`wa-msgMenuBtn wa-msgMenuBtn--top ${menuOpen ? "isOpen" : ""}`}
             onClick={(e) => {
@@ -1950,7 +2053,7 @@ const Bubble = memo(function Bubble({
         ? createPortal(
             <div
               ref={menuElRef}
-              className="wa-msgMenu"
+              className={`wa-msgMenu${menuUsesBottomSheet ? " wa-msgMenu--sheet" : ""}`}
               style={menuStyle || { position: "fixed", top: -9999, left: -9999 }}
               role="menu"
               aria-label="Opções da mensagem"
@@ -2257,6 +2360,8 @@ export default function ConversaView() {
   const headerCompact = useMatchMedia("(max-width: 640px)");
   /** Tablet atendimento: mesmo padrão do mobile — correção no menu (+), barra em uma linha */
   const atendimentoTabletComposer = useMatchMedia("(min-width: 740px) and (max-width: 1024px)");
+  /** Bolhas: long press + folha de opções; barra de seleção premium (sem alterar desktop largo). */
+  const compactMessageUx = headerCompact || atendimentoTabletComposer;
   const autocorrectToggleInMenu = headerCompact || atendimentoTabletComposer;
   /** Mobile/tablet: tecla Retorno do teclado virtual insere nova linha; enviar só pelo botão (evita enterKeyHint=send esconder o enter). */
   const composerEnterInsertsNewline = headerCompact || atendimentoTabletComposer;
@@ -3003,11 +3108,14 @@ export default function ConversaView() {
     return `${diffD} dia(s)`;
   }, [mensagens]);
 
+  /** Só reancora ao fundo se o viewport já estiver lá — ResizeObserver pode disparar durante scroll pra cima com ref defasada. */
   const snapIfStickBottom = useCallback(() => {
     const c = messagesContainerRef.current;
-    if (!c || !shouldStickToBottomRef.current) return;
+    if (!c || loadingMore) return;
+    if (!isNearBottom(c, 160)) return;
+    shouldStickToBottomRef.current = true;
     snapThreadToBottom(c, virtualThreadRef, bottomRef);
-  }, []);
+  }, [loadingMore]);
 
   useAutoScroll({
     conversaId: scrollThreadId,
@@ -3463,17 +3571,38 @@ export default function ConversaView() {
   }, [stickerOpen]);
 
   const loadMoreScrollRef = useRef({ top: 0, height: 0 });
+  /** Um único agendamento por frame para loadMore — evita spam na API e trabalho síncrono em cada evento de scroll (touch). */
+  const loadMoreScrollRafRef = useRef(0);
 
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     shouldStickToBottomRef.current = isNearBottom(el, 120);
-    if (!hasMore || loadingMore || !cursor) return;
-    if (el.scrollTop < 120) {
-      loadMoreScrollRef.current = { top: el.scrollTop, height: el.scrollHeight };
-      loadMore();
-    }
-  }, [hasMore, loadingMore, cursor, loadMore]);
+
+    const st = useConversaStore.getState();
+    if (!st.hasMore || st.loadingMore || !st.cursor) return;
+    if (loadMoreScrollRafRef.current) return;
+    loadMoreScrollRafRef.current = requestAnimationFrame(() => {
+      loadMoreScrollRafRef.current = 0;
+      const el2 = messagesContainerRef.current;
+      if (!el2) return;
+      const cur = useConversaStore.getState();
+      if (!cur.hasMore || cur.loadingMore || !cur.cursor) return;
+      if (el2.scrollTop < 140) {
+        loadMoreScrollRef.current = { top: el2.scrollTop, height: el2.scrollHeight };
+        cur.loadMore();
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (loadMoreScrollRafRef.current) {
+        cancelAnimationFrame(loadMoreScrollRafRef.current);
+        loadMoreScrollRafRef.current = 0;
+      }
+    };
+  }, [conversaId]);
 
   useEffect(() => {
     if (loadingMore) return;
@@ -4091,10 +4220,12 @@ export default function ConversaView() {
     try {
       const res = await enviarMensagem(conversaId, t, replyMeta || undefined);
       // API pode retornar { ok, id, conversa_id } SEM mensagem — msg vem só via socket nova_mensagem
+      const resMsgId = res?.mensagem?.id ?? res?.id;
       if (res?.mensagem?.id && replyMeta) {
         saveReplyMeta(conversaId, res.mensagem.id, replyMeta);
-      } else if (!res?.ok && res?.id == null) {
-        // Resposta indica falha: remover temp. Sucesso { ok, id } sem mensagem: manter temp; socket nova_mensagem fará upsert.
+      }
+      // Só remover otimista em falha explícita. `ok` ausente ≠ erro (evita apagar mensagem em respostas mínimas ou só com mensagem.id).
+      if (res?.ok === false && resMsgId == null) {
         removerMensagemTemp(tempId);
       }
     } catch (err) {
@@ -4155,66 +4286,6 @@ export default function ConversaView() {
     buildPixMessagePreview,
     handleEnviar,
   ]);
-
-  const onEscape = useCallback(() => {
-    if (isRecording) handleCancelRecording();
-    if (showTimeline) setShowTimeline(false);
-    if (tagsOpen) setTagsOpen(false);
-    if (stickerOpen) {
-      setStickerOpen(false);
-      setStickerQuery("");
-    }
-    if (emojiOpen) {
-      setEmojiOpen(false);
-      setEmojiQuery("");
-    }
-    if (pendingFile) clearPending();
-    if (showClienteSide) setShowClienteSide(false);
-    if (showRespostasSalvas) setShowRespostasSalvas(false);
-    if (showTransferirSetor) setShowTransferirSetor(false);
-    if (forwardOpen) {
-      setForwardOpen(false);
-      setForwardMsgs(null);
-      setForwardQuery("");
-    }
-    if (msgInfoOpen) {
-      setMsgInfoOpen(false);
-      setMsgInfo(null);
-    }
-    if (pixModalOpen) setPixModalOpen(false);
-    if (selectMode) {
-      setSelectMode(false);
-      setSelectedMsgIds({});
-      selectionOrderRef.current = [];
-      setSelectionOrder([]);
-      setForwardSelectIntent(false);
-    }
-    if (replyTo) setReplyTo(null);
-  }, [
-    isRecording,
-    handleCancelRecording,
-    showTimeline,
-    tagsOpen,
-    stickerOpen,
-    emojiOpen,
-    pendingFile,
-    clearPending,
-    showClienteSide,
-    showRespostasSalvas,
-    showTransferirSetor,
-    forwardOpen,
-    msgInfoOpen,
-    pixModalOpen,
-    selectMode,
-    replyTo,
-  ]);
-
-  useGlobalHotkeys({
-    onToggleTimeline: () => setShowTimeline((v) => !v),
-    onFocusInput: focusMessageInput,
-    onEscape,
-    disabled: loading,
-  });
 
   const runInputFlash = useCallback(() => {
     setAutoCorrectFlash(true);
@@ -4624,6 +4695,62 @@ export default function ConversaView() {
     setForwardMax10Msg("");
     setForwardMultiProgress(null);
   }, []);
+
+  /** Fecha modal de encaminhar (se aberto) e sai do modo seleção — botão X estilo WhatsApp. */
+  const dismissSelectionOverlay = useCallback(() => {
+    closeForward();
+    exitSelectMode();
+  }, [closeForward, exitSelectMode]);
+
+  const onEscape = useCallback(() => {
+    if (isRecording) handleCancelRecording();
+    if (showTimeline) setShowTimeline(false);
+    if (tagsOpen) setTagsOpen(false);
+    if (stickerOpen) {
+      setStickerOpen(false);
+      setStickerQuery("");
+    }
+    if (emojiOpen) {
+      setEmojiOpen(false);
+      setEmojiQuery("");
+    }
+    if (pendingFile) clearPending();
+    if (showClienteSide) setShowClienteSide(false);
+    if (showRespostasSalvas) setShowRespostasSalvas(false);
+    if (showTransferirSetor) setShowTransferirSetor(false);
+    if (forwardOpen || selectMode) dismissSelectionOverlay();
+    if (msgInfoOpen) {
+      setMsgInfoOpen(false);
+      setMsgInfo(null);
+    }
+    if (pixModalOpen) setPixModalOpen(false);
+    if (replyTo) setReplyTo(null);
+  }, [
+    isRecording,
+    handleCancelRecording,
+    showTimeline,
+    tagsOpen,
+    stickerOpen,
+    emojiOpen,
+    pendingFile,
+    clearPending,
+    showClienteSide,
+    showRespostasSalvas,
+    showTransferirSetor,
+    dismissSelectionOverlay,
+    forwardOpen,
+    selectMode,
+    msgInfoOpen,
+    pixModalOpen,
+    replyTo,
+  ]);
+
+  useGlobalHotkeys({
+    onToggleTimeline: () => setShowTimeline((v) => !v),
+    onFocusInput: focusMessageInput,
+    onEscape,
+    disabled: loading,
+  });
 
   const toggleForwardConversaSelect = useCallback((rawId) => {
     if (rawId == null) return;
@@ -5872,25 +5999,40 @@ export default function ConversaView() {
         >
           {selectMode ? (
             <div
-              className={`wa-selectBar${forwardSelectIntent ? " wa-selectBar--forwardIntent" : ""}`}
+              className={`wa-selectBar${forwardSelectIntent ? " wa-selectBar--forwardIntent" : ""}${
+                compactMessageUx ? " wa-selectBar--compactUx" : ""
+              }`}
               role="region"
               aria-label="Modo seleção"
             >
               <div className="wa-selectBar-left">
-                <button type="button" className="wa-btn wa-btn-ghost" onClick={exitSelectMode}>
-                  Cancelar
+                <button
+                  type="button"
+                  className="wa-selectBar-close"
+                  onClick={dismissSelectionOverlay}
+                  title="Fechar"
+                  aria-label="Fechar seleção"
+                >
+                  <IconClose />
                 </button>
+                {!compactMessageUx ? (
+                  <button type="button" className="wa-btn wa-btn-ghost" onClick={dismissSelectionOverlay}>
+                    Cancelar
+                  </button>
+                ) : null}
                 <span className="wa-selectBar-count">{selectedSet.size} selecionada(s)</span>
               </div>
               <div className="wa-selectBar-actions">
                 {forwardSelectIntent ? (
                   <button
                     type="button"
-                    className="wa-btn wa-btn-primary"
+                    className={`wa-btn wa-btn-primary${compactMessageUx ? " wa-selectBar-forwardFab" : ""}`}
                     onClick={handleForwardAdvance}
                     disabled={selectedSet.size === 0 || forwardSending}
+                    aria-label="Encaminhar mensagens selecionadas"
                   >
-                    Encaminhar…
+                    <IconForward />
+                    {!compactMessageUx ? <span className="wa-selectBar-forwardText"> Encaminhar…</span> : null}
                   </button>
                 ) : null}
                 <button
@@ -5938,6 +6080,7 @@ export default function ConversaView() {
             <ConversaMessageVirtualList
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
+              overscan={24}
               items={mensagensComSeparadores}
               onVirtualContentResize={snapIfStickBottom}
               renderItem={(item) => {
@@ -5978,6 +6121,8 @@ export default function ConversaView() {
                     swipeReplyEnabled={headerCompact && !selectMode}
                     captionBundleTop={Boolean(item.__captionBundleTop)}
                     captionBundleFollow={Boolean(item.__captionBundleFollow)}
+                    mobileMessageChrome={compactMessageUx}
+                    menuUsesBottomSheet={compactMessageUx}
                   />
                 );
               }}

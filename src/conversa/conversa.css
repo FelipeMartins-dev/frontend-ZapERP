@@ -1123,6 +1123,9 @@
   background: var(--ds-chat-bg);
   /* Evita scroll anchoring do browser ao inserir bolhas no fim — causava “pulo” ao enviar. */
   overflow-anchor: none;
+  /* Scroll tátil mais estável: menos “repasse” pro pai e momentum no iOS. */
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* z-index 0 (não -1): com -1 o padrão ficava atrás do próprio gradiente e sumia */
@@ -3508,7 +3511,11 @@
 }
 
 @media (pointer: coarse) {
-  .wa-msgMenuBtn { opacity: 1; }
+  /* Sem setinha fixa no modo mobile UX da bolha (.wa-bubble--mobileUx) */
+  .wa-bubble:not(.wa-bubble--mobileUx) .wa-msgMenuBtn {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .wa-msgMenu {
@@ -3522,6 +3529,35 @@
   z-index: 9999;
   overflow-y: auto;
   animation: wa-menuFade 0.12s ease-out;
+}
+
+.wa-msgMenu--sheet {
+  left: 10px !important;
+  right: 10px !important;
+  width: auto !important;
+  max-width: 520px;
+  margin: 0 auto;
+  border-radius: 16px 16px 12px 12px;
+  padding: 10px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.14);
+  animation: wa-msgSheetIn 0.18s ease-out;
+}
+
+@keyframes wa-msgSheetIn {
+  from {
+    opacity: 0.85;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wa-msgMenu--sheet .wa-msgMenuItem {
+  padding: 14px 14px;
+  font-size: 15px;
+  border-radius: 12px;
 }
 
 .wa-msgMenuItem {
@@ -3967,6 +4003,54 @@
   gap: 8px;
   flex-shrink: 0;
   flex-wrap: wrap;
+}
+
+.wa-selectBar--compactUx {
+  padding: 10px 12px;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.wa-selectBar-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--wa-text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.wa-selectBar-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.wa-selectBar-close:active {
+  transform: scale(0.94);
+}
+
+.wa-selectBar-forwardFab {
+  min-height: 44px;
+  padding: 10px 18px !important;
+  border-radius: 999px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wa-selectBar-forwardFab svg {
+  flex-shrink: 0;
+}
+
+.wa-selectBar-forwardText {
+  margin-left: 2px;
 }
 
 /* Apagar ao lado de Encaminhar: contraste sólido (evita rosa “lavado”). */

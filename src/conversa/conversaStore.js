@@ -102,6 +102,17 @@ function getCurrentUserFromStorage() {
   }
 }
 
+/**
+ * O responsável pela conversa deve ver o histórico completo.
+ * Após transferência, API/socket costumam omitir `mensagens_bloqueadas: false`, mantendo o estado antigo no cliente.
+ */
+function resolveMensagensBloqueadasForViewer(conversaLike, apiSaysBlocked) {
+  const me = getCurrentUserFromStorage()?.id
+  const aid = conversaLike?.atendente_id
+  if (me != null && aid != null && String(aid) === String(me)) return false
+  return !!apiSaysBlocked
+}
+
 export const useConversaStore = create((set, get) => ({
   selectedId: null,
   conversa: null,
@@ -201,11 +212,10 @@ export const useConversaStore = create((set, get) => ({
       let mensagens = data?.mensagens ?? conversa?.mensagens ?? []
       const tags = data?.tags ?? conversa?.tags ?? []
 
-      // Backend: quando assumida por outro atendente, mensagens vêm vazias e mensagens_bloqueadas=true
-      const mensagens_bloqueadas = data?.mensagens_bloqueadas ?? conversa?.mensagens_bloqueadas ?? false
+      const rawBlockedCarregar = data?.mensagens_bloqueadas ?? conversa?.mensagens_bloqueadas ?? false
       const atendente_nome = data?.atendente_nome ?? conversa?.atendente_nome ?? null
       if (conversa) {
-        conversa = { ...conversa, mensagens_bloqueadas, atendente_nome }
+        conversa = { ...conversa, atendente_nome }
       }
 
       const nextCursor = data?.next_cursor ?? conversa?.next_cursor ?? null
@@ -246,6 +256,13 @@ export const useConversaStore = create((set, get) => ({
           conversa = merged
         }
       } catch (_) {}
+
+      if (conversa) {
+        conversa = {
+          ...conversa,
+          mensagens_bloqueadas: resolveMensagensBloqueadasForViewer(conversa, rawBlockedCarregar),
+        }
+      }
 
       set({
         conversa,
@@ -321,9 +338,14 @@ export const useConversaStore = create((set, get) => ({
       const tags = data?.tags ?? conversa?.tags ?? []
 
       // Backend: quando assumida por outro atendente, mensagens vêm vazias e mensagens_bloqueadas=true
-      const mensagens_bloqueadas = data?.mensagens_bloqueadas ?? conversa?.mensagens_bloqueadas ?? false
+      const rawBlockedRefresh = data?.mensagens_bloqueadas ?? conversa?.mensagens_bloqueadas ?? false
       const atendente_nome = data?.atendente_nome ?? conversa?.atendente_nome ?? null
+      let mensagens_bloqueadas = false
       if (conversa) {
+        mensagens_bloqueadas = resolveMensagensBloqueadasForViewer(
+          { ...conversa, atendente_nome },
+          rawBlockedRefresh
+        )
         conversa = { ...conversa, mensagens_bloqueadas, atendente_nome }
       }
 
@@ -417,12 +439,18 @@ export const useConversaStore = create((set, get) => ({
 
       set((state) => {
         const atual = state.mensagens || []
-        const ids = new Set(atual.map((m) => String(m.id)))
-        const filtradas = (mais || []).filter((m) => m?.id != null && !ids.has(String(m.id)))
-        const merged = [...filtradas, ...atual]
-        const byId = new Map()
-        merged.forEach((m) => byId.set(String(m.id), m))
-        const sorted = sortMensagensChronological(Array.from(byId.values()))
+        /** Mesma estratégia de `_mergeMensagensFromApi`: temp sem `id` não pode usar só String(m.id) (colapsa em "undefined"). */
+        const map = new Map()
+        const put = (raw) => {
+          if (!raw) return
+          const copy = normalizeMsgForStore({ ...raw, conversa_id: selectedId })
+          const k = mapDedupeKey(copy, selectedId)
+          const prev = map.get(k)
+          map.set(k, prev ? { ...prev, ...copy } : copy)
+        }
+        ;(mais || []).forEach(put)
+        atual.forEach(put)
+        const sorted = sortMensagensChronological(Array.from(map.values()))
         return {
           mensagens: attachReplyMeta(selectedId, sorted),
           cursor: nextCursor,
@@ -775,14 +803,15 @@ export const useConversaStore = create((set, get) => ({
   ===================================================== */
   patchConversa: (partial) => {
     if (!partial?.id) return
+    let shouldReloadMessages = false
     const fixedFields = ["contato_nome", "nome_contato_cache", "cliente_nome", "telefone", "telefone_exibivel", "cliente_telefone", "nome_grupo", "foto_perfil", "foto_perfil_contato_cache", "exibir_badge_aberta", "status_atendimento", "status_atendimento_real"]
-    const preserveBlocked = ["mensagens_bloqueadas", "atendente_nome"]
+    const preserveOptional = ["mensagens_bloqueadas", "atendente_nome"]
     set((state) => {
       if (!state.conversa || String(state.conversa.id) !== String(partial.id))
         return state
       const cur = state.conversa
       const merged = { ...cur, ...partial }
-      for (const k of preserveBlocked) {
+      for (const k of preserveOptional) {
         if (merged[k] === undefined && cur[k] !== undefined) merged[k] = cur[k]
       }
       // conversa_atualizada: merge defensivo — só atualizar se vier valor definido (prioridade nome_contato_cache)
@@ -820,8 +849,23 @@ export const useConversaStore = create((set, get) => ({
         merged.departamento = null
         merged.departamentos = null
       }
+      merged.mensagens_bloqueadas = resolveMensagensBloqueadasForViewer(merged, merged.mensagens_bloqueadas)
+      const prevBlocked = cur.mensagens_bloqueadas === true
+      const becameUnblocked = prevBlocked && !merged.mensagens_bloqueadas
+      const me = getCurrentUserFromStorage()?.id
+      const wasAssignee = me != null && cur.atendente_id != null && String(cur.atendente_id) === String(me)
+      const nowAssignee = me != null && merged.atendente_id != null && String(merged.atendente_id) === String(me)
+      const becameAssignee = nowAssignee && !wasAssignee
+      const msgs = state.mensagens || []
+      if ((becameUnblocked || becameAssignee) && msgs.length === 0) shouldReloadMessages = true
       return { conversa: merged }
     })
+    if (shouldReloadMessages) {
+      queueMicrotask(() => {
+        if (String(get().selectedId) !== String(partial.id)) return
+        get().refresh({ silent: true })
+      })
+    }
   },
 
   // ⭐ LOCK REALTIME
