@@ -1534,11 +1534,14 @@ const Bubble = memo(function Bubble({
         left: 10,
         right: 10,
         width: "auto",
-        bottom: 12,
+        bottom: "max(10px, env(safe-area-inset-bottom, 0px))",
         top: "auto",
-        maxHeight: "min(58vh, 420px)",
+        maxHeight:
+          "min(82vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px))",
         overflowY: "auto",
-        zIndex: 9999,
+        WebkitOverflowScrolling: "touch",
+        overscrollBehavior: "contain",
+        zIndex: 10002,
       });
       return;
     }
@@ -1569,7 +1572,8 @@ const Bubble = memo(function Bubble({
       width: w,
       maxHeight,
       overflowY: "auto",
-      zIndex: 9999,
+      WebkitOverflowScrolling: "touch",
+      zIndex: 10002,
     });
   }, [menuUsesBottomSheet]);
 
@@ -1697,7 +1701,7 @@ const Bubble = memo(function Bubble({
       <div
         className={`wa-row ${out ? "wa-row-out" : "wa-row-in"}${localReaction ? " wa-row--hasReaction" : ""}${
           captionBundleTop ? " wa-row--captionBundleTop" : ""
-        }${captionBundleFollow ? " wa-row--captionBundleFollow" : ""}`}
+        }${captionBundleFollow ? " wa-row--captionBundleFollow" : ""}${menuOpen ? " wa-row--menuOpen" : ""}`}
         data-msg-id={msg?.id}
         data-group-start={showRemetente && !out ? "1" : "0"}
       >
@@ -1738,6 +1742,7 @@ const Bubble = memo(function Bubble({
           isAudioOrVoice ? "wa-bubble-audio audio-message" : "",
           isVideo ? "wa-bubble-video" : "",
           selected ? "isSelected" : "",
+          menuOpen ? "wa-bubble--menuOpen" : "",
           mobileMessageChrome ? "wa-bubble--mobileUx" : "",
         ].filter(Boolean).join(" ")}
         onClick={selectMode ? handleToggleSelect : undefined}
@@ -2051,13 +2056,25 @@ const Bubble = memo(function Bubble({
 
       {menuOpen
         ? createPortal(
-            <div
-              ref={menuElRef}
-              className={`wa-msgMenu${menuUsesBottomSheet ? " wa-msgMenu--sheet" : ""}`}
-              style={menuStyle || { position: "fixed", top: -9999, left: -9999 }}
-              role="menu"
-              aria-label="Opções da mensagem"
-            >
+            <>
+              <div
+                className={`wa-msgMenuBackdrop${menuUsesBottomSheet ? " wa-msgMenuBackdrop--sheet" : ""}`}
+                aria-hidden="true"
+                onPointerDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  e.preventDefault();
+                  setMenuOpen(false);
+                }}
+              />
+              <div
+                ref={menuElRef}
+                className={`wa-msgMenu${menuUsesBottomSheet ? " wa-msgMenu--sheet" : ""}`}
+                style={menuStyle || { position: "fixed", top: -9999, left: -9999 }}
+                role="menu"
+                aria-label="Opções da mensagem"
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+              >
               {out ? (
                 <>
                   <button type="button" className="wa-msgMenuItem" onClick={() => runAction("info")} role="menuitem">
@@ -2103,7 +2120,8 @@ const Bubble = memo(function Bubble({
                   Apagar para todos
                 </button>
               ) : null}
-            </div>,
+              </div>
+            </>,
             document.body
           )
         : null}
@@ -5989,7 +6007,7 @@ export default function ConversaView() {
         {/* MENSAGENS */}
         <div
           ref={messagesContainerRef}
-          className="wa-messages"
+          className={`wa-messages${selectMode ? " wa-messages--selectDim" : ""}`}
           onScroll={handleMessagesScroll}
           onDragOver={onDragOver}
           onDrop={onDrop}
@@ -5997,6 +6015,7 @@ export default function ConversaView() {
           role="log"
           aria-label="Mensagens"
         >
+          {selectMode ? <div className="wa-messages-selectDim" aria-hidden /> : null}
           {selectMode ? (
             <div
               className={`wa-selectBar${forwardSelectIntent ? " wa-selectBar--forwardIntent" : ""}${

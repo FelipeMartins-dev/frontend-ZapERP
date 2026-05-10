@@ -3526,8 +3526,10 @@
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-lg);
   box-shadow: var(--ds-shadow-lg);
-  z-index: 9999;
+  z-index: 10002;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   animation: wa-menuFade 0.12s ease-out;
 }
 
@@ -3538,9 +3540,11 @@
   max-width: 520px;
   margin: 0 auto;
   border-radius: 16px 16px 12px 12px;
-  padding: 10px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 8px calc(12px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.14);
   animation: wa-msgSheetIn 0.18s ease-out;
+  max-height: min(82vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px));
+  scroll-padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 
 @keyframes wa-msgSheetIn {
@@ -3570,8 +3574,9 @@
   cursor: pointer;
   color: var(--wa-text);
   font-size: 13px;
-  line-height: 1.2;
+  line-height: 1.35;
   transition: background .12s ease, color .12s ease;
+  flex-shrink: 0;
 }
 
 .wa-msgMenuItem:hover {
@@ -3590,6 +3595,55 @@
   height: 1px;
   background: var(--ds-border);
   margin: 6px 6px;
+}
+
+/* Overlay ao abrir menu da mensagem (long press) — estilo WhatsApp */
+.wa-msgMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(17, 27, 33, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: wa-msgMenuBackdropIn 0.2s ease-out;
+}
+
+[data-theme="dark"] .wa-msgMenuBackdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+@keyframes wa-msgMenuBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Linha/bolha da mensagem ativa no menu — acima do padrão do chat */
+.wa-row--menuOpen {
+  position: relative;
+  z-index: 5;
+}
+
+.wa-bubble--menuOpen {
+  animation: wa-bubbleMenuLift 0.28s cubic-bezier(0.22, 0.82, 0.22, 1);
+  outline: 2px solid rgba(0, 168, 132, 0.55);
+  box-shadow:
+    0 4px 20px rgba(0, 168, 132, 0.22),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+@keyframes wa-bubbleMenuLift {
+  from {
+    transform: scale(0.97);
+    opacity: 0.92;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .wa-bubble-badge {
@@ -3958,8 +4012,44 @@
 }
 
 .wa-bubble.isSelected {
-  outline: 2px solid rgba(0,168,132,.25);
-  transition: outline 0.15s ease;
+  outline: 2px solid rgba(0, 168, 132, 0.42);
+  box-shadow: 0 2px 14px rgba(0, 168, 132, 0.18);
+  animation: wa-bubbleSelectedIn 0.24s cubic-bezier(0.22, 0.82, 0.22, 1);
+  transition: outline 0.15s ease, box-shadow 0.15s ease;
+}
+
+@keyframes wa-bubbleSelectedIn {
+  from {
+    transform: scale(0.985);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Modo seleção: escurece e embassa o fundo do histórico (mensagens selecionadas permanecem legíveis por z-index) */
+.wa-messages.wa-messages--selectDim > .wa-messages-selectDim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(17, 27, 33, 0.38);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+
+[data-theme="dark"] .wa-messages.wa-messages--selectDim > .wa-messages-selectDim {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.wa-messages.wa-messages--selectDim > .wa-selectBar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+}
+
+.wa-messages.wa-messages--selectDim .wa-row:has(.wa-bubble.isSelected) {
+  z-index: 2;
 }
 
 .wa-selectBar,
