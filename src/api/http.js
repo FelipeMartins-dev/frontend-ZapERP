@@ -47,6 +47,9 @@ api.interceptors.response.use(
       }
       return Promise.reject(err)
     }
+    if (err?.config?.silent === true) {
+      return Promise.reject(err)
+    }
     // Feedback global para erros de servidor/rede (evita tela travada sem aviso)
     if (typeof window !== "undefined") {
       const show = (payload) => {

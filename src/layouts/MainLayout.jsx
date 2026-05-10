@@ -4,8 +4,8 @@ import { useAuthStore } from "../auth/authStore";
 import { can, isSupervisorOrAdmin } from "../auth/permissions";
 import ZapERPLogo from "../brand/ZapERPLogo";
 import GlobalNotifications from "../notifications/GlobalNotifications";
+import PushPermissionPrompt from "../push/PushPermissionPrompt";
 import { getOpenConversationNotificationEventName } from "../notifications/desktopNotificationService";
-import { useConversaStore } from "../conversa/conversaStore";
 import { useChatStore } from "../chats/chatsStore";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import InternalChatGlobalSocketBridge from "../internal-chat/InternalChatGlobalSocketBridge";
@@ -75,44 +75,6 @@ export default function MainLayout() {
     return () => window.removeEventListener(eventName, onOpenFromDesktopNotification);
   }, [navigate]);
 
-  useEffect(() => {
-    const onSwMessage = (event) => {
-      const t = event.data?.type;
-      if (t === "ZAP_PUSH_NAVIGATE") {
-        const openPath = event.data?.openPath || "/atendimento";
-        try {
-          const u = new URL(openPath, window.location.origin);
-          const conversa = u.searchParams.get("conversa");
-          if (conversa) {
-            navigate("/atendimento", { state: { openConversaId: conversa } });
-          } else {
-            navigate("/atendimento");
-          }
-        } catch {
-          navigate("/atendimento");
-        }
-        return;
-      }
-      if (t === "ZAP_PUSH_SUPPRESS_CHECK") {
-        const conversaId = event.data?.payload?.conversaId;
-        const selectedId = useConversaStore.getState().selectedId;
-        const focused =
-          typeof document !== "undefined" &&
-          document.visibilityState === "visible" &&
-          (typeof document.hasFocus !== "function" ? true : document.hasFocus());
-        const suppress =
-          focused && conversaId != null && selectedId != null && String(selectedId) === String(conversaId);
-        try {
-          event.ports[0]?.postMessage({ suppress: !!suppress });
-        } catch {}
-      }
-    };
-    const sw = navigator.serviceWorker;
-    if (!sw?.addEventListener) return undefined;
-    sw.addEventListener("message", onSwMessage);
-    return () => sw.removeEventListener("message", onSwMessage);
-  }, [navigate]);
-
   function handleLogout() {
     logout();
     navigate("/login");
@@ -128,6 +90,7 @@ export default function MainLayout() {
         Pular para o conteúdo principal
       </a>
       <GlobalNotifications />
+      <PushPermissionPrompt />
       <InternalChatGlobalSocketBridge />
       <aside className="sidebar sidebar--compact" aria-label="Menu">
         <div className="sidebar-brand-compact" title="ZapERP — Atendimento inteligente">

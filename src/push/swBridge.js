@@ -15,7 +15,7 @@ function extractConversaIdFromPath(openPath) {
   if (!raw) return ""
   try {
     const url = new URL(raw, window.location.origin)
-    return normalize(url.searchParams.get("conversa"))
+    return normalize(url.searchParams.get("conversa") || url.searchParams.get("conversa_id"))
   } catch {
     return ""
   }
@@ -39,20 +39,25 @@ function navigateInsideApp(openPath) {
       window.location.assign(raw)
       return
     }
-    const next = `${url.pathname}${url.search}${url.hash}`
-    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
-    if (next !== current) {
-      window.history.pushState({}, "", next)
-      window.dispatchEvent(new PopStateEvent("popstate"))
-    }
 
-    const conversaId = normalize(url.searchParams.get("conversa"))
+    const conversaId = normalize(url.searchParams.get("conversa") || url.searchParams.get("conversa_id"))
     if (conversaId) {
       window.dispatchEvent(
         new CustomEvent(OPEN_CONVERSATION_EVENT, {
           detail: { conversaId },
         })
       )
+      try {
+        window.focus()
+      } catch (_) {}
+      return
+    }
+
+    const next = `${url.pathname}${url.search}${url.hash}`
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    if (next !== current) {
+      window.history.pushState({}, "", next)
+      window.dispatchEvent(new PopStateEvent("popstate"))
     }
 
     try {

@@ -30,8 +30,13 @@ self.addEventListener('push', (event) => {
           payload = {}
         }
 
-        const conversaId = payload?.data?.conversaId
-        const msgId = payload?.data?.messageId
+        const conversaId =
+          payload?.data?.conversaId ??
+          payload?.data?.conversa_id ??
+          payload?.data?.conversation_id
+        const msgId =
+          payload?.data?.messageId ??
+          payload?.data?.mensagem_id
         const candidatos = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
         const clientesFocados = clientsComJanelaEmFoco(candidatos)
 
@@ -112,10 +117,38 @@ self.addEventListener('pushsubscriptionchange', (event) => {
   )
 })
 
+function resolveNotificationOpenPath(data) {
+  const d = data && typeof data === 'object' ? data : {}
+  let raw =
+    d.openUrl ||
+    d.url ||
+    (typeof d.open === 'string' ? d.open : '') ||
+    ''
+  raw = typeof raw === 'string' ? raw.trim() : ''
+  if (raw) {
+    if (raw.startsWith('/chat')) {
+      try {
+        const u = new URL(raw, self.location.origin)
+        const cid =
+          u.searchParams.get('conversa_id') ||
+          u.searchParams.get('conversa') ||
+          ''
+        if (cid) return `/atendimento?conversa=${encodeURIComponent(cid)}`
+      } catch (_) {}
+    }
+    return raw.startsWith('/') ? raw : `/${raw}`
+  }
+  const cid = d.conversaId ?? d.conversa_id
+  if (cid != null && String(cid).trim() !== '') {
+    return `/atendimento?conversa=${encodeURIComponent(String(cid).trim())}`
+  }
+  return '/atendimento'
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const data = event.notification.data || {}
-  const openPath = data.openUrl || data.url || '/atendimento'
+  const openPath = resolveNotificationOpenPath(data)
   const scope = self.registration.scope || '/'
   let origin
   try {
