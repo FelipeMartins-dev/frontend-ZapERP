@@ -1748,6 +1748,7 @@ const Bubble = memo(function Bubble({
         onClick={selectMode ? handleToggleSelect : undefined}
         onPointerDown={mobileMessageChrome && !selectMode ? onBubblePointerDown : undefined}
         onContextMenu={mobileMessageChrome ? (ev) => ev.preventDefault() : undefined}
+        onSelectStart={(ev) => ev.preventDefault()}
         role="group"
         aria-label="Mensagem"
       >
@@ -6096,6 +6097,12 @@ export default function ConversaView() {
               </div>
             </div>
           ) : (
+            <>
+              {loadingMore ? (
+                <div className="wa-historyLoading" role="status" aria-live="polite" aria-label="Carregando histórico">
+                  <span className="wa-historyLoading-bar" />
+                </div>
+              ) : null}
             <ConversaMessageVirtualList
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
@@ -6146,6 +6153,7 @@ export default function ConversaView() {
                 );
               }}
             />
+            </>
           )}
 
           <div ref={bottomRef} />

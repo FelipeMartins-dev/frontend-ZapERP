@@ -5,7 +5,7 @@ const MAX_SHIFT = 76;
 /** Distância horizontal mínima para disparar “modo responder”. */
 const ACTIVATE_THRESHOLD = 52;
 /** Se o gesto vertical passar disso primeiro, assume rolagem — cancela swipe. */
-const VERT_ABORT_PX = 18;
+const VERT_ABORT_PX = 26;
 /** Movimento horizontal mínimo para travar eixo em “horizontal”. */
 const HORIZ_LOCK_PX = 12;
 const HORIZ_RATIO = 1.18;

@@ -13,7 +13,7 @@ import { getSocket, leaveConversa, joinConversaIfNeeded } from "../socket/socket
 import { useChatStore } from "../chats/chatsStore"
 import { attachReplyMeta } from "./replyMeta"
 
-const PAGE_LIMIT = 50
+const PAGE_LIMIT = 100
 
 function toMillis(value) {
   if (!value) return NaN
@@ -124,8 +124,9 @@ export const useConversaStore = create((set, get) => ({
   // ⭐ LOCK REALTIME
   lockedBy: null,
 
-  // paginação
+  // paginação (cursor = criado_em da mensagem mais antiga do lote DB; cursorId desempate)
   cursor: null,
+  cursorId: null,
   hasMore: true,
   loadingMore: false,
 
@@ -191,6 +192,7 @@ export const useConversaStore = create((set, get) => ({
       selectedId: normalizedId,
       loadError: null,
       cursor: null,
+      cursorId: null,
       hasMore: true,
       mensagens: [],
       tags: [],
@@ -219,6 +221,11 @@ export const useConversaStore = create((set, get) => ({
       }
 
       const nextCursor = data?.next_cursor ?? conversa?.next_cursor ?? null
+      const nextCursorIdRaw = data?.next_cursor_id ?? conversa?.next_cursor_id
+      const nextCursorId =
+        nextCursorIdRaw !== undefined && nextCursorIdRaw !== null && String(nextCursorIdRaw).trim() !== ""
+          ? Number(nextCursorIdRaw)
+          : null
 
       if (Array.isArray(mensagens)) {
         const byKey = new Map()
@@ -271,6 +278,7 @@ export const useConversaStore = create((set, get) => ({
         loading: false,
         loadError: null,
         cursor: nextCursor,
+        cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
         hasMore: !!nextCursor,
       })
 
@@ -350,6 +358,11 @@ export const useConversaStore = create((set, get) => ({
       }
 
       const nextCursor = data?.next_cursor ?? conversa?.next_cursor ?? null
+      const nextCursorIdRaw = data?.next_cursor_id ?? conversa?.next_cursor_id
+      const nextCursorId =
+        nextCursorIdRaw !== undefined && nextCursorIdRaw !== null && String(nextCursorIdRaw).trim() !== ""
+          ? Number(nextCursorIdRaw)
+          : null
 
       // MERGE: nunca substituir — preserva mensagens via nova_mensagem que ainda não estão na API
       // Quando mensagens_bloqueadas (assumida por outro), API envia vazio → substituir
@@ -391,6 +404,7 @@ export const useConversaStore = create((set, get) => ({
         tags,
         loading: false,
         cursor: nextCursor,
+        cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
         hasMore: !!nextCursor,
       })
 
@@ -418,14 +432,18 @@ export const useConversaStore = create((set, get) => ({
      PAGINAÇÃO
   ===================================================== */
   loadMore: async () => {
-    const { selectedId, cursor, hasMore, loadingMore, conversa } = get()
+    const { selectedId, cursor, cursorId, hasMore, loadingMore, conversa } = get()
     if (!selectedId || !hasMore || !cursor || loadingMore) return
     if (conversa?.mensagens_bloqueadas) return
 
     set({ loadingMore: true })
 
     try {
-      const data = await getChatById(selectedId, { cursor, limit: PAGE_LIMIT })
+      const data = await getChatById(selectedId, {
+        cursor,
+        cursorId,
+        limit: PAGE_LIMIT,
+      })
 
       if (String(get().selectedId) !== String(selectedId)) {
         set({ loadingMore: false })
@@ -436,6 +454,11 @@ export const useConversaStore = create((set, get) => ({
       const mais = data?.mensagens ?? conversa?.mensagens ?? []
 
       const nextCursor = data?.next_cursor ?? conversa?.next_cursor ?? null
+      const nextCursorIdRaw = data?.next_cursor_id ?? conversa?.next_cursor_id
+      const nextCursorId =
+        nextCursorIdRaw !== undefined && nextCursorIdRaw !== null && String(nextCursorIdRaw).trim() !== ""
+          ? Number(nextCursorIdRaw)
+          : null
 
       set((state) => {
         const atual = state.mensagens || []
@@ -454,6 +477,7 @@ export const useConversaStore = create((set, get) => ({
         return {
           mensagens: attachReplyMeta(selectedId, sorted),
           cursor: nextCursor,
+          cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
           hasMore: !!nextCursor,
           loadingMore: false,
         }
@@ -886,6 +910,7 @@ export const useConversaStore = create((set, get) => ({
       tags: [],
       loading: false,
       cursor: null,
+      cursorId: null,
       hasMore: true,
       loadingMore: false,
       lockedBy: null,

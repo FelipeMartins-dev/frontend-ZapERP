@@ -896,6 +896,7 @@ a { color: inherit; text-decoration: none; }
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 7px 10px 12px;
   gap: 7px;
 }

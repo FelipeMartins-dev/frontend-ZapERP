@@ -1121,11 +1121,37 @@
   position: relative;
   isolation: isolate;
   background: var(--ds-chat-bg);
+  /* Prioriza rolagem vertical no touch (menos “briga” com gestos / seleção nativa). */
+  touch-action: pan-y;
+  /* Evita seleção azul em Safari ao arrastar sobre o histórico (texto não é editável aqui). */
+  -webkit-user-select: none;
+  user-select: none;
   /* Evita scroll anchoring do browser ao inserir bolhas no fim — causava “pulo” ao enviar. */
   overflow-anchor: none;
   /* Scroll tátil mais estável: menos “repasse” pro pai e momentum no iOS. */
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Bolhas = só gestos do app (copiar pelo menu). Sem isto, long press no iOS abre seleção nativa + menu azul. */
+.wa-messages .wa-bubble,
+.wa-messages .wa-bubble * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.wa-messages .wa-bubble img {
+  -webkit-user-drag: none;
+}
+
+/* Composer / rodapé: texto editável */
+.wa-shell .wa-footer textarea.wa-input,
+.wa-shell .wa-footer .wa-input,
+.wa-shell .wa-footer [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* z-index 0 (não -1): com -1 o padrão ficava atrás do próprio gradiente e sumia */
@@ -3545,6 +3571,12 @@
   animation: wa-msgSheetIn 0.18s ease-out;
   max-height: min(82vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px));
   scroll-padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 @keyframes wa-msgSheetIn {
@@ -3606,6 +3638,9 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   animation: wa-msgMenuBackdropIn 0.2s ease-out;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 
 [data-theme="dark"] .wa-msgMenuBackdrop {
@@ -8312,5 +8347,37 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-productCard-foot {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* Histórico antigo — indicador discreto no topo ao paginar */
+.wa-historyLoading {
+  flex-shrink: 0;
+  padding: 6px 12px 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+.wa-historyLoading-bar {
+  display: block;
+  height: 3px;
+  width: 112px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, transparent, var(--wa-green), transparent);
+  opacity: 0.55;
+  animation: wa-historyPulse 0.95s ease-in-out infinite;
+}
+
+@keyframes wa-historyPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scaleX(0.88);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scaleX(1);
   }
 }

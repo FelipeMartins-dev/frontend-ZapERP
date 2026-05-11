@@ -47,6 +47,7 @@ export async function vincularClienteConversa(conversaId, cliente_id) {
 export async function getChatById(conversaId, opts = {}) {
   const params = new URLSearchParams();
   if (opts?.cursor) params.set("cursor", String(opts.cursor));
+  if (opts?.cursorId != null && opts?.cursorId !== "") params.set("cursor_id", String(opts.cursorId));
   if (opts?.limit) params.set("limit", String(opts.limit));
 
   const qs = params.toString();
