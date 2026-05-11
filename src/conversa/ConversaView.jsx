@@ -2734,26 +2734,6 @@ export default function ConversaView() {
     // Scroll ao fundo fica só no useAutoScroll (nova mensagem) — evita “pulo” duplo ao enviar.
   }, [texto, syncTextareaHeight]);
 
-  const prevComposerLenRef = useRef(0);
-  const prevComposerConversaRef = useRef(null);
-  /** Ao limpar o composer (ex.: após enviar), o textarea encolhe e o viewport deixa de parecer colado ao fim — reancora só nessa transição, não a cada tecla. */
-  useLayoutEffect(() => {
-    const len = String(texto ?? "").length;
-    if (String(prevComposerConversaRef.current) !== String(conversaId ?? "")) {
-      prevComposerConversaRef.current = conversaId;
-      prevComposerLenRef.current = len;
-      return;
-    }
-    const prevLen = prevComposerLenRef.current;
-    prevComposerLenRef.current = len;
-    if (prevLen <= 0 || len !== 0) return;
-    if (!conversaId || loading) return;
-    const c = messagesContainerRef.current;
-    if (!c || !shouldStickToBottomRef.current) return;
-    if (!isNearBottom(c, 220)) return;
-    snapThreadToBottom(c, virtualThreadRef);
-  }, [texto, conversaId, loading]);
-
   useEffect(() => {
     pendingBlobUrlRef.current = pendingPreview || null;
   }, [pendingPreview]);
@@ -2869,6 +2849,27 @@ export default function ConversaView() {
   /** Enquanto `carregarConversa` limpa `conversa`, `selectedId` mantém o chat — necessário para scroll até à última mensagem não falhar a meio do load. */
   const scrollThreadId =
     selectedId != null && selectedId !== "" ? selectedId : conversaId;
+
+  const prevComposerLenRef = useRef(0);
+  const prevComposerConversaRef = useRef(null);
+  /** Ao limpar o composer (ex.: após enviar), o textarea encolhe e o viewport deixa de parecer colado ao fim — reancora só nessa transição, não a cada tecla. */
+  useLayoutEffect(() => {
+    const len = String(texto ?? "").length;
+    const threadKey = scrollThreadId ?? conversaId;
+    if (String(prevComposerConversaRef.current) !== String(threadKey ?? "")) {
+      prevComposerConversaRef.current = threadKey;
+      prevComposerLenRef.current = len;
+      return;
+    }
+    const prevLen = prevComposerLenRef.current;
+    prevComposerLenRef.current = len;
+    if (prevLen <= 0 || len !== 0) return;
+    if (!threadKey || loading) return;
+    const c = messagesContainerRef.current;
+    if (!c || !shouldStickToBottomRef.current) return;
+    if (!isNearBottom(c, 220)) return;
+    snapThreadToBottom(c, virtualThreadRef);
+  }, [texto, conversaId, scrollThreadId, loading]);
 
   useEffect(() => {
     resetAutocorrectTracking();
