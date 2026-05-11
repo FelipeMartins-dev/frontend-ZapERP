@@ -1359,6 +1359,21 @@
   align-items: flex-end;
 }
 
+/* Bolha encolhe à mídia — o track não pode crescer até o max só por flex (faixa vazia à direita da foto) */
+.wa-row-out .wa-swipeReplyTrack:has(.wa-bubble.image-message),
+.wa-row-out .wa-swipeReplyTrack:has(.wa-bubble.wa-bubble-video:has(.wa-bubble-caption)) {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(78%, 420px);
+}
+
+.wa-row-in .wa-swipeReplyTrack:has(.wa-bubble.image-message),
+.wa-row-in .wa-swipeReplyTrack:has(.wa-bubble.wa-bubble-video:has(.wa-bubble-caption)) {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(78%, 420px);
+}
+
 .wa-row-in .wa-swipeReplyTrack {
   flex: 1 1 auto;
   min-width: 0;
@@ -1394,6 +1409,12 @@
 
 .wa-swipeReplyShift.wa-swipeReplyShift--spring {
   transition: transform 0.22s cubic-bezier(0.22, 0.82, 0.22, 1);
+}
+
+.wa-swipeReplyTrack:has(.wa-bubble.image-message) .wa-swipeReplyShift,
+.wa-swipeReplyTrack:has(.wa-bubble.wa-bubble-video:has(.wa-bubble-caption)) .wa-swipeReplyShift {
+  width: fit-content;
+  max-width: 100%;
 }
 
 /* Evita flex encolher a bolha abaixo da largura do texto (“Boa tarde” em duas linhas finas) */
@@ -2030,8 +2051,9 @@
   align-self: flex-start;
 }
 
+/* Conteúdo alinhado ao início do eixo — o .wa-row-out já coloca o balão à direita; flex-end aqui deixava “vazio” à direita da foto */
 .wa-row-out .wa-bubble.image-message .wa-bubble-mediaStack {
-  align-self: flex-end;
+  align-self: flex-start;
 }
 
 .wa-bubble-mediaStack {
@@ -2103,7 +2125,7 @@
 }
 
 .wa-row-out .wa-bubble.image-message .wa-bubble-body {
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .wa-bubble.image-message .wa-bubble-imgLink {
@@ -2136,8 +2158,10 @@
 }
 
 .wa-bubble.image-message .wa-bubble-caption {
-  width: 100%;
+  /* Sem width:100% — evita ciclo de largura no flex e bolha mais larga que a foto */
+  width: auto;
   max-width: min(320px, calc(100vw - 56px));
+  min-width: 0;
   box-sizing: border-box;
   padding: 2px 8px 4px 8px;
   margin: 0;
@@ -2208,6 +2232,7 @@
   width: fit-content;
   max-width: 100%;
   min-width: 0;
+  align-items: flex-start;
 }
 
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-mediaStack {
@@ -2252,7 +2277,7 @@
 }
 
 .wa-row-out .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-mediaStack {
-  align-self: flex-end;
+  align-self: flex-start;
 }
 
 /* Label [Encaminhado] — estilo WhatsApp (legado, usado em FileBubbleContent) */
