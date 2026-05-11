@@ -413,6 +413,32 @@ function getMediaUrl(url, urlAbsoluta) {
   return base.replace(/\/$/, "") + (url.startsWith("/") ? url : "/" + url);
 }
 
+function credentialedFetchMode() {
+  const v = String(import.meta.env.VITE_WITH_CREDENTIALS || "").trim().toLowerCase();
+  return v === "1" || v === "true" ? "include" : "omit";
+}
+
+/** Baixa o arquivo com o mesmo JWT do `api` (evita <iframe src="API"> bloqueado por X-Frame-Options no servidor/proxy). */
+async function fetchMediaBinaryAuthenticated(absoluteUrl) {
+  const headers = {};
+  try {
+    const raw = localStorage.getItem("zap_erp_auth");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.token) headers.Authorization = `Bearer ${parsed.token}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  const res = await fetch(absoluteUrl, {
+    method: "GET",
+    headers,
+    credentials: credentialedFetchMode(),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.blob();
+}
+
 /** Visualizador de mídia: tipos em que a impressão faz sentido (imagem / vídeo-quadro). */
 function mediaViewerSupportsPrint(viewerType, fileName) {
   const t = String(viewerType || "").toLowerCase();
@@ -2553,6 +2579,9 @@ export default function ConversaView() {
   const pendingBlobUrlRef = useRef(null);
   const confirmSendLockRef = useRef(false);
   const [mediaViewer, setMediaViewer] = useState(null); // { url, type, fileName }
+  const [mediaPdfBlobUrl, setMediaPdfBlobUrl] = useState(null);
+  const [mediaPdfLoading, setMediaPdfLoading] = useState(false);
+  const [mediaPdfError, setMediaPdfError] = useState(null);
   const [mediaPrintLoading, setMediaPrintLoading] = useState(false);
   const mediaViewerImgRef = useRef(null);
   const mediaViewerVideoRef = useRef(null);
@@ -3421,6 +3450,70 @@ export default function ConversaView() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [mediaViewer, closeMediaViewer]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const revokeIf = (u) => {
+      if (u) {
+        try {
+          URL.revokeObjectURL(u);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+
+    if (!mediaViewer) {
+      setMediaPdfBlobUrl((prev) => {
+        revokeIf(prev);
+        return null;
+      });
+      setMediaPdfLoading(false);
+      setMediaPdfError(null);
+      return undefined;
+    }
+
+    const fn = String(mediaViewer.fileName || "").toLowerCase();
+    const isPdf = mediaViewer.type === "arquivo" && fn.endsWith(".pdf");
+    if (!isPdf) {
+      setMediaPdfBlobUrl((prev) => {
+        revokeIf(prev);
+        return null;
+      });
+      setMediaPdfLoading(false);
+      setMediaPdfError(null);
+      return undefined;
+    }
+
+    setMediaPdfLoading(true);
+    setMediaPdfError(null);
+    setMediaPdfBlobUrl((prev) => {
+      revokeIf(prev);
+      return null;
+    });
+
+    const abs = getMediaUrl(mediaViewer.url, false);
+    (async () => {
+      try {
+        const blob = await fetchMediaBinaryAuthenticated(abs);
+        if (cancelled) return;
+        const pdfBlob =
+          blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
+        const u = URL.createObjectURL(pdfBlob);
+        setMediaPdfBlobUrl(u);
+      } catch (e) {
+        if (!cancelled) {
+          setMediaPdfError(String(e?.message || e || "Erro ao carregar o documento."));
+        }
+      } finally {
+        if (!cancelled) setMediaPdfLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaViewer]);
 
   useEffect(() => {
     if (!shareContactOpen) {
@@ -6923,7 +7016,45 @@ export default function ConversaView() {
                     );
                   }
                   if (isPdf) {
-                    return <iframe src={mediaViewer.url} title={mediaViewer.fileName || "Documento"} className="wa-mediaViewer-iframe" />;
+                    const absUrl = getMediaUrl(mediaViewer.url, false);
+                    if (mediaPdfLoading) {
+                      return (
+                        <div
+                          className="wa-mediaViewer-iframe wa-mediaViewer-pdfState"
+                          role="status"
+                          aria-busy="true"
+                        >
+                          Carregando documento…
+                        </div>
+                      );
+                    }
+                    if (mediaPdfError) {
+                      return (
+                        <div className="wa-mediaViewer-iframe wa-mediaViewer-pdfState">
+                          <span className="wa-mediaViewer-fileIcon" aria-hidden="true">
+                            📎
+                          </span>
+                          <span>Não foi possível exibir o PDF nesta janela ({mediaPdfError}).</span>
+                          <a href={absUrl} target="_blank" rel="noreferrer" className="wa-btn wa-btn-primary">
+                            Abrir em nova aba
+                          </a>
+                        </div>
+                      );
+                    }
+                    if (mediaPdfBlobUrl) {
+                      return (
+                        <iframe
+                          src={mediaPdfBlobUrl}
+                          title={mediaViewer.fileName || "Documento"}
+                          className="wa-mediaViewer-iframe"
+                        />
+                      );
+                    }
+                    return (
+                      <div className="wa-mediaViewer-iframe wa-mediaViewer-pdfState" role="status">
+                        Preparando documento…
+                      </div>
+                    );
                   }
                   return (
                     <div className="wa-mediaViewer-file">

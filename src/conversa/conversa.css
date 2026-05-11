@@ -4010,6 +4010,19 @@
   display: block;
 }
 
+.wa-mediaViewer-pdfState {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: #fff;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.25);
+}
+
 .wa-mediaViewer-file {
   display: flex;
   flex-direction: column;
