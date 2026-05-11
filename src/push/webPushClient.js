@@ -24,7 +24,7 @@ export function pushSupported() {
 /** GET chave pública VAPID (sem auth). */
 export async function fetchVapidPublicKey() {
   const base = getApiBaseUrl()
-  const endpoints = ["/users/push/vapid-public-key", "/usuarios/push/vapid-public-key"]
+  const endpoints = ["/usuarios/push/vapid-public-key", "/users/push/vapid-public-key"]
   for (const ep of endpoints) {
     try {
       const res = await fetch(`${base}${ep}`)
