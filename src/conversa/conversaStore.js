@@ -76,6 +76,21 @@ function normalizeMsgForStore(msg) {
   return n
 }
 
+/**
+ * Mensagem já confirmada (id ou whatsapp_id) não deve manter tempId — senão o FIFO de reconciliação
+ * continua tratando a bolha como “pendente” e a próxima confirmação com o mesmo texto sobrescreve
+ * a mensagem errada (parece que mensagens “somem”).
+ */
+function stripTempIdWhenPersisted(msg) {
+  if (!msg || typeof msg !== "object") return msg
+  const idOk = msg.id != null && String(msg.id).trim() !== ""
+  const waOk = msg.whatsapp_id != null && String(msg.whatsapp_id).trim() !== ""
+  if (!idOk && !waOk) return msg
+  const next = { ...msg }
+  delete next.tempId
+  return next
+}
+
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
 function sortMensagensChronological(arr) {
   return [...(arr || [])].sort((a, b) => {
@@ -533,7 +548,7 @@ export const useConversaStore = create((set, get) => ({
         if (msg.status != null) merged.status = msg.status
         if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
         const next = [...list]
-        next[existingIdx] = merged
+        next[existingIdx] = stripTempIdWhenPersisted(merged)
         return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
       }
 
@@ -573,7 +588,7 @@ export const useConversaStore = create((set, get) => ({
           const tsMsg = toMillis(msg?.criado_em)
           if (tsExisting > tsMsg || !msg.criado_em) merged.criado_em = existing.criado_em
           const next = [...list]
-          next[replaceIdx] = merged
+          next[replaceIdx] = stripTempIdWhenPersisted(merged)
           return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
         }
       }
@@ -604,7 +619,7 @@ export const useConversaStore = create((set, get) => ({
               merged.status_mensagem = m.status_mensagem
             }
             const next = [...list]
-            next[i] = merged
+            next[i] = stripTempIdWhenPersisted(merged)
             return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
           }
         }
@@ -619,7 +634,7 @@ export const useConversaStore = create((set, get) => ({
       const newMsg = normalizeMsgForStore({ ...msg })
       if (convId) newMsg.conversa_id = convId
       const newK = mapDedupeKey(newMsg, convId)
-      byKey.set(newK, newMsg)
+      byKey.set(newK, stripTempIdWhenPersisted(newMsg))
       return { mensagens: get()._sortMensagensByCriadoEmAsc(Array.from(byKey.values())) }
     })
   },
@@ -635,7 +650,7 @@ export const useConversaStore = create((set, get) => ({
       if (idx >= 0) {
         replaced = true
         const next = [...list]
-        next[idx] = { ...realMsg, conversa_id: state.conversa?.id }
+        next[idx] = stripTempIdWhenPersisted({ ...realMsg, conversa_id: state.conversa?.id })
         return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
       }
       return state

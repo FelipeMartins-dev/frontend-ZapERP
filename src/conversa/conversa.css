@@ -1154,6 +1154,12 @@
   -webkit-touch-callout: default;
 }
 
+/* Placeholder / primeira linha — padding + line-height coerentes com min-height ~44px */
+.wa-shell .wa-footer textarea.wa-input {
+  padding: 11px 16px;
+  line-height: 22px;
+}
+
 /* z-index 0 (não -1): com -1 o padrão ficava atrás do próprio gradiente e sumia */
 .wa-messages::before {
   content: "";
@@ -7755,6 +7761,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     opacity: 0.82;
   }
 
+  .wa-shell .wa-footer textarea.wa-input {
+    padding: 11px 14px;
+    line-height: 22px;
+  }
+
   [data-theme="dark"] .wa-footer .wa-input {
     background: color-mix(in oklab, var(--wa-input-bg) 93%, #000);
     border-color: color-mix(in oklab, var(--wa-panel-border) 52%, transparent);
@@ -7982,6 +7993,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-size: 15px;
   }
 
+  .wa-shell .wa-footer textarea.wa-input {
+    padding: 11px 13px;
+    line-height: 22px;
+  }
+
   .wa-sendBtn,
   .wa-micBtn {
     width: 44px;
@@ -8057,6 +8073,11 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-input::placeholder {
     font-size: 15px;
+  }
+
+  .wa-shell .wa-footer textarea.wa-input {
+    padding: 11px 12px;
+    line-height: 22px;
   }
 
   .wa-sendBtn,
