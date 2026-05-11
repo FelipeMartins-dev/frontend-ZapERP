@@ -4291,6 +4291,9 @@
   background: rgba(0,0,0,.05);
   border: 1px solid rgba(0,0,0,.06);
   cursor: pointer;
+  box-sizing: border-box;
+  align-self: stretch;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
 }
@@ -4324,8 +4327,8 @@
   color: var(--wa-text);
   white-space: normal;
   overflow: visible;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 .wa-replyCtx.isOut .wa-replyCtx-name {
   /* no balão verde claro, o verde padrão fica “lavado” → escurece para manter contraste */
@@ -4363,6 +4366,12 @@
 [data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-snippet { color: rgba(255, 255, 255, 0.85); }
 [data-theme="dark"] .wa-replyCtx-bar { background: rgba(255, 255, 255, 0.5); }
 [data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-bar { background: var(--ds-accent); }
+
+/* Mensagem apagada para todos (tombstone) — estilo WhatsApp */
+.wa-bubble--revokedEveryone .wa-bubble-body > .wa-bubble-text {
+  font-style: italic;
+  opacity: 0.9;
+}
 
 /* Nome do atendente acima da mensagem enviada pelo sistema — discreto, premium */
 .wa-bubble-atendente {

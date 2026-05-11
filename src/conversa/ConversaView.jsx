@@ -1476,23 +1476,27 @@ const Bubble = memo(function Bubble({
   menuUsesBottomSheet = false,
 }) {
   const out = isOutgoingMessage(msg);
+  const isApagadaParaTodos = !!msg?.apagada_para_todos;
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
+    if (msg?.apagada_para_todos) return false;
     if (currentUserId == null) return false;
     if (msg?.autor_usuario_id == null) return false;
     return String(msg.autor_usuario_id) === String(currentUserId);
-  }, [out, currentUserId, msg?.autor_usuario_id]);
-  const isImg = msg?.tipo === "imagem";
-  const isSticker = msg?.tipo === "sticker";
-  const isFile = msg?.tipo === "arquivo";
-  const isAudio = msg?.tipo === "audio";
-  const isVoice = msg?.tipo === "voice";
+  }, [out, currentUserId, msg?.autor_usuario_id, msg?.apagada_para_todos]);
+  const isImg = !isApagadaParaTodos && msg?.tipo === "imagem";
+  const isSticker = !isApagadaParaTodos && msg?.tipo === "sticker";
+  const isFile = !isApagadaParaTodos && msg?.tipo === "arquivo";
+  const isAudio = !isApagadaParaTodos && msg?.tipo === "audio";
+  const isVoice = !isApagadaParaTodos && msg?.tipo === "voice";
   const isAudioOrVoice = isAudio || isVoice;
-  const isVideo = msg?.tipo === "video";
+  const isVideo = !isApagadaParaTodos && msg?.tipo === "video";
   const contactBubbleMeta = useMemo(() => resolveContactMetaFromMessage(msg), [msg]);
   const isContact = !!contactBubbleMeta;
   const isLocation = msg?.tipo === "location";
-  const texto = safeString(msg?.texto);
+  const textoRaw = safeString(msg?.texto);
+  const texto =
+    isApagadaParaTodos && !textoRaw ? "Esta mensagem foi apagada para todos." : textoRaw;
   const hasText = !!texto;
   const mediaUrl = getMediaUrl(msg?.url, msg?.url_absoluta);
   const remetente = showRemetente && !out && (msg?.remetente_nome || msg?.remetente_telefone);
@@ -1514,9 +1518,12 @@ const Bubble = memo(function Bubble({
   const showCaption = (isImg || isVideo || isSticker) && hasText && !isPlaceholderCaption;
   const showAudioText = isAudioOrVoice && hasText && !isPlaceholderCaption;
   // Detecta mensagem encaminhada: campo encaminhado=true ou texto começa com [Encaminhado]
-  const isEncaminhado = !!msg?.encaminhado || (typeof msg?.texto === "string" && msg.texto.trimStart().startsWith("[Encaminhado]"));
+  const isEncaminhado =
+    !isApagadaParaTodos &&
+    (!!msg?.encaminhado ||
+      (typeof msg?.texto === "string" && msg.texto.trimStart().startsWith("[Encaminhado]")));
   const inlineMeta = true;
-  const replyMeta = msg?.reply_meta || null;
+  const replyMeta = !isApagadaParaTodos ? msg?.reply_meta || null : null;
   const hasReply = !!(replyMeta && (replyMeta.name || replyMeta.snippet));
 
   // pedido do usuário: setinha no hover para mensagens do cliente
@@ -1529,7 +1536,7 @@ const Bubble = memo(function Bubble({
   const longPressCleanupRef = useRef(null);
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
-  const isCall = msg?.tipo === "call";
+  const isCall = !isApagadaParaTodos && msg?.tipo === "call";
   const [audioDur, setAudioDur] = useState(0);
   const audioDurLabel = useMemo(() => (audioDur > 0 ? formatMmSs(audioDur) : null), [audioDur]);
 
@@ -1760,7 +1767,7 @@ const Bubble = memo(function Bubble({
       ) : null}
 
       <SwipeReplyTrack
-        enabled={Boolean(swipeReplyEnabled && !isCall)}
+        enabled={Boolean(swipeReplyEnabled && !isCall && !msg?.apagada_para_todos)}
         outgoing={out}
         gestureBlocked={menuOpen || reactionOpen || selectMode}
         onCommit={() => {
@@ -1786,6 +1793,7 @@ const Bubble = memo(function Bubble({
           selected ? "isSelected" : "",
           menuOpen ? "wa-bubble--menuOpen" : "",
           mobileMessageChrome ? "wa-bubble--mobileUx" : "",
+          msg?.apagada_para_todos ? "wa-bubble--revokedEveryone" : "",
         ].filter(Boolean).join(" ")}
         onClick={selectMode ? handleToggleSelect : undefined}
         onPointerDown={mobileMessageChrome && !selectMode ? onBubblePointerDown : undefined}
@@ -1854,7 +1862,11 @@ const Bubble = memo(function Bubble({
             </div>
           )}
           {/* Nome do atendente acima da mensagem enviada pelo sistema (respeita mostrar_nome_ao_cliente) */}
-          {out && msg?.enviado_por_usuario && safeString(msg?.usuario_nome) && mostrarNomeAoCliente ? (
+          {out &&
+          msg?.enviado_por_usuario &&
+          !isApagadaParaTodos &&
+          safeString(msg?.usuario_nome) &&
+          mostrarNomeAoCliente ? (
             <div className="wa-bubble-atendente" aria-label={`Enviado por ${msg.usuario_nome}`}>
               {msg.usuario_nome}
             </div>
@@ -2036,7 +2048,7 @@ const Bubble = memo(function Bubble({
             }}
             title="Reagir"
             aria-label="Reagir à mensagem"
-            disabled={reactionBusy}
+            disabled={reactionBusy || !!msg?.apagada_para_todos}
           >
             <IconEmoji style={{ width: 12, height: 12 }} />
           </button>
@@ -2392,6 +2404,7 @@ export default function ConversaView() {
     loadMore,
     carregarConversa,
     anexarMensagem,
+    marcarMensagemApagadaParaTodos,
     removerMensagem,
     removerMensagemTemp,
     carregarAtendimentos,
@@ -2403,6 +2416,7 @@ export default function ConversaView() {
       loadMore: s.loadMore,
       carregarConversa: s.carregarConversa,
       anexarMensagem: s.anexarMensagem,
+      marcarMensagemApagadaParaTodos: s.marcarMensagemApagadaParaTodos,
       removerMensagem: s.removerMensagem,
       removerMensagemTemp: s.removerMensagemTemp,
       carregarAtendimentos: s.carregarAtendimentos,
@@ -4684,14 +4698,18 @@ export default function ConversaView() {
       if (!ok) return;
       try {
         await excluirMensagem(conversaId, msg.id);
-        removerMensagem(msg.id);
-        showToast({ type: "success", title: "Apagada para todos", message: "Mensagem removida da conversa." });
+        marcarMensagemApagadaParaTodos(msg.id, { euQueApaguei: true });
+        showToast({
+          type: "success",
+          title: "Apagada para todos",
+          message: "A mensagem foi substituída por um aviso na conversa.",
+        });
       } catch (e) {
         console.error("Erro ao excluir mensagem:", e);
         showToast({ type: "error", title: "Falha ao apagar", message: "Não foi possível apagar a mensagem." });
       }
     },
-    [conversaId, myUserId, showToast, removerMensagem]
+    [conversaId, myUserId, showToast, marcarMensagemApagadaParaTodos]
   );
 
   const handleDeleteSelected = useCallback(async () => {

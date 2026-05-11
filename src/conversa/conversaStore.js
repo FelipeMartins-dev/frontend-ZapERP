@@ -61,6 +61,14 @@ export function getMessageListReactKey(m, conversaId) {
   return stableSyntheticMessageKey(m, conversaId)
 }
 
+/** Evita que merge/API estale sobrescreva o tombstone local de “apagada para todos”. */
+function mergeMsgPreferringRevoked(prev, incoming) {
+  if (!prev) return incoming
+  if (!incoming) return prev
+  if (prev.apagada_para_todos && !incoming.apagada_para_todos) return prev
+  return { ...prev, ...incoming }
+}
+
 function normalizeMsgForStore(msg) {
   if (!msg || typeof msg !== "object") return msg
   const n = { ...msg }
@@ -322,7 +330,7 @@ export const useConversaStore = create((set, get) => ({
       const copy = normalizeMsgForStore({ ...raw, conversa_id: conversaId })
       const k = mapDedupeKey(copy, conversaId)
       const prev = map.get(k)
-      map.set(k, prev ? { ...prev, ...copy } : copy)
+      map.set(k, mergeMsgPreferringRevoked(prev, copy))
     }
     existing.forEach(put)
     fromApi.forEach(put)
@@ -469,7 +477,7 @@ export const useConversaStore = create((set, get) => ({
           const copy = normalizeMsgForStore({ ...raw, conversa_id: selectedId })
           const k = mapDedupeKey(copy, selectedId)
           const prev = map.get(k)
-          map.set(k, prev ? { ...prev, ...copy } : copy)
+          map.set(k, mergeMsgPreferringRevoked(prev, copy))
         }
         ;(mais || []).forEach(put)
         atual.forEach(put)
@@ -526,7 +534,8 @@ export const useConversaStore = create((set, get) => ({
       if (existingIdx >= 0) {
         // MERGE: atualizar campos (status, whatsapp_id, id se faltando)
         const existing = list[existingIdx]
-        const merged = { ...existing, ...msg }
+        const mergedCandidate = { ...existing, ...msg }
+        const merged = mergeMsgPreferringRevoked(existing, mergedCandidate)
         if (convId) merged.conversa_id = convId
         if (msg.id && !existing.id) merged.id = msg.id
         if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
@@ -563,7 +572,8 @@ export const useConversaStore = create((set, get) => ({
         }
         if (replaceIdx >= 0) {
           const existing = list[replaceIdx]
-          const merged = { ...existing, ...msg, conversa_id: convId }
+          const mergedCandidate = { ...existing, ...msg, conversa_id: convId }
+          const merged = mergeMsgPreferringRevoked(existing, mergedCandidate)
           if (msg.id) merged.id = msg.id
           if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
           if (msg.status != null) merged.status = msg.status
@@ -593,7 +603,8 @@ export const useConversaStore = create((set, get) => ({
           if (!Number.isFinite(ts) || now - ts > recentMs) break
           const textoMatch = !textoIn || (m.texto || m.conteudo || "").toString().trim() === textoIn
           if (m.whatsapp_id && !m.id && textoMatch) {
-            const merged = { ...m, ...msg, conversa_id: convId }
+            const mergedCandidate = { ...m, ...msg, conversa_id: convId }
+            const merged = mergeMsgPreferringRevoked(m, mergedCandidate)
             // Preservar status mais avançado: socket pode ter "sent" enquanto API retorna "pending"
             const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
             const mVal = order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
@@ -695,6 +706,44 @@ export const useConversaStore = create((set, get) => ({
       indices.forEach((i) => {
         next[i] = { ...next[i], ...partial }
       })
+      return { mensagens: next }
+    })
+  },
+
+  /**
+   * Substitui o balão por texto estilo WhatsApp (“apagada para todos”) sem remover da lista.
+   * opts.euQueApaguei: quem disparou sabe que foi ele (ação local); caso contrário infere pelo autor.
+   */
+  marcarMensagemApagadaParaTodos: (mensagemId, opts = {}) => {
+    if (mensagemId == null || mensagemId === "") return
+    const me = getCurrentUserFromStorage()?.id
+    set((state) => {
+      const list = state.mensagens || []
+      const idx = list.findIndex((m) => String(m.id) === String(mensagemId))
+      if (idx < 0) return state
+      const prev = list[idx]
+      const euQueApaguei = opts.euQueApaguei === true
+      const souAutor =
+        prev?.autor_usuario_id != null && me != null && String(prev.autor_usuario_id) === String(me)
+      const texto =
+        euQueApaguei || souAutor
+          ? "Você apagou esta mensagem para todos."
+          : "Esta mensagem foi apagada para todos."
+      const next = [...list]
+      next[idx] = {
+        ...prev,
+        texto,
+        conteudo: texto,
+        apagada_para_todos: true,
+        tipo: "texto",
+        reply_meta: null,
+        mensagem_respondida_id: null,
+        encaminhado: false,
+        url: null,
+        url_absoluta: null,
+        nome_arquivo: null,
+        thumbnail_url: null,
+      }
       return { mensagens: next }
     })
   },
