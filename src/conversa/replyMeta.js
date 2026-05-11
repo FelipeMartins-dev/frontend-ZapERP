@@ -61,7 +61,6 @@ export function attachReplyMeta(conversaId, mensagens) {
   if (!map || Object.keys(map).length === 0) return mensagens;
 
   return mensagens.map((m) => {
-    if (m?.apagada_para_todos) return m;
     const id = m?.id != null ? String(m.id) : null;
     const meta = id ? map[id] : null;
     if (!meta) return m;

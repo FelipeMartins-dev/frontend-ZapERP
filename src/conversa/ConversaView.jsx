@@ -36,7 +36,7 @@ import {
 } from "./mediaPrint";
 import { getSocket } from "../socket/socket";
 import { saveReplyMeta } from "./replyMeta";
-import { isNearBottom, scrollBottomAnchorIntoView } from "./scrollUtils";
+import { isNearBottom } from "./scrollUtils";
 import { ConversaMessageVirtualList } from "./ConversaMessageVirtualList";
 import {
   listarTags,
@@ -1476,27 +1476,23 @@ const Bubble = memo(function Bubble({
   menuUsesBottomSheet = false,
 }) {
   const out = isOutgoingMessage(msg);
-  const isApagadaParaTodos = !!msg?.apagada_para_todos;
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
-    if (msg?.apagada_para_todos) return false;
     if (currentUserId == null) return false;
     if (msg?.autor_usuario_id == null) return false;
     return String(msg.autor_usuario_id) === String(currentUserId);
-  }, [out, currentUserId, msg?.autor_usuario_id, msg?.apagada_para_todos]);
-  const isImg = !isApagadaParaTodos && msg?.tipo === "imagem";
-  const isSticker = !isApagadaParaTodos && msg?.tipo === "sticker";
-  const isFile = !isApagadaParaTodos && msg?.tipo === "arquivo";
-  const isAudio = !isApagadaParaTodos && msg?.tipo === "audio";
-  const isVoice = !isApagadaParaTodos && msg?.tipo === "voice";
+  }, [out, currentUserId, msg?.autor_usuario_id]);
+  const isImg = msg?.tipo === "imagem";
+  const isSticker = msg?.tipo === "sticker";
+  const isFile = msg?.tipo === "arquivo";
+  const isAudio = msg?.tipo === "audio";
+  const isVoice = msg?.tipo === "voice";
   const isAudioOrVoice = isAudio || isVoice;
-  const isVideo = !isApagadaParaTodos && msg?.tipo === "video";
+  const isVideo = msg?.tipo === "video";
   const contactBubbleMeta = useMemo(() => resolveContactMetaFromMessage(msg), [msg]);
   const isContact = !!contactBubbleMeta;
   const isLocation = msg?.tipo === "location";
-  const textoRaw = safeString(msg?.texto);
-  const texto =
-    isApagadaParaTodos && !textoRaw ? "Esta mensagem foi apagada para todos." : textoRaw;
+  const texto = safeString(msg?.texto);
   const hasText = !!texto;
   const mediaUrl = getMediaUrl(msg?.url, msg?.url_absoluta);
   const remetente = showRemetente && !out && (msg?.remetente_nome || msg?.remetente_telefone);
@@ -1518,12 +1514,9 @@ const Bubble = memo(function Bubble({
   const showCaption = (isImg || isVideo || isSticker) && hasText && !isPlaceholderCaption;
   const showAudioText = isAudioOrVoice && hasText && !isPlaceholderCaption;
   // Detecta mensagem encaminhada: campo encaminhado=true ou texto começa com [Encaminhado]
-  const isEncaminhado =
-    !isApagadaParaTodos &&
-    (!!msg?.encaminhado ||
-      (typeof msg?.texto === "string" && msg.texto.trimStart().startsWith("[Encaminhado]")));
+  const isEncaminhado = !!msg?.encaminhado || (typeof msg?.texto === "string" && msg.texto.trimStart().startsWith("[Encaminhado]"));
   const inlineMeta = true;
-  const replyMeta = !isApagadaParaTodos ? msg?.reply_meta || null : null;
+  const replyMeta = msg?.reply_meta || null;
   const hasReply = !!(replyMeta && (replyMeta.name || replyMeta.snippet));
 
   // pedido do usuário: setinha no hover para mensagens do cliente
@@ -1536,7 +1529,7 @@ const Bubble = memo(function Bubble({
   const longPressCleanupRef = useRef(null);
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
-  const isCall = !isApagadaParaTodos && msg?.tipo === "call";
+  const isCall = msg?.tipo === "call";
   const [audioDur, setAudioDur] = useState(0);
   const audioDurLabel = useMemo(() => (audioDur > 0 ? formatMmSs(audioDur) : null), [audioDur]);
 
@@ -1767,7 +1760,7 @@ const Bubble = memo(function Bubble({
       ) : null}
 
       <SwipeReplyTrack
-        enabled={Boolean(swipeReplyEnabled && !isCall && !msg?.apagada_para_todos)}
+        enabled={Boolean(swipeReplyEnabled && !isCall)}
         outgoing={out}
         gestureBlocked={menuOpen || reactionOpen || selectMode}
         onCommit={() => {
@@ -1793,7 +1786,6 @@ const Bubble = memo(function Bubble({
           selected ? "isSelected" : "",
           menuOpen ? "wa-bubble--menuOpen" : "",
           mobileMessageChrome ? "wa-bubble--mobileUx" : "",
-          msg?.apagada_para_todos ? "wa-bubble--revokedEveryone" : "",
         ].filter(Boolean).join(" ")}
         onClick={selectMode ? handleToggleSelect : undefined}
         onPointerDown={mobileMessageChrome && !selectMode ? onBubblePointerDown : undefined}
@@ -1862,11 +1854,7 @@ const Bubble = memo(function Bubble({
             </div>
           )}
           {/* Nome do atendente acima da mensagem enviada pelo sistema (respeita mostrar_nome_ao_cliente) */}
-          {out &&
-          msg?.enviado_por_usuario &&
-          !isApagadaParaTodos &&
-          safeString(msg?.usuario_nome) &&
-          mostrarNomeAoCliente ? (
+          {out && msg?.enviado_por_usuario && safeString(msg?.usuario_nome) && mostrarNomeAoCliente ? (
             <div className="wa-bubble-atendente" aria-label={`Enviado por ${msg.usuario_nome}`}>
               {msg.usuario_nome}
             </div>
@@ -2048,7 +2036,7 @@ const Bubble = memo(function Bubble({
             }}
             title="Reagir"
             aria-label="Reagir à mensagem"
-            disabled={reactionBusy || !!msg?.apagada_para_todos}
+            disabled={reactionBusy}
           >
             <IconEmoji style={{ width: 12, height: 12 }} />
           </button>
@@ -2208,7 +2196,7 @@ function useStableTimeout() {
   return { set, clear };
 }
 
-function snapThreadToBottom(container, virtualListRef, bottomAnchorRef) {
+function snapThreadToBottom(container, virtualListRef) {
   try {
     virtualListRef?.current?.scrollToEnd?.();
   } catch {
@@ -2217,7 +2205,6 @@ function snapThreadToBottom(container, virtualListRef, bottomAnchorRef) {
   if (container) {
     container.scrollTop = container.scrollHeight;
   }
-  scrollBottomAnchorIntoView(bottomAnchorRef?.current);
 }
 
 function useAutoScroll({
@@ -2229,7 +2216,6 @@ function useAutoScroll({
   messagesContainerRef,
   shouldStickToBottomRef,
   virtualListRef,
-  bottomAnchorRef,
 }) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
@@ -2277,11 +2263,7 @@ function useAutoScroll({
         (myUserId != null && lastMsg?.autor_usuario_id != null && String(lastMsg.autor_usuario_id) === String(myUserId));
       const shouldAutoScroll = Boolean(shouldStickToBottomRef.current || fromMe);
       if (shouldAutoScroll && container) {
-        snapThreadToBottom(container, virtualListRef, bottomAnchorRef);
-        requestAnimationFrame(() => {
-          snapThreadToBottom(container, virtualListRef, bottomAnchorRef);
-          requestAnimationFrame(() => snapThreadToBottom(container, virtualListRef, bottomAnchorRef));
-        });
+        snapThreadToBottom(container, virtualListRef);
       }
     }
 
@@ -2294,7 +2276,6 @@ function useAutoScroll({
     messagesContainerRef,
     shouldStickToBottomRef,
     virtualListRef,
-    bottomAnchorRef,
   ]);
 
   // Ao abrir/trocar conversa: o virtualizer subestima scrollHeight no 1º frame (estimateSize).
@@ -2306,7 +2287,7 @@ function useAutoScroll({
     const container = messagesContainerRef?.current;
     pendingJumpToBottomRef.current = false;
     shouldStickToBottomRef.current = true;
-    const snap = () => snapThreadToBottom(container, virtualListRef, bottomAnchorRef);
+    const snap = () => snapThreadToBottom(container, virtualListRef);
     snap();
     let n = 0;
     const chain = () => {
@@ -2323,7 +2304,7 @@ function useAutoScroll({
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [conversaId, loading, lastMsgKey, messagesContainerRef, shouldStickToBottomRef, virtualListRef, bottomAnchorRef]);
+  }, [conversaId, loading, lastMsgKey, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
 }
 
 function useGlobalHotkeys({ onToggleTimeline, onFocusInput, onEscape, disabled }) {
@@ -2404,7 +2385,6 @@ export default function ConversaView() {
     loadMore,
     carregarConversa,
     anexarMensagem,
-    marcarMensagemApagadaParaTodos,
     removerMensagem,
     removerMensagemTemp,
     carregarAtendimentos,
@@ -2416,7 +2396,6 @@ export default function ConversaView() {
       loadMore: s.loadMore,
       carregarConversa: s.carregarConversa,
       anexarMensagem: s.anexarMensagem,
-      marcarMensagemApagadaParaTodos: s.marcarMensagemApagadaParaTodos,
       removerMensagem: s.removerMensagem,
       removerMensagemTemp: s.removerMensagemTemp,
       carregarAtendimentos: s.carregarAtendimentos,
@@ -2680,19 +2659,9 @@ export default function ConversaView() {
   const prevInputHeightRef = useRef(0);
   useLayoutEffect(() => {
     const el = inputRef.current;
-    const beforeH = el ? el.getBoundingClientRect().height : prevInputHeightRef.current;
     syncTextareaHeight();
-    const afterH = el ? el.getBoundingClientRect().height : beforeH;
-    prevInputHeightRef.current = afterH;
-
-    // Só reancora quando o composer ENCOLHE (caso típico após enviar / limpar texto).
-    // Em digitação normal (crescendo) não forçamos scroll para evitar sensação de "bug".
-    const shrank = Number.isFinite(beforeH) && Number.isFinite(afterH) && afterH < beforeH - 0.5;
-    if (!shrank) return;
-    const c = messagesContainerRef.current;
-    if (c && shouldStickToBottomRef.current) {
-      snapThreadToBottom(c, virtualThreadRef, bottomRef);
-    }
+    prevInputHeightRef.current = el ? el.getBoundingClientRect().height : prevInputHeightRef.current;
+    // Scroll ao fundo fica só no useAutoScroll (nova mensagem) — evita “pulo” duplo ao enviar.
   }, [texto, syncTextareaHeight]);
 
   useEffect(() => {
@@ -3189,7 +3158,7 @@ export default function ConversaView() {
     if (!c || loadingMore) return;
     if (!isNearBottom(c, 160)) return;
     shouldStickToBottomRef.current = true;
-    snapThreadToBottom(c, virtualThreadRef, bottomRef);
+    snapThreadToBottom(c, virtualThreadRef);
   }, [loadingMore]);
 
   useAutoScroll({
@@ -3201,7 +3170,6 @@ export default function ConversaView() {
     messagesContainerRef,
     shouldStickToBottomRef,
     virtualListRef: virtualThreadRef,
-    bottomAnchorRef: bottomRef,
   });
 
   const showToast = useCallback(
@@ -4292,6 +4260,7 @@ export default function ConversaView() {
     setReplyTo(null);
     setSending(true);
 
+    let envioFalhou = false;
     try {
       const res = await enviarMensagem(conversaId, t, replyMeta || undefined);
       // API pode retornar { ok, id, conversa_id } SEM mensagem — msg vem só via socket nova_mensagem
@@ -4304,6 +4273,7 @@ export default function ConversaView() {
         removerMensagemTemp(tempId);
       }
     } catch (err) {
+      envioFalhou = true;
       console.error("Erro ao enviar mensagem:", err);
       removerMensagemTemp(tempId);
       setTexto(t);
@@ -4315,9 +4285,15 @@ export default function ConversaView() {
         title: is403 ? "Acesso restrito" : "Falha ao enviar",
         message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar a mensagem. Verifique sua conexão."),
       });
+      focusMessageInput();
     } finally {
       setSending(false);
-      focusMessageInput();
+    }
+    // Sucesso: refoca depois do layout/scroll da nova mensagem — evita “subir e voltar” ao enviar.
+    if (!envioFalhou) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => focusMessageInput());
+      });
     }
   }, [conversaId, texto, replyTo, showToast, anexarMensagem, removerMensagemTemp, nome, emitTypingStop, podeEnviar, focusMessageInput, resetAutocorrectTracking]);
 
@@ -4698,18 +4674,14 @@ export default function ConversaView() {
       if (!ok) return;
       try {
         await excluirMensagem(conversaId, msg.id);
-        marcarMensagemApagadaParaTodos(msg.id, { euQueApaguei: true });
-        showToast({
-          type: "success",
-          title: "Apagada para todos",
-          message: "A mensagem foi substituída por um aviso na conversa.",
-        });
+        removerMensagem(msg.id);
+        showToast({ type: "success", title: "Apagada para todos", message: "Mensagem removida da conversa." });
       } catch (e) {
         console.error("Erro ao excluir mensagem:", e);
         showToast({ type: "error", title: "Falha ao apagar", message: "Não foi possível apagar a mensagem." });
       }
     },
-    [conversaId, myUserId, showToast, marcarMensagemApagadaParaTodos]
+    [conversaId, myUserId, showToast, removerMensagem]
   );
 
   const handleDeleteSelected = useCallback(async () => {
