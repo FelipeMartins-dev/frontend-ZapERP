@@ -6082,7 +6082,8 @@ main.main-content--crm .wa-mediaPreview-composer {
     left: 10px;
     right: 10px;
     width: auto;
-    bottom: 78px;
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    max-height: min(360px, calc(var(--wa-visual-height, 100vh) - 148px));
   }
   .wa-emojiGrid{
     grid-template-columns: repeat(7, 1fr);
@@ -6091,7 +6092,8 @@ main.main-content--crm .wa-mediaPreview-composer {
     left: 10px;
     right: 10px;
     width: auto;
-    bottom: 78px;
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    max-height: min(400px, calc(var(--wa-visual-height, 100vh) - 148px));
   }
 }
 
@@ -6985,6 +6987,12 @@ main.main-content--crm .wa-mediaPreview-composer {
     padding-bottom: 0 !important;
   }
 
+  /* Painéis flutuantes: limitar altura à área útil visível (evita sobrepor o teclado) */
+  .wa-emojiPanel,
+  .wa-stickerPanel {
+    max-height: min(380px, calc(var(--wa-visual-height, 100vh) - 168px));
+  }
+
   .wa-shell {
     display: flex;
     flex-direction: column;
@@ -7668,13 +7676,27 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-footer {
     flex-shrink: 0;
+    align-items: flex-end;
     /* main-content já reserva safe-area-inset-bottom no mobile (conversa aberta),
        então o composer mantém padding fixo para não duplicar a faixa inferior. */
-    padding: 10px 14px 12px;
-    padding-left: calc(14px + env(safe-area-inset-left, 0));
-    padding-right: calc(14px + env(safe-area-inset-right, 0));
+    padding: 8px 12px 11px;
+    padding-left: calc(12px + env(safe-area-inset-left, 0));
+    padding-right: calc(12px + env(safe-area-inset-right, 0));
     flex-wrap: nowrap;
-    gap: 5px;
+    gap: 6px;
+    border-top: 1px solid color-mix(in oklab, var(--wa-panel-border) 82%, transparent);
+    box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.055);
+  }
+
+  [data-theme="dark"] .wa-footer {
+    box-shadow: 0 -10px 36px rgba(0, 0, 0, 0.32);
+  }
+
+  .wa-footer-hint {
+    align-self: stretch;
+    flex: 0 0 100%;
+    margin-bottom: 2px;
+    padding-top: 0;
   }
 
   /* Barra inferior CRM: main já reserva 56px + safe-area — não empilhar safe-area no composer */
@@ -7682,11 +7704,16 @@ main.main-content--crm .wa-mediaPreview-composer {
     padding-bottom: 10px;
   }
 
+  .wa-footer-right {
+    align-items: flex-end;
+    gap: 6px;
+  }
+
   .wa-footer .wa-iconBtn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .wa-footer .wa-attachPlus svg,
@@ -7698,23 +7725,52 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-sendBtn,
   .wa-micBtn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .wa-input {
     flex: 1 1 0%;
     min-width: 0;
+    min-height: 44px;
+    max-height: min(132px, calc(var(--wa-visual-height, 100vh) * 0.28));
     border-radius: 22px;
-    padding: 8px 12px;
-    font-size: 15px;
-    line-height: 1.35;
+    padding: 10px 14px;
+    font-size: 16px;
+    line-height: 1.38;
+    border: 1px solid color-mix(in oklab, var(--wa-panel-border) 65%, transparent);
+    box-shadow: none;
+    background: color-mix(in oklab, var(--wa-input-bg) 96%, var(--wa-panel-border));
+  }
+
+  .wa-input:focus {
+    border-color: color-mix(in oklab, var(--wa-green-send) 38%, var(--wa-panel-border));
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--wa-green-send) 18%, transparent);
   }
 
   .wa-input::placeholder {
-    font-size: 14px;
+    font-size: 15px;
+    opacity: 0.82;
+  }
+
+  [data-theme="dark"] .wa-footer .wa-input {
+    background: color-mix(in oklab, var(--wa-input-bg) 93%, #000);
+    border-color: color-mix(in oklab, var(--wa-panel-border) 52%, transparent);
+  }
+
+  .wa-recording-bar {
+    height: 44px;
+    min-height: 44px;
+    border-radius: 22px;
+    flex: 1 1 0%;
+    align-self: stretch;
+  }
+
+  .wa-recording-send {
+    width: 44px;
+    height: 44px;
   }
 
   /* Menu de anexos vira bottom-sheet no mobile */
@@ -7888,7 +7944,8 @@ main.main-content--crm .wa-mediaPreview-composer {
     padding: 8px 10px 10px;
     padding-left: calc(10px + env(safe-area-inset-left, 0));
     padding-right: calc(10px + env(safe-area-inset-right, 0));
-    gap: 5px;
+    gap: 6px;
+    align-items: flex-end;
   }
 
   main.main-content--crm .wa-footer {
@@ -7896,10 +7953,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-footer .wa-iconBtn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .wa-footer .wa-attachPlus svg,
@@ -7909,28 +7966,28 @@ main.main-content--crm .wa-mediaPreview-composer {
     height: 22px;
   }
 
-  .wa-footer-right { gap: 5px; }
+  .wa-footer-right { gap: 6px; align-items: flex-end; }
 
   .wa-input {
-    min-height: 42px;
-    max-height: 120px;
-    min-width: 60px;
-    padding: 8px 12px;
-    font-size: 15px;
-    line-height: 1.35;
+    min-height: 44px;
+    max-height: min(120px, calc(var(--wa-visual-height, 100vh) * 0.26));
+    min-width: 48px;
+    padding: 9px 13px;
+    font-size: 16px;
+    line-height: 1.38;
     border-radius: 22px;
   }
 
   .wa-input::placeholder {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .wa-sendBtn,
   .wa-micBtn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -7959,10 +8016,11 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-footer {
     /* Igual ≤480px: main-content já cobre safe-area, não empilhar aqui. */
-    padding: 8px 8px 10px;
+    padding: 7px 8px 9px;
     padding-left: calc(8px + env(safe-area-inset-left, 0));
     padding-right: calc(8px + env(safe-area-inset-right, 0));
     gap: 5px;
+    align-items: flex-end;
   }
 
   main.main-content--crm .wa-footer {
@@ -7970,10 +8028,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-footer .wa-iconBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
   }
 
   .wa-footer .wa-attachPlus svg,
@@ -7983,26 +8041,30 @@ main.main-content--crm .wa-mediaPreview-composer {
     height: 21px;
   }
 
+  .wa-footer-right {
+    gap: 5px;
+  }
+
   .wa-input {
     min-width: 0;
     flex: 1 1 0%;
     min-height: 42px;
-    max-height: 110px;
-    padding: 8px 11px;
-    font-size: 15px;
-    line-height: 1.35;
+    max-height: min(108px, calc(var(--wa-visual-height, 100vh) * 0.24));
+    padding: 8px 12px;
+    font-size: 16px;
+    line-height: 1.38;
   }
 
   .wa-input::placeholder {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .wa-sendBtn,
   .wa-micBtn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
   }
 }
 

@@ -2824,6 +2824,8 @@ export default function ConversaView() {
       if (!mq.matches) {
         shell.style.removeProperty("--wa-mobile-header-h");
         shell.style.removeProperty("--wa-vv-top");
+        shell.style.removeProperty("--wa-keyboard-inset");
+        shell.style.removeProperty("--wa-visual-height");
         shell.classList.remove("wa-mobile-input-focused");
         return;
       }
@@ -2831,6 +2833,13 @@ export default function ConversaView() {
       const vvNow = window.visualViewport;
       if (vvNow) {
         shell.style.setProperty("--wa-vv-top", `${vvNow.offsetTop}px`);
+        const ih = window.innerHeight;
+        const kbInset = Math.max(0, ih - vvNow.height - vvNow.offsetTop);
+        shell.style.setProperty("--wa-keyboard-inset", `${kbInset}px`);
+        shell.style.setProperty("--wa-visual-height", `${vvNow.height}px`);
+      } else {
+        shell.style.removeProperty("--wa-keyboard-inset");
+        shell.style.removeProperty("--wa-visual-height");
       }
       syncMobileInputFocusClass();
     };
@@ -2872,6 +2881,8 @@ export default function ConversaView() {
       shell.classList.remove("wa-mobile-input-focused");
       shell.style.removeProperty("--wa-mobile-header-h");
       shell.style.removeProperty("--wa-vv-top");
+      shell.style.removeProperty("--wa-keyboard-inset");
+      shell.style.removeProperty("--wa-visual-height");
     };
   }, [conversaId]);
 
