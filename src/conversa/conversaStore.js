@@ -456,7 +456,7 @@ export const useConversaStore = create((set, get) => {
       if (String(get().selectedId) !== String(normalizedId)) return
 
       let conversa = data?.conversa ? data.conversa : (data ?? null)
-      let mensagens = data?.mensagens ?? conversa?.mensagens ?? []
+      let apiMensagens = data?.mensagens ?? conversa?.mensagens ?? []
       const tags = data?.tags ?? conversa?.tags ?? []
 
       const rawBlockedCarregar = data?.mensagens_bloqueadas ?? conversa?.mensagens_bloqueadas ?? false
@@ -472,9 +472,9 @@ export const useConversaStore = create((set, get) => {
           ? Number(nextCursorIdRaw)
           : null
 
-      if (Array.isArray(mensagens)) {
+      if (Array.isArray(apiMensagens)) {
         const byKey = new Map()
-        mensagens.forEach((raw, idx) => {
+        apiMensagens.forEach((raw, idx) => {
           if (!raw) return
           const copy = normalizeMsgForStore({ ...raw, conversa_id: normalizedId })
           const k = mapDedupeKey(copy, normalizedId)
@@ -484,11 +484,10 @@ export const useConversaStore = create((set, get) => {
           merged._stableInsertSeq = mergeStableSeq(prev || null, copy, idx + 1)
           byKey.set(k, merged)
         })
-        mensagens = sortMensagensChronological(Array.from(byKey.values()))
+        apiMensagens = sortMensagensChronological(Array.from(byKey.values()))
       } else {
-        mensagens = []
+        apiMensagens = []
       }
-      mensagens = attachReplyMeta(normalizedId, mensagens)
 
       // Mantém nome/foto sincronizados com a lista de conversas:
       // se o backend ainda não devolveu contato_nome/foto_perfil atualizados,
@@ -518,6 +517,14 @@ export const useConversaStore = create((set, get) => {
           mensagens_bloqueadas: resolveMensagensBloqueadasForViewer(conversa, rawBlockedCarregar),
         }
       }
+
+      /* Flush da fila realtime antes do merge — evita perder otimistas/socket só na fila.
+         Mescla o que já está no cliente durante o GET com o lote da API (mesmo critério do refresh). */
+      takeAndApplyAnexarBatch()
+      const clientSnapshot = get().mensagens || []
+      const blockedViewer = !!conversa?.mensagens_bloqueadas
+      let mensagens = blockedViewer ? [] : get()._mergeMensagensFromApi(clientSnapshot, apiMensagens, normalizedId)
+      mensagens = attachReplyMeta(normalizedId, mensagens)
 
       set({
         conversa,
@@ -617,14 +624,6 @@ export const useConversaStore = create((set, get) => {
           ? Number(nextCursorIdRaw)
           : null
 
-      // MERGE: nunca substituir — preserva mensagens via nova_mensagem que ainda não estão na API
-      // Quando mensagens_bloqueadas (assumida por outro), API envia vazio → substituir
-      const existing = get().mensagens || []
-      let mensagens = mensagens_bloqueadas
-        ? []
-        : get()._mergeMensagensFromApi(existing, apiMensagens, id)
-      mensagens = attachReplyMeta(id, mensagens)
-
       // Preserva nome, telefone e foto — dados fixos do contato não devem mudar após refresh
       let merged = conversa
       try {
@@ -651,14 +650,21 @@ export const useConversaStore = create((set, get) => {
         }
       } catch (_) {}
 
-      set({
-        conversa: merged,
-        mensagens,
-        tags,
-        loading: false,
-        cursor: nextCursor,
-        cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
-        hasMore: !!nextCursor,
+      /* MERGE num único set após flush da fila — estado mais recente (lista + fila). */
+      takeAndApplyAnexarBatch()
+      set((state) => {
+        const existing = state.mensagens || []
+        let mensagens = mensagens_bloqueadas ? [] : get()._mergeMensagensFromApi(existing, apiMensagens, id)
+        mensagens = attachReplyMeta(id, mensagens)
+        return {
+          conversa: merged,
+          mensagens,
+          tags,
+          loading: false,
+          cursor: nextCursor,
+          cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
+          hasMore: !!nextCursor,
+        }
       })
 
       if (

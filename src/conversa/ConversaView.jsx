@@ -2234,11 +2234,15 @@ function useAutoScroll({
   messagesContainerRef,
   shouldStickToBottomRef,
   virtualListRef,
+  /** Contagem bruta no store — quando passa de 0 a N após o load, força novo snap até às mensagens mais recentes. */
+  mensagensCount = 0,
 }) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
   /** Após `carregarConversa`, o painel de mensagens só tem altura real quando `loading` vira false — scroll antes disso não chega ao fim. */
   const pendingJumpToBottomRef = useRef(false);
+  /** Segundo passe quando a lista ainda estava vazia no 1º snap (virtualizer mede altura só depois). */
+  const anchorLatestUntilMsgsRef = useRef(false);
 
   // useLayoutEffect síncrono: ancora o scroll na base ANTES do browser pintar.
   // Isso elimina a "animação visível" (smooth scroll que jogava a tela pra cima
@@ -2252,6 +2256,7 @@ function useAutoScroll({
       prevConversaIdRef.current = null;
       prevLastKeyRef.current = null;
       pendingJumpToBottomRef.current = false;
+      anchorLatestUntilMsgsRef.current = false;
       return;
     }
 
@@ -2261,6 +2266,7 @@ function useAutoScroll({
       prevLastKeyRef.current = lastMsgKey;
       shouldStickToBottomRef.current = true;
       pendingJumpToBottomRef.current = true;
+      anchorLatestUntilMsgsRef.current = true;
       return;
     }
 
@@ -2270,6 +2276,7 @@ function useAutoScroll({
       prevLastKeyRef.current = lastMsgKey;
       shouldStickToBottomRef.current = true;
       pendingJumpToBottomRef.current = true;
+      anchorLatestUntilMsgsRef.current = true;
       return;
     }
 
@@ -2300,10 +2307,18 @@ function useAutoScroll({
   // useLayoutEffect + scrollToIndex(último) evita ficar no topo com mensagens antigas visíveis.
   useLayoutEffect(() => {
     if (!conversaId) return;
-    if (!pendingJumpToBottomRef.current) return;
     if (loading) return;
+
+    const shouldSnapLatest =
+      pendingJumpToBottomRef.current ||
+      (anchorLatestUntilMsgsRef.current && mensagensCount > 0);
+
+    if (!shouldSnapLatest) return;
+
     const container = messagesContainerRef?.current;
-    pendingJumpToBottomRef.current = false;
+    if (pendingJumpToBottomRef.current) pendingJumpToBottomRef.current = false;
+    if (mensagensCount > 0) anchorLatestUntilMsgsRef.current = false;
+
     shouldStickToBottomRef.current = true;
     const snap = () => snapThreadToBottom(container, virtualListRef);
     snap();
@@ -2317,12 +2332,22 @@ function useAutoScroll({
     const t1 = window.setTimeout(snap, 0);
     const t2 = window.setTimeout(snap, 48);
     const t3 = window.setTimeout(snap, 160);
+    const t4 = window.setTimeout(snap, 320);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
+      window.clearTimeout(t4);
     };
-  }, [conversaId, loading, lastMsgKey, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
+  }, [
+    conversaId,
+    loading,
+    lastMsgKey,
+    mensagensCount,
+    messagesContainerRef,
+    shouldStickToBottomRef,
+    virtualListRef,
+  ]);
 }
 
 function useGlobalHotkeys({ onToggleTimeline, onFocusInput, onEscape, disabled }) {
@@ -3201,6 +3226,7 @@ export default function ConversaView() {
     messagesContainerRef,
     shouldStickToBottomRef,
     virtualListRef: virtualThreadRef,
+    mensagensCount: Array.isArray(mensagens) ? mensagens.length : 0,
   });
 
   const showToast = useCallback(
