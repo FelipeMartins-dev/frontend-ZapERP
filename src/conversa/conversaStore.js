@@ -172,6 +172,137 @@ function sortMensagensChronological(arr) {
   })
 }
 
+/** Incorpora uma mensagem na lista (sem ordenar). Usado em lote pelo flush de `anexarMensagem`. */
+function applyAnexarOneToList(list, convId, msg) {
+  msg = normalizeMsgForStore(msg)
+  if (!msg || !convId) return list
+
+  const findExisting = () => {
+    if (msg.id != null && String(msg.id).trim() !== "") {
+      const byId = list.findIndex((m) => String(m.id) === String(msg.id))
+      if (byId >= 0) return byId
+    }
+    const waId = msg.whatsapp_id || null
+    if (waId && convId) {
+      const byWa = list.findIndex(
+        (m) =>
+          (m.conversa_id == null || String(m.conversa_id) === String(convId)) &&
+          String(m.whatsapp_id || "") === String(waId)
+      )
+      if (byWa >= 0) return byWa
+    }
+    if (msg.tempId) {
+      const byTemp = list.findIndex((m) => String(m.tempId) === String(msg.tempId))
+      if (byTemp >= 0) return byTemp
+    }
+    return -1
+  }
+
+  const existingIdx = findExisting()
+  if (existingIdx >= 0) {
+    const existing = list[existingIdx]
+    const merged = { ...existing, ...msg }
+    if (convId) merged.conversa_id = convId
+    if (msg.id && !existing.id) merged.id = msg.id
+    if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
+    if (msg.status != null) merged.status = msg.status
+    if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
+    merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
+    const next = [...list]
+    next[existingIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
+    return next
+  }
+
+  const isFromMe = isOutgoingLike(msg)
+  const textoIn = (msg.texto || msg.conteudo || "").toString().trim()
+  const recentMs = 90_000
+  const now = Date.now()
+
+  if (isFromMe && textoIn) {
+    let replaceIdx = -1
+    let oldestTs = Infinity
+    let oldestSeq = Infinity
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i]
+      if (!m?.tempId || !isOutgoingLike(m)) continue
+      const ts = toMillis(m?.criado_em)
+      if (!Number.isFinite(ts) || now - ts >= recentMs) continue
+      const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoIn
+      if (!textoMatch) continue
+      const seq = Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity
+      if (ts < oldestTs || (ts === oldestTs && seq < oldestSeq)) {
+        oldestTs = ts
+        oldestSeq = seq
+        replaceIdx = i
+      }
+    }
+    if (replaceIdx >= 0) {
+      const existing = list[replaceIdx]
+      const merged = { ...existing, ...msg, conversa_id: convId }
+      if (msg.id) merged.id = msg.id
+      if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
+      if (msg.status != null) merged.status = msg.status
+      if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
+      const tsExisting = toMillis(existing?.criado_em)
+      const tsMsg = toMillis(msg?.criado_em)
+      if (tsExisting > tsMsg || !msg.criado_em) merged.criado_em = existing.criado_em
+      merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
+      const next = [...list]
+      next[replaceIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
+      return next
+    }
+  }
+
+  const isFromMeAlt = isOutgoingLike(msg)
+  const textoParaCenarioId = (msg.texto || msg.conteudo || "").toString().trim()
+  if (msg.id && isFromMeAlt && textoParaCenarioId) {
+    const recentMsC3 = 90_000
+    const nowC3 = Date.now()
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i]
+      if (!isOutgoingLike(m)) continue
+      if (m?.tempId) continue
+      const ts = toMillis(m?.criado_em)
+      if (!Number.isFinite(ts) || nowC3 - ts > recentMsC3) break
+      const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
+      if (m.whatsapp_id && !m.id && textoMatch) {
+        const merged = { ...m, ...msg, conversa_id: convId }
+        const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
+        const mVal = order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
+        const msgVal = order[String(msg?.status_mensagem || msg?.status || "").toLowerCase()] ?? 0
+        if (mVal > msgVal) {
+          merged.status = m.status
+          merged.status_mensagem = m.status_mensagem
+        }
+        merged._stableInsertSeq = mergeStableSeq(m, msg, null)
+        const next = [...list]
+        next[i] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(m, merged))
+        return next
+      }
+    }
+  }
+
+  const byKey = new Map()
+  list.forEach((m) => {
+    const mk = mapDedupeKey(m, convId)
+    byKey.set(mk, m)
+  })
+  const newMsg = normalizeMsgForStore({ ...msg })
+  if (convId) newMsg.conversa_id = convId
+  const newK = mapDedupeKey(newMsg, convId)
+  const candNew = stripTempIdWhenPersisted(newMsg)
+  const prevNew = byKey.get(newK)
+  if (prevNew) {
+    let mergedNew = mergeMsgPreferringTombstone(prevNew, candNew)
+    mergedNew._stableInsertSeq = mergeStableSeq(prevNew, candNew, null)
+    byKey.set(newK, mergedNew)
+  } else {
+    candNew._stableInsertSeq = mergeStableSeq(null, candNew, null)
+    byKey.set(newK, candNew)
+  }
+  return Array.from(byKey.values())
+}
+
 function getCurrentUserFromStorage() {
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem("zap_erp_auth") : null
@@ -194,7 +325,39 @@ function resolveMensagensBloqueadasForViewer(conversaLike, apiSaysBlocked) {
   return !!apiSaysBlocked
 }
 
-export const useConversaStore = create((set, get) => ({
+export const useConversaStore = create((set, get) => {
+  const pendingAnexar = []
+  let anexarFlushScheduled = false
+
+  function discardPendingAnexar() {
+    pendingAnexar.splice(0)
+    anexarFlushScheduled = false
+  }
+
+  function takeAndApplyAnexarBatch() {
+    anexarFlushScheduled = false
+    const batch = pendingAnexar.splice(0)
+    if (!batch.length) return
+    set((state) => {
+      let list = [...(state.mensagens || [])]
+      const convFb = state.conversa?.id ?? state.selectedId
+      for (const raw of batch) {
+        const m = normalizeMsgForStore(raw)
+        const cid = m?.conversa_id ?? convFb
+        if (!cid) continue
+        list = applyAnexarOneToList(list, cid, m)
+      }
+      return { mensagens: sortMensagensChronological(list) }
+    })
+  }
+
+  function scheduleAnexarFlush() {
+    if (anexarFlushScheduled) return
+    anexarFlushScheduled = true
+    queueMicrotask(takeAndApplyAnexarBatch)
+  }
+
+  return {
   selectedId: null,
   conversa: null,
   mensagens: [],
@@ -268,6 +431,7 @@ export const useConversaStore = create((set, get) => ({
     }
     joinConversaIfNeeded(normalizedId)
 
+    discardPendingAnexar()
     set({
       loading: true,
       selectedId: normalizedId,
@@ -584,159 +748,25 @@ export const useConversaStore = create((set, get) => ({
 
   /* =====================================================
      MENSAGENS — UPSERT (dedupe + merge)
-     Nunca append cego: verifica id OU (conversa_id + whatsapp_id).
-     Após qualquer upsert: SEMPRE ordenar por criado_em ASC = última posição.
+     Várias chegadas no mesmo instante são enfileiradas e aplicadas num único `set`,
+     para não haver corrida em que um `anexarMensagem` lê a lista antiga e sobrescreve o outro.
   ===================================================== */
   _sortMensagensByCriadoEmAsc: (arr) => sortMensagensChronological(arr),
 
   anexarMensagem: (msg) => {
-    msg = normalizeMsgForStore(msg)
-    const conversaId = msg?.conversa_id ?? get().conversa?.id
+    if (msg == null) return
+    const probe = normalizeMsgForStore({ ...msg })
+    const conversaId = probe?.conversa_id ?? get().conversa?.id
     if (!conversaId) return
-    const key = mapDedupeKey(msg, conversaId)
-    set((state) => {
-      const list = state.mensagens || []
-      const convId = state.conversa?.id ?? conversaId
-
-      // UPSERT: por id OU por (conversa_id + whatsapp_id) — evita "aparecer e sumir"
-      const findExisting = () => {
-        if (msg.id != null && String(msg.id).trim() !== "") {
-          const byId = list.findIndex((m) => String(m.id) === String(msg.id))
-          if (byId >= 0) return byId
-        }
-        const waId = msg.whatsapp_id || null
-        if (waId && convId) {
-          const byWa = list.findIndex((m) => (m.conversa_id == null || String(m.conversa_id) === String(convId)) && String(m.whatsapp_id || "") === String(waId))
-          if (byWa >= 0) return byWa
-        }
-        if (msg.tempId) {
-          const byTemp = list.findIndex((m) => String(m.tempId) === String(msg.tempId))
-          if (byTemp >= 0) return byTemp
-        }
-        return -1
-      }
-
-      const existingIdx = findExisting()
-      if (existingIdx >= 0) {
-        // MERGE: atualizar campos (status, whatsapp_id, id se faltando)
-        const existing = list[existingIdx]
-        const merged = { ...existing, ...msg }
-        if (convId) merged.conversa_id = convId
-        if (msg.id && !existing.id) merged.id = msg.id
-        if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
-        if (msg.status != null) merged.status = msg.status
-        if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-        merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
-        const next = [...list]
-        next[existingIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
-        return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
-      }
-
-      // Reconciliação: socket nova_mensagem fromMe → SUBSTITUIR temp otimista, NUNCA duplicar
-      // Funciona com whatsapp_id OU id (backend pode enviar um ou outro)
-      const isFromMe = isOutgoingLike(msg)
-      const textoIn = (msg.texto || msg.conteudo || "").toString().trim()
-      const recentMs = 90_000
-      const now = Date.now()
-
-      /* Só pareia por texto quando o payload traz texto — senão `!textoIn` casa com TODAS as otimistas e some mensagem. */
-      if (isFromMe && textoIn) {
-        let replaceIdx = -1
-        /* FIFO: mesma frase enviada 2× seguidas — o socket deve parear com o temp MAIS ANTIGO ainda pendente,
-           não com o último (senão a primeira confirmação “rouba” o temp novo e mensagens somem). */
-        let oldestTs = Infinity
-        let oldestSeq = Infinity
-        for (let i = 0; i < list.length; i++) {
-          const m = list[i]
-          if (!m?.tempId || !isOutgoingLike(m)) continue
-          const ts = toMillis(m?.criado_em)
-          if (!Number.isFinite(ts) || now - ts >= recentMs) continue
-          const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoIn
-          if (!textoMatch) continue
-          const seq = Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity
-          if (ts < oldestTs || (ts === oldestTs && seq < oldestSeq)) {
-            oldestTs = ts
-            oldestSeq = seq
-            replaceIdx = i
-          }
-        }
-        if (replaceIdx >= 0) {
-          const existing = list[replaceIdx]
-          const merged = { ...existing, ...msg, conversa_id: convId }
-          if (msg.id) merged.id = msg.id
-          if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
-          if (msg.status != null) merged.status = msg.status
-          if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-          const tsExisting = toMillis(existing?.criado_em)
-          const tsMsg = toMillis(msg?.criado_em)
-          if (tsExisting > tsMsg || !msg.criado_em) merged.criado_em = existing.criado_em
-          merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
-          const next = [...list]
-          next[replaceIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
-          return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
-        }
-      }
-
-      // Cenário 3: API chegou depois do socket (reconciliarMensagem chama anexarMensagem)
-      // Socket já substituiu temp; realMsg tem id da API mas nossa msg tem whatsapp_id sem id
-      // Procurar msg "out" recente com whatsapp_id mas sem id → merge id + reply_meta da API
-      const isFromMeAlt = isOutgoingLike(msg)
-      const textoParaCenarioId = (msg.texto || msg.conteudo || "").toString().trim()
-      if (msg.id && isFromMeAlt && textoParaCenarioId) {
-        const now = Date.now()
-        const recentMs = 90_000
-        for (let i = list.length - 1; i >= 0; i--) {
-          const m = list[i]
-          if (!isOutgoingLike(m)) continue
-          if (m?.tempId) continue
-          const ts = toMillis(m?.criado_em)
-          if (!Number.isFinite(ts) || now - ts > recentMs) break
-          const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
-          if (m.whatsapp_id && !m.id && textoMatch) {
-            const merged = { ...m, ...msg, conversa_id: convId }
-            // Preservar status mais avançado: socket pode ter "sent" enquanto API retorna "pending"
-            const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
-            const mVal = order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
-            const msgVal = order[String(msg?.status_mensagem || msg?.status || "").toLowerCase()] ?? 0
-            if (mVal > msgVal) {
-              merged.status = m.status
-              merged.status_mensagem = m.status_mensagem
-            }
-            merged._stableInsertSeq = mergeStableSeq(m, msg, null)
-            const next = [...list]
-            next[i] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(m, merged))
-            return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
-          }
-        }
-      }
-
-      // Nova mensagem: adicionar com dedupe por Map (chaves estáveis — sem legacy-${i})
-      const byKey = new Map()
-      list.forEach((m) => {
-        const mk = mapDedupeKey(m, convId)
-        byKey.set(mk, m)
-      })
-      const newMsg = normalizeMsgForStore({ ...msg })
-      if (convId) newMsg.conversa_id = convId
-      const newK = mapDedupeKey(newMsg, convId)
-      const candNew = stripTempIdWhenPersisted(newMsg)
-      const prevNew = byKey.get(newK)
-      if (prevNew) {
-        let mergedNew = mergeMsgPreferringTombstone(prevNew, candNew)
-        mergedNew._stableInsertSeq = mergeStableSeq(prevNew, candNew, null)
-        byKey.set(newK, mergedNew)
-      } else {
-        candNew._stableInsertSeq = mergeStableSeq(null, candNew, null)
-        byKey.set(newK, candNew)
-      }
-      return { mensagens: get()._sortMensagensByCriadoEmAsc(Array.from(byKey.values())) }
-    })
+    pendingAnexar.push(msg)
+    scheduleAnexarFlush()
   },
 
   /** Substitui mensagem temp (optimistic) pela real quando API retorna.
    * Se temp não existir (socket chegou primeiro), faz merge via anexarMensagem. */
   reconciliarMensagem: (tempId, realMsg) => {
     if (!tempId || !realMsg) return
+    takeAndApplyAnexarBatch()
     let replaced = false
     set((state) => {
       const list = state.mensagens || []
@@ -748,7 +778,7 @@ export const useConversaStore = create((set, get) => ({
         let tomb = mergeMsgPreferringTombstone(list[idx], mergedRec)
         tomb._stableInsertSeq = mergeStableSeq(list[idx], mergedRec, null)
         next[idx] = stripTempIdWhenPersisted(tomb)
-        return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
+        return { mensagens: sortMensagensChronological(next) }
       }
       return state
     })
@@ -1062,7 +1092,8 @@ export const useConversaStore = create((set, get) => ({
   /* =====================================================
      LIMPAR
   ===================================================== */
-  limpar: () =>
+  limpar: () => {
+    discardPendingAnexar()
     set({
       selectedId: null,
       conversa: null,
@@ -1077,5 +1108,7 @@ export const useConversaStore = create((set, get) => ({
       atendimentos: [],
       atendimentosLoading: false,
       atendimentosLoadedFor: null,
-    }),
-}))
+    })
+  },
+}
+})
