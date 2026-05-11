@@ -1463,6 +1463,22 @@
   color: var(--wa-text);
 }
 
+/* Placeholder “apagada para todos” — texto discreto tipo WhatsApp */
+.wa-bubble.wa-bubble--revokedEveryone {
+  opacity: 0.94;
+}
+.wa-bubble.wa-bubble--revokedEveryone:hover {
+  opacity: 1;
+}
+.wa-bubble.wa-bubble--revokedEveryone .wa-bubble-text {
+  font-style: italic;
+  color: var(--wa-text-muted, rgba(17, 27, 33, 0.62));
+}
+
+[data-theme="dark"] .wa-bubble.wa-bubble--revokedEveryone .wa-bubble-text {
+  color: rgba(233, 237, 239, 0.72);
+}
+
 /* =========================================================
    CAUDA DA BOLHA
 ========================================================= */
@@ -4427,9 +4443,9 @@
 .wa-forwardSteps {
   margin: 10px 0 0;
   padding: 0 0 0 1.25rem;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--wa-text-muted);
-  line-height: 1.45;
+  line-height: 1.5;
   display: flex;
   flex-direction: column;
   gap: 8px;

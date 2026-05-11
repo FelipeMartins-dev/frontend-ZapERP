@@ -685,7 +685,7 @@ export function initSocket(token) {
 
     const convStore = useConversaStore.getState()
     if (convStore.selectedId && String(convStore.selectedId) === String(conversa_id)) {
-      convStore.removerMensagem(mensagem_id)
+      convStore.marcarMensagemApagadaParaTodos(mensagem_id)
     }
   })
 

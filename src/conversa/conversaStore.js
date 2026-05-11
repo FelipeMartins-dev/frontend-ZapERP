@@ -91,6 +91,14 @@ function stripTempIdWhenPersisted(msg) {
   return next
 }
 
+/** Mantém placeholder local “apagada para todos” se a API devolver o corpo antigo sem flag. */
+function mergeMsgPreferringTombstone(prev, mergedCandidate) {
+  if (!prev) return mergedCandidate
+  if (!mergedCandidate) return prev
+  if (prev.apagada_para_todos && !mergedCandidate.apagada_para_todos) return prev
+  return mergedCandidate
+}
+
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
 function sortMensagensChronological(arr) {
   return [...(arr || [])].sort((a, b) => {
@@ -337,7 +345,8 @@ export const useConversaStore = create((set, get) => ({
       const copy = normalizeMsgForStore({ ...raw, conversa_id: conversaId })
       const k = mapDedupeKey(copy, conversaId)
       const prev = map.get(k)
-      map.set(k, prev ? { ...prev, ...copy } : copy)
+      const cand = prev ? { ...prev, ...copy } : copy
+      map.set(k, mergeMsgPreferringTombstone(prev, cand))
     }
     existing.forEach(put)
     fromApi.forEach(put)
@@ -484,7 +493,8 @@ export const useConversaStore = create((set, get) => ({
           const copy = normalizeMsgForStore({ ...raw, conversa_id: selectedId })
           const k = mapDedupeKey(copy, selectedId)
           const prev = map.get(k)
-          map.set(k, prev ? { ...prev, ...copy } : copy)
+          const cand = prev ? { ...prev, ...copy } : copy
+          map.set(k, mergeMsgPreferringTombstone(prev, cand))
         }
         ;(mais || []).forEach(put)
         atual.forEach(put)
@@ -548,7 +558,7 @@ export const useConversaStore = create((set, get) => ({
         if (msg.status != null) merged.status = msg.status
         if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
         const next = [...list]
-        next[existingIdx] = stripTempIdWhenPersisted(merged)
+        next[existingIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
         return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
       }
 
@@ -588,7 +598,7 @@ export const useConversaStore = create((set, get) => ({
           const tsMsg = toMillis(msg?.criado_em)
           if (tsExisting > tsMsg || !msg.criado_em) merged.criado_em = existing.criado_em
           const next = [...list]
-          next[replaceIdx] = stripTempIdWhenPersisted(merged)
+          next[replaceIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
           return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
         }
       }
@@ -619,7 +629,7 @@ export const useConversaStore = create((set, get) => ({
               merged.status_mensagem = m.status_mensagem
             }
             const next = [...list]
-            next[i] = stripTempIdWhenPersisted(merged)
+            next[i] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(m, merged))
             return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
           }
         }
@@ -634,7 +644,9 @@ export const useConversaStore = create((set, get) => ({
       const newMsg = normalizeMsgForStore({ ...msg })
       if (convId) newMsg.conversa_id = convId
       const newK = mapDedupeKey(newMsg, convId)
-      byKey.set(newK, stripTempIdWhenPersisted(newMsg))
+      const candNew = stripTempIdWhenPersisted(newMsg)
+      const prevNew = byKey.get(newK)
+      byKey.set(newK, prevNew ? mergeMsgPreferringTombstone(prevNew, candNew) : candNew)
       return { mensagens: get()._sortMensagensByCriadoEmAsc(Array.from(byKey.values())) }
     })
   },
@@ -650,7 +662,8 @@ export const useConversaStore = create((set, get) => ({
       if (idx >= 0) {
         replaced = true
         const next = [...list]
-        next[idx] = stripTempIdWhenPersisted({ ...realMsg, conversa_id: state.conversa?.id })
+        const mergedRec = { ...realMsg, conversa_id: state.conversa?.id }
+        next[idx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(list[idx], mergedRec))
         return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
       }
       return state
@@ -709,7 +722,53 @@ export const useConversaStore = create((set, get) => ({
       if (indices.size === 0) return state
       const next = [...list]
       indices.forEach((i) => {
-        next[i] = { ...next[i], ...partial }
+        const cur = next[i]
+        if (cur?.apagada_para_todos) {
+          const allow = {}
+          if (partial.status != null) allow.status = partial.status
+          if (partial.status_mensagem != null) allow.status_mensagem = partial.status_mensagem
+          if (Object.keys(allow).length === 0) return
+          next[i] = { ...cur, ...allow }
+          return
+        }
+        next[i] = { ...cur, ...partial }
+      })
+      return { mensagens: next }
+    })
+  },
+
+  /** Substitui só o registro com esse id — não afeta outras mensagens. */
+  marcarMensagemApagadaParaTodos: (mensagemId, opts = {}) => {
+    const targetId = mensagemId != null ? String(mensagemId).trim() : ""
+    if (!targetId) return
+    const me = getCurrentUserFromStorage()?.id
+    set((state) => {
+      const list = state.mensagens || []
+      const idx = list.findIndex((m) => m?.id != null && String(m.id) === targetId)
+      if (idx < 0) return state
+      const prev = list[idx]
+      if (prev.apagada_para_todos) return state
+      const euQueApaguei = opts.euQueApaguei === true
+      const souAutor =
+        prev?.autor_usuario_id != null && me != null && String(prev.autor_usuario_id) === String(me)
+      const texto =
+        euQueApaguei || souAutor
+          ? "Você apagou esta mensagem para todos."
+          : "Esta mensagem foi apagada para todos."
+      const next = [...list]
+      next[idx] = stripTempIdWhenPersisted({
+        ...prev,
+        texto,
+        conteudo: texto,
+        apagada_para_todos: true,
+        tipo: "texto",
+        reply_meta: null,
+        mensagem_respondida_id: null,
+        encaminhado: false,
+        url: null,
+        url_absoluta: null,
+        nome_arquivo: null,
+        thumbnail_url: null,
       })
       return { mensagens: next }
     })
