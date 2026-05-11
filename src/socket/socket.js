@@ -269,6 +269,18 @@ function normalizeNovaMensagemPayload(raw) {
     }
   }
 
+  const idMissing = normalized.id == null || String(normalized.id).trim() === ""
+  if (idMissing) {
+    const mid =
+      normalized.mensagem_id ?? normalized.message_id ?? normalized.messageId ?? normalized.msg_id
+    if (mid != null && String(mid).trim() !== "") normalized.id = mid
+  }
+  const waMissing = normalized.whatsapp_id == null || String(normalized.whatsapp_id).trim() === ""
+  if (waMissing) {
+    const wa = normalized.wamid ?? normalized.wa_message_id ?? normalized.whatsapp_message_id
+    if (wa != null && String(wa).trim() !== "") normalized.whatsapp_id = wa
+  }
+
   return normalized
 }
 

@@ -15,6 +15,29 @@ import { attachReplyMeta } from "./replyMeta"
 
 const PAGE_LIMIT = 100
 
+/** Ordem de chegada monotônica — desempate final quando timestamps coincidem (burst / segundo truncado).
+ * Base alta: mensagens vindas da API usam índices pequenos (1…N); temps/socket novos usam este contador. */
+const RUNTIME_INSERT_SEQ_BASE = 10_000_000
+let stableInsertSeqCounter = RUNTIME_INSERT_SEQ_BASE
+function allocStableInsertSeq() {
+  return stableInsertSeqCounter++
+}
+
+function mergeStableSeq(existingMsg, incomingMsg, fallbackOrd) {
+  const ex = existingMsg?._stableInsertSeq
+  const inc = incomingMsg?._stableInsertSeq
+  const highPreserve = (v) => v != null && Number.isFinite(Number(v)) && Number(v) >= RUNTIME_INSERT_SEQ_BASE
+  if (highPreserve(ex)) return Number(ex)
+  if (highPreserve(inc)) return Number(inc)
+
+  const nums = []
+  if (ex != null && Number.isFinite(Number(ex))) nums.push(Number(ex))
+  if (inc != null && Number.isFinite(Number(inc))) nums.push(Number(inc))
+  if (fallbackOrd != null && Number.isFinite(Number(fallbackOrd))) nums.push(Number(fallbackOrd))
+  if (nums.length === 0) return allocStableInsertSeq()
+  return Math.min(...nums)
+}
+
 function toMillis(value) {
   if (!value) return NaN
   const ms = new Date(value).getTime()
@@ -40,15 +63,26 @@ export function stableSyntheticMessageKey(m, conversaId) {
   const rem = String(m?.remetente_nome ?? m?.remetente_telefone ?? m?.pushname ?? "")
   const ts = String(m?.criado_em ?? "")
   const dir = isOutgoingLike(m) ? "o" : "i"
-  return `syn:${conversaId}:${dir}:${ts}:${tipo}:${rem}:${textoSnippet}`
+  const fileHint = String(m?.nome_arquivo ?? m?.filename ?? "").slice(0, 96)
+  const urlTail = String(m?.url ?? m?.url_absoluta ?? "")
+    .split("/")
+    .pop()
+    ?.slice(0, 96) ?? ""
+  const dur =
+    m?.audio_duracao_sec ??
+    m?.audioDuracaoSec ??
+    m?.duracao_segundos ??
+    ""
+  return `syn:${conversaId}:${dir}:${ts}:${tipo}:${rem}:${fileHint}:${urlTail}:${dur}:${textoSnippet}`
 }
 
 /** Chave única para Map dedupe (lista + merge API). */
 export function mapDedupeKey(m, conversaId) {
   const conv = String(conversaId ?? "")
-  if (m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") return `wa-${conv}-${String(m.whatsapp_id)}`
-  if (m?.id != null) return `id-${String(m.id)}`
-  if (m?.tempId != null) return `temp-${String(m.tempId)}`
+  const waRaw = m?.whatsapp_id ?? m?.wamid ?? m?.wa_message_id ?? null
+  if (waRaw != null && String(waRaw).trim() !== "") return `wa-${conv}-${String(waRaw)}`
+  if (m?.id != null && String(m.id).trim() !== "") return `id-${String(m.id)}`
+  if (m?.tempId != null && String(m.tempId).trim() !== "") return `temp-${String(m.tempId)}`
   return stableSyntheticMessageKey(m, conversaId)
 }
 
@@ -56,14 +90,26 @@ export function mapDedupeKey(m, conversaId) {
 export function getMessageListReactKey(m, conversaId) {
   if (!m) return "unknown"
   if (m.tempId != null && String(m.tempId).trim() !== "") return String(m.tempId)
-  if (m.id != null) return String(m.id)
+  if (m.id != null && String(m.id).trim() !== "") return String(m.id)
   if (m.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") return `wa-${String(m.whatsapp_id)}`
-  return stableSyntheticMessageKey(m, conversaId)
+  const syn = stableSyntheticMessageKey(m, conversaId)
+  const seq = Number.isFinite(Number(m._stableInsertSeq)) ? String(m._stableInsertSeq) : ""
+  return seq ? `${syn}·seq${seq}` : syn
 }
 
 function normalizeMsgForStore(msg) {
   if (!msg || typeof msg !== "object") return msg
   const n = { ...msg }
+  const idMissing = n.id == null || String(n.id).trim() === ""
+  if (idMissing) {
+    const mid = n.mensagem_id ?? n.message_id ?? n.messageId ?? n.msg_id
+    if (mid != null && String(mid).trim() !== "") n.id = mid
+  }
+  const waMissing = n.whatsapp_id == null || String(n.whatsapp_id).trim() === ""
+  if (waMissing) {
+    const wa = n.wamid ?? n.wa_message_id ?? n.whatsapp_message_id
+    if (wa != null && String(wa).trim() !== "") n.whatsapp_id = wa
+  }
   const altTs = n.created_at ?? n.timestamp ?? n.data_criacao ?? n.ts
   let ms = toMillis(n.criado_em)
   if (!Number.isFinite(ms)) ms = toMillis(altTs)
@@ -108,9 +154,21 @@ function sortMensagensChronological(arr) {
     const ida = Number(a?.id)
     const idb = Number(b?.id)
     if (Number.isFinite(ida) && Number.isFinite(idb) && ida !== idb) return ida - idb
+    const sid = String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
+    if (sid !== 0) return sid
     const wa = String(a?.whatsapp_id || "").localeCompare(String(b?.whatsapp_id || ""))
     if (wa !== 0) return wa
-    return String(a?.tempId || "").localeCompare(String(b?.tempId || ""))
+    const tt = String(a?.tempId || "").localeCompare(String(b?.tempId || ""))
+    if (tt !== 0) return tt
+    const fn = String(a?.nome_arquivo || "").localeCompare(String(b?.nome_arquivo || ""))
+    if (fn !== 0) return fn
+    const ur = String(a?.url || a?.url_absoluta || "").localeCompare(String(b?.url || b?.url_absoluta || ""))
+    if (ur !== 0) return ur
+    const seqa = Number(a?._stableInsertSeq)
+    const seqb = Number(b?._stableInsertSeq)
+    if (Number.isFinite(seqa) && Number.isFinite(seqb) && seqa !== seqb) return seqa - seqb
+    const conv = String(a?.conversa_id ?? b?.conversa_id ?? "")
+    return stableSyntheticMessageKey(a, conv).localeCompare(stableSyntheticMessageKey(b, conv))
   })
 }
 
@@ -252,12 +310,15 @@ export const useConversaStore = create((set, get) => ({
 
       if (Array.isArray(mensagens)) {
         const byKey = new Map()
-        mensagens.forEach((raw) => {
+        mensagens.forEach((raw, idx) => {
           if (!raw) return
           const copy = normalizeMsgForStore({ ...raw, conversa_id: normalizedId })
           const k = mapDedupeKey(copy, normalizedId)
           const prev = byKey.get(k)
-          byKey.set(k, prev ? { ...prev, ...copy } : copy)
+          const cand = prev ? { ...prev, ...copy } : copy
+          let merged = mergeMsgPreferringTombstone(prev, cand)
+          merged._stableInsertSeq = mergeStableSeq(prev || null, copy, idx + 1)
+          byKey.set(k, merged)
         })
         mensagens = sortMensagensChronological(Array.from(byKey.values()))
       } else {
@@ -340,13 +401,17 @@ export const useConversaStore = create((set, get) => ({
   _mergeMensagensFromApi: (existing, fromApi, conversaId) => {
     if (!Array.isArray(fromApi)) fromApi = []
     const map = new Map()
+    let batchOrd = 0
     const put = (raw) => {
       if (!raw) return
+      const ord = ++batchOrd
       const copy = normalizeMsgForStore({ ...raw, conversa_id: conversaId })
       const k = mapDedupeKey(copy, conversaId)
       const prev = map.get(k)
       const cand = prev ? { ...prev, ...copy } : copy
-      map.set(k, mergeMsgPreferringTombstone(prev, cand))
+      let merged = mergeMsgPreferringTombstone(prev, cand)
+      merged._stableInsertSeq = mergeStableSeq(prev || null, copy, ord)
+      map.set(k, merged)
     }
     existing.forEach(put)
     fromApi.forEach(put)
@@ -488,13 +553,17 @@ export const useConversaStore = create((set, get) => ({
         const atual = state.mensagens || []
         /** Mesma estratégia de `_mergeMensagensFromApi`: temp sem `id` não pode usar só String(m.id) (colapsa em "undefined"). */
         const map = new Map()
+        let batchOrd = 0
         const put = (raw) => {
           if (!raw) return
+          const ord = ++batchOrd
           const copy = normalizeMsgForStore({ ...raw, conversa_id: selectedId })
           const k = mapDedupeKey(copy, selectedId)
           const prev = map.get(k)
           const cand = prev ? { ...prev, ...copy } : copy
-          map.set(k, mergeMsgPreferringTombstone(prev, cand))
+          let merged = mergeMsgPreferringTombstone(prev, cand)
+          merged._stableInsertSeq = mergeStableSeq(prev || null, copy, ord)
+          map.set(k, merged)
         }
         ;(mais || []).forEach(put)
         atual.forEach(put)
@@ -531,7 +600,7 @@ export const useConversaStore = create((set, get) => ({
 
       // UPSERT: por id OU por (conversa_id + whatsapp_id) — evita "aparecer e sumir"
       const findExisting = () => {
-        if (msg.id != null) {
+        if (msg.id != null && String(msg.id).trim() !== "") {
           const byId = list.findIndex((m) => String(m.id) === String(msg.id))
           if (byId >= 0) return byId
         }
@@ -557,6 +626,7 @@ export const useConversaStore = create((set, get) => ({
         if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
         if (msg.status != null) merged.status = msg.status
         if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
+        merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
         const next = [...list]
         next[existingIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
         return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
@@ -575,6 +645,7 @@ export const useConversaStore = create((set, get) => ({
         /* FIFO: mesma frase enviada 2× seguidas — o socket deve parear com o temp MAIS ANTIGO ainda pendente,
            não com o último (senão a primeira confirmação “rouba” o temp novo e mensagens somem). */
         let oldestTs = Infinity
+        let oldestSeq = Infinity
         for (let i = 0; i < list.length; i++) {
           const m = list[i]
           if (!m?.tempId || !isOutgoingLike(m)) continue
@@ -582,8 +653,10 @@ export const useConversaStore = create((set, get) => ({
           if (!Number.isFinite(ts) || now - ts >= recentMs) continue
           const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoIn
           if (!textoMatch) continue
-          if (ts < oldestTs) {
+          const seq = Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity
+          if (ts < oldestTs || (ts === oldestTs && seq < oldestSeq)) {
             oldestTs = ts
+            oldestSeq = seq
             replaceIdx = i
           }
         }
@@ -597,6 +670,7 @@ export const useConversaStore = create((set, get) => ({
           const tsExisting = toMillis(existing?.criado_em)
           const tsMsg = toMillis(msg?.criado_em)
           if (tsExisting > tsMsg || !msg.criado_em) merged.criado_em = existing.criado_em
+          merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
           const next = [...list]
           next[replaceIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
           return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
@@ -628,6 +702,7 @@ export const useConversaStore = create((set, get) => ({
               merged.status = m.status
               merged.status_mensagem = m.status_mensagem
             }
+            merged._stableInsertSeq = mergeStableSeq(m, msg, null)
             const next = [...list]
             next[i] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(m, merged))
             return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
@@ -646,7 +721,14 @@ export const useConversaStore = create((set, get) => ({
       const newK = mapDedupeKey(newMsg, convId)
       const candNew = stripTempIdWhenPersisted(newMsg)
       const prevNew = byKey.get(newK)
-      byKey.set(newK, prevNew ? mergeMsgPreferringTombstone(prevNew, candNew) : candNew)
+      if (prevNew) {
+        let mergedNew = mergeMsgPreferringTombstone(prevNew, candNew)
+        mergedNew._stableInsertSeq = mergeStableSeq(prevNew, candNew, null)
+        byKey.set(newK, mergedNew)
+      } else {
+        candNew._stableInsertSeq = mergeStableSeq(null, candNew, null)
+        byKey.set(newK, candNew)
+      }
       return { mensagens: get()._sortMensagensByCriadoEmAsc(Array.from(byKey.values())) }
     })
   },
@@ -662,8 +744,10 @@ export const useConversaStore = create((set, get) => ({
       if (idx >= 0) {
         replaced = true
         const next = [...list]
-        const mergedRec = { ...realMsg, conversa_id: state.conversa?.id }
-        next[idx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(list[idx], mergedRec))
+        const mergedRec = normalizeMsgForStore({ ...realMsg, conversa_id: state.conversa?.id })
+        let tomb = mergeMsgPreferringTombstone(list[idx], mergedRec)
+        tomb._stableInsertSeq = mergeStableSeq(list[idx], mergedRec, null)
+        next[idx] = stripTempIdWhenPersisted(tomb)
         return { mensagens: get()._sortMensagensByCriadoEmAsc(next) }
       }
       return state
