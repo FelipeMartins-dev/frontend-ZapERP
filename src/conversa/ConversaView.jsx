@@ -2215,10 +2215,14 @@ function useStableTimeout() {
 }
 
 function snapThreadToBottom(container, virtualListRef) {
-  try {
-    virtualListRef?.current?.scrollToEnd?.();
-  } catch {
-    /* ignore */
+  const v = virtualListRef?.current;
+  if (v && typeof v.scrollToEnd === "function") {
+    try {
+      v.scrollToEnd({ align: "end", behavior: "auto" });
+      return;
+    } catch {
+      /* ignore */
+    }
   }
   if (container) {
     container.scrollTop = container.scrollHeight;
@@ -2729,6 +2733,26 @@ export default function ConversaView() {
     prevInputHeightRef.current = el ? el.getBoundingClientRect().height : prevInputHeightRef.current;
     // Scroll ao fundo fica só no useAutoScroll (nova mensagem) — evita “pulo” duplo ao enviar.
   }, [texto, syncTextareaHeight]);
+
+  const prevComposerLenRef = useRef(0);
+  const prevComposerConversaRef = useRef(null);
+  /** Ao limpar o composer (ex.: após enviar), o textarea encolhe e o viewport deixa de parecer colado ao fim — reancora só nessa transição, não a cada tecla. */
+  useLayoutEffect(() => {
+    const len = String(texto ?? "").length;
+    if (String(prevComposerConversaRef.current) !== String(conversaId ?? "")) {
+      prevComposerConversaRef.current = conversaId;
+      prevComposerLenRef.current = len;
+      return;
+    }
+    const prevLen = prevComposerLenRef.current;
+    prevComposerLenRef.current = len;
+    if (prevLen <= 0 || len !== 0) return;
+    if (!conversaId || loading) return;
+    const c = messagesContainerRef.current;
+    if (!c || !shouldStickToBottomRef.current) return;
+    if (!isNearBottom(c, 220)) return;
+    snapThreadToBottom(c, virtualThreadRef);
+  }, [texto, conversaId, loading]);
 
   useEffect(() => {
     pendingBlobUrlRef.current = pendingPreview || null;
@@ -4305,6 +4329,7 @@ export default function ConversaView() {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const optimisticMsg = {
       tempId,
+      tipo: "texto",
       texto: t,
       conteudo: t,
       direcao: "out",

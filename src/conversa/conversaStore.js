@@ -44,6 +44,12 @@ function toMillis(value) {
   return Number.isFinite(ms) ? ms : NaN
 }
 
+/** Reconciliação por texto só para bolhas de chat — evita fundir "(áudio)"/mídia na mensagem de texto errada. */
+function isTipoTextoParaReconciliarPorConteudo(msg) {
+  const t = String(msg?.tipo ?? "").toLowerCase().trim()
+  return t === "" || t === "texto" || t === "chat"
+}
+
 function isOutgoingLike(msg) {
   const dir = String(msg?.direcao || "").toLowerCase().trim()
   if (dir === "out") return true
@@ -222,23 +228,34 @@ function applyAnexarOneToList(list, convId, msg) {
   const recentMs = 90_000
   const now = Date.now()
 
-  if (isFromMe && textoIn) {
-    let replaceIdx = -1
-    let oldestTs = Infinity
-    let oldestSeq = Infinity
+  if (isFromMe && textoIn && isTipoTextoParaReconciliarPorConteudo(msg)) {
+    const candidates = []
     for (let i = 0; i < list.length; i++) {
       const m = list[i]
       if (!m?.tempId || !isOutgoingLike(m)) continue
+      if (!isTipoTextoParaReconciliarPorConteudo(m)) continue
       const ts = toMillis(m?.criado_em)
       if (!Number.isFinite(ts) || now - ts >= recentMs) continue
       const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoIn
       if (!textoMatch) continue
-      const seq = Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity
-      if (ts < oldestTs || (ts === oldestTs && seq < oldestSeq)) {
-        oldestTs = ts
-        oldestSeq = seq
-        replaceIdx = i
+      candidates.push({ i, ts, seq: Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity })
+    }
+    let replaceIdx = -1
+    if (candidates.length === 1) {
+      replaceIdx = candidates[0].i
+    } else if (candidates.length > 1) {
+      const tsIn = toMillis(msg?.criado_em)
+      let best = candidates[0]
+      for (const c of candidates) {
+        if (!Number.isFinite(tsIn)) {
+          if (c.ts < best.ts || (c.ts === best.ts && c.seq < best.seq)) best = c
+        } else {
+          const d = Math.abs(c.ts - tsIn)
+          const bd = Math.abs(best.ts - tsIn)
+          if (d < bd || (d === bd && c.seq < best.seq)) best = c
+        }
       }
+      replaceIdx = best.i
     }
     if (replaceIdx >= 0) {
       const existing = list[replaceIdx]
@@ -259,7 +276,7 @@ function applyAnexarOneToList(list, convId, msg) {
 
   const isFromMeAlt = isOutgoingLike(msg)
   const textoParaCenarioId = (msg.texto || msg.conteudo || "").toString().trim()
-  if (msg.id && isFromMeAlt && textoParaCenarioId) {
+  if (msg.id && isFromMeAlt && textoParaCenarioId && isTipoTextoParaReconciliarPorConteudo(msg)) {
     const recentMsC3 = 90_000
     const nowC3 = Date.now()
     for (let i = list.length - 1; i >= 0; i--) {
