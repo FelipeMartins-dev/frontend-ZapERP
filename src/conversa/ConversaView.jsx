@@ -2219,13 +2219,20 @@ function snapThreadToBottom(container, virtualListRef) {
   if (v && typeof v.scrollToEnd === "function") {
     try {
       v.scrollToEnd({ align: "end", behavior: "auto" });
-      return;
     } catch {
       /* ignore */
     }
   }
   if (container) {
-    container.scrollTop = container.scrollHeight;
+    const apply = () => {
+      try {
+        container.scrollTop = container.scrollHeight;
+      } catch {
+        /* ignore */
+      }
+    };
+    apply();
+    requestAnimationFrame(apply);
   }
 }
 
@@ -2247,6 +2254,8 @@ function useAutoScroll({
   const pendingJumpToBottomRef = useRef(false);
   /** Segundo passe quando a lista ainda estava vazia no 1º snap (virtualizer mede altura só depois). */
   const anchorLatestUntilMsgsRef = useRef(false);
+  const prevLoadingForSnapRef = useRef(loading);
+  const prevSnapConversaKeyRef = useRef(null);
 
   // useLayoutEffect síncrono: ancora o scroll na base ANTES do browser pintar.
   // Isso elimina a "animação visível" (smooth scroll que jogava a tela pra cima
@@ -2311,11 +2320,19 @@ function useAutoScroll({
   // useLayoutEffect + scrollToIndex(último) evita ficar no topo com mensagens antigas visíveis.
   useLayoutEffect(() => {
     if (!conversaId) return;
+    const convKey = String(conversaId);
+    if (prevSnapConversaKeyRef.current !== convKey) {
+      prevSnapConversaKeyRef.current = convKey;
+      prevLoadingForSnapRef.current = loading;
+    }
+    const becameReady = prevLoadingForSnapRef.current === true && loading === false;
+    prevLoadingForSnapRef.current = loading;
     if (loading) return;
 
     const shouldSnapLatest =
       pendingJumpToBottomRef.current ||
-      (anchorLatestUntilMsgsRef.current && mensagensCount > 0);
+      (anchorLatestUntilMsgsRef.current && mensagensCount > 0) ||
+      (becameReady && mensagensCount > 0);
 
     if (!shouldSnapLatest) return;
 
@@ -6266,6 +6283,7 @@ export default function ConversaView() {
                 </div>
               ) : null}
             <ConversaMessageVirtualList
+              key={`wa-thread-${String(scrollThreadId ?? conversaId ?? "")}`}
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
               overscan={48}

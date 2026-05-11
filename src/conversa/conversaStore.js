@@ -155,6 +155,15 @@ function mergeMsgPreferringTombstone(prev, mergedCandidate) {
   return mergedCandidate
 }
 
+/** Evita que `criado_em` do servidor (às vezes mais antigo que o relógio local) empurre a bolha para cima na ordenação. */
+function pickLaterCriadoEmIso(existing, incoming) {
+  const te = toMillis(existing?.criado_em)
+  const ti = toMillis(incoming?.criado_em)
+  if (!Number.isFinite(te)) return incoming?.criado_em ?? existing?.criado_em
+  if (!Number.isFinite(ti)) return existing?.criado_em ?? incoming?.criado_em
+  return new Date(Math.max(te, ti)).toISOString()
+}
+
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
 function sortMensagensChronological(arr) {
   return [...(arr || [])].sort((a, b) => {
@@ -217,6 +226,9 @@ function applyAnexarOneToList(list, convId, msg) {
     if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
     if (msg.status != null) merged.status = msg.status
     if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
+    if (isOutgoingLike(existing) && isOutgoingLike(msg)) {
+      merged.criado_em = pickLaterCriadoEmIso(existing, msg)
+    }
     merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
     const next = [...list]
     next[existingIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
@@ -264,9 +276,7 @@ function applyAnexarOneToList(list, convId, msg) {
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
       if (msg.status != null) merged.status = msg.status
       if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-      const tsExisting = toMillis(existing?.criado_em)
-      const tsMsg = toMillis(msg?.criado_em)
-      if (tsExisting > tsMsg || !msg.criado_em) merged.criado_em = existing.criado_em
+      merged.criado_em = pickLaterCriadoEmIso(existing, msg)
       merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
       const next = [...list]
       next[replaceIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
@@ -288,6 +298,7 @@ function applyAnexarOneToList(list, convId, msg) {
       const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
       if (m.whatsapp_id && !m.id && textoMatch) {
         const merged = { ...m, ...msg, conversa_id: convId }
+        if (isOutgoingLike(m) && isOutgoingLike(msg)) merged.criado_em = pickLaterCriadoEmIso(m, msg)
         const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
         const mVal = order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
         const msgVal = order[String(msg?.status_mensagem || msg?.status || "").toLowerCase()] ?? 0
@@ -322,6 +333,9 @@ function applyAnexarOneToList(list, convId, msg) {
   const prevNew = byKey.get(newK)
   if (prevNew) {
     let mergedNew = mergeMsgPreferringTombstone(prevNew, candNew)
+    if (isOutgoingLike(prevNew) && isOutgoingLike(candNew)) {
+      mergedNew.criado_em = pickLaterCriadoEmIso(prevNew, candNew)
+    }
     mergedNew._stableInsertSeq = mergeStableSeq(prevNew, candNew, null)
     byKey.set(newK, mergedNew)
   } else {
@@ -609,6 +623,9 @@ export const useConversaStore = create((set, get) => {
       const prev = map.get(k)
       const cand = prev ? { ...prev, ...copy } : copy
       let merged = mergeMsgPreferringTombstone(prev, cand)
+      if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
+        merged.criado_em = pickLaterCriadoEmIso(prev, copy)
+      }
       merged._stableInsertSeq = mergeStableSeq(prev || null, copy, ord)
       map.set(k, merged)
     }
@@ -760,6 +777,9 @@ export const useConversaStore = create((set, get) => {
           const prev = map.get(k)
           const cand = prev ? { ...prev, ...copy } : copy
           let merged = mergeMsgPreferringTombstone(prev, cand)
+          if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
+            merged.criado_em = pickLaterCriadoEmIso(prev, copy)
+          }
           merged._stableInsertSeq = mergeStableSeq(prev || null, copy, ord)
           map.set(k, merged)
         }
@@ -809,8 +829,13 @@ export const useConversaStore = create((set, get) => {
         replaced = true
         const next = [...list]
         const mergedRec = normalizeMsgForStore({ ...realMsg, conversa_id: state.conversa?.id })
-        let tomb = mergeMsgPreferringTombstone(list[idx], mergedRec)
-        tomb._stableInsertSeq = mergeStableSeq(list[idx], mergedRec, null)
+        const prevRow = list[idx]
+        const flat = { ...prevRow, ...mergedRec }
+        if (isOutgoingLike(prevRow) && isOutgoingLike(mergedRec)) {
+          flat.criado_em = pickLaterCriadoEmIso(prevRow, mergedRec)
+        }
+        let tomb = mergeMsgPreferringTombstone(prevRow, flat)
+        tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
         next[idx] = stripTempIdWhenPersisted(tomb)
         return { mensagens: sortMensagensChronological(next) }
       }
