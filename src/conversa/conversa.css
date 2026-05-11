@@ -3569,7 +3569,7 @@
   padding: 10px 8px calc(12px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.14);
   animation: wa-msgSheetIn 0.18s ease-out;
-  max-height: min(82vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px));
+  /* max-height/bottom: definidos em JS (visualViewport + teclado iOS) */
   scroll-padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;

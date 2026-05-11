@@ -546,18 +546,19 @@ export const useConversaStore = create((set, get) => ({
 
       if (isFromMe) {
         let replaceIdx = -1
-        // 1) Procurar temp otimista (tempId, direcao out, recente)
-        for (let i = list.length - 1; i >= 0; i--) {
+        /* FIFO: mesma frase enviada 2× seguidas — o socket deve parear com o temp MAIS ANTIGO ainda pendente,
+           não com o último (senão a primeira confirmação “rouba” o temp novo e mensagens somem). */
+        let oldestTs = Infinity
+        for (let i = 0; i < list.length; i++) {
           const m = list[i]
-          if (m?.tempId && isOutgoingLike(m)) {
-            const ts = toMillis(m?.criado_em)
-            if (Number.isFinite(ts) && now - ts < recentMs) {
-              const textoMatch = !textoIn || (m.texto || m.conteudo || "").toString().trim() === textoIn
-              if (textoMatch) {
-                replaceIdx = i
-                break
-              }
-            }
+          if (!m?.tempId || !isOutgoingLike(m)) continue
+          const ts = toMillis(m?.criado_em)
+          if (!Number.isFinite(ts) || now - ts >= recentMs) continue
+          const textoMatch = !textoIn || (m.texto || m.conteudo || "").toString().trim() === textoIn
+          if (!textoMatch) continue
+          if (ts < oldestTs) {
+            oldestTs = ts
+            replaceIdx = i
           }
         }
         if (replaceIdx >= 0) {

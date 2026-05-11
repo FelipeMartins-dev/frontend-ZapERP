@@ -1178,6 +1178,39 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+/** Área visível com teclado virtual / barra do Safari — menus fixed devem usar isto no mobile. */
+function getVisualViewportLayout() {
+  if (typeof window === "undefined") {
+    return {
+      innerWidth: 360,
+      innerHeight: 640,
+      visibleHeight: 640,
+      visibleTop: 0,
+      keyboardInsetBottom: 0,
+    };
+  }
+  const innerWidth = window.innerWidth || 360;
+  const innerHeight = window.innerHeight || 640;
+  const vv = window.visualViewport;
+  if (!vv) {
+    return {
+      innerWidth,
+      innerHeight,
+      visibleHeight: innerHeight,
+      visibleTop: 0,
+      keyboardInsetBottom: 0,
+    };
+  }
+  const keyboardInsetBottom = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+  return {
+    innerWidth,
+    innerHeight,
+    visibleHeight: vv.height,
+    visibleTop: vv.offsetTop,
+    keyboardInsetBottom,
+  };
+}
+
 function formatMmSs(totalSeconds) {
   const s = Number(totalSeconds);
   if (!Number.isFinite(s) || s < 0) return "0:00";
@@ -1525,19 +1558,20 @@ const Bubble = memo(function Bubble({
   const computeMenuPosition = useCallback(() => {
     const a = menuAnchorRef.current;
     if (!a) return;
-    const vw = window.innerWidth || 360;
-    const vh = window.innerHeight || 640;
+    const { innerWidth: vw, visibleHeight, visibleTop, keyboardInsetBottom } = getVisualViewportLayout();
+    const visibleBottom = visibleTop + visibleHeight;
 
     if (menuUsesBottomSheet) {
+      const bottomPx = Math.max(8, keyboardInsetBottom + 6);
+      const maxSheetPx = Math.max(200, Math.floor(visibleHeight - bottomPx - 14));
       setMenuStyle({
         position: "fixed",
         left: 10,
         right: 10,
         width: "auto",
-        bottom: "max(10px, env(safe-area-inset-bottom, 0px))",
+        bottom: `${bottomPx}px`,
         top: "auto",
-        maxHeight:
-          "min(82vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px))",
+        maxHeight: `${maxSheetPx}px`,
         overflowY: "auto",
         WebkitOverflowScrolling: "touch",
         overscrollBehavior: "contain",
@@ -1557,13 +1591,16 @@ const Bubble = memo(function Bubble({
     const approxH = menuElRef.current?.offsetHeight || 320;
     let placed = "down";
 
-    if (top + approxH > vh - 8) {
+    if (top + approxH > visibleBottom - 8) {
       top = rect.top - approxH - 6;
       placed = "up";
     }
-    top = clamp(top, 8, Math.max(8, vh - 120));
+    top = clamp(top, visibleTop + 8, Math.max(visibleTop + 8, visibleBottom - 120));
 
-    const maxHeight = placed === "down" ? Math.max(160, vh - top - 8) : Math.max(160, rect.top - 8);
+    const maxHeight =
+      placed === "down"
+        ? Math.max(160, visibleBottom - top - 8)
+        : Math.max(160, rect.top - visibleTop - 8);
 
     setMenuStyle({
       position: "fixed",
@@ -1586,11 +1623,16 @@ const Bubble = memo(function Bubble({
 
     const onReflow = () => computeMenuPosition();
     window.addEventListener("resize", onReflow);
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    vv?.addEventListener("resize", onReflow);
+    vv?.addEventListener("scroll", onReflow);
     // captura scroll dentro do container de mensagens também
     document.addEventListener("scroll", onReflow, true);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onReflow);
+      vv?.removeEventListener("resize", onReflow);
+      vv?.removeEventListener("scroll", onReflow);
       document.removeEventListener("scroll", onReflow, true);
     };
   }, [menuOpen, computeMenuPosition]);
@@ -6106,7 +6148,7 @@ export default function ConversaView() {
             <ConversaMessageVirtualList
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
-              overscan={24}
+              overscan={48}
               items={mensagensComSeparadores}
               onVirtualContentResize={snapIfStickBottom}
               renderItem={(item) => {
