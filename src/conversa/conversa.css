@@ -2012,9 +2012,14 @@
   padding: 4px 6px 6px 6px;
 }
 
-/* Fotos: sem padding largo de bolha de texto — visual próximo ao WhatsApp */
+/* Fotos: bolha encolhe à imagem + legenda; sem padding “de texto” nem largura fantasma */
+.wa-bubble.wa-bubble-media.image-message.hasInlineMeta,
 .wa-bubble.wa-bubble-media.image-message {
-  padding: 3px;
+  width: fit-content;
+  max-width: min(320px, calc(100vw - 56px), min(78%, 560px));
+  min-width: 0;
+  padding: 3px 4px 5px 4px;
+  box-sizing: border-box;
 }
 
 .wa-bubble.image-message .wa-bubble-mediaStack {
@@ -2090,6 +2095,9 @@
 
 /* ---- Classe semântica: .image-message ---- */
 .wa-bubble.image-message .wa-bubble-body {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
   overflow-wrap: break-word;
   align-items: flex-start;
 }
@@ -2131,8 +2139,120 @@
   width: 100%;
   max-width: min(320px, calc(100vw - 56px));
   box-sizing: border-box;
-  padding: 6px 10px 8px;
+  padding: 2px 8px 4px 8px;
   margin: 0;
+}
+
+/* Legenda + hora no rodapé: reserva canto inferior direito para meta absoluta (estilo WhatsApp) */
+.wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-caption {
+  padding: 2px 52px 6px 8px;
+  min-height: 0;
+}
+
+/* Hora/ticks no canto inferior — não sobrepor a legenda */
+.wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-meta {
+  top: auto;
+  bottom: 5px;
+  right: 5px;
+  left: auto;
+  height: auto;
+  min-height: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 6px;
+  padding: 2px 5px;
+  pointer-events: none;
+}
+
+.wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-metaLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-time {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-meta .wa-ticks {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-meta .wa-ticks.isRead {
+  color: #9ef2ff;
+}
+
+.wa-bubble-out.image-message:has(.wa-bubble-caption) .wa-bubble-meta {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.wa-bubble-out.image-message:has(.wa-bubble-caption) .wa-bubble-time {
+  color: rgba(17, 27, 33, 0.72);
+}
+
+.wa-bubble-out.image-message:has(.wa-bubble-caption) .wa-bubble-meta .wa-ticks.isRead {
+  color: var(--wa-status-blue, #53bdeb);
+}
+
+/* Vídeo + legenda: mesmo encaixe que imagem */
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) {
+  width: fit-content;
+  max-width: min(320px, calc(100vw - 56px), min(78%, 560px));
+  min-width: 0;
+  padding: 3px 4px 5px 4px;
+  box-sizing: border-box;
+}
+
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-body {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-mediaStack {
+  width: fit-content;
+  max-width: min(320px, calc(100vw - 56px));
+}
+
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-caption {
+  padding: 2px 52px 6px 8px;
+}
+
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-meta {
+  top: auto;
+  bottom: 5px;
+  right: 5px;
+  left: auto;
+  height: auto;
+  min-height: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 6px;
+  padding: 2px 5px;
+}
+
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-metaLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-time {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.wa-bubble-out.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-time {
+  color: rgba(17, 27, 33, 0.72);
+}
+
+.wa-bubble-out.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-meta {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.wa-row-out .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-mediaStack {
+  align-self: flex-end;
 }
 
 /* Label [Encaminhado] — estilo WhatsApp (legado, usado em FileBubbleContent) */
@@ -7615,8 +7735,14 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-size: 17px;
   }
 
+  .wa-bubble.wa-bubble-media.image-message.hasInlineMeta,
   .wa-bubble.wa-bubble-media.image-message {
-    padding: 4px;
+    max-width: min(300px, calc(100vw - 44px), 76%);
+    padding: 3px 4px 5px 4px;
+  }
+
+  .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) {
+    max-width: min(300px, calc(100vw - 44px), 76%);
   }
 
   .wa-bubble.image-message .wa-bubble-mediaStack {

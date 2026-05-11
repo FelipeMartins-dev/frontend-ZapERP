@@ -1522,7 +1522,8 @@ const Bubble = memo(function Bubble({
     !isApagadaParaTodos &&
     (!!msg?.encaminhado ||
       (typeof msg?.texto === "string" && msg.texto.trimStart().startsWith("[Encaminhado]")));
-  const inlineMeta = true;
+  /* Imagem/vídeo/figurinha com legenda: meta (hora/ticks) no rodapé do balão — hasInlineMeta reserva padding à direita sem uso e estoura o layout. */
+  const inlineMeta = !showCaption || (!isImg && !isVideo && !isSticker);
   const replyMeta = !isApagadaParaTodos ? msg?.reply_meta || null : null;
   const hasReply = !!(replyMeta && (replyMeta.name || replyMeta.snippet));
 
