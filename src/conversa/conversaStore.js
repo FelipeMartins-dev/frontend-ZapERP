@@ -96,6 +96,23 @@ export function mapDedupeKey(m, conversaId) {
   return syn
 }
 
+/** Duas linhas com o mesmo `mapDedupeKey` devem fundir só se forem a mesma mensagem lógica (UPSERT). */
+function canMergeDedupeEntries(prev, incoming) {
+  if (!prev || !incoming) return true
+  if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
+  const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
+  const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
+  if (pid && iid) return pid === iid
+  const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
+  const iwa = incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== "" ? String(incoming.whatsapp_id) : null
+  if (pwa && iwa) return pwa === iwa
+  if (iid && !pid) return true
+  if (pid && !iid) return true
+  if (iwa && !pwa) return true
+  if (pwa && !iwa) return true
+  return false
+}
+
 /** Chave estável para React (evita colisão e remount errado). */
 export function getMessageListReactKey(m, conversaId) {
   if (!m) return "unknown"
@@ -314,11 +331,6 @@ function applyAnexarOneToList(list, convId, msg) {
     }
   }
 
-  const byKey = new Map()
-  list.forEach((m) => {
-    const mk = mapDedupeKey(m, convId)
-    byKey.set(mk, m)
-  })
   const newMsg = normalizeMsgForStore({ ...msg })
   if (convId) newMsg.conversa_id = convId
   const semChavePersistida =
@@ -330,19 +342,24 @@ function applyAnexarOneToList(list, convId, msg) {
   }
   const newK = mapDedupeKey(newMsg, convId)
   const candNew = stripTempIdWhenPersisted(newMsg)
-  const prevNew = byKey.get(newK)
-  if (prevNew) {
-    let mergedNew = mergeMsgPreferringTombstone(prevNew, candNew)
-    if (isOutgoingLike(prevNew) && isOutgoingLike(candNew)) {
-      mergedNew.criado_em = pickLaterCriadoEmIso(prevNew, candNew)
+
+  const dupIdx = list.findIndex((m) => mapDedupeKey(m, convId) === newK)
+  if (dupIdx >= 0) {
+    const prevRow = list[dupIdx]
+    if (canMergeDedupeEntries(prevRow, candNew)) {
+      let mergedNew = mergeMsgPreferringTombstone(prevRow, candNew)
+      if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
+        mergedNew.criado_em = pickLaterCriadoEmIso(prevRow, candNew)
+      }
+      mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
+      const next = [...list]
+      next[dupIdx] = stripTempIdWhenPersisted(mergedNew)
+      return next
     }
-    mergedNew._stableInsertSeq = mergeStableSeq(prevNew, candNew, null)
-    byKey.set(newK, mergedNew)
-  } else {
-    candNew._stableInsertSeq = mergeStableSeq(null, candNew, null)
-    byKey.set(newK, candNew)
   }
-  return Array.from(byKey.values())
+
+  const appended = { ...candNew, _stableInsertSeq: mergeStableSeq(null, candNew, null) }
+  return [...list, stripTempIdWhenPersisted(appended)]
 }
 
 function getCurrentUserFromStorage() {
@@ -382,6 +399,7 @@ export const useConversaStore = create((set, get) => {
     if (!batch.length) return
     set((state) => {
       let list = [...(state.mensagens || [])]
+      const before = list.length
       const convFb = state.conversa?.id ?? state.selectedId
       for (const raw of batch) {
         const m = normalizeMsgForStore(raw)
@@ -389,7 +407,16 @@ export const useConversaStore = create((set, get) => {
         if (!cid) continue
         list = applyAnexarOneToList(list, cid, m)
       }
-      return { mensagens: sortMensagensChronological(list) }
+      const sorted = sortMensagensChronological(list)
+      if (import.meta.env.DEV && sorted.length < before) {
+        console.warn("[conversaStore] flush anexar reduziu mensagens (inesperado)", {
+          antes: before,
+          depois: sorted.length,
+          conversaId: convFb,
+          lote: batch.length,
+        })
+      }
+      return { mensagens: sorted }
     })
   }
 
@@ -621,6 +648,14 @@ export const useConversaStore = create((set, get) => {
       const copy = normalizeMsgForStore({ ...raw, conversa_id: conversaId })
       const k = mapDedupeKey(copy, conversaId)
       const prev = map.get(k)
+      if (prev && !canMergeDedupeEntries(prev, copy)) {
+        let altK = `${k}::__split_${ord}`
+        let n = 0
+        while (map.has(altK) && n < 500) altK = `${k}::__split_${ord}_${++n}`
+        const split = { ...copy, _stableInsertSeq: mergeStableSeq(null, copy, ord) }
+        map.set(altK, mergeMsgPreferringTombstone(null, split))
+        return
+      }
       const cand = prev ? { ...prev, ...copy } : copy
       let merged = mergeMsgPreferringTombstone(prev, cand)
       if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
@@ -775,6 +810,14 @@ export const useConversaStore = create((set, get) => {
           const copy = normalizeMsgForStore({ ...raw, conversa_id: selectedId })
           const k = mapDedupeKey(copy, selectedId)
           const prev = map.get(k)
+          if (prev && !canMergeDedupeEntries(prev, copy)) {
+            let altK = `${k}::__split_${ord}`
+            let n = 0
+            while (map.has(altK) && n < 500) altK = `${k}::__split_${ord}_${++n}`
+            const split = { ...copy, _stableInsertSeq: mergeStableSeq(null, copy, ord) }
+            map.set(altK, mergeMsgPreferringTombstone(null, split))
+            return
+          }
           const cand = prev ? { ...prev, ...copy } : copy
           let merged = mergeMsgPreferringTombstone(prev, cand)
           if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
