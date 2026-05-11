@@ -2326,18 +2326,39 @@ function useAutoScroll({
     const chain = () => {
       n += 1;
       snap();
-      if (n < 12) requestAnimationFrame(chain);
+      if (n < 24) requestAnimationFrame(chain);
     };
     requestAnimationFrame(chain);
     const t1 = window.setTimeout(snap, 0);
     const t2 = window.setTimeout(snap, 48);
     const t3 = window.setTimeout(snap, 160);
     const t4 = window.setTimeout(snap, 320);
+    const t5 = window.setTimeout(snap, 600);
+    const t6 = window.setTimeout(snap, 1000);
+    const t7 = window.setTimeout(snap, 1600);
+
+    let rafStick = 0;
+    let stickAttempts = 0;
+    const tryStickOpen = () => {
+      const c = messagesContainerRef?.current;
+      stickAttempts += 1;
+      if (!c || stickAttempts > 48) return;
+      if (!isNearBottom(c, 200)) {
+        snap();
+        rafStick = requestAnimationFrame(tryStickOpen);
+      }
+    };
+    rafStick = requestAnimationFrame(tryStickOpen);
+
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
       window.clearTimeout(t4);
+      window.clearTimeout(t5);
+      window.clearTimeout(t6);
+      window.clearTimeout(t7);
+      if (rafStick) cancelAnimationFrame(rafStick);
     };
   }, [
     conversaId,
@@ -6222,6 +6243,7 @@ export default function ConversaView() {
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
               overscan={48}
+              conversaId={scrollThreadId ?? conversaId}
               items={mensagensComSeparadores}
               onVirtualContentResize={snapIfStickBottom}
               renderItem={(item) => {

@@ -83,7 +83,11 @@ export function mapDedupeKey(m, conversaId) {
   if (waRaw != null && String(waRaw).trim() !== "") return `wa-${conv}-${String(waRaw)}`
   if (m?.id != null && String(m.id).trim() !== "") return `id-${String(m.id)}`
   if (m?.tempId != null && String(m.tempId).trim() !== "") return `temp-${String(m.tempId)}`
-  return stableSyntheticMessageKey(m, conversaId)
+  const syn = stableSyntheticMessageKey(m, conversaId)
+  const seq = Number(m?._stableInsertSeq)
+  // Sem id/wa/temp, só o fingerprint sintético pode colidir (ex.: várias saídas no mesmo segundo).
+  if (Number.isFinite(seq)) return `syn-${conv}-seq${seq}-${syn}`
+  return syn
 }
 
 /** Chave estável para React (evita colisão e remount errado). */
@@ -289,6 +293,13 @@ function applyAnexarOneToList(list, convId, msg) {
   })
   const newMsg = normalizeMsgForStore({ ...msg })
   if (convId) newMsg.conversa_id = convId
+  const semChavePersistida =
+    (newMsg.id == null || String(newMsg.id).trim() === "") &&
+    (newMsg.whatsapp_id == null || String(newMsg.whatsapp_id).trim() === "") &&
+    (newMsg.tempId == null || String(newMsg.tempId).trim() === "")
+  if (semChavePersistida && !Number.isFinite(Number(newMsg._stableInsertSeq))) {
+    newMsg._stableInsertSeq = allocStableInsertSeq()
+  }
   const newK = mapDedupeKey(newMsg, convId)
   const candNew = stripTempIdWhenPersisted(newMsg)
   const prevNew = byKey.get(newK)

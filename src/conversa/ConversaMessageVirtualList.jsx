@@ -1,12 +1,13 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { getMessageListReactKey } from "./conversaStore";
 
 /**
  * Thread de mensagens com virtualização dinâmica (altura medida por linha).
  * O scroll fica no elemento pai (.wa-messages).
  */
 export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVirtualList(
-  { items, scrollRef, overscan = 12, renderItem, onVirtualContentResize },
+  { items, scrollRef, overscan = 12, renderItem, onVirtualContentResize, conversaId },
   ref
 ) {
   const innerRootRef = useRef(null);
@@ -21,6 +22,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
       const item = items[index];
       if (!item) return `row-${index}`;
       if (item.__type === "day") return `day-${item.id}-${index}`;
+      if (conversaId != null && conversaId !== "") return getMessageListReactKey(item, conversaId);
       const id = item.id ?? item.tempId ?? item.whatsapp_id ?? index;
       return `msg-${String(id)}-${index}`;
     },
