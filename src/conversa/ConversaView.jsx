@@ -1653,6 +1653,12 @@ const Bubble = memo(function Bubble({
       (typeof msg?.texto === "string" && msg.texto.trimStart().startsWith("[Encaminhado]")));
   /* Imagem/vídeo/figurinha com legenda: meta (hora/ticks) no rodapé do balão — hasInlineMeta reserva padding à direita sem uso e estoura o layout. */
   const inlineMeta = !showCaption || (!isImg && !isVideo && !isSticker);
+  /* Só mensagens de texto usam classe hasInlineMeta (evita CSS esconder .wa-bubble-metaLeft em foto sem legenda). */
+  const hasInlineMetaClass = inlineMeta && !isImg && !isVideo && !isSticker;
+  /* Hora + ticks no canto / rodapé da mídia ou quando não há meta na linha do texto (comportamento original + foto sem legenda). */
+  const showFloatingMetaTime =
+    !isAudio &&
+    (!inlineMeta || ((isImg || isSticker || isVideo) && !showCaption));
   const replyMeta = !isApagadaParaTodos ? msg?.reply_meta || null : null;
   const hasReply = !!(replyMeta && (replyMeta.name || replyMeta.snippet));
 
@@ -1664,6 +1670,8 @@ const Bubble = memo(function Bubble({
   const menuElRef = useRef(null);
   const longPressTimerRef = useRef(null);
   const longPressCleanupRef = useRef(null);
+  /** Mobile: após long press abrir menu, ignorar o próximo clique na foto/vídeo (evita abrir viewer). */
+  const skipNextMediaTapRef = useRef(false);
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
   const isCall = !isApagadaParaTodos && msg?.tipo === "call";
@@ -1795,7 +1803,7 @@ const Bubble = memo(function Bubble({
       if (el && typeof el.closest === "function") {
         if (
           el.closest(
-            ".wa-reactionBtn, .wa-reactionPicker, .wa-msgMenuBtn, .wa-selectChk, .wa-bubble-imgLink, .wa-bubble-videoLink, .wa-bubble-fileAction, .wa-audioPlayBtn, [role=\"slider\"]"
+            ".wa-reactionBtn, .wa-reactionPicker, .wa-msgMenuBtn, .wa-selectChk, .wa-bubble-fileAction, .wa-audioPlayBtn, [role=\"slider\"]"
           )
         )
           return;
@@ -1835,6 +1843,7 @@ const Bubble = memo(function Bubble({
         try {
           if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(12);
         } catch (_) {}
+        skipNextMediaTapRef.current = true;
         setMenuOpen(true);
       }, LONG_PRESS_MS);
     },
@@ -1911,7 +1920,7 @@ const Bubble = memo(function Bubble({
         className={[
           "wa-bubble",
           out ? "wa-bubble-out" : "wa-bubble-in",
-          inlineMeta ? "hasInlineMeta" : "",
+          hasInlineMetaClass ? "hasInlineMeta" : "",
           (isImg || isSticker) ? "wa-bubble-media" : "",
           isSticker ? "wa-bubble-sticker sticker-message" : "",
           isImg && !isSticker ? "image-message" : "",
@@ -2014,6 +2023,10 @@ const Bubble = memo(function Bubble({
                     onClick={(e) => {
                       if (selectMode) return;
                       e.stopPropagation();
+                      if (skipNextMediaTapRef.current) {
+                        skipNextMediaTapRef.current = false;
+                        return;
+                      }
                       onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
                     }}
                   >
@@ -2029,6 +2042,10 @@ const Bubble = memo(function Bubble({
                     onClick={(e) => {
                       if (selectMode) return;
                       e.stopPropagation();
+                      if (skipNextMediaTapRef.current) {
+                        skipNextMediaTapRef.current = false;
+                        return;
+                      }
                       onOpenMedia?.(mediaUrl, "video");
                     }}
                   >
@@ -2081,6 +2098,10 @@ const Bubble = memo(function Bubble({
                 onClick={(e) => {
                   if (selectMode) return;
                   e.stopPropagation();
+                  if (skipNextMediaTapRef.current) {
+                    skipNextMediaTapRef.current = false;
+                    return;
+                  }
                   onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
                 }}
               >
@@ -2096,6 +2117,10 @@ const Bubble = memo(function Bubble({
                 onClick={(e) => {
                   if (selectMode) return;
                   e.stopPropagation();
+                  if (skipNextMediaTapRef.current) {
+                    skipNextMediaTapRef.current = false;
+                    return;
+                  }
                   onOpenMedia?.(mediaUrl, "video");
                 }}
               >
@@ -2185,7 +2210,7 @@ const Bubble = memo(function Bubble({
         ) : null}
         <div className="wa-bubble-meta">
           <div className="wa-bubble-metaLeft">
-            {!inlineMeta && !isAudio ? (
+            {showFloatingMetaTime ? (
               <>
                 <span className="wa-bubble-time">{formatHora(msg?.criado_em)}</span>
                 <MessageTicks msg={msg} isGroup={Boolean(isGroup)} />
