@@ -1294,14 +1294,31 @@ const __WA_EMOJIS = [
 
 let __waCurrentAudio = null;
 
+const WA_AUDIO_SPEEDS = [1, 1.5, 2];
+
 function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [dur, setDur] = useState(0);
   const [cur, setCur] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const rafRef = useRef(null);
   const rafLastRef = useRef(0);
   const bars = useMemo(() => makeWaveBars(34, seedFromAny(msgKey)), [msgKey]);
+
+  useEffect(() => {
+    setPlaybackRate(1);
+  }, [src]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    try {
+      el.playbackRate = playbackRate;
+    } catch {
+      /* ignore */
+    }
+  }, [playbackRate, src]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -1313,13 +1330,25 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
         setDur(d);
         try { onDuration?.(d); } catch {}
       }
+      try {
+        el.playbackRate = playbackRate;
+      } catch {
+        /* ignore */
+      }
     };
     const onTime = () => setCur(Number(el.currentTime || 0));
     const onEnded = () => {
       setPlaying(false);
       setCur(0);
     };
-    const onPlay = () => setPlaying(true);
+    const onPlay = () => {
+      setPlaying(true);
+      try {
+        el.playbackRate = playbackRate;
+      } catch {
+        /* ignore */
+      }
+    };
     const onPause = () => setPlaying(false);
 
     el.addEventListener("loadedmetadata", onLoaded);
@@ -1334,7 +1363,7 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
       el.removeEventListener("play", onPlay);
       el.removeEventListener("pause", onPause);
     };
-  }, [src]);
+  }, [src, playbackRate]);
 
   // Progresso mais fluido (rAF com throttle leve) enquanto toca
   useEffect(() => {
@@ -1366,6 +1395,11 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
         try { __waCurrentAudio.pause(); } catch {}
       }
       __waCurrentAudio = el;
+      try {
+        el.playbackRate = playbackRate;
+      } catch {
+        /* ignore */
+      }
       if (el.paused) {
         await el.play();
       } else {
@@ -1374,7 +1408,7 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
     } catch {
       // ignore
     }
-  }, []);
+  }, [playbackRate]);
 
   const seek = useCallback((e) => {
     const el = audioRef.current;
@@ -1400,10 +1434,10 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
         aria-label={playing ? "Pausar áudio" : "Tocar áudio"}
       >
         <span className="wa-audioPlayIcon wa-audioPlayIcon--play" aria-hidden="true">
-          <IconPlay />
+          <IconPlay width="22" height="22" />
         </span>
         <span className="wa-audioPlayIcon wa-audioPlayIcon--pause" aria-hidden="true">
-          <IconPause />
+          <IconPause width="22" height="22" />
         </span>
       </button>
       <div className="wa-audioMid">
@@ -1418,15 +1452,44 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
             <div
               key={i}
               className={`wa-audioBar ${i < playedBars ? "isPlayed" : ""}`}
-              style={{ height: `${Math.round(6 + v * 14)}px`, "--i": i }}
+              style={{ height: `${Math.round(8 + v * 18)}px`, "--i": i }}
             />
           ))}
           <div className="wa-audioDot" style={{ left: `${Math.round(frac * 100)}%` }} aria-hidden="true" />
         </div>
         <div className="wa-audioSub">
           <span className="wa-audioTime wa-audioTime--cur" title={formatMmSs(cur)}>{formatMmSs(cur)}</span>
-          <span className="wa-audioTime wa-audioTime--dur" title={formatMmSs(dur || 0)}>{formatMmSs(dur || 0)}</span>
-          {playing ? <span className="wa-audioRemain" title={`Restante ${formatMmSs(remaining)}`}>-{formatMmSs(remaining)}</span> : null}
+          <div className="wa-audioSpeedGroup" role="group" aria-label="Velocidade de reprodução">
+            {WA_AUDIO_SPEEDS.map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                className={`wa-audioSpeedBtn ${playbackRate === rate ? "isActive" : ""}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setPlaybackRate(rate);
+                  const a = audioRef.current;
+                  if (a) {
+                    try {
+                      a.playbackRate = rate;
+                    } catch {
+                      /* ignore */
+                    }
+                  }
+                }}
+                aria-pressed={playbackRate === rate}
+                aria-label={rate === 1 ? "Velocidade normal" : `Velocidade ${rate} vezes`}
+                title={rate === 1 ? "1×" : `${rate}×`}
+              >
+                {rate === 1 ? "1×" : `${rate}×`}
+              </button>
+            ))}
+          </div>
+          <span className="wa-audioSubTail">
+            <span className="wa-audioTime wa-audioTime--dur" title={formatMmSs(dur || 0)}>{formatMmSs(dur || 0)}</span>
+            {playing ? <span className="wa-audioRemain" title={`Restante ${formatMmSs(remaining)}`}>-{formatMmSs(remaining)}</span> : null}
+          </span>
         </div>
       </div>
       {avatarUrl ? (
