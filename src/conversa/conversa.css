@@ -272,7 +272,7 @@
 
 @media (min-width: 641px) {
   .wa-status-pill--meta {
-    max-width: 46%;
+    max-width: min(220px, 36%);
   }
 }
 
@@ -3723,10 +3723,10 @@
 
   .wa-bubble-audio .wa-audioSpeedBtn,
   .wa-bubble.audio-message .wa-audioSpeedBtn {
-    min-height: 24px;
-    min-width: 32px;
-    padding: 3px 7px;
-    font-size: 10px;
+    min-height: 26px;
+    min-width: 36px;
+    padding: 4px 9px;
+    font-size: 10.5px;
     font-weight: 600;
     border-radius: 999px;
     border: none;
@@ -3866,9 +3866,10 @@
 
   .wa-bubble-audio .wa-audioSpeedBtn,
   .wa-bubble.audio-message .wa-audioSpeedBtn {
-    min-height: 20px;
-    padding: 2px 7px;
-    font-size: 9px;
+    min-height: 23px;
+    min-width: 34px;
+    padding: 3px 8px;
+    font-size: 10px;
   }
   .wa-audioAvatarWrap,
   .wa-audioAvatar {
@@ -7878,6 +7879,38 @@ main.main-content--crm .wa-mediaPreview-composer {
     align-items: center;
   }
 
+  /* Status + setor com botão: duas linhas — status em cima, setor + “Trocar” abaixo (não corta) */
+  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    row-gap: 5px;
+    column-gap: 6px;
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+
+  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta {
+    flex: 1 0 100%;
+    width: auto;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta + .wa-header-metaSep {
+    display: none;
+  }
+
+  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-header-metaItem {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-header-setorBtn {
+    flex-shrink: 0;
+  }
+
   .wa-header-metaItem {
     flex: 0 1 auto;
     min-width: 0;
@@ -7892,17 +7925,17 @@ main.main-content--crm .wa-mediaPreview-composer {
     word-break: normal;
   }
 
-  /* Status: uma linha — evita "Em atendimento" quebrado; strip com scroll horizontal se faltar espaço */
+  /* Status: fonte menor no mobile; com setor+btn, layout em duas linhas (regras :has acima) */
   .wa-header-metaStrip .wa-status-pill--meta {
     flex: 0 0 auto;
     max-width: none;
     width: max-content;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     line-height: 1.2;
     min-height: 0;
     height: auto;
-    padding: 3px 9px;
+    padding: 2px 8px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -7911,7 +7944,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     border-radius: 999px;
   }
 
-  /* Faixa de status + setor: uma linha no mobile; não empilhar */
+  /* Faixa padrão: uma linha com scroll; quando há status + botão de setor, :has(...) acima quebra em duas linhas */
   .wa-header-metaStrip {
     display: flex;
     flex-direction: row;
@@ -8070,15 +8103,15 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip {
-    flex-wrap: nowrap;
-    align-items: center;
-    flex-direction: row;
-    gap: 5px;
-    row-gap: 0;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    gap: 5px 6px;
+    row-gap: 4px;
     margin-top: 0;
     padding: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow-x: visible;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     max-width: 100%;
@@ -8094,7 +8127,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     display: block;
     flex: 1 1 auto;
     min-width: 0;
-    max-width: min(200px, 42vw);
+    max-width: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -8106,12 +8139,12 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta {
-    flex: 0 0 auto;
-    max-width: none;
-    width: max-content;
-    font-size: 11px;
+    flex: 1 0 100%;
+    max-width: 100%;
+    width: auto;
+    font-size: 9.5px;
     font-weight: 600;
-    padding: 3px 9px;
+    padding: 2px 8px;
     min-height: 0;
     white-space: nowrap;
     display: inline-flex;
@@ -8120,6 +8153,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     overflow: visible;
     -webkit-line-clamp: unset;
     line-clamp: unset;
+    box-sizing: border-box;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep {
+    display: none;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-setorBtn {
