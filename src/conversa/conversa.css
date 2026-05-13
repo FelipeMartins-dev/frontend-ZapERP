@@ -270,8 +270,10 @@
   max-width: min(100%, 240px);
 }
 
-.wa-status-pill--meta {
-  max-width: 46%;
+@media (min-width: 641px) {
+  .wa-status-pill--meta {
+    max-width: 46%;
+  }
 }
 
 /* Setor (departamento) + botão Transferir — discreto */
@@ -7879,55 +7881,48 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-header-metaItem {
     flex: 0 1 auto;
     min-width: 0;
-    max-width: min(100%, calc(100vw - 128px));
+    max-width: min(100%, calc(100vw - 120px));
     font-size: 11px;
     font-weight: 500;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: normal;
-    word-break: break-word;
     line-height: 1.25;
     color: var(--wa-text-muted);
-  }
-
-  /* Estado compacto no mobile — mais espaço para status sem cortar */
-  .wa-header-metaStrip .wa-status-pill--meta {
-    flex: 0 1 auto;
-    max-width: min(100%, calc(100vw - 128px));
-    width: auto;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.25;
-    height: auto;
-    min-height: 20px;
-    padding: 4px 10px;
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    word-break: break-word;
+    word-break: normal;
+  }
+
+  /* Status: uma linha — evita "Em atendimento" quebrado; strip com scroll horizontal se faltar espaço */
+  .wa-header-metaStrip .wa-status-pill--meta {
+    flex: 0 0 auto;
+    max-width: none;
+    width: max-content;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    min-height: 0;
+    height: auto;
+    padding: 3px 9px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
     border-radius: 999px;
   }
 
-  /* Faixa de status + setor: hierarquia clara, multilinha quando precisar */
+  /* Faixa de status + setor: uma linha no mobile; não empilhar */
   .wa-header-metaStrip {
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 6px 8px;
-    row-gap: 5px;
-    padding-top: 1px;
-    padding-bottom: 1px;
+    gap: 5px 7px;
+    row-gap: 0;
+    padding-top: 0;
+    padding-bottom: 0;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     max-width: 100%;
@@ -7955,12 +7950,14 @@ main.main-content--crm .wa-mediaPreview-composer {
     gap: 6px;
   }
 
-  /* Atendimento 1:1 no telefone: uma única linha — voltar | nome + meta compactos | Transf. / Encerr. / ⋯ */
+  /* Atendimento 1:1 — cabeçalho mais baixo: nome 1 linha, meta em faixa horizontal */
   .wa-header.wa-header--atendMobile {
     grid-template-columns: 44px minmax(0, 1fr) auto;
     grid-template-rows: auto;
     align-items: center;
     column-gap: 6px;
+    padding: 6px 10px 6px;
+    padding-top: max(6px, env(safe-area-inset-top, 0px));
   }
 
   .wa-header.wa-header--atendMobile .wa-header-back {
@@ -7975,6 +7972,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     padding-right: 0;
     min-width: 0;
     align-self: center;
+    gap: 8px;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-right {
@@ -8042,7 +8040,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-titleBlock {
-    gap: 4px;
+    gap: 2px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-info {
+    gap: 2px;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-nameRow {
@@ -8052,78 +8054,87 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-header.wa-header--atendMobile .wa-header-name {
     font-size: 14px;
-    line-height: 1.28;
+    line-height: 1.22;
     font-weight: 700;
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    white-space: nowrap;
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    hyphens: auto;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
     min-width: 0;
     max-width: 100%;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 4px 6px;
-    row-gap: 4px;
-    padding-bottom: 0;
-    margin-top: 2px;
-    overflow-x: visible;
-    overflow-y: visible;
+    flex-wrap: nowrap;
+    align-items: center;
+    flex-direction: row;
+    gap: 5px;
+    row-gap: 0;
+    margin-top: 0;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     max-width: 100%;
+    min-height: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip::-webkit-scrollbar {
+    display: none;
+    height: 0;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-header-metaItem:not(.wa-status-pill--meta) {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: normal;
-    word-break: break-word;
-    max-width: min(100%, calc(100vw - 108px));
+    display: block;
     flex: 1 1 auto;
     min-width: 0;
+    max-width: min(200px, 42vw);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
     line-height: 1.2;
+    font-size: 11px;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta {
-    font-size: 10px;
+    flex: 0 0 auto;
+    max-width: none;
+    width: max-content;
+    font-size: 11px;
     font-weight: 600;
-    padding: 3px 8px;
-    min-height: 18px;
-    max-width: min(100%, calc(100vw - 108px));
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 3px 9px;
+    min-height: 0;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
     line-height: 1.2;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-setorBtn {
-    padding: 2px 7px !important;
-    min-height: 18px !important;
-    font-size: 10px !important;
+    padding: 2px 8px !important;
+    min-height: 22px !important;
+    font-size: 11px !important;
     border-radius: 8px !important;
     line-height: 1.15 !important;
-    margin-left: 4px;
+    margin-left: 0;
     flex-shrink: 0;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep + .wa-header-metaItem + .wa-header-setorBtn,
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta ~ .wa-header-setorBtn {
-    margin-left: 6px;
+    margin-left: 0;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-primary,
@@ -8573,6 +8584,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     background: #f0f2f5;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     overflow: visible;
+  }
+
+  .wa-header.wa-header--atendMobile {
+    padding: 5px calc(8px + env(safe-area-inset-left, 0)) 5px calc(8px + env(safe-area-inset-right, 0));
+    padding-top: max(5px, env(safe-area-inset-top, 0));
   }
 
   [data-theme="dark"] .wa-header {
