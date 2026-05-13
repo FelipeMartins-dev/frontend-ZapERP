@@ -212,6 +212,16 @@
   min-width: 0;
 }
 
+/* Bloco: primeira linha = status (pill); segunda = setor (aberta/fechada) */
+.wa-header-metaBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
 .wa-header-titleRow {
   display: flex;
   align-items: center;
@@ -7887,8 +7897,9 @@ main.main-content--crm .wa-mediaPreview-composer {
     display: inline;
   }
 
-  /* Sem a linha "Sem setor" — o botão já indica a ação */
-  .wa-header-metaStrip:has(.wa-header-setorBtn) .wa-header-metaItem.wa-muted {
+  /* Sem a linha "Sem setor" — o botão já indica a ação (pill+setor inline ou setor na linha de baixo) */
+  .wa-header-metaStrip:has(.wa-header-setorBtn) .wa-header-metaItem.wa-muted,
+  .wa-header-setorRow:has(.wa-header-setorBtn) .wa-header-metaItem.wa-muted {
     display: none;
   }
 
@@ -8272,6 +8283,22 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep + .wa-header-metaItem + .wa-header-setorBtn,
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta ~ .wa-header-setorBtn {
     margin-left: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaBlock {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-setorRow {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-setorRow .wa-header-metaItem {
+    max-width: min(100%, calc(100vw - 120px));
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-primary,

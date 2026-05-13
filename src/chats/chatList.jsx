@@ -5,7 +5,7 @@ import { useChatStore } from "./chatsStore";
 import { useConversaStore } from "../conversa/conversaStore";
 import { listarTags } from "../api/tagService";
 import { useAuthStore } from "../auth/authStore";
-import { isSupervisorOrAdmin, canTransferirSetorConversa } from "../auth/permissions";
+import { isSupervisorOrAdmin } from "../auth/permissions";
 import {
   isGroupConversation,
   getStatusAtendimentoEffective,
@@ -986,7 +986,6 @@ function ChatRow({
   const semConversa = Boolean(chat?.sem_conversa && chat?.cliente_id);
   const authUser = useAuthStore((s) => s.user);
   const currentUserId = authUser?.id != null ? authUser.id : null;
-  const podeTrocarSetorLista = canTransferirSetorConversa(authUser);
   const atendimentoRowClass = atendimentoRowVisualClass(
     chat,
     pendentesFuncionarioSet,
@@ -1071,23 +1070,6 @@ function ChatRow({
       ? String(chat.setor ?? chat?.departamento?.nome ?? chat?.departamentos?.nome ?? "").trim()
       : "";
 
-  const showSetorStackInMeta =
-    !isGroup && !semConversa && (stAt === "aberta" || stAt === "fechada");
-
-  const handleTrocarSetorClick = useCallback(
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (semConversa || id == null || id === "") return;
-      if (!canTransferirSetorConversa(authUser)) return;
-      useConversaStore.getState().setUiOpenTransferirSetor(true);
-      const normalizedId = Number(id) || String(id);
-      setSelectedId(normalizedId);
-      void carregarConversa(id);
-    },
-    [semConversa, id, authUser, setSelectedId, carregarConversa]
-  );
-
   useEffect(() => {
     setImgError(false);
   }, [avatarUrl]);
@@ -1159,7 +1141,7 @@ function ChatRow({
                 <TagMini tag={chat.tags[0]} />
               ) : null}
             </div>
-            {!isGroup && !showSetorStackInMeta && setorLabelNome ? (
+            {!isGroup && setorLabelNome ? (
               <div className="chat-list-setor" title={`Setor: ${setorLabelNome}`}>
                 {setorLabelNome}
               </div>
@@ -1175,36 +1157,11 @@ function ChatRow({
             {semConversa ? (
               <span className="chat-list-badge-sem-conversa" title="Clique para iniciar conversa">Sem conversa</span>
             ) : (
-              <div className="chat-list-meta-statusCol">
-                <StatusPill
-                  status={getStatusAtendimentoEffective(chat)}
-                  exibirBadgeAberta={chat?.exibir_badge_aberta}
-                  chat={chat}
-                />
-                {atendimentoRowClass === "chat-list-row--atendimento-alerta" ? (
-                  <span className="chat-list-await-float-dot" title="Cliente aguardando resposta" aria-hidden="true" />
-                ) : null}
-                {showSetorStackInMeta ? (
-                  <div className="chat-list-meta-setorStack">
-                    <div
-                      className={`chat-list-setor chat-list-setor--underStatus${setorLabelNome ? "" : " chat-list-setor--empty"}`}
-                      title={setorLabelNome ? `Setor: ${setorLabelNome}` : "Sem setor vinculado"}
-                    >
-                      {setorLabelNome || "Sem setor"}
-                    </div>
-                    {podeTrocarSetorLista ? (
-                      <button
-                        type="button"
-                        className="chat-list-trocar-setor"
-                        onClick={handleTrocarSetorClick}
-                        title={setorLabelNome ? "Trocar setor desta conversa" : "Definir setor"}
-                      >
-                        {setorLabelNome ? "Trocar setor" : "Definir setor"}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
+              <StatusPill
+                status={getStatusAtendimentoEffective(chat)}
+                exibirBadgeAberta={chat?.exibir_badge_aberta}
+                chat={chat}
+              />
             )}
           </div>
         </div>
@@ -1252,9 +1209,6 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     prev.isMenuOpen === next.isMenuOpen &&
     Number(a.unread_count ?? a.unread ?? 0) === Number(b.unread_count ?? b.unread ?? 0) &&
     String(getStatusAtendimentoEffective(a)) === String(getStatusAtendimentoEffective(b)) &&
-    String(a.departamento_id ?? "") === String(b.departamento_id ?? "") &&
-    String(a.setor ?? a?.departamento?.nome ?? a?.departamentos?.nome ?? "") ===
-      String(b.setor ?? b?.departamento?.nome ?? b?.departamentos?.nome ?? "") &&
     String(a.status_atendimento_real ?? "") === String(b.status_atendimento_real ?? "") &&
     String(a.finalizacao_motivo ?? "") === String(b.finalizacao_motivo ?? "") &&
     Boolean(a.finalizada_automaticamente) === Boolean(b.finalizada_automaticamente) &&

@@ -2664,8 +2664,6 @@ export default function ConversaView() {
   const composerAppendQueue = useConversaStore((s) => s.composerAppendQueue);
   const clearComposerAppendQueue = useConversaStore((s) => s.clearComposerAppendQueue);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
-  const uiOpenTransferirSetor = useConversaStore((s) => s.uiOpenTransferirSetor);
-  const setUiOpenTransferirSetor = useConversaStore((s) => s.setUiOpenTransferirSetor);
 
   const podeEnviar = useMemo(() => {
     if (!user?.id || !conversa?.id) return false;
@@ -3026,21 +3024,6 @@ export default function ConversaView() {
 
   const conversaId = conversa?.id || null;
 
-  useEffect(() => {
-    if (!uiOpenTransferirSetor) return;
-    if (!conversaId || !conversa?.id || String(conversa.id) !== String(conversaId)) return;
-    if (isGroupConversation(conversa)) {
-      setUiOpenTransferirSetor(false);
-      return;
-    }
-    if (!podeTransferirSetor) {
-      setUiOpenTransferirSetor(false);
-      return;
-    }
-    setShowTransferirSetor(true);
-    setUiOpenTransferirSetor(false);
-  }, [uiOpenTransferirSetor, conversaId, conversa, podeTransferirSetor, setUiOpenTransferirSetor]);
-
   /** Enquanto `carregarConversa` limpa `conversa`, `selectedId` mantém o chat — necessário para scroll até à última mensagem não falhar a meio do load. */
   const scrollThreadId =
     selectedId != null && selectedId !== "" ? selectedId : conversaId;
@@ -3257,6 +3240,13 @@ export default function ConversaView() {
       conversa?.finalizacao_motivo,
     ]
   );
+
+  /** Aberta / finalizada: setor e ação ficam na linha abaixo do pill de status (mobile/desktop). */
+  const headerSetorBelowStatus = useMemo(() => {
+    if (!conversa || isGroupConversation(conversa)) return false;
+    const s = safeString(getStatusAtendimentoEffective(conversa)).toLowerCase();
+    return s === "aberta" || s === "fechada";
+  }, [conversa]);
 
   /** Mobile: layout compacto em duas linhas + pill menor só em em_atendimento / aguardando_cliente */
   const headerCrmAtivoLayout = useMemo(() => {
@@ -6088,61 +6078,101 @@ export default function ConversaView() {
                     {nome}
                   </span>
                 </div>
-                <div className="wa-header-metaStrip" aria-label="Status e setor">
-                  {badge ? (
-                    <span
-                      className="wa-status-pill wa-status-pill--meta"
-                      style={{
-                        background: badge.bg,
-                        borderColor: badge.border,
-                        color: badge.color,
-                      }}
-                      title={encerramentoAusenciaHint || badge.text}
-                    >
-                      {badge.text}
-                    </span>
-                  ) : null}
-                  {!isGroup &&
-                    (setorAtual ? (
+                <div className="wa-header-metaBlock">
+                  <div className="wa-header-metaStrip" aria-label="Status da conversa">
+                    {badge ? (
+                      <span
+                        className="wa-status-pill wa-status-pill--meta"
+                        style={{
+                          background: badge.bg,
+                          borderColor: badge.border,
+                          color: badge.color,
+                        }}
+                        title={encerramentoAusenciaHint || badge.text}
+                      >
+                        {badge.text}
+                      </span>
+                    ) : null}
+                    {!headerSetorBelowStatus &&
+                      !isGroup &&
+                      (setorAtual ? (
+                        <>
+                          {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
+                          <span className="wa-header-metaItem" title={setorAtual}>
+                            Setor: {setorAtual}
+                          </span>
+                          {podeTransferirSetor ? (
+                            <button
+                              type="button"
+                              className="wa-header-setorBtn"
+                              onClick={handleOpenTransferirSetor}
+                              title="Transferir para outro setor"
+                            >
+                              <span className="wa-setorBtn-label wa-setorBtn-label--full">Transferir setor</span>
+                              <span className="wa-setorBtn-label wa-setorBtn-label--short">Trocar</span>
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
+                          <span className="wa-header-metaItem wa-muted">Sem setor</span>
+                          {podeTransferirSetor ? (
+                            <button
+                              type="button"
+                              className="wa-header-setorBtn"
+                              onClick={handleOpenTransferirSetor}
+                              title="Definir setor"
+                            >
+                              <span className="wa-setorBtn-label wa-setorBtn-label--full">Definir setor</span>
+                              <span className="wa-setorBtn-label wa-setorBtn-label--short">Setor</span>
+                            </button>
+                          ) : null}
+                        </>
+                      ))}
+                    {isGroup ? (
                       <>
                         {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
-                        <span className="wa-header-metaItem" title={setorAtual}>
-                          Setor: {setorAtual}
-                        </span>
-                        {podeTransferirSetor ? (
-                          <button
-                            type="button"
-                            className="wa-header-setorBtn"
-                            onClick={handleOpenTransferirSetor}
-                            title="Transferir para outro setor"
-                          >
-                            <span className="wa-setorBtn-label wa-setorBtn-label--full">Transferir setor</span>
-                            <span className="wa-setorBtn-label wa-setorBtn-label--short">Trocar</span>
-                          </button>
-                        ) : null}
+                        <span className="wa-header-metaItem wa-muted">Grupo</span>
                       </>
-                    ) : (
-                      <>
-                        {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
-                        <span className="wa-header-metaItem wa-muted">Sem setor</span>
-                        {podeTransferirSetor ? (
-                          <button
-                            type="button"
-                            className="wa-header-setorBtn"
-                            onClick={handleOpenTransferirSetor}
-                            title="Definir setor"
-                          >
-                            <span className="wa-setorBtn-label wa-setorBtn-label--full">Definir setor</span>
-                            <span className="wa-setorBtn-label wa-setorBtn-label--short">Setor</span>
-                          </button>
-                        ) : null}
-                      </>
-                    ))}
-                  {isGroup ? (
-                    <>
-                      {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
-                      <span className="wa-header-metaItem wa-muted">Grupo</span>
-                    </>
+                    ) : null}
+                  </div>
+                  {headerSetorBelowStatus && !isGroup ? (
+                    <div className="wa-header-setorRow" aria-label="Setor da conversa">
+                      {setorAtual ? (
+                        <>
+                          <span className="wa-header-metaItem" title={setorAtual}>
+                            Setor: {setorAtual}
+                          </span>
+                          {podeTransferirSetor ? (
+                            <button
+                              type="button"
+                              className="wa-header-setorBtn"
+                              onClick={handleOpenTransferirSetor}
+                              title="Transferir para outro setor"
+                            >
+                              <span className="wa-setorBtn-label wa-setorBtn-label--full">Transferir setor</span>
+                              <span className="wa-setorBtn-label wa-setorBtn-label--short">Trocar</span>
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          <span className="wa-header-metaItem wa-muted">Sem setor</span>
+                          {podeTransferirSetor ? (
+                            <button
+                              type="button"
+                              className="wa-header-setorBtn"
+                              onClick={handleOpenTransferirSetor}
+                              title="Definir setor"
+                            >
+                              <span className="wa-setorBtn-label wa-setorBtn-label--full">Definir setor</span>
+                              <span className="wa-setorBtn-label wa-setorBtn-label--short">Setor</span>
+                            </button>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
                   ) : null}
                 </div>
               </div>
