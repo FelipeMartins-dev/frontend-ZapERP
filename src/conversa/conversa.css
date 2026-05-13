@@ -1154,10 +1154,14 @@
   -webkit-touch-callout: default;
 }
 
-/* Placeholder / primeira linha — padding + line-height coerentes com min-height ~44px */
+/* Placeholder / primeira linha — padding simétrico + line-height alinhados ao min-height ~44px (12+20+12) */
 .wa-shell .wa-footer textarea.wa-input {
-  padding: 11px 16px;
-  line-height: 22px;
+  padding: 12px 16px;
+  line-height: 20px;
+}
+
+.wa-shell .wa-footer textarea.wa-input::placeholder {
+  line-height: 20px;
 }
 
 /* z-index 0 (não -1): com -1 o padrão ficava atrás do próprio gradiente e sumia */
@@ -1911,6 +1915,17 @@
     padding: 7px 12px;
     border-radius: 20px;
     line-height: 1.35;
+  }
+
+  /* Composer tablet: mesma caixa de texto que mobile (9+20+9 = 38px) */
+  .wa-shell .wa-footer textarea.wa-input {
+    padding: 9px 12px;
+    line-height: 20px;
+  }
+
+  .wa-shell .wa-footer textarea.wa-input::placeholder {
+    line-height: 20px;
+    font-size: 14px;
   }
 
   .wa-recording-bar {
@@ -7925,7 +7940,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     border-radius: 22px;
     padding: 10px 14px;
     font-size: 16px;
-    line-height: 1.38;
+    line-height: 20px;
     border: 1px solid color-mix(in oklab, var(--wa-panel-border) 65%, transparent);
     box-shadow: none;
     background: color-mix(in oklab, var(--wa-input-bg) 96%, var(--wa-panel-border));
@@ -7937,13 +7952,14 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-input::placeholder {
-    font-size: 15px;
+    font-size: 16px;
+    line-height: 20px;
     opacity: 0.82;
   }
 
   .wa-shell .wa-footer textarea.wa-input {
     padding: 11px 14px;
-    line-height: 22px;
+    line-height: 20px;
   }
 
   [data-theme="dark"] .wa-footer .wa-input {
@@ -8165,17 +8181,18 @@ main.main-content--crm .wa-mediaPreview-composer {
     min-width: 48px;
     padding: 9px 13px;
     font-size: 16px;
-    line-height: 1.38;
+    line-height: 20px;
     border-radius: 22px;
   }
 
   .wa-input::placeholder {
-    font-size: 15px;
+    font-size: 16px;
+    line-height: 20px;
   }
 
   .wa-shell .wa-footer textarea.wa-input {
     padding: 11px 13px;
-    line-height: 22px;
+    line-height: 20px;
   }
 
   .wa-sendBtn,
@@ -8248,16 +8265,17 @@ main.main-content--crm .wa-mediaPreview-composer {
     max-height: min(108px, calc(var(--wa-visual-height, 100vh) * 0.24));
     padding: 8px 12px;
     font-size: 16px;
-    line-height: 1.38;
+    line-height: 20px;
   }
 
   .wa-input::placeholder {
-    font-size: 15px;
+    font-size: 16px;
+    line-height: 20px;
   }
 
   .wa-shell .wa-footer textarea.wa-input {
-    padding: 11px 12px;
-    line-height: 22px;
+    padding: 10px 12px;
+    line-height: 20px;
   }
 
   .wa-sendBtn,

@@ -1263,6 +1263,12 @@ a { color: inherit; text-decoration: none; }
   min-width: 0;
 }
 
+/* Nome do contato ocupa o espaço flexível antes de ícones/tags na mesma linha */
+.chat-list-title-line > .chat-list-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .chat-list-inline-indicator {
   font-size: 11px;
   line-height: 1;
@@ -2009,6 +2015,31 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 980px) {
   .chat-list-header-title { font-size: var(--cl-font-size-lg); }
   .chat-list-search-hint { display: none; }
+
+  /* Lista + chat lado a lado: limita coluna de hora/status para não “comer” o nome */
+  .chat-list-row-meta {
+    max-width: min(42%, 168px);
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .chat-list-statusRow {
+    min-width: 0;
+    justify-content: flex-end;
+  }
+
+  .chat-list-status {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-list-badge-sem-conversa {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 /* Tablet / iPad (740–1024px): lista compacta, filtros alinhados, sem “balões” excessivos */
@@ -2140,6 +2171,23 @@ a { color: inherit; text-decoration: none; }
     padding-bottom: 10px;
   }
 
+  .chat-list-row-meta {
+    max-width: min(40%, 160px);
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .chat-list-statusRow {
+    min-width: 0;
+  }
+
+  .chat-list-status {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .chat-row-action-trigger {
     right: 8px;
     width: 24px;
@@ -2163,6 +2211,23 @@ a { color: inherit; text-decoration: none; }
     width: 52px;
     height: 52px;
     min-width: 52px;
+  }
+
+  .chat-list-row-meta {
+    max-width: min(44%, 172px);
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .chat-list-statusRow {
+    min-width: 0;
+  }
+
+  .chat-list-status {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
@@ -2210,21 +2275,32 @@ a { color: inherit; text-decoration: none; }
     line-height: 1.3;
   }
 
-  .chat-list-preview {
-    line-height: 1.35;
+  .chat-list-row-meta {
+    max-width: min(46%, 176px);
+    flex-shrink: 1;
+    min-width: 0;
   }
 
-  .chat-list-status {
-    min-height: 28px;
-    height: auto;
-    padding: 4px 11px;
-    font-size: 12px;
-    font-weight: 600;
+  .chat-list-statusRow {
+    min-width: 0;
   }
 
   .chat-list-preview {
     font-size: 15px;
     line-height: 1.35;
+  }
+
+  /* Mantém legível e compacto: prioriza largura para o nome (evita selos enormes) */
+  .chat-list-status {
+    min-height: 20px;
+    height: auto;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .chat-row-action-trigger {
