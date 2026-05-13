@@ -1,6 +1,38 @@
 import api from "../api/http"
 import { getApiBaseUrl } from "../api/baseUrl"
 
+/** Ative logs detalhados: `localStorage.setItem('zaperp_push_debug','1')` e recarregue. */
+export function isPushDiagEnabled() {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem("zaperp_push_debug") === "1"
+  } catch {
+    return false
+  }
+}
+
+function pushDiag(...args) {
+  if (!isPushDiagEnabled()) return
+  try {
+    console.log("[push][diag]", ...args)
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Evita pendura se não existir SW (ex.: dev sem registo de SW). */
+export async function getPushServiceWorkerRegistration() {
+  if (typeof navigator === "undefined" || !navigator.serviceWorker) return null
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("sw_ready_timeout")), 12_000)),
+    ])
+  } catch (e) {
+    pushDiag("getPushServiceWorkerRegistration:", e?.message || e)
+    return null
+  }
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
@@ -29,10 +61,19 @@ export async function fetchVapidPublicKey() {
     try {
       const res = await fetch(`${base}${ep}`)
       const json = await res.json().catch(() => ({}))
-      if (res.ok && json?.publicKey) return { ok: true, ...json }
-      if (json?.enabled === false) return { ok: false, ...json }
-    } catch (_) {}
+      if (res.ok && json?.publicKey) {
+        pushDiag("fetchVapidPublicKey: ok", { ep })
+        return { ok: true, ...json }
+      }
+      if (json?.enabled === false) {
+        pushDiag("fetchVapidPublicKey: servidor desativou VAPID", { ep })
+        return { ok: false, ...json }
+      }
+    } catch (e) {
+      pushDiag("fetchVapidPublicKey: erro rede", ep, e?.message)
+    }
   }
+  pushDiag("fetchVapidPublicKey: sem chave")
   return { ok: false, publicKey: null }
 }
 
@@ -67,6 +108,53 @@ export function getPushClientMeta() {
 let lastPushSend = { sig: "", at: 0 }
 const PUSH_SEND_DEBOUNCE_MS = 45_000
 
+/** Após troca de sessão, força novo envio ao backend (evita debounce bloquear o primeiro registo pós-login). */
+export function resetPushRegistrationDebounce() {
+  lastPushSend = { sig: "", at: 0 }
+}
+
+let lastNativeFcmSend = { sig: "", at: 0 }
+
+/**
+ * Registo de token FCM vindo do WebView / app Android nativo (FirebaseMessagingService → JavascriptInterface).
+ * Não usa VAPID; o backend grava em `push_tokens`.
+ */
+export async function registerNativeFcmToken(token, plataforma = "android-native") {
+  const t = String(token || "").trim()
+  if (t.length < 10) {
+    pushDiag("registerNativeFcmToken: token curto ou vazio")
+    return { ok: false, reason: "invalid_token" }
+  }
+  if (!hasAuthToken()) {
+    pushDiag("registerNativeFcmToken: sem sessão (zap_erp_auth)")
+    return { ok: false, reason: "no_auth" }
+  }
+  const now = Date.now()
+  if (lastNativeFcmSend.sig === t && now - lastNativeFcmSend.at < PUSH_SEND_DEBOUNCE_MS) {
+    pushDiag("registerNativeFcmToken: debounce — mesmo token há pouco")
+    return { ok: true, reason: "debounced" }
+  }
+  const { navegador, dispositivo } = getPushClientMeta()
+  const payload = {
+    token: t,
+    plataforma: String(plataforma || "android-native").slice(0, 64),
+    navegador,
+    dispositivo,
+  }
+  try {
+    pushDiag("registerNativeFcmToken: enviando ao backend", { plataforma: payload.plataforma, len: t.length })
+    await api.post("/api/push/tokens", payload, { silent: true })
+    lastNativeFcmSend = { sig: t, at: Date.now() }
+    pushDiag("registerNativeFcmToken: servidor aceitou")
+    return { ok: true }
+  } catch (e) {
+    const st = e?.response?.status
+    const msg = e?.response?.data?.error || e?.message
+    console.warn("[push] registerNativeFcmToken falhou", { status: st, message: msg })
+    return { ok: false, reason: "request_failed", status: st }
+  }
+}
+
 async function sendPushTokenToBackend(sub) {
   if (!sub) return
   const token = serializePushSubscription(sub)
@@ -77,7 +165,10 @@ async function sendPushTokenToBackend(sub) {
     sig = token
   }
   const now = Date.now()
-  if (lastPushSend.sig === sig && now - lastPushSend.at < PUSH_SEND_DEBOUNCE_MS) return
+  if (lastPushSend.sig === sig && now - lastPushSend.at < PUSH_SEND_DEBOUNCE_MS) {
+    pushDiag("sendPushTokenToBackend: debounce ativo, skip")
+    return
+  }
 
   const { navegador, dispositivo } = getPushClientMeta()
   const payload = {
@@ -88,10 +179,14 @@ async function sendPushTokenToBackend(sub) {
   }
 
   try {
+    pushDiag("sendPushTokenToBackend: POST /api/push/tokens (web-pwa)", { navegador, dispositivo })
     await api.post("/api/push/tokens", payload, { silent: true })
     lastPushSend = { sig, at: Date.now() }
-  } catch (_) {
-    /* falha silenciosa — não bloqueia login nem UI */
+    pushDiag("sendPushTokenToBackend: ok")
+  } catch (e) {
+    const st = e?.response?.status
+    const msg = e?.response?.data?.error || e?.message
+    console.warn("[push] falha ao registar subscription no servidor", { status: st, message: msg })
   }
 }
 
@@ -100,19 +195,27 @@ async function sendPushTokenToBackend(sub) {
  */
 export async function subscribeWebPush() {
   if (!pushSupported()) {
+    pushDiag("subscribeWebPush: unsupported")
     return { ok: false, reason: "unsupported" }
   }
 
   const vapid = await fetchVapidPublicKey()
   if (!vapid.publicKey) {
+    pushDiag("subscribeWebPush: sem chave VAPID no servidor", { enabled: vapid.enabled })
     return { ok: false, reason: vapid.enabled === false ? "server_disabled" : "no_public_key" }
   }
 
-  const reg = await navigator.serviceWorker.ready
+  const reg = await getPushServiceWorkerRegistration()
+  if (!reg) {
+    pushDiag("subscribeWebPush: sem Service Worker ativo")
+    return { ok: false, reason: "no_service_worker" }
+  }
 
   let permission = Notification.permission
+  pushDiag("subscribeWebPush: permissão antes do pedido", { permission })
   if (permission === "default") {
     permission = await Notification.requestPermission()
+    pushDiag("subscribeWebPush: permissão após pedido", { permission })
   }
   if (permission !== "granted") {
     return { ok: false, reason: permission === "denied" ? "permission_denied" : "permission_blocked" }
@@ -146,7 +249,8 @@ async function unregisterPushTokenOnServer(sub) {
 
 export async function unsubscribeWebPush() {
   if (!pushSupported()) return { ok: false, reason: "unsupported" }
-  const reg = await navigator.serviceWorker.ready
+  const reg = await getPushServiceWorkerRegistration()
+  if (!reg) return { ok: true }
   const sub = await reg.pushManager.getSubscription()
   if (!sub) return { ok: true }
   await unregisterPushTokenOnServer(sub)
@@ -162,18 +266,33 @@ export async function unsubscribeWebPush() {
  * - reenvia token ao backend para manter vínculo atualizado
  */
 export async function syncPushSubscriptionSilently() {
-  if (!pushSupported()) return { ok: false, reason: "unsupported" }
-  if (!hasAuthToken()) return { ok: false, reason: "no_auth" }
-  if (Notification.permission !== "granted") return { ok: false, reason: "permission_not_granted" }
+  if (!pushSupported()) {
+    pushDiag("syncPushSubscriptionSilently: unsupported")
+    return { ok: false, reason: "unsupported" }
+  }
+  if (!hasAuthToken()) {
+    pushDiag("syncPushSubscriptionSilently: no_auth")
+    return { ok: false, reason: "no_auth" }
+  }
+  if (Notification.permission !== "granted") {
+    pushDiag("syncPushSubscriptionSilently: permission_not_granted", Notification.permission)
+    return { ok: false, reason: "permission_not_granted" }
+  }
 
   const vapid = await fetchVapidPublicKey()
   if (!vapid.publicKey) {
+    pushDiag("syncPushSubscriptionSilently: no_public_key", { enabled: vapid.enabled })
     return { ok: false, reason: vapid.enabled === false ? "server_disabled" : "no_public_key" }
   }
 
-  const reg = await navigator.serviceWorker.ready
+  const reg = await getPushServiceWorkerRegistration()
+  if (!reg) {
+    pushDiag("syncPushSubscriptionSilently: sem Service Worker ativo")
+    return { ok: false, reason: "no_service_worker" }
+  }
   let sub = await reg.pushManager.getSubscription()
   if (!sub) {
+    pushDiag("syncPushSubscriptionSilently: criando nova subscription")
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
@@ -182,6 +301,7 @@ export async function syncPushSubscriptionSilently() {
 
   await sendPushTokenToBackend(sub)
 
+  pushDiag("syncPushSubscriptionSilently: concluído")
   return { ok: true }
 }
 
@@ -200,7 +320,8 @@ export async function hasActivePushSubscription() {
   if (!pushSupported()) return false
   if (Notification.permission !== "granted") return false
   try {
-    const reg = await navigator.serviceWorker.ready
+    const reg = await getPushServiceWorkerRegistration()
+    if (!reg) return false
     const sub = await reg.pushManager.getSubscription()
     return !!sub
   } catch {

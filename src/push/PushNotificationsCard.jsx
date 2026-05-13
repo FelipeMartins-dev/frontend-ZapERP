@@ -5,6 +5,7 @@ import {
   subscribeWebPush,
   unsubscribeWebPush,
   syncPushSubscriptionSilently,
+  getPushServiceWorkerRegistration,
 } from "./webPushClient"
 import { getPushPlatformHints } from "./pushPlatform"
 
@@ -25,7 +26,12 @@ export default function PushNotificationsCard() {
     try {
       const v = await fetchVapidPublicKey()
       setServerEnabled(!!v.publicKey)
-      const reg = await navigator.serviceWorker.ready
+      const reg = await getPushServiceWorkerRegistration()
+      if (!reg) {
+        setSubscribed(false)
+        setLastSyncAt(new Date().toISOString())
+        return
+      }
       const sub = await reg.pushManager.getSubscription()
       setSubscribed(!!sub)
       setLastSyncAt(new Date().toISOString())

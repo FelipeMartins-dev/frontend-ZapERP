@@ -5,11 +5,14 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { useAuthStore } from "./auth/authStore";
 import { initPushSubscriptionLifecycle } from "./push/pushSubscriptionLifecycle";
 import { initServiceWorkerBridge } from "./push/swBridge";
+import { initNativeFcmBridge } from "./push/nativeFcmBridge";
 import "./styles/theme.css";
 import "./styles/app.css";
 
 useAuthStore.getState().restore();
 useAuthStore.getState().syncUsuarioMe?.().catch(() => {});
+
+initNativeFcmBridge();
 
 function applyTheme() {
   const saved = localStorage.getItem("theme");

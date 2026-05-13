@@ -280,9 +280,21 @@
   max-width: min(100%, 240px);
 }
 
+/* Desktop largo: pill “Aberta” etc. — largura máx. com quebra permitida (não cortar a 2ª linha). */
 @media (min-width: 641px) {
   .wa-status-pill--meta {
-    max-width: min(220px, 36%);
+    max-width: min(280px, 52%);
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+@media (min-width: 1025px) {
+  .wa-status-pill--meta {
+    max-width: min(280px, 92vw);
+    flex-shrink: 0;
+    overflow: visible;
+    text-overflow: clip;
   }
 }
 
@@ -401,18 +413,24 @@
   50% { opacity: 0.85; transform: scale(1.05); }
 }
 
-/* Status — pill discreto */
+/* Status — pill discreto (altura mínima: texto em 2 linhas não pode ser cortado) */
 .wa-status-pill {
-  height: 22px;
-  padding: 0 8px;
+  min-height: 22px;
+  height: auto;
+  padding: 3px 10px;
+  box-sizing: border-box;
 
   border-radius: 999px;
 
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.25;
 
-  display:flex;
-  align-items:center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
 
   background: rgba(0,168,132,.08);
   color: var(--wa-green);
@@ -1814,9 +1832,10 @@
 
   .wa-header-metaStrip .wa-status-pill--meta {
     flex: 0 0 auto;
-    max-width: min(148px, 28vw);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: min(260px, 72vw);
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .wa-header-setorBtn {
@@ -2131,6 +2150,18 @@
   background: transparent;
   box-sizing: border-box;
   max-width: 100%;
+}
+
+/* Desktop: área mínima se a imagem falhar (evita bolha “esmagada”). Mobile mantém compacto. */
+@media (min-width: 1025px) {
+  .wa-bubble.image-message .wa-bubble-imgLink {
+    min-width: 120px;
+    min-height: 120px;
+    background: rgba(11, 20, 26, 0.06);
+  }
+  [data-theme="dark"] .wa-bubble.image-message .wa-bubble-imgLink {
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
 
 /* ---- Imagem (.image-message) ---- */
@@ -4984,6 +5015,16 @@
   flex: 0 0 auto;
 }
 
+.wa-replyBar-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.06);
+  align-self: center;
+}
+
 .wa-replyBar-left {
   min-width: 0;
   flex: 1;
@@ -5038,13 +5079,39 @@
 .wa-replyCtx.isOut .wa-replyCtx-bar {
   background: var(--wa-green, #00a884);
 }
+/* Citação: miniatura ao lado do texto (estilo WhatsApp) em todos os tamanhos de tela */
 .wa-replyCtx-content {
   flex: 1;
   padding: 4px 6px 4px;
   min-width: 0;
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.wa-replyCtx-thumb {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.08);
+  align-self: center;
+}
+.wa-replyCtx-textStack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
   gap: 2px;
+}
+/* (regras antigas só no ≥1025px removidas — thumb sempre visível) */
+@media (min-width: 1025px) {
+  .wa-replyCtx-thumb {
+    width: 42px;
+    height: 42px;
+  }
 }
 .wa-replyCtx-name {
   font-size: 12px;

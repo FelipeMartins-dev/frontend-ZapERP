@@ -34,6 +34,8 @@ export function saveReplyMeta(conversaId, mensagemId, meta) {
     snippet: String(meta.snippet || "").slice(0, 180),
     ts: Number(meta.ts || Date.now()),
     replyToId: meta.replyToId != null ? String(meta.replyToId) : undefined,
+    ...(meta.thumb ? { thumb: String(meta.thumb).slice(0, 12000) } : {}),
+    ...(meta.reply_kind ? { reply_kind: String(meta.reply_kind).slice(0, 24) } : {}),
   };
 
   // limita tamanho (evita crescer infinito)

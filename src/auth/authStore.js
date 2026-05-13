@@ -5,7 +5,7 @@ import { initSocket, disconnectSocket } from "../socket/socket"
 import { useChatStore } from "../chats/chatsStore"
 import { useConversaStore } from "../conversa/conversaStore"
 import { usePermissoesStore } from "./permissoesStore"
-import { unsubscribeWebPush } from "../push/webPushClient"
+import { unsubscribeWebPush, syncPushSubscriptionSilently, resetPushRegistrationDebounce } from "../push/webPushClient"
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -51,6 +51,10 @@ export const useAuthStore = create((set, get) => ({
 
       // 🔌 inicia socket autenticado
       initSocket(token)
+
+      // Notificações: o evento `storage` não dispara na mesma aba — re-registar subscription/token após login.
+      resetPushRegistrationDebounce()
+      void syncPushSubscriptionSilently().catch(() => {})
 
       // Carrega permissões do usuário (menus e proteção de rotas)
       usePermissoesStore.getState().fetchPermissoes().catch(() => {})

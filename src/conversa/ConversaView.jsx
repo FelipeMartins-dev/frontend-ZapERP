@@ -154,10 +154,11 @@ function isFilenameOnlyText(texto) {
   if (!texto) return false;
   const t = String(texto).trim();
   if (!t) return false;
-  if (t.length > 140) return false;
   const knownExt =
     /\.(jpe?g|png|gif|webp|bmp|svg|heic|heif|tiff?|mp4|mov|webm|mkv|avi|3gp|m4v|mp3|m4a|wav|ogg|opus|aac|amr|pdf|docx?|xlsx?|pptx?|txt|csv|zip|rar|7z)$/i;
   if (!knownExt.test(t)) return false;
+  /* Nomes longos só com extensão (ex.: IDs numéricos do WhatsApp .jpg) continuam sendo arquivo — o teto evita parágrafos colados a ".pdf". */
+  if (t.length > 8000) return false;
   if (/^(IMG|IMG_E|VID|VID_|MOV|DSC|PXL|PHOTO|VIDEO|AUDIO|REC|FILE|DOC|PDF|WA|WhatsApp|Screenshot|Captura|image|video|audio)[ _-]/i.test(t)) {
     return true;
   }
@@ -242,7 +243,7 @@ function isPlainCaptionFollowMessage(msg) {
 
 function messageHasReplyMeta(msg) {
   const rm = msg?.reply_meta;
-  return !!(rm && (safeString(rm.name) || safeString(rm.snippet)));
+  return !!(rm && (safeString(rm.name) || safeString(rm.snippet) || safeString(rm.thumb)));
 }
 
 function sameCaptionBundleAuthor(prev, cur) {
@@ -1162,9 +1163,12 @@ function snippetFromMsg(msg) {
   const contactResolved = resolveContactMetaFromMessage(msg);
   if (contactResolved?.nome) return contactResolved.nome;
 
+  const tipo = safeString(msg?.tipo).toLowerCase();
   const t = safeString(msg?.texto);
-  if (t) return t.length > 80 ? `${t.slice(0, 80)}…` : t;
-  const tipo = safeString(msg?.tipo);
+  /* Não usar nome de arquivo gravado em `texto` como preview de mídia (reply / lista). */
+  const skipTextoPorArquivoMidia =
+    (tipo === "imagem" || tipo === "sticker" || tipo === "video") && t && isFilenameOnlyText(t);
+  if (t && !skipTextoPorArquivoMidia) return t.length > 80 ? `${t.slice(0, 80)}…` : t;
   if (tipo === "audio") {
     const rawDur =
       msg?.audio_duracao_sec ??
@@ -1207,6 +1211,59 @@ function pickReplyToIdForApi(msg) {
   if (wa) return wa;
   if (source.id != null && source.id !== "") return source.id;
   return undefined;
+}
+
+/** Monta reply_meta para API + localStorage (inclui miniatura em foto/figurinha). */
+function buildReplyMetaForPersist(replyTo, nome, chat) {
+  if (!replyTo) return null;
+  const name = getReplySenderLabel(replyTo, nome, chat);
+  const snippet = snippetFromMsg(replyTo);
+  const base = {
+    name,
+    snippet,
+    ts: Date.now(),
+    replyToId: pickReplyToIdForApi(replyTo),
+  };
+  const tipo = safeString(replyTo?.tipo).toLowerCase();
+  if (tipo === "imagem" || tipo === "sticker") {
+    const thumb = getMediaUrl(replyTo?.url, replyTo?.url_absoluta);
+    return {
+      ...base,
+      reply_kind: tipo,
+      /* URLs assinadas (S3) passam de 500 chars — truncar quebrava miniatura e a imagem sumia na citação. */
+      ...(thumb ? { thumb: String(thumb).slice(0, 12000) } : {}),
+    };
+  }
+  return base;
+}
+
+/** Texto da linha de preview na citação (evita nome de arquivo legado no localStorage). */
+function replySnippetDisplay(rm) {
+  if (!rm) return "";
+  const sn = safeString(rm.snippet);
+  const kind = safeString(rm.reply_kind).toLowerCase();
+  if (!sn && safeString(rm.thumb)) return "Foto";
+  if (kind === "sticker" && (!sn || isFilenameOnlyText(sn))) return "Figurinha";
+  const snTrim = sn.trim();
+  if (
+    snTrim &&
+    /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(snTrim) &&
+    !/\s/.test(snTrim)
+  ) {
+    if (kind === "sticker") return "Figurinha";
+    return "Foto";
+  }
+  if (sn && isFilenameOnlyText(sn) && /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(sn)) return "Foto";
+  if (kind === "imagem" && (!sn || sn === "(foto)" || isFilenameOnlyText(sn))) return "Foto";
+  return sn;
+}
+
+function resolveConversaAvatarUrl(raw) {
+  const s = raw != null ? String(raw).trim() : "";
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("data:")) return s;
+  return getMediaUrl(s, null) || null;
 }
 
 function clamp(n, min, max) {
@@ -1660,7 +1717,7 @@ const Bubble = memo(function Bubble({
     !isAudio &&
     (!inlineMeta || ((isImg || isSticker || isVideo) && !showCaption));
   const replyMeta = !isApagadaParaTodos ? msg?.reply_meta || null : null;
-  const hasReply = !!(replyMeta && (replyMeta.name || replyMeta.snippet));
+  const hasReply = !!(replyMeta && (replyMeta.name || replyMeta.snippet || replyMeta.thumb));
 
   // pedido do usuário: setinha no hover para mensagens do cliente
   const showMenuButton = !selectMode;
@@ -1991,12 +2048,24 @@ const Bubble = memo(function Bubble({
             >
               <div className="wa-replyCtx-bar" aria-hidden="true" />
               <div className="wa-replyCtx-content">
-                <div className="wa-replyCtx-name">
-                  {replyMeta.name && replyMeta.name !== "Contato"
-                    ? replyMeta.name
-                    : (peerName || replyMeta.name)}
+                {safeString(replyMeta.thumb) ? (
+                  <img
+                    src={replyMeta.thumb}
+                    alt=""
+                    className="wa-replyCtx-thumb"
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : null}
+                <div className="wa-replyCtx-textStack">
+                  <div className="wa-replyCtx-name">
+                    {replyMeta.name && replyMeta.name !== "Contato"
+                      ? replyMeta.name
+                      : (peerName || replyMeta.name)}
+                  </div>
+                  <div className="wa-replyCtx-snippet">{replySnippetDisplay(replyMeta)}</div>
                 </div>
-                <div className="wa-replyCtx-snippet">{replyMeta.snippet}</div>
               </div>
             </div>
           )}
@@ -2030,7 +2099,14 @@ const Bubble = memo(function Bubble({
                       onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
                     }}
                   >
-                    <img src={mediaUrl} alt={isSticker ? "figurinha" : "imagem"} className="wa-bubble-img" />
+                    <img
+                      src={mediaUrl}
+                      alt={isSticker ? "figurinha" : "imagem"}
+                      className="wa-bubble-img"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                    />
                   </button>
                   {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}
                 </div>
@@ -2105,7 +2181,14 @@ const Bubble = memo(function Bubble({
                   onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
                 }}
               >
-                <img src={mediaUrl} alt={isSticker ? "figurinha" : "imagem"} className="wa-bubble-img" />
+                <img
+                  src={mediaUrl}
+                  alt={isSticker ? "figurinha" : "imagem"}
+                  className="wa-bubble-img"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
               </button>
               {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}
             </div>
@@ -3204,6 +3287,19 @@ export default function ConversaView() {
     return "Contato";
   }, [conversa, fromChat, conversaId, isGroup]);
 
+  const replyBarPreview = useMemo(() => {
+    if (!replyTo) return null;
+    const chatParaNome = fromChat ?? conversa;
+    const rt = safeString(replyTo?.tipo).toLowerCase();
+    const thumb = rt === "imagem" || rt === "sticker" ? getMediaUrl(replyTo?.url, replyTo?.url_absoluta) : "";
+    const meta = buildReplyMetaForPersist(replyTo, nome, chatParaNome);
+    return {
+      thumb: thumb || null,
+      title: getReplySenderLabel(replyTo, nome, chatParaNome),
+      text: replySnippetDisplay(meta) || snippetFromMsg(replyTo),
+    };
+  }, [replyTo, nome, fromChat, conversa]);
+
   const telefone = useMemo(() => {
     const t = conversa?.telefone_exibivel || conversa?.cliente_telefone || conversa?.cliente?.telefone || conversa?.telefone
       || fromChat?.telefone_exibivel || fromChat?.telefone || "";
@@ -3221,7 +3317,7 @@ export default function ConversaView() {
         conversa?.clientes?.foto_perfil ??
         null
       );
-  const avatarUrl = rawAvatarUrl && String(rawAvatarUrl).trim().startsWith("http") ? String(rawAvatarUrl).trim() : null;
+  const avatarUrl = resolveConversaAvatarUrl(rawAvatarUrl);
   const avatar = useMemo(() => (isGroup ? "👥" : initials(nome)), [isGroup, nome]);
   const [avatarImgError, setAvatarImgError] = useState(false);
   const showAvatarImg = Boolean(avatarUrl && !avatarImgError);
@@ -4615,15 +4711,7 @@ export default function ConversaView() {
     if (!t) return;
     emitTypingStop();
     const chatParaNome = fromChat ?? conversa;
-    const replyMeta =
-      replyTo
-        ? {
-            name: getReplySenderLabel(replyTo, nome, chatParaNome),
-            snippet: snippetFromMsg(replyTo),
-            ts: Date.now(),
-            replyToId: pickReplyToIdForApi(replyTo),
-          }
-        : null;
+    const replyMeta = buildReplyMetaForPersist(replyTo, nome, chatParaNome);
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const optimisticMsg = {
@@ -7125,12 +7213,22 @@ export default function ConversaView() {
             document.body
           )}
 
-        {replyTo && !isRecording ? (
+        {replyBarPreview && !isRecording ? (
           <div className="wa-replyBar" role="region" aria-label="Respondendo">
             <div className="wa-replyBar-bar" aria-hidden="true" />
+            {replyBarPreview.thumb ? (
+              <img
+                src={replyBarPreview.thumb}
+                alt=""
+                className="wa-replyBar-thumb"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+              />
+            ) : null}
             <div className="wa-replyBar-left">
-              <div className="wa-replyBar-title">{getReplySenderLabel(replyTo, nome, fromChat ?? conversa)}</div>
-              <div className="wa-replyBar-text">{snippetFromMsg(replyTo)}</div>
+              <div className="wa-replyBar-title">{replyBarPreview.title}</div>
+              <div className="wa-replyBar-text">{replyBarPreview.text}</div>
             </div>
             <button
               type="button"
