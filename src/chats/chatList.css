@@ -112,15 +112,26 @@
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.in {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f1f5f9 !important;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(99, 102, 241, 0.38);
+  color: #eef2ff !important;
+  border-color: rgba(165, 180, 252, 0.42);
+}
+
+[data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta.is-active .chat-list-status.in {
+  background: linear-gradient(
+    145deg,
+    rgba(251, 146, 60, 0.36) 0%,
+    rgba(99, 102, 241, 0.28) 100%
+  );
+  color: #fffbeb !important;
+  border-color: rgba(251, 191, 36, 0.55);
+  box-shadow: 0 0 16px rgba(251, 146, 60, 0.22);
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.awaiting-client {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0 !important;
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(14, 165, 233, 0.34);
+  color: #bae6fd !important;
+  border-color: rgba(56, 189, 248, 0.38);
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.closed {
@@ -1048,43 +1059,9 @@ a { color: inherit; text-decoration: none; }
     opacity: 1;
     pointer-events: auto;
     transform: translateY(-50%);
-    /* Fundo translúcido para não “cortar” o pill de status por cima */
-    background: color-mix(in srgb, var(--cl-surface) 40%, transparent);
-    border-color: color-mix(in srgb, var(--cl-border-subtle) 55%, transparent);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  }
-
-  [data-theme="dark"] .chat-row-action-trigger {
-    background: color-mix(in srgb, var(--cl-surface) 48%, transparent);
-    border-color: color-mix(in srgb, var(--cl-border-subtle) 60%, transparent);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  }
-
-  .chat-row-action-trigger:hover,
-  .chat-row-action-trigger.is-open {
-    color: var(--cl-text);
-    background: color-mix(in srgb, var(--ds-hover) 70%, transparent);
-  }
-
-  [data-theme="dark"] .chat-row-action-trigger:hover,
-  [data-theme="dark"] .chat-row-action-trigger.is-open {
-    background: color-mix(in srgb, var(--ds-hover) 72%, transparent);
-  }
-
-  /* Evita que hora/status fiquem por baixo do botão absoluto */
-  .chat-list-row-main {
-    padding-right: 38px;
   }
 }
 
-@media (hover: none) and (max-width: 640px),
-       (pointer: coarse) and (max-width: 640px) {
-  .chat-list-row-main {
-    padding-right: 52px;
-  }
-}
 
 .chat-list-row:hover {
   background: rgba(0, 0, 0, 0.018);
@@ -1112,14 +1089,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--cl-green);
 }
 
-/* Pills discretos legíveis sobre o verde da conversa selecionada */
-.chat-list-row.is-active .chat-list-status.in,
-.chat-list-row.is-active .chat-list-status.awaiting-client {
-  background: rgba(255, 255, 255, 0.62);
-  color: #475569;
-  border-color: rgba(0, 105, 88, 0.18);
-}
-
 [data-theme="dark"] .chat-list-row {
   border-color: rgba(255, 255, 255, 0.07);
   box-shadow: none;
@@ -1143,39 +1112,45 @@ a { color: inherit; text-decoration: none; }
   border-color: rgba(148, 163, 184, 0.28);
 }
 
-/* Cliente aguardando o funcionário — faixa + halo âmbar mais evidentes (urgência na linha, não no pill) */
+/* Cliente aguardando o funcionário — destaque reforçado + pulso “tech” (âmbar/ciano) */
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active) {
   background: linear-gradient(
     108deg,
-    rgba(251, 146, 60, 0.34) 0%,
-    rgba(251, 146, 60, 0.16) 16%,
-    rgba(68, 48, 36, 0.82) 38%,
+    rgba(251, 146, 60, 0.36) 0%,
+    rgba(251, 146, 60, 0.17) 16%,
+    rgba(56, 189, 248, 0.06) 32%,
+    rgba(68, 48, 36, 0.84) 40%,
     rgba(28, 32, 40, 0.98) 86%
   );
-  border-color: rgba(252, 211, 77, 0.52);
+  background-size: 220% 100%;
+  border-color: rgba(252, 211, 77, 0.55);
+  animation: chat-list-atendimento-tech-shift 4.2s ease-in-out infinite;
   box-shadow:
     inset 6px 0 0 rgba(253, 186, 116, 1),
-    inset 0 0 0 1px rgba(251, 191, 36, 0.26),
-    0 0 0 1px rgba(251, 146, 60, 0.2),
-    0 6px 28px rgba(251, 146, 60, 0.32),
-    0 12px 40px rgba(234, 88, 12, 0.14);
+    inset 0 0 0 1px rgba(251, 191, 36, 0.28),
+    0 0 0 1px rgba(251, 146, 60, 0.22),
+    0 6px 28px rgba(251, 146, 60, 0.34),
+    0 12px 40px rgba(234, 88, 12, 0.16),
+    0 0 24px rgba(34, 211, 238, 0.08);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active):hover {
+  animation: none;
   background: linear-gradient(
     108deg,
-    rgba(251, 146, 60, 0.38) 0%,
-    rgba(251, 146, 60, 0.18) 20%,
-    rgba(78, 54, 40, 0.88) 42%,
+    rgba(251, 146, 60, 0.4) 0%,
+    rgba(251, 146, 60, 0.19) 20%,
+    rgba(78, 54, 40, 0.9) 42%,
     rgba(34, 38, 48, 1) 88%
   );
-  border-color: rgba(254, 243, 199, 0.58);
+  background-size: 100% 100%;
+  border-color: rgba(254, 243, 199, 0.6);
   box-shadow:
     inset 6px 0 0 rgba(254, 215, 170, 1),
-    inset 0 0 0 1px rgba(252, 211, 77, 0.28),
-    0 0 0 1px rgba(251, 146, 60, 0.26),
-    0 8px 34px rgba(251, 146, 60, 0.38),
-    0 14px 48px rgba(234, 88, 12, 0.2);
+    inset 0 0 0 1px rgba(252, 211, 77, 0.3),
+    0 0 0 1px rgba(251, 146, 60, 0.28),
+    0 8px 34px rgba(251, 146, 60, 0.4),
+    0 14px 48px rgba(234, 88, 12, 0.22);
 }
 
 /* Tema claro: índigo suave vs âmbar — contraste limpo */
@@ -1193,35 +1168,59 @@ a { color: inherit; text-decoration: none; }
 .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active) {
   background: linear-gradient(
     105deg,
-    rgba(255, 233, 213, 0.99) 0%,
-    rgba(255, 247, 237, 0.98) 28%,
-    rgba(255, 252, 250, 0.99) 52%,
-    rgba(252, 252, 253, 1) 72%
+    rgba(255, 228, 200, 0.99) 0%,
+    rgba(255, 240, 230, 0.98) 22%,
+    rgba(224, 242, 254, 0.35) 38%,
+    rgba(255, 252, 250, 0.99) 55%,
+    rgba(252, 252, 253, 1) 75%
   );
-  border-color: rgba(234, 88, 12, 0.38);
+  background-size: 220% 100%;
+  border-color: rgba(234, 88, 12, 0.42);
+  animation: chat-list-atendimento-tech-shift 4.2s ease-in-out infinite;
   box-shadow:
-    inset 6px 0 0 rgba(234, 88, 12, 0.95),
-    inset 0 0 0 1px rgba(254, 215, 170, 0.85),
-    0 0 0 1px rgba(245, 158, 11, 0.2),
-    0 4px 20px rgba(245, 158, 11, 0.2),
-    0 10px 36px rgba(249, 115, 22, 0.12);
+    inset 6px 0 0 rgba(234, 88, 12, 0.98),
+    inset 0 0 0 1px rgba(254, 215, 170, 0.88),
+    0 0 0 1px rgba(245, 158, 11, 0.22),
+    0 4px 22px rgba(245, 158, 11, 0.22),
+    0 10px 38px rgba(249, 115, 22, 0.14),
+    0 0 28px rgba(14, 165, 233, 0.1);
 }
 
 .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active):hover {
+  animation: none;
   background: linear-gradient(
     105deg,
-    rgba(255, 220, 195, 0.98) 0%,
-    rgba(255, 237, 213, 0.99) 32%,
-    rgba(255, 250, 245, 1) 55%,
-    rgba(255, 255, 255, 1) 75%
+    rgba(255, 215, 185, 0.99) 0%,
+    rgba(255, 233, 213, 0.99) 30%,
+    rgba(255, 248, 242, 1) 52%,
+    rgba(255, 255, 255, 1) 78%
   );
-  border-color: rgba(194, 65, 12, 0.42);
+  background-size: 100% 100%;
+  border-color: rgba(194, 65, 12, 0.46);
   box-shadow:
     inset 6px 0 0 rgba(234, 88, 12, 1),
     inset 0 0 0 1px rgba(254, 243, 199, 1),
-    0 0 0 1px rgba(245, 158, 11, 0.26),
-    0 6px 26px rgba(245, 158, 11, 0.26),
-    0 12px 44px rgba(249, 115, 22, 0.16);
+    0 0 0 1px rgba(245, 158, 11, 0.28),
+    0 6px 28px rgba(245, 158, 11, 0.28),
+    0 12px 46px rgba(249, 115, 22, 0.18);
+}
+
+@keyframes chat-list-atendimento-tech-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active),
+  [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active) {
+    animation: none;
+    background-size: 100% 100%;
+  }
 }
 
 .chat-list-avatar {
@@ -1714,33 +1713,64 @@ a { color: inherit; text-decoration: none; }
   border-color: rgba(59, 130, 246, 0.22);
 }
 
-/* “Em atendimento” / “Aguardando cliente”: tom quase neutro — diferencia sem competir com o destaque da linha */
 .chat-list-status.in {
-  background: rgba(100, 116, 139, 0.07);
-  color: #64748b;
-  border-color: rgba(100, 116, 139, 0.13);
-  font-weight: 500;
+  background: rgba(99, 102, 241, 0.14);
+  color: #3730a3;
+  border-color: rgba(99, 102, 241, 0.28);
 }
 
 [data-theme="dark"] .chat-list-status.in {
-  background: rgba(148, 163, 184, 0.11);
-  color: #94a3b8;
-  border-color: rgba(148, 163, 184, 0.18);
-  font-weight: 500;
+  background: rgba(99, 102, 241, 0.22);
+  color: #c7d2fe;
+  border-color: rgba(129, 140, 248, 0.38);
+}
+
+/* “Em atendimento” na fila urgente — cores reforçadas (mesma lógica de antes) */
+[data-theme="dark"]
+  .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active)
+  .chat-list-status.in {
+  background: linear-gradient(
+    145deg,
+    rgba(251, 146, 60, 0.24) 0%,
+    rgba(99, 102, 241, 0.2) 100%
+  );
+  color: #fef3c7;
+  border-color: rgba(251, 191, 36, 0.52);
+  box-shadow: 0 0 16px rgba(251, 146, 60, 0.2);
+}
+
+.chat-list-row.chat-list-row--atendimento-alerta:not(.is-active) .chat-list-status.in {
+  background: linear-gradient(
+    145deg,
+    rgba(254, 243, 199, 0.98) 0%,
+    rgba(224, 231, 255, 0.95) 100%
+  );
+  color: #9a3412;
+  border-color: rgba(245, 158, 11, 0.52);
+  box-shadow: 0 1px 10px rgba(245, 158, 11, 0.2);
+}
+
+.chat-list-row.chat-list-row--atendimento-alerta.is-active .chat-list-status.in {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 237, 213, 1) 0%,
+    rgba(224, 231, 255, 0.98) 100%
+  );
+  color: #7c2d12 !important;
+  border-color: rgba(234, 88, 12, 0.42);
+  box-shadow: 0 1px 12px rgba(245, 158, 11, 0.24);
 }
 
 .chat-list-status.awaiting-client {
-  background: rgba(14, 165, 233, 0.055);
-  color: #64748b;
-  border-color: rgba(14, 165, 233, 0.11);
-  font-weight: 500;
+  background: rgba(14, 165, 233, 0.14);
+  color: #075985;
+  border-color: rgba(14, 165, 233, 0.28);
 }
 
 [data-theme="dark"] .chat-list-status.awaiting-client {
-  background: rgba(56, 189, 248, 0.08);
-  color: #94a3b8;
-  border-color: rgba(56, 189, 248, 0.16);
-  font-weight: 500;
+  background: rgba(14, 165, 233, 0.2);
+  color: #bae6fd;
+  border-color: rgba(56, 189, 248, 0.34);
 }
 
 .chat-list-status.closed {
@@ -1768,13 +1798,13 @@ a { color: inherit; text-decoration: none; }
   padding: 0 5px;
   border-radius: 6px;
   font-size: 9px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
   line-height: 1;
-  background: rgba(245, 158, 11, 0.06) !important;
-  color: #78716c !important;
-  border: 1px solid rgba(245, 158, 11, 0.14);
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #b45309 !important;
+  border: 1px solid rgba(245, 158, 11, 0.32);
   opacity: 1;
 }
 
@@ -1805,9 +1835,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-badge-await {
-  background: rgba(251, 191, 36, 0.07) !important;
-  color: #a8a29e !important;
-  border-color: rgba(252, 211, 77, 0.18) !important;
+  background: rgba(251, 191, 36, 0.14) !important;
+  color: #fcd34d !important;
+  border-color: rgba(252, 211, 77, 0.36) !important;
 }
 
 /* -----------------------------------------------------------------------
@@ -2032,9 +2062,9 @@ a { color: inherit; text-decoration: none; }
   .chat-list-header-title { font-size: var(--cl-font-size-lg); }
   .chat-list-search-hint { display: none; }
 
-  /* Lista + chat lado a lado: coluna hora/status um pouco mais larga (rótulos “Aberta”, etc.) */
+  /* Lista + chat lado a lado: limita coluna de hora/status para não “comer” o nome */
   .chat-list-row-meta {
-    max-width: min(48%, 192px);
+    max-width: min(42%, 168px);
     flex-shrink: 1;
     min-width: 0;
   }
@@ -2047,8 +2077,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status {
     min-width: 0;
     max-width: 100%;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .chat-list-badge-sem-conversa {
@@ -2188,7 +2218,7 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-meta {
-    max-width: min(46%, 184px);
+    max-width: min(40%, 160px);
     flex-shrink: 1;
     min-width: 0;
   }
@@ -2200,8 +2230,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status {
     min-width: 0;
     max-width: 100%;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .chat-row-action-trigger {
@@ -2230,7 +2260,7 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-meta {
-    max-width: min(50%, 196px);
+    max-width: min(44%, 172px);
     flex-shrink: 1;
     min-width: 0;
   }
@@ -2242,8 +2272,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status {
     min-width: 0;
     max-width: 100%;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
@@ -2292,7 +2322,7 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-meta {
-    max-width: min(54%, 212px);
+    max-width: min(46%, 176px);
     flex-shrink: 1;
     min-width: 0;
   }
@@ -2306,25 +2336,52 @@ a { color: inherit; text-decoration: none; }
     line-height: 1.35;
   }
 
-  /* Pill de status: mais ar para “Aberta” / rótulos sem truncar com a seta */
+  /* Mantém legível e compacto: prioriza largura para o nome (evita selos enormes) */
   .chat-list-status {
     min-height: 20px;
     height: auto;
-    padding: 3px 10px;
+    padding: 3px 8px;
     font-size: 10px;
     font-weight: 600;
     min-width: 0;
     max-width: 100%;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
+  /* Seta do menu: menor e mais transparente só no mobile */
   .chat-row-action-trigger {
-    right: 6px;
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    background: color-mix(in srgb, var(--cl-surface) 26%, transparent);
+    border-color: color-mix(in srgb, var(--cl-border-subtle) 42%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  [data-theme="dark"] .chat-row-action-trigger {
+    background: color-mix(in srgb, var(--cl-surface) 32%, transparent);
+    border-color: color-mix(in srgb, var(--cl-border-subtle) 48%, transparent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  .chat-row-action-trigger:hover,
+  .chat-row-action-trigger.is-open {
+    background: color-mix(in srgb, var(--ds-hover) 58%, transparent);
+  }
+
+  [data-theme="dark"] .chat-row-action-trigger:hover,
+  [data-theme="dark"] .chat-row-action-trigger.is-open {
+    background: color-mix(in srgb, var(--ds-hover) 62%, transparent);
+  }
+
+  .chat-row-action-trigger-chev {
+    opacity: 0.42;
+    transform: scale(0.92);
   }
 
   .chat-list-chips--secondary .chat-list-chip {
