@@ -4780,6 +4780,8 @@
   border: 1px solid rgba(0,0,0,.06);
   box-shadow: var(--wa-shadow-subtle);
   backdrop-filter: blur(8px);
+  /* Superfície sempre clara: texto escuro (tema escuro usa --wa-text claro no resto da tela) */
+  color: #0f172a;
 }
 
 .wa-selectBar {
@@ -4798,7 +4800,7 @@
 
 .wa-selectBar-count {
   font-size: 13px;
-  color: var(--wa-text-muted);
+  color: #475569;
   white-space: nowrap;
 }
 
@@ -4809,6 +4811,37 @@
   gap: 8px;
   flex-shrink: 0;
   flex-wrap: wrap;
+}
+
+/* Encaminhar + Apagar: mesma largura base no desktop (evita “faixa” verde enorme). */
+.wa-selectBar--forwardIntent .wa-selectBar-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: min(100%, 360px);
+  gap: 10px;
+}
+
+.wa-selectBar--forwardIntent .wa-selectBar-actions .wa-btn-primary,
+.wa-selectBar--forwardIntent .wa-selectBar-actions .wa-btn-danger {
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 40px;
+  justify-content: center;
+  font-weight: 600;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.wa-selectBar .wa-btn-ghost {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-weight: 600;
+}
+
+.wa-selectBar .wa-btn-ghost:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.11);
+  border-color: rgba(15, 23, 42, 0.14);
 }
 
 .wa-selectBar--compactUx {
@@ -4824,17 +4857,18 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border: none;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--wa-text);
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s ease, transform 0.12s ease;
+  transition: background 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
 }
 
 .wa-selectBar-close:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(15, 23, 42, 0.12);
+  border-color: rgba(15, 23, 42, 0.18);
 }
 
 .wa-selectBar-close:active {
@@ -4857,6 +4891,10 @@
 
 .wa-selectBar-forwardText {
   margin-left: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 /* Apagar ao lado de Encaminhar: contraste sólido (evita rosa “lavado”). */
@@ -4889,7 +4927,7 @@
 
 .wa-pinBar-text {
   font-size: 13px;
-  color: var(--wa-text);
+  color: #0f172a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4899,7 +4937,7 @@
 
 .wa-pinBar-hint {
   font-size: 12px;
-  color: var(--wa-text-muted);
+  color: #64748b;
   white-space: nowrap;
 }
 
@@ -5367,11 +5405,12 @@
   .wa-selectBar--forwardIntent .wa-selectBar-count {
     font-size: 14px;
     font-weight: 600;
-    color: var(--wa-text);
+    color: #334155;
   }
 
   .wa-selectBar--forwardIntent .wa-selectBar-actions {
     width: 100%;
+    max-width: none;
     justify-content: stretch;
     gap: 10px;
   }
@@ -7879,8 +7918,8 @@ main.main-content--crm .wa-mediaPreview-composer {
     align-items: center;
   }
 
-  /* Status + setor com botão: duas linhas — status em cima, setor + “Trocar” abaixo (não corta) */
-  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) {
+  /* Só em em_atendimento / aguardando_cliente (.wa-header--crmAtivo): duas linhas — status em cima, setor + “Trocar” abaixo */
+  .wa-header.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) {
     flex-wrap: wrap;
     align-items: flex-start;
     align-content: flex-start;
@@ -7890,24 +7929,24 @@ main.main-content--crm .wa-mediaPreview-composer {
     overflow-y: visible;
   }
 
-  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta {
+  .wa-header.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta {
     flex: 1 0 100%;
     width: auto;
     max-width: 100%;
     box-sizing: border-box;
   }
 
-  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta + .wa-header-metaSep {
+  .wa-header.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta + .wa-header-metaSep {
     display: none;
   }
 
-  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-header-metaItem {
+  .wa-header.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-header-metaItem {
     flex: 1 1 auto;
     min-width: 0;
     max-width: none;
   }
 
-  .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-header-setorBtn {
+  .wa-header.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-header-setorBtn {
     flex-shrink: 0;
   }
 
@@ -7925,17 +7964,17 @@ main.main-content--crm .wa-mediaPreview-composer {
     word-break: normal;
   }
 
-  /* Status: fonte menor no mobile; com setor+btn, layout em duas linhas (regras :has acima) */
+  /* Status no mobile: tamanho padrão (Aberta / Finalizada); menor só com .wa-header--crmAtivo */
   .wa-header-metaStrip .wa-status-pill--meta {
     flex: 0 0 auto;
     max-width: none;
     width: max-content;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     line-height: 1.2;
     min-height: 0;
     height: auto;
-    padding: 2px 8px;
+    padding: 3px 9px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -7944,7 +7983,12 @@ main.main-content--crm .wa-mediaPreview-composer {
     border-radius: 999px;
   }
 
-  /* Faixa padrão: uma linha com scroll; quando há status + botão de setor, :has(...) acima quebra em duas linhas */
+  .wa-header.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  /* Faixa padrão: uma linha com scroll; duas linhas só com .wa-header--crmAtivo + :has(...) */
   .wa-header-metaStrip {
     display: flex;
     flex-direction: row;
@@ -8102,7 +8146,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     max-width: 100%;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-metaStrip {
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip {
     flex-wrap: wrap;
     align-items: flex-start;
     align-content: flex-start;
@@ -8118,12 +8162,12 @@ main.main-content--crm .wa-mediaPreview-composer {
     min-height: 0;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-metaStrip::-webkit-scrollbar {
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip::-webkit-scrollbar {
     display: none;
     height: 0;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-header-metaItem:not(.wa-status-pill--meta) {
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-header-metaItem:not(.wa-status-pill--meta) {
     display: block;
     flex: 1 1 auto;
     min-width: 0;
@@ -8138,7 +8182,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     line-clamp: unset;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta {
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta {
     flex: 1 0 100%;
     max-width: 100%;
     width: auto;
@@ -8156,8 +8200,63 @@ main.main-content--crm .wa-mediaPreview-composer {
     box-sizing: border-box;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep {
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep {
     display: none;
+  }
+
+  /* Aberta / Finalizada (sem .wa-header--crmAtivo): meta em linha única + pill no tamanho anterior */
+  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip {
+    flex-wrap: nowrap;
+    align-items: center;
+    flex-direction: row;
+    gap: 5px;
+    row-gap: 0;
+    margin-top: 0;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+    min-height: 0;
+  }
+
+  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip::-webkit-scrollbar {
+    display: none;
+    height: 0;
+  }
+
+  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip .wa-header-metaItem:not(.wa-status-pill--meta) {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: min(200px, 42vw);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
+    line-height: 1.2;
+    font-size: 11px;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+  }
+
+  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip .wa-status-pill--meta {
+    flex: 0 0 auto;
+    max-width: none;
+    width: max-content;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    min-height: 0;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    box-sizing: border-box;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-setorBtn {

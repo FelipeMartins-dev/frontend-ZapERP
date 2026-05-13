@@ -2749,6 +2749,8 @@ export default function ConversaView() {
   const audioChunksRef = useRef([]);
   const recordingCanceledRef = useRef(false);
   const recordingTimerRef = useRef(null);
+  /** Stream de microfone reutilizado entre gravações (evita pedir permissão a cada áudio). */
+  const micStreamRef = useRef(null);
 
   const [allTags, setAllTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -3237,6 +3239,12 @@ export default function ConversaView() {
       conversa?.finalizacao_motivo,
     ]
   );
+
+  /** Mobile: layout compacto em duas linhas + pill menor só em em_atendimento / aguardando_cliente */
+  const headerCrmAtivoLayout = useMemo(() => {
+    const s = safeString(getStatusAtendimentoEffective(conversa)).toLowerCase();
+    return s === "em_atendimento" || s === "aguardando_cliente";
+  }, [conversa?.status_atendimento, conversa?.status_atendimento_real, conversa]);
 
   const encerramentoAusenciaHint = useMemo(() => {
     const s = safeString(getStatusAtendimentoEffective(conversa)).toLowerCase();
@@ -4381,7 +4389,29 @@ export default function ConversaView() {
         // ignore
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let stream = micStreamRef.current;
+      const audioTracks = stream?.getAudioTracks?.() || [];
+      const hasLiveMic = audioTracks.some((t) => t.readyState === "live");
+      if (!hasLiveMic) {
+        if (stream) {
+          try {
+            stream.getTracks().forEach((t) => t.stop());
+          } catch {
+            /* ignore */
+          }
+          micStreamRef.current = null;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
+        const track = stream.getAudioTracks?.()[0];
+        if (track) {
+          const onEnded = () => {
+            track.removeEventListener("ended", onEnded);
+            micStreamRef.current = null;
+          };
+          track.addEventListener("ended", onEnded);
+        }
+      }
 
       // Escolhe o melhor mimeType disponível (melhora compatibilidade)
       const preferred = [
@@ -4403,7 +4433,7 @@ export default function ConversaView() {
       };
 
       recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
+        /* Mantém o stream ativo para a próxima gravação (permissão só na 1ª vez nesta sessão). */
         if (recordingCanceledRef.current || audioChunksRef.current.length === 0) return;
         const finalType = recorder.mimeType || mimeType || "audio/webm";
         const ext = finalType.includes("ogg") ? "ogg" : "webm";
@@ -4426,6 +4456,14 @@ export default function ConversaView() {
     } catch (err) {
       console.error("Erro ao iniciar gravação:", err);
       const name = String(err?.name || "");
+      if (name === "NotAllowedError" || name === "NotFoundError") {
+        try {
+          micStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+        } catch {
+          /* ignore */
+        }
+        micStreamRef.current = null;
+      }
       const msg =
         name === "NotAllowedError"
           ? "Permissão negada. Clique no cadeado do navegador e permita o microfone."
@@ -4484,6 +4522,19 @@ export default function ConversaView() {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     };
   }, [isRecording]);
+
+  useEffect(() => {
+    return () => {
+      const s = micStreamRef.current;
+      if (!s) return;
+      try {
+        s.getTracks().forEach((t) => t.stop());
+      } catch {
+        /* ignore */
+      }
+      micStreamRef.current = null;
+    };
+  }, []);
 
   const toggleTimeline = useCallback(() => {
     setShowTimeline((v) => !v);
@@ -5963,7 +6014,7 @@ export default function ConversaView() {
         {/* HEADER — nome + meta (status/setor) + ações; mobile: toolbar compacta */}
         <div
           ref={waHeaderRef}
-          className={`wa-header ${isGroup ? "wa-header--group" : ""} ${headerCompact && !isGroup ? "wa-header--atendMobile" : ""}`}
+          className={`wa-header ${isGroup ? "wa-header--group" : ""} ${headerCompact && !isGroup ? "wa-header--atendMobile" : ""} ${headerCompact && !isGroup && headerCrmAtivoLayout ? "wa-header--crmAtivo" : ""}`}
         >
           <button
             type="button"
