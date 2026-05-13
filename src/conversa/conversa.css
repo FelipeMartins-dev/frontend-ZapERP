@@ -7697,10 +7697,12 @@ main.main-content--crm .wa-mediaPreview-composer {
     height: 32px;
     min-width: 32px;
     min-height: 32px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--wa-panel-border) 55%, transparent);
   }
 
   .wa-header-left {
-    gap: 8px;
+    gap: 10px;
   }
 
   /* Cabeçalho preso ao topo — uma fileira: voltar | contato+meta | ações (tag, CRM, ⋮) */
@@ -7709,9 +7711,9 @@ main.main-content--crm .wa-mediaPreview-composer {
     grid-template-columns: 44px minmax(0, 1fr) auto;
     grid-template-rows: auto;
     align-items: center;
-    column-gap: 6px;
+    column-gap: 8px;
     row-gap: 0;
-    padding: 6px 12px 8px;
+    padding: 8px 12px 10px;
     padding-top: max(8px, env(safe-area-inset-top, 0px));
     height: auto;
     min-height: 0;
@@ -7727,13 +7729,13 @@ main.main-content--crm .wa-mediaPreview-composer {
     max-width: 100vw;
     z-index: 35;
     box-sizing: border-box;
-    border-bottom: 1px solid var(--wa-panel-border);
-    box-shadow: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--wa-panel-border) 88%, transparent);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset, 0 2px 10px rgba(15, 23, 42, 0.045);
   }
 
   [data-theme="dark"] .wa-header {
-    box-shadow: none;
     border-bottom-color: var(--wa-panel-border);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 2px 12px rgba(0, 0, 0, 0.22);
   }
 
   /* Fundo tocável para fechar painéis flutuantes (antes ficavam por baixo do cabecalho por z-index) */
@@ -7810,7 +7812,12 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
-    gap: 1px;
+    gap: 3px;
+  }
+
+  .wa-header-titleBlock {
+    gap: 3px;
+    min-width: 0;
   }
 
   /* Mobile: rótulos curtos nas ações CRM + setor */
@@ -7834,15 +7841,20 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-header-name {
     font-weight: 700;
-    font-size: 13px;
-    line-height: 1.3;
+    font-size: 14px;
+    line-height: 1.28;
     max-width: 100%;
-    letter-spacing: -0.01em;
-    white-space: nowrap;
+    letter-spacing: -0.015em;
+    color: var(--wa-text);
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
     text-overflow: ellipsis;
-    word-break: normal;
-    overflow-wrap: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
     min-width: 0;
   }
 
@@ -7856,52 +7868,59 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-header-metaItem {
     flex: 0 1 auto;
     min-width: 0;
-    max-width: min(100%, 42vw);
-    font-size: 10px;
-    font-weight: 600;
-    display: inline-flex;
+    max-width: min(100%, calc(100vw - 128px));
+    font-size: 11px;
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.25;
+    color: var(--wa-text-muted);
   }
 
-  /* Estado compacto no mobile — libera espaço para nome + campo de mensagem */
+  /* Estado compacto no mobile — mais espaço para status sem cortar */
   .wa-header-metaStrip .wa-status-pill--meta {
-    flex: 0 0 auto;
-    max-width: min(calc(100vw - 120px), 200px);
+    flex: 0 1 auto;
+    max-width: min(100%, calc(100vw - 128px));
     width: auto;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.25;
     height: auto;
     min-height: 20px;
-    padding: 3px 8px;
-    white-space: nowrap;
+    padding: 4px 10px;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
     text-overflow: ellipsis;
-    word-break: normal;
+    word-break: break-word;
+    border-radius: 999px;
   }
 
-  .wa-header-metaStrip .wa-status-pill {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Faixa de status + setor: pode quebrar linha ou rolar para não cortar o botão Trocar/Setor */
+  /* Faixa de status + setor: hierarquia clara, multilinha quando precisar */
   .wa-header-metaStrip {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    row-gap: 4px;
-    padding-bottom: 2px;
+    gap: 6px 8px;
+    row-gap: 5px;
+    padding-top: 1px;
+    padding-bottom: 1px;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     max-width: 100%;
+    min-width: 0;
   }
 
   .wa-header-metaStrip::-webkit-scrollbar {
@@ -7922,6 +7941,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     align-self: center;
     justify-self: end;
     overflow: visible;
+    gap: 6px;
   }
 
   /* Atendimento 1:1 no telefone: uma única linha — voltar | nome + meta compactos | Transf. / Encerr. / ⋯ */
@@ -7943,7 +7963,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     grid-row: 1;
     padding-right: 0;
     min-width: 0;
-    align-self: start;
+    align-self: center;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-right {
@@ -8011,7 +8031,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-titleBlock {
-    gap: 1px;
+    gap: 4px;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-nameRow {
@@ -8020,7 +8040,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-name {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.28;
     font-weight: 700;
     white-space: normal;
@@ -8562,14 +8582,33 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header-name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     max-width: 100%;
-    white-space: nowrap;
+    line-height: 1.28;
+    letter-spacing: -0.015em;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
     text-overflow: ellipsis;
-    word-break: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
     min-width: 0;
+  }
+
+  .wa-header-info {
+    gap: 4px;
+  }
+
+  .wa-header-titleBlock {
+    gap: 4px;
+  }
+
+  .wa-header-right {
+    gap: 6px;
   }
 
   .wa-header-right .wa-header-btn--micro {
@@ -8591,11 +8630,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header-right .wa-header-btn {
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    min-height: 46px;
-    border-radius: 12px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 11px;
   }
 
   .wa-header-actionsRow .wa-actions button {
