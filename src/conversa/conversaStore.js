@@ -454,6 +454,10 @@ export const useConversaStore = create((set, get) => {
   /** Texto enfileirado para colar no composer (ex.: painel de produtos na lista de chats). */
   composerAppendQueue: null,
 
+  /** Lista de chats: abrir modal “Transferir setor” após carregar a conversa. */
+  uiOpenTransferirSetor: false,
+  setUiOpenTransferirSetor: (v) => set({ uiOpenTransferirSetor: !!v }),
+
   setSelectedId: (id) => set({ selectedId: id }),
 
   queueComposerAppend: (text) => {

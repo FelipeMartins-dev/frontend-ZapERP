@@ -1124,7 +1124,10 @@ a { color: inherit; text-decoration: none; }
   );
   background-size: 220% 100%;
   border-color: rgba(252, 211, 77, 0.55);
-  animation: chat-list-atendimento-tech-shift 4.2s ease-in-out infinite;
+  animation:
+    chat-list-atendimento-tech-shift 4.2s ease-in-out infinite,
+    chat-list-atendimento-tech-breathe 2.6s ease-in-out infinite,
+    chat-list-atendimento-tech-scan-dark 3.4s ease-in-out infinite;
   box-shadow:
     inset 6px 0 0 rgba(253, 186, 116, 1),
     inset 0 0 0 1px rgba(251, 191, 36, 0.28),
@@ -1136,6 +1139,7 @@ a { color: inherit; text-decoration: none; }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active):hover {
   animation: none;
+  filter: none;
   background: linear-gradient(
     108deg,
     rgba(251, 146, 60, 0.4) 0%,
@@ -1176,7 +1180,10 @@ a { color: inherit; text-decoration: none; }
   );
   background-size: 220% 100%;
   border-color: rgba(234, 88, 12, 0.42);
-  animation: chat-list-atendimento-tech-shift 4.2s ease-in-out infinite;
+  animation:
+    chat-list-atendimento-tech-shift 4.2s ease-in-out infinite,
+    chat-list-atendimento-tech-breathe 2.6s ease-in-out infinite,
+    chat-list-atendimento-tech-scan 3.4s ease-in-out infinite;
   box-shadow:
     inset 6px 0 0 rgba(234, 88, 12, 0.98),
     inset 0 0 0 1px rgba(254, 215, 170, 0.88),
@@ -1188,6 +1195,7 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active):hover {
   animation: none;
+  filter: none;
   background: linear-gradient(
     105deg,
     rgba(255, 215, 185, 0.99) 0%,
@@ -1215,10 +1223,66 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
+@keyframes chat-list-atendimento-tech-breathe {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    filter: brightness(1.07) saturate(1.18);
+  }
+}
+
+/* Halo ciano/âmbar alternado — leve, estilo “painel” */
+@keyframes chat-list-atendimento-tech-scan {
+  0%,
+  100% {
+    box-shadow:
+      inset 6px 0 0 rgba(234, 88, 12, 0.98),
+      inset 0 0 0 1px rgba(254, 215, 170, 0.88),
+      0 0 0 1px rgba(245, 158, 11, 0.22),
+      0 4px 22px rgba(245, 158, 11, 0.22),
+      0 10px 38px rgba(249, 115, 22, 0.14),
+      0 0 28px rgba(14, 165, 233, 0.1);
+  }
+  50% {
+    box-shadow:
+      inset 6px 0 0 rgba(249, 115, 22, 1),
+      inset 0 0 0 1px rgba(253, 224, 200, 0.92),
+      0 0 0 1px rgba(14, 165, 233, 0.22),
+      0 4px 26px rgba(245, 158, 11, 0.28),
+      0 12px 44px rgba(56, 189, 248, 0.14),
+      0 0 36px rgba(56, 189, 248, 0.16);
+  }
+}
+
+@keyframes chat-list-atendimento-tech-scan-dark {
+  0%,
+  100% {
+    box-shadow:
+      inset 6px 0 0 rgba(253, 186, 116, 1),
+      inset 0 0 0 1px rgba(251, 191, 36, 0.28),
+      0 0 0 1px rgba(251, 146, 60, 0.22),
+      0 6px 28px rgba(251, 146, 60, 0.34),
+      0 12px 40px rgba(234, 88, 12, 0.16),
+      0 0 24px rgba(34, 211, 238, 0.08);
+  }
+  50% {
+    box-shadow:
+      inset 6px 0 0 rgba(254, 215, 170, 1),
+      inset 0 0 0 1px rgba(252, 211, 77, 0.32),
+      0 0 0 1px rgba(34, 211, 238, 0.2),
+      0 6px 32px rgba(251, 146, 60, 0.4),
+      0 14px 48px rgba(56, 189, 248, 0.12),
+      0 0 40px rgba(56, 189, 248, 0.18);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active),
   [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active) {
-    animation: none;
+    animation: none !important;
+    filter: none;
     background-size: 100% 100%;
   }
 }
@@ -1366,6 +1430,108 @@ a { color: inherit; text-decoration: none; }
   gap: 4px;
   flex-shrink: 0;
   min-width: 0;
+}
+
+.chat-list-meta-statusCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Bolinha verde discreta — fila “responder ao cliente”, abaixo dos pills de status */
+.chat-list-await-float-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  align-self: flex-end;
+  margin: 1px 10px 0 0;
+  flex-shrink: 0;
+  background: radial-gradient(circle at 32% 28%, #bbf7d0, #22c55e 52%, #14532d);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 0 10px rgba(34, 197, 94, 0.42);
+  animation: chat-list-await-float-pulse 2.1s ease-in-out infinite;
+}
+
+@keyframes chat-list-await-float-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.28);
+    opacity: 1;
+  }
+}
+
+[data-theme="dark"] .chat-list-await-float-dot {
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.5),
+    0 0 12px rgba(74, 222, 128, 0.45);
+}
+
+.chat-list-meta-setorStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  margin-top: 1px;
+  max-width: 100%;
+}
+
+.chat-list-setor--underStatus {
+  margin-top: 0;
+  font-size: 10px;
+  line-height: 1.25;
+  max-width: 148px;
+  text-align: right;
+}
+
+.chat-list-setor--underStatus.chat-list-setor--empty {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.chat-list-trocar-setor {
+  display: inline;
+  margin: 0;
+  padding: 1px 0 2px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cl-primary, #25d366);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  text-align: right;
+  outline: none;
+}
+
+.chat-list-trocar-setor:hover {
+  filter: brightness(1.08);
+}
+
+.chat-list-trocar-setor:focus-visible {
+  outline: 2px solid var(--cl-chip-active, #25d366);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+[data-theme="dark"] .chat-list-trocar-setor {
+  color: #4ade80;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-list-await-float-dot {
+    animation: none;
+  }
 }
 
 .chat-list-time {

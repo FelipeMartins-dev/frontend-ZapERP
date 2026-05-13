@@ -2664,6 +2664,8 @@ export default function ConversaView() {
   const composerAppendQueue = useConversaStore((s) => s.composerAppendQueue);
   const clearComposerAppendQueue = useConversaStore((s) => s.clearComposerAppendQueue);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
+  const uiOpenTransferirSetor = useConversaStore((s) => s.uiOpenTransferirSetor);
+  const setUiOpenTransferirSetor = useConversaStore((s) => s.setUiOpenTransferirSetor);
 
   const podeEnviar = useMemo(() => {
     if (!user?.id || !conversa?.id) return false;
@@ -3023,6 +3025,22 @@ export default function ConversaView() {
   }, [pendingFile]);
 
   const conversaId = conversa?.id || null;
+
+  useEffect(() => {
+    if (!uiOpenTransferirSetor) return;
+    if (!conversaId || !conversa?.id || String(conversa.id) !== String(conversaId)) return;
+    if (isGroupConversation(conversa)) {
+      setUiOpenTransferirSetor(false);
+      return;
+    }
+    if (!podeTransferirSetor) {
+      setUiOpenTransferirSetor(false);
+      return;
+    }
+    setShowTransferirSetor(true);
+    setUiOpenTransferirSetor(false);
+  }, [uiOpenTransferirSetor, conversaId, conversa, podeTransferirSetor, setUiOpenTransferirSetor]);
+
   /** Enquanto `carregarConversa` limpa `conversa`, `selectedId` mantém o chat — necessário para scroll até à última mensagem não falhar a meio do load. */
   const scrollThreadId =
     selectedId != null && selectedId !== "" ? selectedId : conversaId;
