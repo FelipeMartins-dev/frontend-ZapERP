@@ -161,6 +161,15 @@ function isFilenameOnlyText(texto) {
   if (/^(IMG|IMG_E|VID|VID_|MOV|DSC|PXL|PHOTO|VIDEO|AUDIO|REC|FILE|DOC|PDF|WA|WhatsApp|Screenshot|Captura|image|video|audio)[ _-]/i.test(t)) {
     return true;
   }
+  const baseNoExt = t.replace(/\.[^.]+$/i, "").trim();
+  /* Exportações padrão (Figma, Adobe, etc.) — não exibir como legenda na foto */
+  if (
+    /^(design\s+sem\s+nome|sem\s+nome|untitled(\s+design)?|new\s+document|documento\s+sem\s+t[ií]tulo|sem\s+t[ií]tulo)$/i.test(
+      baseNoExt
+    )
+  ) {
+    return true;
+  }
   if (!/\s/.test(t)) return true;
   return false;
 }
@@ -1315,7 +1324,7 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
     }
     const update = () => {
       const w = el.getBoundingClientRect?.().width || el.offsetWidth || 200;
-      const n = clamp(Math.floor(w / 5), 16, 48);
+      const n = clamp(Math.floor(w / 4), 18, 56);
       setWaveBarCount((prev) => (prev === n ? prev : n));
     };
     update();
@@ -1489,11 +1498,6 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
               {formatMmSs(dur || 0)}
             </span>
           </div>
-        </div>
-        <div className="wa-audioSub">
-          <span className="wa-audioTime wa-audioTime--cur" title={formatMmSs(cur)}>
-            {formatMmSs(cur)}
-          </span>
           <div className="wa-audioSpeedGroup" role="group" aria-label="Velocidade de reprodução">
             {WA_AUDIO_SPEEDS.map((rate) => (
               <button
@@ -1521,6 +1525,11 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
               </button>
             ))}
           </div>
+        </div>
+        <div className="wa-audioSub">
+          <span className="wa-audioTime wa-audioTime--cur" title={formatMmSs(cur)}>
+            {formatMmSs(cur)}
+          </span>
         </div>
       </div>
       {avatarUrl ? (

@@ -3187,7 +3187,7 @@
 
 .wa-bubble-audioWrap {
   min-width: 200px;
-  max-width: min(320px, 88vw);
+  max-width: min(360px, 92vw);
   width: 100%;
 }
 
@@ -3386,10 +3386,11 @@
   overflow: hidden;
 }
 
-/* Linha principal: waveform (flex) + duração à direita (estilo WhatsApp iOS) */
+/* Linha principal: waveform + duração + velocidades (estilo WhatsApp — uma faixa) */
 .wa-audioWaveRow {
   display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -3414,16 +3415,17 @@
 }
 
 .wa-audioSub {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   min-width: 0;
   font-size: 12px;
   color: rgba(102, 119, 129, 0.92);
   font-variant-numeric: tabular-nums;
-  min-height: 22px;
+  min-height: 20px;
 }
 .wa-audioTime{
   flex: 0 0 auto;
@@ -3438,13 +3440,14 @@
   letter-spacing: 0.01em;
 }
 .wa-audioSpeedGroup {
-  display: flex;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-shrink: 0;
   min-width: 0;
-  justify-self: stretch;
 }
 .wa-audioSpeedBtn {
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -3595,9 +3598,10 @@
     max-width: 100%;
   }
 
-  .wa-bubble-audio,
+  .wa-bubble.wa-bubble-audio,
   .wa-bubble.audio-message {
     box-sizing: border-box;
+    max-width: min(420px, 92%, calc(100vw - 14px));
   }
 
   .wa-audioPlayer {
@@ -3643,19 +3647,30 @@
 
   .wa-bubble-audio .wa-audioMid,
   .wa-bubble.audio-message .wa-audioMid {
-    gap: 5px;
+    gap: 4px;
     min-width: 0;
   }
 
   .wa-bubble-audio .wa-audioWaveRow,
   .wa-bubble.audio-message .wa-audioWaveRow {
-    gap: 8px;
-    min-height: 34px;
+    gap: 6px;
+    min-height: 32px;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .wa-bubble-audio .wa-audioWaveRow .wa-audioSpeedGroup,
+  .wa-bubble.audio-message .wa-audioWaveRow .wa-audioSpeedGroup {
+    flex-shrink: 0;
+    gap: 3px;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    margin-left: 0;
   }
 
   .wa-bubble-audio .wa-audioWave,
   .wa-bubble.audio-message .wa-audioWave {
-    height: 30px;
+    height: 34px;
     padding: 0 2px;
     gap: 1px;
     min-width: 0;
@@ -3672,8 +3687,9 @@
 
   .wa-bubble-audio .wa-audioDurSlot,
   .wa-bubble.audio-message .wa-audioDurSlot {
-    min-width: 2.5rem;
+    min-width: 2.35rem;
     gap: 0;
+    flex-shrink: 0;
   }
 
   .wa-bubble-audio .wa-audioTime--dur,
@@ -3692,9 +3708,9 @@
 
   .wa-bubble-audio .wa-audioSub,
   .wa-bubble.audio-message .wa-audioSub {
-    gap: 6px;
-    min-height: 20px;
-    margin-top: 1px;
+    min-height: 17px;
+    margin-top: 0;
+    padding-top: 1px;
   }
 
   .wa-bubble-audio .wa-audioTime--cur,
@@ -3703,17 +3719,11 @@
     opacity: 0.72;
   }
 
-  .wa-bubble-audio .wa-audioSpeedGroup,
-  .wa-bubble.audio-message .wa-audioSpeedGroup {
-    gap: 3px;
-    justify-content: flex-end;
-  }
-
   .wa-bubble-audio .wa-audioSpeedBtn,
   .wa-bubble.audio-message .wa-audioSpeedBtn {
-    min-height: 22px;
-    min-width: 30px;
-    padding: 3px 8px;
+    min-height: 24px;
+    min-width: 32px;
+    padding: 3px 7px;
     font-size: 10px;
     font-weight: 600;
     border-radius: 999px;
@@ -3743,8 +3753,8 @@
 
   .wa-bubble-audio .wa-audioPlayBtn,
   .wa-bubble.audio-message .wa-audioPlayBtn {
-    width: 46px;
-    height: 46px;
+    width: 42px;
+    height: 42px;
     border: none;
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.55) inset,
@@ -3823,9 +3833,10 @@
     min-width: 0;
     max-width: 100%;
   }
-  .wa-bubble-audio,
+  .wa-bubble.wa-bubble-audio,
   .wa-bubble.audio-message {
-    padding: 14px 10px 8px;
+    padding: 14px 8px 8px;
+    max-width: min(440px, 94%, calc(100vw - 12px));
   }
   .wa-bubble-audio .wa-audioPlayer,
   .wa-bubble.audio-message .wa-audioPlayer {
@@ -3836,8 +3847,8 @@
 
   .wa-bubble-audio .wa-audioPlayBtn,
   .wa-bubble.audio-message .wa-audioPlayBtn {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 
   .wa-bubble-audio .wa-audioMid,
