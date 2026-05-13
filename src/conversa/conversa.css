@@ -258,6 +258,11 @@
   flex-wrap: wrap;
   gap: 6px 8px;
   min-width: 0;
+  /* Altura mínima + respiro vertical: evita cortar bordas do pill com overflow-y do strip */
+  min-height: 30px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  box-sizing: border-box;
 }
 
 .wa-header-metaSep {
@@ -280,21 +285,23 @@
   max-width: min(100%, 240px);
 }
 
-/* Desktop largo: pill “Aberta” etc. — largura máx. com quebra permitida (não cortar a 2ª linha). */
+/* Desktop: status em uma linha; largura máx. só limita o strip (scroll), não “esprema” o pill */
 @media (min-width: 641px) {
   .wa-status-pill--meta {
-    max-width: min(280px, 52%);
+    max-width: none;
+    flex-shrink: 0;
     overflow: visible;
     text-overflow: clip;
-    white-space: normal;
+    white-space: nowrap;
   }
 }
 @media (min-width: 1025px) {
   .wa-status-pill--meta {
-    max-width: min(280px, 92vw);
+    max-width: none;
     flex-shrink: 0;
     overflow: visible;
     text-overflow: clip;
+    white-space: nowrap;
   }
 }
 
@@ -413,31 +420,38 @@
   50% { opacity: 0.85; transform: scale(1.05); }
 }
 
-/* Status — pill discreto (altura mínima: texto em 2 linhas não pode ser cortado) */
+/* Status — pill discreto (sem backdrop-filter: evita fundo “cortado” com overflow / isolation no header) */
 .wa-status-pill {
-  min-height: 22px;
+  min-height: 24px;
   height: auto;
-  padding: 3px 10px;
+  padding: 4px 11px;
   box-sizing: border-box;
 
   border-radius: 999px;
 
   font-size: 11px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  white-space: normal;
-  text-align: center;
+  white-space: nowrap;
 
-  background: rgba(0,168,132,.08);
+  background: rgba(0, 168, 132, 0.1);
   color: var(--wa-green);
 
-  border: 1px solid rgba(0,168,132,.18);
+  border: 1px solid rgba(0, 168, 132, 0.22);
+}
 
-  backdrop-filter: blur(6px);
+/* Pill do cabeçalho: nunca encolher no flex (evita meia-lua / círculo cortado) */
+.wa-header-metaStrip .wa-status-pill--meta {
+  flex-shrink: 0;
+  width: max-content;
+  max-width: none;
+  min-width: min-content;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 
@@ -1806,17 +1820,22 @@
     align-items: center;
     gap: 6px;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     max-width: 100%;
+    min-height: 30px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    box-sizing: border-box;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+    /* Fade só no fim da faixa; não mascarar o início (pill “Aberta” colado à esquerda) */
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 14px), transparent calc(100% - 2px));
     mask-size: 100% 100%;
     mask-repeat: no-repeat;
   }
 
   [data-theme="dark"] .wa-header-metaStrip {
-    mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 14px), transparent calc(100% - 2px));
   }
 
   .wa-header-metaStrip::-webkit-scrollbar {
@@ -1832,10 +1851,9 @@
 
   .wa-header-metaStrip .wa-status-pill--meta {
     flex: 0 0 auto;
-    max-width: min(260px, 72vw);
     overflow: visible;
     text-overflow: clip;
-    white-space: normal;
+    white-space: nowrap;
   }
 
   .wa-header-setorBtn {
@@ -8012,6 +8030,9 @@ main.main-content--crm .wa-mediaPreview-composer {
     width: auto;
     max-width: 100%;
     box-sizing: border-box;
+    white-space: nowrap;
+    min-height: 24px;
+    overflow: visible;
   }
 
   .wa-header.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta + .wa-header-metaSep {
@@ -8050,9 +8071,9 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-size: 11px;
     font-weight: 600;
     line-height: 1.2;
-    min-height: 0;
+    min-height: 24px;
     height: auto;
-    padding: 3px 9px;
+    padding: 4px 10px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -8074,10 +8095,12 @@ main.main-content--crm .wa-mediaPreview-composer {
     align-items: center;
     gap: 5px 7px;
     row-gap: 0;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    min-height: 30px;
+    box-sizing: border-box;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     max-width: 100%;
@@ -8231,13 +8254,15 @@ main.main-content--crm .wa-mediaPreview-composer {
     gap: 5px 6px;
     row-gap: 4px;
     margin-top: 0;
-    padding: 0;
+    padding: 3px 0;
+    min-height: 30px;
+    box-sizing: border-box;
     overflow-x: visible;
     overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     max-width: 100%;
-    min-height: 0;
+    min-width: 0;
   }
 
   .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip::-webkit-scrollbar {
@@ -8266,8 +8291,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     width: auto;
     font-size: 9.5px;
     font-weight: 600;
-    padding: 2px 8px;
-    min-height: 0;
+    padding: 4px 9px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -8290,13 +8314,15 @@ main.main-content--crm .wa-mediaPreview-composer {
     gap: 5px;
     row-gap: 0;
     margin-top: 0;
-    padding: 0;
+    padding: 3px 0;
+    min-height: 30px;
+    box-sizing: border-box;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     max-width: 100%;
-    min-height: 0;
+    min-width: 0;
   }
 
   .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip::-webkit-scrollbar {
@@ -8325,8 +8351,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     width: max-content;
     font-size: 11px;
     font-weight: 600;
-    padding: 3px 9px;
-    min-height: 0;
+    padding: 4px 10px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
