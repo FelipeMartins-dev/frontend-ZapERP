@@ -1298,13 +1298,33 @@ const WA_AUDIO_SPEEDS = [1, 1.5, 2];
 
 function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
   const audioRef = useRef(null);
+  const waveMeasureRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [dur, setDur] = useState(0);
   const [cur, setCur] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [waveBarCount, setWaveBarCount] = useState(34);
   const rafRef = useRef(null);
   const rafLastRef = useRef(0);
-  const bars = useMemo(() => makeWaveBars(34, seedFromAny(msgKey)), [msgKey]);
+
+  useLayoutEffect(() => {
+    const el = waveMeasureRef.current;
+    if (!el || typeof ResizeObserver === "undefined") {
+      setWaveBarCount(34);
+      return;
+    }
+    const update = () => {
+      const w = el.getBoundingClientRect?.().width || el.offsetWidth || 200;
+      const n = clamp(Math.floor(w / 5), 16, 48);
+      setWaveBarCount((prev) => (prev === n ? prev : n));
+    };
+    update();
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [src]);
+
+  const bars = useMemo(() => makeWaveBars(waveBarCount, seedFromAny(msgKey)), [msgKey, waveBarCount]);
 
   useEffect(() => {
     setPlaybackRate(1);
@@ -1441,24 +1461,39 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
         </span>
       </button>
       <div className="wa-audioMid">
-        <div
-          className="wa-audioWave"
-          role="slider"
-          aria-label="Progresso do áudio"
-          onClick={seek}
-          style={{ "--p": pLabel }}
-        >
-          {bars.map((v, i) => (
-            <div
-              key={i}
-              className={`wa-audioBar ${i < playedBars ? "isPlayed" : ""}`}
-              style={{ height: `${Math.round(8 + v * 18)}px`, "--i": i }}
-            />
-          ))}
-          <div className="wa-audioDot" style={{ left: `${Math.round(frac * 100)}%` }} aria-hidden="true" />
+        <div className="wa-audioWaveRow">
+          <div
+            ref={waveMeasureRef}
+            className="wa-audioWave"
+            role="slider"
+            aria-label="Progresso do áudio"
+            onClick={seek}
+            style={{ "--p": pLabel }}
+          >
+            {bars.map((v, i) => (
+              <div
+                key={i}
+                className={`wa-audioBar ${i < playedBars ? "isPlayed" : ""}`}
+                style={{ height: `${Math.round(8 + v * 18)}px`, "--i": i }}
+              />
+            ))}
+            <div className="wa-audioDot" style={{ left: `${Math.round(frac * 100)}%` }} aria-hidden="true" />
+          </div>
+          <div className="wa-audioDurSlot">
+            {playing ? (
+              <span className="wa-audioRemain wa-audioRemain--slot" title={`Restante ${formatMmSs(remaining)}`}>
+                -{formatMmSs(remaining)}
+              </span>
+            ) : null}
+            <span className="wa-audioTime wa-audioTime--dur" title={formatMmSs(dur || 0)}>
+              {formatMmSs(dur || 0)}
+            </span>
+          </div>
         </div>
         <div className="wa-audioSub">
-          <span className="wa-audioTime wa-audioTime--cur" title={formatMmSs(cur)}>{formatMmSs(cur)}</span>
+          <span className="wa-audioTime wa-audioTime--cur" title={formatMmSs(cur)}>
+            {formatMmSs(cur)}
+          </span>
           <div className="wa-audioSpeedGroup" role="group" aria-label="Velocidade de reprodução">
             {WA_AUDIO_SPEEDS.map((rate) => (
               <button
@@ -1486,10 +1521,6 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
               </button>
             ))}
           </div>
-          <span className="wa-audioSubTail">
-            <span className="wa-audioTime wa-audioTime--dur" title={formatMmSs(dur || 0)}>{formatMmSs(dur || 0)}</span>
-            {playing ? <span className="wa-audioRemain" title={`Restante ${formatMmSs(remaining)}`}>-{formatMmSs(remaining)}</span> : null}
-          </span>
         </div>
       </div>
       {avatarUrl ? (
