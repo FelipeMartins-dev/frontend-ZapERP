@@ -2048,27 +2048,45 @@
   padding: 4px 6px 6px 6px;
 }
 
-/* Fotos: bolha encolhe à imagem + legenda; sem padding “de texto” nem largura fantasma */
+/* Fotos: bolha cola na mídia (estilo WhatsApp Web/Mobile) — largura = conteúdo, sem “faixa” verde extra */
 .wa-bubble.wa-bubble-media.image-message.hasInlineMeta,
 .wa-bubble.wa-bubble-media.image-message {
   width: fit-content;
-  max-width: min(320px, calc(100vw - 56px), min(78%, 560px));
+  max-width: min(420px, calc(100vw - 72px), min(78%, 560px));
   min-width: 0;
-  padding: 3px 4px 5px 4px;
+  padding: 2px 3px 3px 3px;
   box-sizing: border-box;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 0.5px rgba(11, 20, 26, 0.09),
+    0 1px 3px rgba(11, 20, 26, 0.06);
 }
 
 .wa-bubble.image-message .wa-bubble-mediaStack {
-  gap: 4px;
-  /* Encolhe a bolha ao tamanho da foto (ex.: comprovante vertical) — evita faixa larga cinza nas laterais */
+  gap: 0;
   width: fit-content;
-  max-width: min(320px, calc(100vw - 56px));
+  max-width: min(420px, calc(100vw - 72px));
   align-self: flex-start;
 }
 
-/* Conteúdo alinhado ao início do eixo — o .wa-row-out já coloca o balão à direita; flex-end aqui deixava “vazio” à direita da foto */
 .wa-row-out .wa-bubble.image-message .wa-bubble-mediaStack {
   align-self: flex-start;
+}
+
+/* Grupo: nome + foto — mídia não estica à largura do nome */
+.wa-bubble.image-message .wa-bubble-remetente {
+  align-items: flex-start;
+  max-width: 100%;
+}
+
+.wa-bubble.image-message .wa-bubble-remetente .wa-bubble-mediaStack {
+  max-width: 100%;
+}
+
+.wa-bubble.image-message .wa-bubble-remetente-nome {
+  margin-bottom: 0;
+  line-height: 1.2;
 }
 
 .wa-bubble-mediaStack {
@@ -2079,20 +2097,28 @@
 
 .wa-bubble-imgLink {
   display: block;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   line-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 /* ---- Imagem (.image-message) ---- */
 .wa-bubble-img {
-  max-width: 320px;
-  max-height: 320px;
+  max-width: 420px;
+  max-height: 360px;
   width: auto;
   height: auto;
   display: block;
-  border-radius: 10px;
+  border-radius: 0;
   object-fit: contain;
+  object-position: center;
+  vertical-align: bottom;
 }
 
 /* ---- Figurinha (.sticker-message) ---- */
@@ -2145,20 +2171,28 @@
 
 .wa-bubble.image-message .wa-bubble-imgLink {
   margin: 0;
-  border-radius: 8px;
   width: fit-content;
-  max-width: min(320px, calc(100vw - 56px));
+  max-width: min(420px, calc(100vw - 72px));
+}
+
+/* Só imagem: cantos arredondados iguais ao cartão */
+.wa-bubble.image-message:not(:has(.wa-bubble-caption)) .wa-bubble-imgLink {
+  border-radius: 12px;
+}
+
+/* Imagem + legenda: topo da foto + base da faixa de texto (WhatsApp) */
+.wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-imgLink {
+  border-radius: 12px 12px 0 0;
 }
 
 .wa-bubble.image-message .wa-bubble-img {
   display: block;
   width: auto;
   height: auto;
-  max-width: min(320px, calc(100vw - 56px));
+  max-width: 100%;
   max-height: min(420px, 72vh);
   object-fit: contain;
-  object-position: center top;
-  border-radius: 8px;
+  object-position: center;
   vertical-align: bottom;
 }
 
@@ -2173,45 +2207,58 @@
 }
 
 .wa-bubble.image-message .wa-bubble-caption {
-  /* Sem width:100% — evita ciclo de largura no flex e bolha mais larga que a foto */
-  width: auto;
-  max-width: min(320px, calc(100vw - 56px));
+  width: 100%;
+  max-width: min(420px, calc(100vw - 72px));
   min-width: 0;
   box-sizing: border-box;
-  padding: 2px 8px 4px 8px;
+  padding: 6px 56px 10px 10px;
   margin: 0;
 }
 
-/* Legenda + hora no rodapé: reserva canto inferior direito para meta absoluta (estilo WhatsApp) */
+/* Legenda + hora no rodapé: faixa inferior contínua + meta absoluta (WhatsApp) */
 .wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-caption {
-  padding: 2px 52px 6px 8px;
+  border-radius: 0 0 12px 12px;
+  padding: 6px 56px 10px 10px;
   min-height: 0;
+  line-height: 1.35;
 }
 
-/* Hora/ticks no canto inferior — não sobrepor a legenda */
+.wa-bubble-in.image-message:has(.wa-bubble-caption) .wa-bubble-caption {
+  background: color-mix(in oklab, var(--wa-bubble-in) 88%, #000 12%);
+}
+
+.wa-bubble-out.image-message:has(.wa-bubble-caption) .wa-bubble-caption {
+  background: color-mix(in oklab, var(--wa-bubble-out) 90%, #fff 10%);
+}
+
+/* Hora/ticks no canto inferior direito da faixa de legenda */
 .wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-meta {
   top: auto;
-  bottom: 5px;
-  right: 5px;
+  bottom: 6px;
+  right: 7px;
   left: auto;
   height: auto;
-  min-height: 12px;
-  background: rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border-radius: 6px;
-  padding: 2px 5px;
+  min-height: 18px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 999px;
+  padding: 3px 7px;
   pointer-events: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-metaLeft {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 .wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-time {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 11px;
+  line-height: 1;
 }
 
 .wa-bubble.image-message:has(.wa-bubble-caption) .wa-bubble-meta .wa-ticks {
@@ -2223,7 +2270,8 @@
 }
 
 .wa-bubble-out.image-message:has(.wa-bubble-caption) .wa-bubble-meta {
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08);
 }
 
 .wa-bubble-out.image-message:has(.wa-bubble-caption) .wa-bubble-time {
@@ -2237,10 +2285,15 @@
 /* Vídeo + legenda: mesmo encaixe que imagem */
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) {
   width: fit-content;
-  max-width: min(320px, calc(100vw - 56px), min(78%, 560px));
+  max-width: min(420px, calc(100vw - 72px), min(78%, 560px));
   min-width: 0;
-  padding: 3px 4px 5px 4px;
+  padding: 2px 3px 3px 3px;
   box-sizing: border-box;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 0.5px rgba(11, 20, 26, 0.09),
+    0 1px 3px rgba(11, 20, 26, 0.06);
 }
 
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-body {
@@ -2252,35 +2305,42 @@
 
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-mediaStack {
   width: fit-content;
-  max-width: min(320px, calc(100vw - 56px));
+  max-width: min(420px, calc(100vw - 72px));
+  gap: 0;
 }
 
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-caption {
-  padding: 2px 52px 6px 8px;
+  padding: 6px 56px 10px 10px;
+  border-radius: 0 0 12px 12px;
+  line-height: 1.35;
 }
 
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-meta {
   top: auto;
-  bottom: 5px;
-  right: 5px;
+  bottom: 6px;
+  right: 7px;
   left: auto;
   height: auto;
-  min-height: 12px;
-  background: rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border-radius: 6px;
-  padding: 2px 5px;
+  min-height: 18px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 999px;
+  padding: 3px 7px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-metaLeft {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-time {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 11px;
+  line-height: 1;
 }
 
 .wa-bubble-out.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-time {
@@ -2288,7 +2348,8 @@
 }
 
 .wa-bubble-out.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-meta {
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08);
 }
 
 .wa-row-out .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-mediaStack {
@@ -3409,21 +3470,30 @@
 
 .wa-bubble-videoLink {
   display: block;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  max-width: 280px;
+  max-width: min(420px, calc(100vw - 72px));
   border: none;
   background: none;
   padding: 0;
   font: inherit;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .wa-bubble-videoEl {
   display: block;
   max-width: 100%;
-  max-height: 240px;
-  border-radius: 6px;
+  max-height: min(360px, 70vh);
+  border-radius: 0;
+  object-fit: contain;
+  object-position: center;
+  vertical-align: bottom;
+}
+
+.wa-bubble.wa-bubble-video:has(.wa-bubble-caption) .wa-bubble-videoLink {
+  border-radius: 12px 12px 0 0;
+  max-width: min(420px, calc(100vw - 72px));
 }
 
 /* Hora + ticks: canto inferior direito, alinhados ao fundo do balão */
@@ -3443,12 +3513,12 @@
   pointer-events: none;
 }
 
-/* Para mídias: meta (hora + menu ▾) fica no canto SUPERIOR DIREITO do balão
-   com fundo semi-transparente para não se misturar com a mídia */
-.wa-bubble-media .wa-bubble-meta,
-.wa-bubble-video .wa-bubble-meta,
-.wa-bubble.image-message .wa-bubble-meta,
-.wa-bubble.sticker-message .wa-bubble-meta {
+/* Para mídias sem faixa de legenda: meta no canto superior direito.
+   Imagem/vídeo com legenda usa meta no rodapé (regras específicas acima em :has(.wa-bubble-caption)). */
+.wa-bubble.wa-bubble-media.image-message:not(:has(.wa-bubble-caption)) .wa-bubble-meta,
+.wa-bubble.wa-bubble-media.sticker-message .wa-bubble-meta,
+.wa-bubble.sticker-message .wa-bubble-meta,
+.wa-bubble-video:not(:has(.wa-bubble-caption)) .wa-bubble-meta {
   top: 5px;
   bottom: auto;
   right: 5px;
@@ -3590,8 +3660,9 @@
    MEDIA (imagem / vídeo)
 ========================================= */
 
-.wa-bubble-media .wa-bubble-meta,
-.wa-bubble-video .wa-bubble-meta,
+.wa-bubble-media.image-message:not(:has(.wa-bubble-caption)) .wa-bubble-meta,
+.wa-bubble-media.sticker-message .wa-bubble-meta,
+.wa-bubble-video:not(:has(.wa-bubble-caption)) .wa-bubble-meta,
 .wa-bubble-image .wa-bubble-meta{
   top:6px;
   bottom:auto;
@@ -7790,16 +7861,21 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-bubble.wa-bubble-media.image-message.hasInlineMeta,
   .wa-bubble.wa-bubble-media.image-message {
-    max-width: min(300px, calc(100vw - 44px), 76%);
-    padding: 3px 4px 5px 4px;
+    max-width: min(420px, calc(100vw - 24px), 94%);
+    padding: 2px 3px 3px 3px;
+    border-radius: 12px;
+    overflow: hidden;
   }
 
   .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) {
-    max-width: min(300px, calc(100vw - 44px), 76%);
+    max-width: min(420px, calc(100vw - 24px), 94%);
+    padding: 2px 3px 3px 3px;
+    border-radius: 12px;
+    overflow: hidden;
   }
 
   .wa-bubble.image-message .wa-bubble-mediaStack {
-    max-width: min(300px, calc(100vw - 44px));
+    max-width: min(420px, calc(100vw - 24px));
   }
 
   .wa-bubble-sticker .wa-bubble-img,
@@ -7811,16 +7887,16 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-bubble.image-message .wa-bubble-imgLink {
-    max-width: min(300px, calc(100vw - 44px));
+    max-width: min(420px, calc(100vw - 24px));
   }
 
   .wa-bubble.image-message .wa-bubble-img {
-    max-width: min(300px, calc(100vw - 44px));
+    max-width: min(420px, calc(100vw - 24px));
     max-height: min(480px, 68vh);
   }
 
   .wa-bubble.image-message .wa-bubble-caption {
-    max-width: min(300px, calc(100vw - 44px));
+    max-width: min(420px, calc(100vw - 24px));
   }
 
   .wa-bubble-meta { font-size: 10.5px; padding: 0 8px; }
@@ -8130,6 +8206,29 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-bubble-caption {
     font-size: 15px;
     line-height: 1.38;
+  }
+
+  /* Reforça cartão de imagem após .wa-bubble genérico (≤480px) */
+  .wa-bubble.wa-bubble-media.image-message,
+  .wa-bubble.wa-bubble-media.image-message.hasInlineMeta {
+    max-width: min(calc(100vw - 14px), 420px, 96%);
+    padding: 2px 3px 3px 3px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .wa-bubble.wa-bubble-video:has(.wa-bubble-caption) {
+    max-width: min(calc(100vw - 14px), 420px, 96%);
+    padding: 2px 3px 3px 3px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .wa-bubble.image-message .wa-bubble-mediaStack,
+  .wa-bubble.image-message .wa-bubble-imgLink,
+  .wa-bubble.image-message .wa-bubble-img,
+  .wa-bubble.image-message .wa-bubble-caption {
+    max-width: min(calc(100vw - 14px), 420px);
   }
 
   .wa-bubble-meta { font-size: 10px; gap: 2px; padding: 0 8px; }
