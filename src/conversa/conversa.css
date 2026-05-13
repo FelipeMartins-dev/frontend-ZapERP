@@ -2424,35 +2424,55 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px 0 6px;
+  padding: 12px 12px 8px;
   color: var(--wa-text);
   font-size: 13px;
   max-width: 100%;
-  border-radius: 6px;
-  transition: background 0.15s ease;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--wa-panel-border) 55%, transparent);
+  background: color-mix(in oklab, var(--ds-surface-1, #fff) 92%, transparent);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.wa-bubble-fileCard--out {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
 }
 
 .wa-bubble-fileCard:hover {
-  background: rgba(0, 0, 0, 0.02);
+  background: color-mix(in oklab, var(--ds-surface-1, #fff) 88%, rgba(0, 0, 0, 0.04));
+  border-color: color-mix(in oklab, var(--wa-panel-border) 70%, transparent);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .wa-bubble-fileCard--out:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(0, 0, 0, 0.1);
 }
 
+/* Grid: ícone à esquerda; nome/tipo ocupam a coluna inteira; hora+ticks na 2ª linha
+   (evita coluna “main” estreita que quebrava texto letra a letra no mobile). */
 .wa-bubble-fileTop {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 6px;
+  align-items: start;
   min-width: 0;
 }
 
 /* Ícone do arquivo — base + variantes por tipo, micro-interação no hover */
 .wa-bubble-fileIconWrap {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
   flex-shrink: 0;
   width: 52px;
   height: 60px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: linear-gradient(145deg, #5a6572 0%, #374151 50%, #1f2937 100%);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
   display: flex;
@@ -2493,6 +2513,11 @@
   background: linear-gradient(145deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%);
 }
 
+/* Extensão desconhecida / genérica (.file) — mesmo tratamento visual neutro */
+.wa-bubble-fileIconWrap--file {
+  background: linear-gradient(145deg, #64748b 0%, #475569 50%, #334155 100%);
+}
+
 /* Dobra do canto (efeito documento) */
 .wa-bubble-fileIconWrap::after {
   content: "";
@@ -2515,10 +2540,17 @@
   position: relative;
   z-index: 1;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  line-height: 1.1;
+  text-align: center;
+  max-width: 100%;
+  padding: 0 2px;
 }
 
 .wa-bubble-fileMain {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1;
+  flex: none;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -2526,11 +2558,17 @@
 }
 
 .wa-bubble-fileName {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--wa-text);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-size: 14px;
   line-height: 1.35;
 }
@@ -2542,11 +2580,14 @@
 }
 
 .wa-bubble-fileTimeMeta {
+  grid-column: 2;
+  grid-row: 2;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
-  margin-left: auto;
+  margin-left: 0;
   color: var(--wa-text-muted);
   font-size: 11px;
 }
@@ -2629,7 +2670,21 @@
   background: linear-gradient(145deg, #7c3aed 0%, #6d28d9 100%);
 }
 
+.wa-bubble-fileCard--out .wa-bubble-fileIconWrap--file {
+  background: linear-gradient(145deg, #64748b 0%, #475569 100%);
+}
+
 /* Dark: ícone com cores adaptadas */
+[data-theme="dark"] .wa-bubble-fileCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .wa-bubble-fileCard--out {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
 [data-theme="dark"] .wa-bubble-fileIconWrap {
   background: linear-gradient(145deg, #4b5563 0%, #374151 50%, #1f2937 100%);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -2641,7 +2696,9 @@
 }
 
 [data-theme="dark"] .wa-bubble-fileCard:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="dark"] .wa-bubble-fileCard--out:hover {
@@ -3503,6 +3560,103 @@
     box-sizing: border-box;
   }
 
+  /* Áudio mobile: superfície premium + linha dedicada para velocidade */
+  .wa-bubble-audio .wa-audioPlayer,
+  .wa-bubble.audio-message .wa-audioPlayer {
+    padding: 10px 12px 12px;
+    gap: 10px;
+    border-radius: 18px;
+    background: linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.94) 0%,
+      rgba(255, 255, 255, 0.62) 48%,
+      rgba(248, 250, 252, 0.78) 100%
+    );
+    border: 1px solid color-mix(in oklab, rgba(15, 23, 42, 0.12) 55%, transparent);
+    box-shadow:
+      0 2px 16px rgba(15, 23, 42, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  }
+
+  .wa-bubble-out.wa-bubble-audio .wa-audioPlayer,
+  .wa-bubble-out.audio-message .wa-audioPlayer {
+    background: linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.86) 0%,
+      rgba(255, 255, 255, 0.52) 55%,
+      rgba(236, 253, 245, 0.55) 100%
+    );
+    border-color: color-mix(in oklab, rgba(15, 23, 42, 0.1) 40%, transparent);
+    box-shadow:
+      0 2px 14px rgba(0, 0, 0, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+
+  .wa-bubble-audio .wa-audioMid,
+  .wa-bubble.audio-message .wa-audioMid {
+    gap: 8px;
+  }
+
+  .wa-bubble-audio .wa-audioSub,
+  .wa-bubble.audio-message .wa-audioSub {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    row-gap: 10px;
+    align-items: center;
+    width: 100%;
+    min-height: auto;
+  }
+
+  .wa-bubble-audio .wa-audioTime--cur,
+  .wa-bubble.audio-message .wa-audioTime--cur {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  .wa-bubble-audio .wa-audioSubTail,
+  .wa-bubble.audio-message .wa-audioSubTail {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    margin-left: 0;
+  }
+
+  .wa-bubble-audio .wa-audioSpeedGroup,
+  .wa-bubble.audio-message .wa-audioSpeedGroup {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+    width: 100%;
+    flex: none;
+    min-width: 0;
+    padding: 4px 0 2px;
+    gap: 6px;
+  }
+
+  .wa-bubble-audio .wa-audioSpeedBtn,
+  .wa-bubble.audio-message .wa-audioSpeedBtn {
+    min-height: 28px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  }
+
+  [data-theme="dark"] .wa-bubble-audio .wa-audioPlayer,
+  [data-theme="dark"] .wa-bubble.audio-message .wa-audioPlayer {
+    background: linear-gradient(165deg, rgba(42, 53, 59, 0.96) 0%, rgba(32, 44, 51, 0.9) 100%);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  [data-theme="dark"] .wa-bubble-out.wa-bubble-audio .wa-audioPlayer,
+  [data-theme="dark"] .wa-bubble-out.audio-message .wa-audioPlayer {
+    background: linear-gradient(165deg, rgba(0, 92, 75, 0.38) 0%, rgba(32, 44, 51, 0.9) 100%);
+  }
+
   .wa-bubble-audioCaption {
     font-size: 15px;
   }
@@ -3521,10 +3675,11 @@
   .wa-bubble.audio-message {
     padding: 14px 10px 8px;
   }
-  .wa-audioPlayer {
-    padding: 8px 10px 8px 10px;
+  .wa-bubble-audio .wa-audioPlayer,
+  .wa-bubble.audio-message .wa-audioPlayer {
+    padding: 10px 12px 11px;
     gap: 10px;
-    border-radius: 14px;
+    border-radius: 16px;
   }
   .wa-audioPlayBtn {
     width: 42px;
@@ -7631,7 +7786,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     grid-row: 1;
     padding-right: 0;
     min-width: 0;
-    align-self: center;
+    align-self: start;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-right {
@@ -7708,48 +7863,72 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-name {
-    font-size: 14px;
-    line-height: 1.25;
+    font-size: 13px;
+    line-height: 1.28;
     font-weight: 700;
-    white-space: nowrap;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
     text-overflow: ellipsis;
-    word-break: normal;
-    overflow-wrap: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    hyphens: auto;
     min-width: 0;
     max-width: 100%;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip {
     flex-wrap: wrap;
+    align-items: flex-start;
     gap: 4px 6px;
     row-gap: 4px;
     padding-bottom: 0;
-    margin-top: 1px;
-    overflow-x: auto;
+    margin-top: 2px;
+    overflow-x: visible;
     overflow-y: visible;
+    max-width: 100%;
   }
 
-  /* Volta a exibir “Setor: …” no mobile compacto, truncado — antes ficava oculto */
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-header-metaItem:not(.wa-status-pill--meta) {
-    display: inline-flex;
-    max-width: min(38vw, 120px);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
+    max-width: min(100%, calc(100vw - 108px));
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 1.2;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-metaStrip .wa-status-pill--meta {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 2px 7px;
-    min-height: 17px;
-    max-width: min(44vw, 148px);
+    padding: 3px 8px;
+    min-height: 18px;
+    max-width: min(100%, calc(100vw - 108px));
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-setorBtn {
-    padding: 2px 6px !important;
-    min-height: 17px !important;
-    font-size: 9px !important;
+    padding: 2px 7px !important;
+    min-height: 18px !important;
+    font-size: 10px !important;
     border-radius: 8px !important;
-    line-height: 1.1 !important;
+    line-height: 1.15 !important;
     margin-left: 4px;
     flex-shrink: 0;
   }
@@ -7764,17 +7943,17 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-danger,
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-secondary,
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-aguardar-cliente {
-    min-height: 38px !important;
-    height: 38px !important;
-    padding: 0 10px !important;
-    font-size: 12px !important;
-    border-radius: 9px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
     line-height: 1.15 !important;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn-icon svg {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
@@ -7906,19 +8085,19 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-atendToolbar--compact .wa-btn-danger,
   .wa-atendToolbar--compact .wa-btn-secondary,
   .wa-atendToolbar--compact .wa-btn-aguardar-cliente {
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 0 10px !important;
-    font-size: 12px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
-    border-radius: 9px !important;
+    border-radius: 8px !important;
     line-height: 1.15 !important;
     letter-spacing: 0.02em;
   }
 
   .wa-atendToolbar--compact .wa-atendBtn-icon svg {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
   }
 
   .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
