@@ -171,6 +171,23 @@ function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow, currentUse
 }
 
 /**
+ * Em atendimento com última mensagem do cliente (ou indício de novas entradas) —
+ * destaque visual “tech” na lista para o atendente notar rápido.
+ */
+function isEmAtendimentoUltimaDoCliente(c) {
+  if (!c || isGroupConversation(c)) return false;
+  if (c?.atendente_id == null) return false;
+  if (getStatusAtendimentoEffective(c) !== "em_atendimento") return false;
+  if (isConversaAguardandoCliente(c)) return false;
+  const lastDir = getLastDirection(c);
+  const unread = Number(c?.unread_count ?? c?.unread ?? 0);
+  const hintNovaMsg =
+    !lastDir &&
+    (Boolean(c?.tem_novas_mensagens_em_atendimento) || unread > 0);
+  return lastDir === "in" || hintNovaMsg;
+}
+
+/**
  * Modo admin por funcionário (payload pode ter vários status_atendimento).
  * Inclui só conversas assumidas por esse utilizador; grupos e itens sem atendente_id ficam de fora.
  */
@@ -992,6 +1009,7 @@ function ChatRow({
     semConversa,
     currentUserId
   );
+  const atendimentoTechClass = isEmAtendimentoUltimaDoCliente(chat) ? "chat-list-row--atendimento-tech" : "";
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
@@ -1101,7 +1119,7 @@ function ChatRow({
   return (
     <div
       tabIndex={opening ? -1 : 0}
-      className={`chat-list-row ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass}`.trim()}
+      className={`chat-list-row ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}`.trim()}
       onClick={handleClick}
       onKeyDown={handleRowKeyDown}
       aria-disabled={opening ? "true" : "false"}
@@ -1226,7 +1244,8 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     semA === semB &&
     setA === setB &&
     atendimentoRowVisualClass(a, setA, semA, useAuthStore.getState().user?.id) ===
-      atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id)
+      atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id) &&
+    isEmAtendimentoUltimaDoCliente(a) === isEmAtendimentoUltimaDoCliente(b)
   );
 });
 
