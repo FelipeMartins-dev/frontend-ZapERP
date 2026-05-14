@@ -1,15 +1,30 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "../auth/authStore"
+
+function readLastEmail() {
+  try {
+    return localStorage.getItem("zap_erp_last_email") || ""
+  } catch {
+    return ""
+  }
+}
 
 export default function Login() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const loading = useAuthStore((s) => s.loading)
+  const token = useAuthStore((s) => s.token)
 
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(readLastEmail)
   const [senha, setSenha] = useState("")
   const [erro, setErro] = useState("")
+
+  useEffect(() => {
+    if (token) {
+      navigate("/atendimento", { replace: true })
+    }
+  }, [token, navigate])
 
   async function handleSubmit(e) {
     e.preventDefault()

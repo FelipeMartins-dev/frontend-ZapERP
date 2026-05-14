@@ -42,6 +42,11 @@ export const useAuthStore = create((set, get) => ({
           user: userNormalizado,
         })
       )
+      try {
+        if (userNormalizado?.email) {
+          localStorage.setItem("zap_erp_last_email", String(userNormalizado.email))
+        }
+      } catch (_) {}
 
       set({
         user: userNormalizado,
@@ -74,6 +79,9 @@ export const useAuthStore = create((set, get) => ({
   logout: () => {
     unsubscribeWebPush().catch(() => {})
     localStorage.removeItem("zap_erp_auth")
+    try {
+      localStorage.removeItem("zap_erp_last_email")
+    } catch (_) {}
 
     // encerra a conexão para evitar “sessão fantasma” após logout
     disconnectSocket()
