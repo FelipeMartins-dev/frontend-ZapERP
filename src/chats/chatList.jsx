@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, startTransition } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil, postFinalizacaoAusenciaLote } from "./chatService";
 import { useChatStore } from "./chatsStore";
@@ -153,54 +153,9 @@ function isConversaAguardandoFuncionario(c, pendentesIdSet) {
   return lastDir === "in" || hintNovaMsg;
 }
 
-/** `criado_em` da última mensagem exposta na lista (preview > mensagens[0] > último item). */
-function getListaUltimaMensagemCriadoEm(c) {
-  if (!c) return null;
-  const p = c?.ultima_mensagem_preview?.criado_em;
-  if (p) return String(p).trim() || null;
-  const m0 = c?.mensagens?.[0]?.criado_em;
-  if (m0) return String(m0).trim() || null;
-  const last = getLastMessage(c)?.criado_em;
-  return last ? String(last).trim() || null : null;
-}
-
-/**
- * Minutos na lista apenas quando o selo é “Em atendimento” e a conversa está na fila
- * “aguardando funcionário” (equipe deve responder).
- * @returns {{ anchorIso: string } | null}
- */
-function getEsperaAtendimentoInfo(c, pendentesIdSet) {
-  if (!c || isGroupConversation(c)) return null;
-  if (c?.atendente_id == null) return null;
-  if (getStatusAtendimentoEffective(c) !== "em_atendimento") return null;
-  if (isConversaAguardandoCliente(c)) return null;
-
-  const agFunc = isConversaAguardandoFuncionario(c, pendentesIdSet);
-  if (!agFunc) return null;
-
-  const lastDir = getLastDirection(c);
-  const previewDir = normalizeDirection(c?.ultima_mensagem_preview?.direcao);
-  const lastMsgTs = getListaUltimaMensagemCriadoEm(c);
-  const ultimaAtiv = c?.ultima_atividade != null ? String(c.ultima_atividade).trim() : "";
-  const pendenteSupervisor = c?.id != null && pendentesIdSet?.has?.(String(c.id));
-
-  let anchorIso = "";
-  if ((lastDir === "in" || previewDir === "in") && lastMsgTs) anchorIso = lastMsgTs;
-  else if (pendenteSupervisor && ultimaAtiv) anchorIso = ultimaAtiv;
-  else anchorIso = ultimaAtiv || lastMsgTs || "";
-
-  if (!anchorIso) return null;
-  return { anchorIso };
-}
-
-function esperaAtendimentoInfoKey(c, pendentesIdSet) {
-  const info = getEsperaAtendimentoInfo(c, pendentesIdSet);
-  return info ? String(info.anchorIso) : "";
-}
-
 /**
  * Classe do balão: calmo = em atendimento sem urgência; alerta = cliente aguardando o funcionário
- * (mesma regra do destaque de fila — antes havia ponto na prévia).
+ * (inclui mesma regra da bolinha verde/laranja para o responsável — antes o class era calculado antes do dot).
  */
 function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow, currentUserId) {
   if (!c || semConversaRow || isGroupConversation(c)) return "";
@@ -263,40 +218,6 @@ const audioDurationPromiseCache = new Map(); // url -> Promise<number|null>
 let audioDurationInFlight = 0;
 const AUDIO_DURATION_CONCURRENCY = 4;
 const audioDurationQueue = [];
-
-/** Atualiza “Aguardando funcionário · N min” a cada minuto; só este subárvore re-renderiza no tick. */
-const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso }) {
-  const [, setTick] = useState(0);
-  const bump = useCallback(() => setTick((t) => t + 1), []);
-
-  useEffect(() => {
-    bump();
-    const ms = 60000 - (Date.now() % 60000) + 25;
-    let intervalId;
-    const timeoutId = setTimeout(() => {
-      bump();
-      intervalId = setInterval(bump, 60000);
-    }, ms);
-    return () => {
-      clearTimeout(timeoutId);
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [anchorIso, bump]);
-
-  const d = parseToDate(anchorIso);
-  if (!d) return null;
-  const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
-  const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
-  const minLabel = mins < 1 ? "menos de 1 min" : `${mins} min`;
-  const bucket = mins < 10 ? "t0" : mins < 30 ? "t1" : mins <= 60 ? "t2" : "t3";
-
-  return (
-    <span className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`} title={`Desde ${d.toLocaleString("pt-BR")}`}>
-      <span className="chat-list-espera-sub__primary">Aguardando funcionário</span>
-      <span className="chat-list-espera-sub__meta">· {minLabel}</span>
-    </span>
-  );
-});
 
 function UnreadBadge({ n }) {
   const v = Number(n || 0);
@@ -1017,7 +938,7 @@ function Chip({ active, onClick, children, variant = "default", className = "" }
   );
 }
 
-function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, esperaLinhaAtiva = false }) {
+function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) {
   const s = String(status || "").toLowerCase().trim().replace(/\s+/g, "_");
   const map = {
     em_atendimento: { label: "Em atendimento", cls: "chat-list-status in" },
@@ -1074,7 +995,7 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             Aguardando cliente
           </span>
         ) : null}
-        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico && !esperaLinhaAtiva ? (
+        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico ? (
           <span
             className="chat-list-status-note"
             title="Última mensagem do cliente — equipe deve responder"
@@ -1128,10 +1049,6 @@ function ChatRow({
     currentUserId
   );
   const atendimentoTechClass = isEmAtendimentoUltimaDoCliente(chat) ? "chat-list-row--atendimento-tech" : "";
-  const esperaInfo = useMemo(
-    () => getEsperaAtendimentoInfo(chat, pendentesFuncionarioSet),
-    [chat, pendentesFuncionarioSet]
-  );
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
@@ -1297,16 +1214,12 @@ function ChatRow({
             {semConversa ? (
               <span className="chat-list-badge-sem-conversa" title="Clique para iniciar conversa">Sem conversa</span>
             ) : (
-              <div className="chat-list-statusCol">
-                <StatusPill
-                  status={getStatusAtendimentoEffective(chat)}
-                  exibirBadgeAberta={chat?.exibir_badge_aberta}
-                  chat={chat}
-                  aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
-                  esperaLinhaAtiva={Boolean(esperaInfo)}
-                />
-                {esperaInfo ? <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} /> : null}
-              </div>
+              <StatusPill
+                status={getStatusAtendimentoEffective(chat)}
+                exibirBadgeAberta={chat?.exibir_badge_aberta}
+                chat={chat}
+                aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
+              />
             )}
           </div>
         </div>
@@ -1372,7 +1285,6 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     semA === semB &&
     setA === setB &&
     isConversaAguardandoFuncionario(a, setA) === isConversaAguardandoFuncionario(b, setB) &&
-    esperaAtendimentoInfoKey(a, setA) === esperaAtendimentoInfoKey(b, setB) &&
     atendimentoRowVisualClass(a, setA, semA, useAuthStore.getState().user?.id) ===
       atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id) &&
     isEmAtendimentoUltimaDoCliente(a) === isEmAtendimentoUltimaDoCliente(b)
@@ -1435,9 +1347,7 @@ export default function ChatList() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchClearNonce, setSearchClearNonce] = useState(0);
   const handleSearchDebounced = useCallback((t) => {
-    startTransition(() => {
-      setDebouncedSearch(t);
-    });
+    setDebouncedSearch(t);
   }, []);
 
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -2261,59 +2171,43 @@ export default function ChatList() {
     if (term) {
       list = list.filter((c) => {
         const title = getDisplayName(c).toLowerCase();
-        const phone = String(getPhone(c) || "");
+        const phone = String(getPhone(c) || "").toLowerCase();
         const telRaw =
           c?.telefone_exibivel ||
           c?.cliente_telefone ||
           c?.telefone ||
           "";
         const telDigits = digitsOnly(telRaw);
-        const phoneDigits = termDigits ? digitsOnly(phone) : "";
 
         const matchName = title.includes(term);
         const matchPhone =
           termDigits &&
-          (phoneDigits.includes(termDigits) || telDigits.includes(termDigits));
+          (digitsOnly(phone).includes(termDigits) || telDigits.includes(termDigits));
 
         return matchName || matchPhone;
       });
     }
 
-    // ordenação: pré-calcula timestamp uma vez por linha (evita `new Date` no comparador — custo O(n log n) alto em listas grandes)
-    const decorated = list.map((c) => {
-      const raw =
-        c?.ultima_mensagem?.criado_em ||
-        getLastMessage(c)?.criado_em ||
-        c?.ultima_atividade ||
-        c?.criado_em ||
-        0;
-      let sortTs = 0;
-      if (typeof raw === "number" && Number.isFinite(raw)) sortTs = raw;
-      else if (raw instanceof Date) sortTs = raw.getTime();
-      else {
-        const ms = new Date(raw).getTime();
-        sortTs = Number.isFinite(ms) ? ms : 0;
-      }
-      return { c, sortTs };
-    });
-    decorated.sort((a, b) => {
-      const ca = a.c;
-      const cb = b.c;
-      const aPinned = ca?.fixada === true ? 1 : 0;
-      const bPinned = cb?.fixada === true ? 1 : 0;
+    // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem
+    list.sort((a, b) => {
+      const aPinned = a?.fixada === true ? 1 : 0;
+      const bPinned = b?.fixada === true ? 1 : 0;
       if (aPinned !== bPinned) return bPinned - aPinned;
-      if (ca?.sem_conversa && !cb?.sem_conversa) return 1;
-      if (!ca?.sem_conversa && cb?.sem_conversa) return -1;
-      if (ca?.sem_conversa && cb?.sem_conversa) {
-        const na = (ca.contato_nome || "").toString().toLowerCase();
-        const nb = (cb.contato_nome || "").toString().toLowerCase();
+      if (a?.sem_conversa && !b?.sem_conversa) return 1;
+      if (!a?.sem_conversa && b?.sem_conversa) return -1;
+      if (a?.sem_conversa && b?.sem_conversa) {
+        const na = (a.contato_nome || "").toString().toLowerCase();
+        const nb = (b.contato_nome || "").toString().toLowerCase();
         return na.localeCompare(nb);
       }
-      const aTs = a.sortTs;
-      const bTs = b.sortTs;
+      const aTs = new Date(
+        a?.ultima_mensagem?.criado_em || getLastMessage(a)?.criado_em || a?.ultima_atividade || a?.criado_em || 0
+      ).getTime();
+      const bTs = new Date(
+        b?.ultima_mensagem?.criado_em || getLastMessage(b)?.criado_em || b?.ultima_atividade || b?.criado_em || 0
+      ).getTime();
       return order === "antigas" ? aTs - bTs : bTs - aTs;
     });
-    list = decorated.map((d) => d.c);
 
     return list;
   }, [
