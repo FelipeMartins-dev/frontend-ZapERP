@@ -995,7 +995,7 @@ a { color: inherit; text-decoration: none; }
   margin: 0;
   display: flex;
   gap: var(--cl-space-3);
-  padding: var(--cl-space-3) var(--cl-space-4);
+  padding: 14px var(--cl-space-4);
   background: var(--cl-surface);
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 12px;
@@ -1003,7 +1003,7 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
   transition: background 0.14s ease, opacity 0.15s ease, border-color 0.14s ease, box-shadow 0.14s ease;
   position: relative;
-  min-height: 68px;
+  min-height: 76px;
   align-items: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
   box-sizing: border-box;
@@ -1362,7 +1362,7 @@ a { color: inherit; text-decoration: none; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   justify-content: center;
 }
 
@@ -1380,7 +1380,7 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-title-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--cl-space-2);
   min-width: 0;
 }
@@ -1401,13 +1401,15 @@ a { color: inherit; text-decoration: none; }
   font-size: var(--cl-font-size-md);
   font-weight: 600;
   color: var(--cl-text);
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
   word-break: normal;
-  overflow-wrap: normal;
+  overflow-wrap: break-word;
   min-width: 0;
   line-height: 1.28;
+  max-height: calc(1.28em * 2 + 2px);
 }
 
 .chat-list-subline {
@@ -1447,10 +1449,10 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
-  flex-shrink: 1;
+  gap: 5px;
+  flex-shrink: 0;
   min-width: 0;
-  max-width: min(46%, 248px);
+  max-width: min(52%, 300px);
 }
 
 .chat-list-time {
@@ -1881,24 +1883,52 @@ a { color: inherit; text-decoration: none; }
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px 6px;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+}
+
+/* “Em atendimento” em cima; etiquetas (ex.: Aguardando cliente) em baixo, alinhadas à direita */
+.chat-list-statusRow.chat-list-statusRow--stack {
+  flex-direction: column;
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+.chat-list-statusRow-primary {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  min-width: 0;
+}
+
+.chat-list-statusRow-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.chat-list-statusRow--stack .chat-list-badge-await {
+  margin-left: 0;
 }
 
 .chat-list-statusCol {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: 5px;
   min-width: 0;
   width: 100%;
   max-width: 100%;
 }
 
-/* Segunda linha: “Aguardando funcionário · N min” (só nessa fila) — uma linha, sem partir palavra */
+/* “Aguardando funcionário · N min”: mostrar por completo (quebra só em espaços / palavras longas) */
 .chat-list-espera-sub {
   display: block;
   width: 100%;
@@ -1906,14 +1936,14 @@ a { color: inherit; text-decoration: none; }
   min-width: 0;
   font-size: 11px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
   letter-spacing: 0.01em;
   text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
   word-break: normal;
-  overflow-wrap: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
 
 .chat-list-espera-sub--t0 {
@@ -1950,7 +1980,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (min-width: 981px) {
   .chat-list-row:has(.chat-list-espera-sub) {
-    min-height: 74px;
+    min-height: 90px;
   }
 }
 
@@ -1986,13 +2016,21 @@ a { color: inherit; text-decoration: none; }
   text-overflow: ellipsis;
 }
 
+.chat-list-statusRow-secondary .chat-list-badge-await {
+  max-width: 100%;
+  width: max-content;
+  overflow: visible;
+  text-overflow: unset;
+  margin-left: 0;
+}
+
 /* Mais respiro quando coexistem setor + em atendimento + aguardando */
 .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client),
 .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-badge-await),
 .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-espera-sub) {
-  min-height: 72px;
-  padding-top: calc(var(--cl-space-3) + 1px);
-  padding-bottom: calc(var(--cl-space-3) + 1px);
+  min-height: 86px;
+  padding-top: 15px;
+  padding-bottom: 15px;
 }
 
 .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client) .chat-list-statusRow,
@@ -2229,10 +2267,10 @@ a { color: inherit; text-decoration: none; }
   .chat-list-header-title { font-size: var(--cl-font-size-lg); }
   .chat-list-search-hint { display: none; }
 
-  /* Lista + chat lado a lado: limita coluna de hora/status para não “comer” o nome */
+  /* Lista + chat lado a lado: coluna de status um pouco mais larga (etiquetas completas) */
   .chat-list-row-meta {
-    max-width: min(42%, 168px);
-    flex-shrink: 1;
+    max-width: min(46%, 220px);
+    flex-shrink: 0;
     min-width: 0;
   }
 
@@ -2384,14 +2422,14 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client),
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-badge-await),
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-espera-sub) {
-    min-height: 76px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    min-height: 88px;
+    padding-top: 11px;
+    padding-bottom: 11px;
   }
 
   .chat-list-row-meta {
-    max-width: min(40%, 160px);
-    flex-shrink: 1;
+    max-width: min(44%, 200px);
+    flex-shrink: 0;
     min-width: 0;
   }
 
@@ -2415,8 +2453,8 @@ a { color: inherit; text-decoration: none; }
     padding-right: var(--cl-space-3);
   }
   .chat-list-row {
-    padding: var(--cl-space-2) var(--cl-space-3);
-    min-height: 72px;
+    padding: 12px var(--cl-space-3);
+    min-height: 78px;
   }
   .chat-list-avatar {
     width: 52px;
@@ -2425,8 +2463,8 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-meta {
-    max-width: min(44%, 172px);
-    flex-shrink: 1;
+    max-width: min(48%, 200px);
+    flex-shrink: 0;
     min-width: 0;
   }
 
@@ -2443,7 +2481,7 @@ a { color: inherit; text-decoration: none; }
 
   /* Hora + selo + “Aguardando funcionário · N min” — evita linha colada / sensação de corte */
   .chat-list-row:has(.chat-list-espera-sub) {
-    min-height: 80px;
+    min-height: 92px;
   }
 }
 
@@ -2464,8 +2502,8 @@ a { color: inherit; text-decoration: none; }
      direita (hora + status em 2 linhas) fica mais alta que o bloco do nome. */
   .chat-list-row {
     gap: 12px;
-    padding: 14px 14px;
-    min-height: 88px;
+    padding: 16px 14px;
+    min-height: 92px;
     align-items: flex-start;
   }
 
@@ -2474,9 +2512,9 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-note),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-badge-await),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-espera-sub) {
-    min-height: 104px;
-    padding-top: 15px;
-    padding-bottom: 15px;
+    min-height: 116px;
+    padding-top: 16px;
+    padding-bottom: 16px;
   }
 
   .chat-list-row-main {
@@ -2497,8 +2535,8 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-meta {
-    max-width: min(46%, 176px);
-    flex-shrink: 1;
+    max-width: min(48%, 210px);
+    flex-shrink: 0;
     min-width: 0;
     gap: 3px;
   }
@@ -2507,9 +2545,9 @@ a { color: inherit; text-decoration: none; }
     min-width: 0;
   }
 
-  /* “Em atendimento” + segunda linha: empilha à direita, mais legível que wrap lado a lado */
-  .chat-list-statusRow:has(> .chat-list-status.in):has(> .chat-list-status-note),
-  .chat-list-statusRow:has(> .chat-list-status.in):has(> .chat-list-badge-await) {
+  /* Com --stack, o filho direto já não é .in + .badge; manter coluna só para linhas antigas */
+  .chat-list-statusRow:not(.chat-list-statusRow--stack):has(> .chat-list-status.in):has(> .chat-list-status-note),
+  .chat-list-statusRow:not(.chat-list-statusRow--stack):has(> .chat-list-status.in):has(> .chat-list-badge-await) {
     flex-direction: column;
     align-items: flex-end;
     align-content: flex-end;

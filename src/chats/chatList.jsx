@@ -1034,18 +1034,58 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
   }
 
   if (it) {
+    const mainPill = (
+      <span
+        className={it.cls}
+        title={
+          s === "aguardando_cliente"
+            ? "Aguardando cliente (marcado manualmente)"
+            : it.label
+        }
+      >
+        {it.label}
+      </span>
+    );
+    const noteAguardandoFuncionario =
+      aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico && !esperaLinhaAtiva ? (
+        <span
+          className="chat-list-status-note"
+          title="Última mensagem do cliente — equipe deve responder"
+        >
+          Aguardando funcionário
+        </span>
+      ) : null;
+    const stackEmAtendimento =
+      s === "em_atendimento" &&
+      (Boolean(reabertoHint) || Boolean(aguardandoClienteAutomatico) || Boolean(noteAguardandoFuncionario));
+
+    if (stackEmAtendimento) {
+      return (
+        <span className="chat-list-statusRow chat-list-statusRow--stack">
+          <span className="chat-list-statusRow-primary">{mainPill}</span>
+          <span className="chat-list-statusRow-secondary">
+            {reabertoHint ? (
+              <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
+                Reaberto pelo cliente
+              </span>
+            ) : null}
+            {aguardandoClienteAutomatico ? (
+              <span
+                className="chat-list-badge-await chat-list-badge-await--subtle"
+                title="Aguardando resposta do cliente (detecção automática — em atendimento)"
+              >
+                Aguardando cliente
+              </span>
+            ) : null}
+            {noteAguardandoFuncionario}
+          </span>
+        </span>
+      );
+    }
+
     return (
       <span className="chat-list-statusRow">
-        <span
-          className={it.cls}
-          title={
-            s === "aguardando_cliente"
-              ? "Aguardando cliente (marcado manualmente)"
-              : it.label
-          }
-        >
-          {it.label}
-        </span>
+        {mainPill}
         {reabertoHint ? (
           <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
             Reaberto pelo cliente
@@ -1059,14 +1099,7 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             Aguardando cliente
           </span>
         ) : null}
-        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico && !esperaLinhaAtiva ? (
-          <span
-            className="chat-list-status-note"
-            title="Última mensagem do cliente — equipe deve responder"
-          >
-            Aguardando funcionário
-          </span>
-        ) : null}
+        {noteAguardandoFuncionario}
       </span>
     );
   }
