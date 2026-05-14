@@ -165,8 +165,8 @@ function getListaUltimaMensagemCriadoEm(c) {
 }
 
 /**
- * Linha com minutos só em “Em atendimento” + aguardando funcionário (equipe deve responder).
- * “Aguardando cliente” volta só à etiqueta no StatusPill, sem minutos.
+ * Minutos na lista apenas quando o selo é “Em atendimento” e a conversa está na fila
+ * “aguardando funcionário” (equipe deve responder).
  * @returns {{ anchorIso: string } | null}
  */
 function getEsperaAtendimentoInfo(c, pendentesIdSet) {
@@ -296,6 +296,24 @@ const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso 
     </span>
   );
 });
+
+function UnreadBadge({ n }) {
+  const v = Number(n || 0);
+  if (!v) return null;
+  return <span className="chat-list-unread">{v > 99 ? "99+" : v}</span>;
+}
+
+function AtendimentoUnreadDot({ show }) {
+  if (!show) return null;
+  return (
+    <span
+      className="chat-list-atendimento-dot"
+      title="Cliente aguardando sua resposta"
+      aria-label="Cliente aguardando sua resposta"
+      role="status"
+    />
+  );
+}
 
 function parseToDate(ts) {
   if (!ts) return null;
@@ -1161,6 +1179,22 @@ function ChatRow({
   const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec });
   const previewNode = semConversa ? <span className="chat-list-previewText">Sem mensagens</span> : <PreviewLine chat={chat} audioDurationSec={audioSec} />;
   const unread = Number(chat?.unread_count ?? chat?.unread ?? 0);
+  const isResponsavel =
+    !isGroup &&
+    currentUserId != null &&
+    chat?.atendente_id != null &&
+    String(chat.atendente_id) === String(currentUserId);
+  const stAt = getStatusAtendimentoEffective(chat);
+  const isHumanAtendimentoRow =
+    stAt === "em_atendimento" || stAt === "aguardando_cliente";
+  const lastDir = getLastDirection(chat);
+  const hintNovaMsg =
+    !lastDir &&
+    (Boolean(chat?.tem_novas_mensagens_em_atendimento) || unread > 0);
+  const showAtendimentoDot =
+    isResponsavel &&
+    isHumanAtendimentoRow &&
+    (lastDir === "in" || hintNovaMsg);
   const rp = rowPrefs(chat);
   const showMutedIndicator = !isGroup && rp.silenciado;
   const showPinnedIndicator = !isGroup && rp.fixada;
@@ -1281,8 +1315,10 @@ function ChatRow({
               <div className="chat-list-preview" title={previewTitle}>
                 {previewNode}
               </div>
+              <AtendimentoUnreadDot show={showAtendimentoDot} />
             </div>
           </div>
+          <UnreadBadge n={unread} />
         </div>
       </div>
       {!semConversa ? (
