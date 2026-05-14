@@ -7902,6 +7902,55 @@ main.main-content--crm .wa-mediaPreview-composer {
     touch-action: manipulation;
   }
 
+  /*
+   * Dados do contato: no mobile o cabeçalho é position:fixed (z 35). O painel
+   * estava com z-index 22 e top 60px — ficava por baixo do header (título e X
+   * inacessíveis). Fixo abaixo da altura real do header (--wa-mobile-header-h)
+   * e z 57: acima do header, abaixo do backdrop de tags (58) e do painel (60).
+   */
+  .wa-shell > .wa-sideCliente {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--wa-mobile-header-h, 92px);
+    bottom: env(safe-area-inset-bottom, 0px);
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    border-left: none;
+    border-top: 1px solid color-mix(in oklab, var(--wa-panel-border) 88%, transparent);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.14);
+    z-index: 57;
+    box-sizing: border-box;
+    animation: wa-sheetSlideUp 0.22s ease-out;
+  }
+
+  [data-theme="dark"] .wa-shell > .wa-sideCliente {
+    box-shadow: 0 -14px 52px rgba(0, 0, 0, 0.48);
+  }
+
+  .wa-shell > .wa-sideCliente .wa-sideCliente-head {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+    border-radius: 16px 16px 0 0;
+  }
+
+  .wa-shell > .wa-sideCliente .wa-sideCliente-head .wa-iconBtn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   .wa-shell > .wa-tagsPanel.wa-tagsPanel--setor,
   .wa-shell > .wa-tagsPanel.wa-tagsPanel--tags {
     position: fixed;
