@@ -52,15 +52,20 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     if (!onVirtualContentResize) return undefined;
     const el = innerRootRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
-    let raf = 0;
+    let rafOuter = 0;
+    let rafInner = 0;
     const run = () => {
       onVirtualContentResize();
     };
+    /** Dois rAF: coalesce medições (menos callbacks durante scroll tátil). */
     const schedule = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        run();
+      if (rafOuter || rafInner) return;
+      rafOuter = requestAnimationFrame(() => {
+        rafOuter = 0;
+        rafInner = requestAnimationFrame(() => {
+          rafInner = 0;
+          run();
+        });
       });
     };
     const ro = new ResizeObserver(schedule);
@@ -68,7 +73,8 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     schedule();
     return () => {
       ro.disconnect();
-      if (raf) cancelAnimationFrame(raf);
+      if (rafOuter) cancelAnimationFrame(rafOuter);
+      if (rafInner) cancelAnimationFrame(rafInner);
     };
   }, [onVirtualContentResize, count]);
 

@@ -2592,8 +2592,8 @@ function useAutoScroll({
     virtualListRef,
   ]);
 
-  // Ao abrir/trocar conversa: o virtualizer subestima scrollHeight no 1º frame (estimateSize).
-  // useLayoutEffect + scrollToIndex(último) evita ficar no topo com mensagens antigas visíveis.
+  // Ao abrir/trocar conversa: ancora nas últimas mensagens UMA vez ao ficar pronto (não reexecuta a cada nova msg).
+  // Menos rAF/timers no mobile = scroll tátil mais livre depois de entrar.
   useLayoutEffect(() => {
     if (!conversaId) return;
     const convKey = String(conversaId);
@@ -2617,6 +2617,13 @@ function useAutoScroll({
     if (mensagensCount > 0) anchorLatestUntilMsgsRef.current = false;
 
     shouldStickToBottomRef.current = true;
+    const mobileLike =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 640px)").matches;
+    const rafCap = mobileLike ? 8 : 14;
+    const stickMax = mobileLike ? 16 : 28;
+
     const snap = () => {
       if (!shouldStickToBottomRef.current) return;
       snapThreadToBottom(container, virtualListRef);
@@ -2626,23 +2633,19 @@ function useAutoScroll({
     const chain = () => {
       n += 1;
       snap();
-      if (n < 24) requestAnimationFrame(chain);
+      if (n < rafCap) requestAnimationFrame(chain);
     };
     requestAnimationFrame(chain);
     const t1 = window.setTimeout(snap, 0);
-    const t2 = window.setTimeout(snap, 48);
-    const t3 = window.setTimeout(snap, 160);
-    const t4 = window.setTimeout(snap, 320);
-    const t5 = window.setTimeout(snap, 600);
-    const t6 = window.setTimeout(snap, 1000);
-    const t7 = window.setTimeout(snap, 1600);
+    const t2 = window.setTimeout(snap, mobileLike ? 90 : 120);
+    const t3 = window.setTimeout(snap, mobileLike ? 260 : 380);
 
     let rafStick = 0;
     let stickAttempts = 0;
     const tryStickOpen = () => {
       const c = messagesContainerRef?.current;
       stickAttempts += 1;
-      if (!c || stickAttempts > 48) return;
+      if (!c || stickAttempts > stickMax) return;
       if (!shouldStickToBottomRef.current) return;
       if (!isNearBottom(c, 200)) {
         snap();
@@ -2655,21 +2658,9 @@ function useAutoScroll({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
-      window.clearTimeout(t4);
-      window.clearTimeout(t5);
-      window.clearTimeout(t6);
-      window.clearTimeout(t7);
       if (rafStick) cancelAnimationFrame(rafStick);
     };
-  }, [
-    conversaId,
-    loading,
-    lastMsgKey,
-    mensagensCount,
-    messagesContainerRef,
-    shouldStickToBottomRef,
-    virtualListRef,
-  ]);
+  }, [conversaId, loading, mensagensCount, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
 }
 
 function useGlobalHotkeys({ onToggleTimeline, onFocusInput, onEscape, disabled }) {
@@ -4134,6 +4125,13 @@ export default function ConversaView() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleMessagesScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleMessagesScroll);
+  }, [handleMessagesScroll, conversaId]);
 
   useEffect(() => {
     return () => {
@@ -6670,7 +6668,6 @@ export default function ConversaView() {
         <div
           ref={messagesContainerRef}
           className={`wa-messages${selectMode ? " wa-messages--selectDim" : ""}`}
-          onScroll={handleMessagesScroll}
           onDragOver={onDragOver}
           onDrop={onDrop}
           onDragLeave={onDragLeave}
@@ -6791,7 +6788,7 @@ export default function ConversaView() {
               key={`wa-thread-${String(scrollThreadId ?? conversaId ?? "")}`}
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
-              overscan={48}
+              overscan={30}
               conversaId={scrollThreadId ?? conversaId}
               items={mensagensComSeparadores}
               onVirtualContentResize={snapIfStickBottom}

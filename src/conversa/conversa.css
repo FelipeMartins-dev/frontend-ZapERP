@@ -1165,6 +1165,7 @@
   position: relative;
   isolation: isolate;
   background: var(--ds-chat-bg);
+  scroll-behavior: auto;
   /* Prioriza rolagem vertical no touch (menos “briga” com gestos / seleção nativa). */
   touch-action: pan-y;
   /* Evita seleção azul em Safari ao arrastar sobre o histórico (texto não é editável aqui). */
@@ -1175,6 +1176,13 @@
   /* Scroll tátil mais estável: menos “repasse” pro pai e momentum no iOS. */
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .wa-messages {
+    padding: 8px 12px 12px;
+    scroll-padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Bolhas = só gestos do app (copiar pelo menu). Sem isto, long press no iOS abre seleção nativa + menu azul. */
