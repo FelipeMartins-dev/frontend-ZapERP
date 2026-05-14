@@ -60,13 +60,6 @@ const DEFAULT_CONFIG = {
     finalizar_por_ausencia_reabrir_automaticamente: true,
     finalizar_por_ausencia_reabrir_sem_chatbot: true,
   },
-  admin_atendimento_alerta: {
-    ativo: false,
-    telefone_admin: "",
-    horario_envio: "09:00",
-    incluir_nota_media: false,
-    incluir_conversas_sem_resposta: false,
-  },
 };
 
 /** Une resposta GET /ia/config com defaults para não perder chaves (ex.: chatbot_triage.finalizar_por_ausencia_*). */
@@ -81,10 +74,6 @@ function mergeIaConfigFromApi(server) {
       ...DEFAULT_CONFIG.chatbot_triage,
       ...ct,
       options: Array.isArray(ct.options) ? ct.options : DEFAULT_CONFIG.chatbot_triage.options,
-    },
-    admin_atendimento_alerta: {
-      ...DEFAULT_CONFIG.admin_atendimento_alerta,
-      ...(server.admin_atendimento_alerta || {}),
     },
   };
 }
@@ -318,12 +307,9 @@ export default function IA() {
         {tab === "chatbot" && (
           <SecaoChatbotTriagem
             config={cfg.chatbot_triage || DEFAULT_CONFIG.chatbot_triage}
-            adminAtendimentoAlerta={cfg.admin_atendimento_alerta || DEFAULT_CONFIG.admin_atendimento_alerta}
-            chatbotTimezone={cfg.chatbot_triage?.timezone || "America/Sao_Paulo"}
             departamentos={departamentos}
             logs={logs}
             onSave={(v) => handleSaveConfig("chatbot_triage", v)}
-            onSaveAdminAlert={(v) => handleSaveConfig("admin_atendimento_alerta", v)}
             onRefreshLogs={loadLogs}
             saving={saving}
           />
@@ -707,22 +693,10 @@ function formatTimeForInput(t) {
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
-function SecaoChatbotTriagem({
-  config,
-  adminAtendimentoAlerta,
-  chatbotTimezone,
-  departamentos,
-  logs,
-  onSave,
-  onSaveAdminAlert,
-  onRefreshLogs,
-  saving,
-}) {
+function SecaoChatbotTriagem({ config, departamentos, logs, onSave, onRefreshLogs, saving }) {
   const [v, setV] = useState(config);
-  const [adminA, setAdminA] = useState(adminAtendimentoAlerta || {});
   const [novaDataFechada, setNovaDataFechada] = useState("");
   useEffect(() => setV(config), [config]);
-  useEffect(() => setAdminA(adminAtendimentoAlerta || {}), [adminAtendimentoAlerta]);
 
   const showToast = useNotificationStore((s) => s.showToast);
 
@@ -840,44 +814,6 @@ function SecaoChatbotTriagem({
       return;
     }
     onSave(buildPayload(v));
-  };
-
-  const validateAdminAlert = () => {
-    const a = adminA || {};
-    if (!a.ativo) return null;
-    const tel = String(a.telefone_admin || "").replace(/\D/g, "");
-    if (tel.length < 10) return "Informe o número do administrador (DDD + número, mínimo 10 dígitos) ou desative o alerta.";
-    if (!a.incluir_nota_media && !a.incluir_conversas_sem_resposta) {
-      return "Ative pelo menos uma métrica (nota média ou conversas aguardando resposta) para o envio ter conteúdo.";
-    }
-    const hm = String(a.horario_envio || "").trim();
-    if (!/^\d{1,2}:\d{2}$/.test(hm)) return "Horário inválido. Use o formato HH:MM (ex.: 18:30).";
-    return null;
-  };
-
-  const buildAdminPayload = () => {
-    const a = adminA || {};
-    const hm = String(a.horario_envio || "09:00").trim();
-    const m = hm.match(/^(\d{1,2}):(\d{2})$/);
-    const horario_envio = m
-      ? `${String(Math.max(0, Math.min(23, parseInt(m[1], 10)))).padStart(2, "0")}:${String(Math.max(0, Math.min(59, parseInt(m[2], 10)))).padStart(2, "0")}`
-      : "09:00";
-    return {
-      ativo: !!a.ativo,
-      telefone_admin: String(a.telefone_admin || "").replace(/\D/g, "").slice(0, 20),
-      horario_envio,
-      incluir_nota_media: !!a.incluir_nota_media,
-      incluir_conversas_sem_resposta: !!a.incluir_conversas_sem_resposta,
-    };
-  };
-
-  const handleSaveAdminAlert = () => {
-    const err = validateAdminAlert();
-    if (err) {
-      showToast({ type: "error", title: "Alerta do administrador", message: err });
-      return;
-    }
-    onSaveAdminAlert(buildAdminPayload());
   };
 
   const opts = v.options || [];
@@ -1335,73 +1271,6 @@ function SecaoChatbotTriagem({
                 onChange={(e) => setV((c) => ({ ...c, intervaloEnvioSegundos: Number(e.target.value) || 0 }))}
                 placeholder="3"
               />
-            </div>
-          </div>
-
-          <div className="chatbot-card chatbot-card--admin-resumo">
-            <h3 className="chatbot-card-title">8. Alerta do administrador</h3>
-            <p className="chatbot-card-subtitle">
-              Envio automático por WhatsApp (UltraMSG) com resumo do atendimento. Independente do menu do chatbot. No deploy, todas as empresas ficam com este alerta desligado até você ativar manualmente aqui (ex.: empresa de teste).
-            </p>
-            <div className="ds-switch-row" style={{ marginBottom: 12 }}>
-              <Switch
-                checked={adminA.ativo === true}
-                onChange={(x) => setAdminA((c) => ({ ...c, ativo: x }))}
-              />
-              <span>Ativar alerta automático</span>
-            </div>
-            <div
-              className="chatbot-fora-horario-fields"
-              style={{
-                opacity: adminA.ativo ? 1 : 0.55,
-                pointerEvents: adminA.ativo ? "auto" : "none",
-              }}
-            >
-              <div className="ia-field">
-                <label>Número do administrador (WhatsApp)</label>
-                <input
-                  type="tel"
-                  className="ia-input"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  placeholder="Ex.: 5511999998888 ou 11999998888"
-                  value={adminA.telefone_admin ?? ""}
-                  onChange={(e) => setAdminA((c) => ({ ...c, telefone_admin: e.target.value }))}
-                />
-                <p className="chatbot-hint">Apenas dígitos; o backend normaliza o envio. Usa a instância UltraMSG da empresa.</p>
-              </div>
-              <div className="ia-field" style={{ maxWidth: 220 }}>
-                <label>Horário de envio (fuso: {chatbotTimezone || "America/Sao_Paulo"})</label>
-                <input
-                  type="time"
-                  className="ia-input"
-                  value={formatTimeForInput(adminA.horario_envio)}
-                  onChange={(e) => setAdminA((c) => ({ ...c, horario_envio: e.target.value }))}
-                />
-                <p className="chatbot-hint">O job usa o fuso IANA salvo na configuração do chatbot (campo timezone no JSON), exibido acima; se ausente, o servidor assume America/Sao_Paulo.</p>
-              </div>
-              <div className="ds-switch-row" style={{ marginTop: 12 }}>
-                <Switch
-                  checked={adminA.incluir_nota_media === true}
-                  onChange={(x) => setAdminA((c) => ({ ...c, incluir_nota_media: x }))}
-                />
-                <span>Incluir nota média dos atendimentos (últimos 30 dias)</span>
-              </div>
-              <div className="ds-switch-row" style={{ marginTop: 8 }}>
-                <Switch
-                  checked={adminA.incluir_conversas_sem_resposta === true}
-                  onChange={(x) => setAdminA((c) => ({ ...c, incluir_conversas_sem_resposta: x }))}
-                />
-                <span>Incluir quantidade de conversas aguardando resposta da equipe</span>
-              </div>
-              <p className="chatbot-hint" style={{ marginTop: 10 }}>
-                “Aguardando resposta” segue o mesmo critério da lista de conversas: em atendimento humano, com atendente, última mensagem do cliente, sem “aguardando cliente”.
-              </p>
-              <div style={{ marginTop: 16 }}>
-                <button type="button" className="ia-btn ia-btn--outline" onClick={handleSaveAdminAlert} disabled={saving}>
-                  {saving ? "Salvando..." : "Salvar alerta do administrador"}
-                </button>
-              </div>
             </div>
           </div>
 
