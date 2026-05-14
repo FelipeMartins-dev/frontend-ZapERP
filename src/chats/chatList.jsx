@@ -1313,6 +1313,8 @@ export default function ChatList() {
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
 
   const user = useAuthStore((s) => s.user);
+  /** Empresa com opção ativa (GET /usuarios/me + login). Desligado: sem chip nem API de contagem. */
+  const separarMensagensDisparadasLigado = user?.separar_mensagens_disparadas === true;
   const userRole = String(user?.role || user?.perfil || "").toLowerCase();
   const canConsultarProdutos = ["admin", "supervisor", "atendente"].includes(userRole);
   const canVerSyncProdutos = ["admin", "supervisor"].includes(userRole);
@@ -1396,6 +1398,18 @@ export default function ChatList() {
       setTab("minha_fila");
     }
   }, [user, tab]);
+
+  useEffect(() => {
+    if (!separarMensagensDisparadasLigado && tab === "mensagens_disparadas") {
+      setTab("minha_fila");
+    }
+  }, [separarMensagensDisparadasLigado, tab]);
+
+  useEffect(() => {
+    if (!separarMensagensDisparadasLigado && statusFilter === "mensagem_disparada") {
+      setStatusFilter("todos");
+    }
+  }, [separarMensagensDisparadasLigado, statusFilter]);
 
   /** GET /chats?minha_fila=1 — fila do atendente (abertas + em atendimento comigo); sem status_atendimento na query. */
   const [minhaFilaList, setMinhaFilaList] = useState(null);
@@ -1585,6 +1599,10 @@ export default function ChatList() {
   ]);
 
   const refreshMensagensDisparadasBadge = useCallback(async () => {
+    if (!separarMensagensDisparadasLigado) {
+      setMensagensDisparadasCount(0);
+      return;
+    }
     try {
       const params = {
         status_atendimento: "mensagem_disparada",
@@ -1601,7 +1619,7 @@ export default function ChatList() {
       console.error("Erro ao carregar contagem Mensagens Disparadas:", e);
       setMensagensDisparadasCount(0);
     }
-  }, [tagFilter, departamentoFilter, dataInicio, dataFim]);
+  }, [tagFilter, departamentoFilter, dataInicio, dataFim, separarMensagensDisparadasLigado]);
 
   const refreshSupervisaoData = useCallback(async () => {
     if (!isSupervisorOrAdmin(user)) {
@@ -1684,7 +1702,7 @@ export default function ChatList() {
           params.finalizacao_motivo = "ausencia_cliente";
         } else if (tab === "abertas") {
           params.status_atendimento = "aberta";
-        } else if (tab === "mensagens_disparadas") {
+        } else if (tab === "mensagens_disparadas" && separarMensagensDisparadasLigado) {
           params.status_atendimento = "mensagem_disparada";
         }
       }
@@ -1804,6 +1822,7 @@ export default function ChatList() {
     aguardandoClienteOnly,
     tempoParadoFilter,
     refreshSupervisaoData,
+    separarMensagensDisparadasLigado,
   ]);
 
   // loadRef para sync/interval — deve estar definido antes dos effects que o usam
@@ -2660,10 +2679,12 @@ export default function ChatList() {
             <span>Abertas</span>
             <span className="chat-list-chip-count">{countAbertas}</span>
           </Chip>
-          <Chip active={tab === "mensagens_disparadas"} onClick={() => setTab("mensagens_disparadas")}>
-            <span>Mensagens Disparadas</span>
-            <span className="chat-list-chip-count">{mensagensDisparadasCount}</span>
-          </Chip>
+          {separarMensagensDisparadasLigado ? (
+            <Chip active={tab === "mensagens_disparadas"} onClick={() => setTab("mensagens_disparadas")}>
+              <span>Mensagens Disparadas</span>
+              <span className="chat-list-chip-count">{mensagensDisparadasCount}</span>
+            </Chip>
+          ) : null}
           <Chip active={tab === "em_atendimento"} onClick={() => setTab("em_atendimento")}>
             <span>Em atendimento</span>
             <span className="chat-list-chip-count">{countEmAtendimento}</span>
@@ -2726,7 +2747,9 @@ export default function ChatList() {
               >
                 <option value="todos">Todos</option>
                 <option value="aberta">Aberta</option>
-                <option value="mensagem_disparada">Mensagem disparada</option>
+                {separarMensagensDisparadasLigado ? (
+                  <option value="mensagem_disparada">Mensagem disparada</option>
+                ) : null}
                 <option value="em_atendimento">Em atendimento</option>
                 <option value="aguardando_cliente">Aguardando cliente</option>
                 <option value="fechada">Fechada</option>

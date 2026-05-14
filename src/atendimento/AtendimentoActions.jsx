@@ -234,7 +234,10 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
 
   const isFechada = status === "fechada" || status === "encerrada";
   const isFila =
-    status === "fila" || status === "aberta" || status === "pendente";
+    status === "fila" ||
+    status === "aberta" ||
+    status === "pendente" ||
+    status === "mensagem_disparada";
   const isAguardandoClienteManual = status === "aguardando_cliente";
   const isEmAtendimento =
     status === "em_atendimento" || status === "em atendimento";

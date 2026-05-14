@@ -96,6 +96,7 @@ export const useAuthStore = create((set, get) => ({
       if (!me || typeof me !== "object") return
       const patch = {}
       if (me.crm_habilitado !== undefined) patch.crm_habilitado = me.crm_habilitado
+      if (me.separar_mensagens_disparadas !== undefined) patch.separar_mensagens_disparadas = me.separar_mensagens_disparadas
       if (Object.keys(patch).length === 0) return
       get().updateUser(patch)
     } catch (_) {
