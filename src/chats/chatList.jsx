@@ -288,25 +288,32 @@ const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso 
   const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
   const minLabel = mins < 1 ? "menos de 1 min" : `${mins} min`;
-  /* Neutro <10 · amarelo 10–29 · laranja 30–60 · vermelho >60 */
   const bucket = mins < 10 ? "t0" : mins < 30 ? "t1" : mins <= 60 ? "t2" : "t3";
-  const linha = `Aguardando funcionário · ${minLabel}`;
 
   return (
-    <span
-      className={`chat-list-espera-wrap chat-list-espera-wrap--${bucket}`}
-      title={`${linha} — desde ${d.toLocaleString("pt-BR")}`}
-    >
-      <span className="chat-list-espera-inner">
-        <span className="chat-list-espera-label">Aguardando funcionário</span>
-        <span className="chat-list-espera-sep" aria-hidden>
-          {" · "}
-        </span>
-        <span className="chat-list-espera-time">{minLabel}</span>
-      </span>
+    <span className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`} title={`Desde ${d.toLocaleString("pt-BR")}`}>
+      Aguardando funcionário · {minLabel}
     </span>
   );
 });
+
+function UnreadBadge({ n }) {
+  const v = Number(n || 0);
+  if (!v) return null;
+  return <span className="chat-list-unread">{v > 99 ? "99+" : v}</span>;
+}
+
+function AtendimentoUnreadDot({ show }) {
+  if (!show) return null;
+  return (
+    <span
+      className="chat-list-atendimento-dot"
+      title="Cliente aguardando sua resposta"
+      aria-label="Cliente aguardando sua resposta"
+      role="status"
+    />
+  );
+}
 
 function parseToDate(ts) {
   if (!ts) return null;
@@ -594,18 +601,7 @@ function loadAudioDuration(url) {
   });
 }
 
-/** Prévia curta na lista (poucas palavras + "…"); `forTitle: true` em getPreview mantém texto longo no tooltip. */
-function truncateListPreviewSnippet(raw, maxWords = 5) {
-  const t = String(raw || "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!t) return "";
-  const words = t.split(/\s+/).filter(Boolean);
-  if (words.length <= maxWords) return t;
-  return `${words.slice(0, maxWords).join(" ")}…`;
-}
-
-function getPreview(chat, { audioDurationSec, forTitle = false } = {}) {
+function getPreview(chat, { audioDurationSec } = {}) {
   const ultima = chat?.ultima_mensagem || chat?.ultima_mensagem_preview;
   const last = ultima || getLastMessage(chat);
   if (!last) return "Sem mensagens";
@@ -643,12 +639,7 @@ function getPreview(chat, { audioDurationSec, forTitle = false } = {}) {
         if (bits.length) return `${outPrefix}📍 ${bits.join(" • ")}`;
       }
     }
-    const capLoc =
-      txt && !isPlaceholderLocationText(txt)
-        ? forTitle
-          ? txt.slice(0, 160)
-          : truncateListPreviewSnippet(txt, 5)
-        : "";
+    const capLoc = txt && !isPlaceholderLocationText(txt) ? txt.slice(0, 60) : "";
     return `${outPrefix}📍 ${capLoc || "Localização"}`;
   }
 
@@ -662,7 +653,7 @@ function getPreview(chat, { audioDurationSec, forTitle = false } = {}) {
     txt === "(figurinha)" ||
     txt === "(arquivo)" ||
     isPlaceholderLocationText(txt);
-  const cap = !isPlaceholder ? (forTitle ? txt.slice(0, 160) : truncateListPreviewSnippet(txt, 5)) : "";
+  const cap = !isPlaceholder ? txt.slice(0, 60) : "";
 
   // Preferir preview por tipo (estilo WhatsApp)
   if (tipo === "audio") {
@@ -674,11 +665,10 @@ function getPreview(chat, { audioDurationSec, forTitle = false } = {}) {
   if (tipo === "sticker") return `${outPrefix}Figurinha${cap ? `: ${cap}` : ""}`;
   if (tipo === "arquivo") {
     const n = String(last?.nome_arquivo || "").trim();
-    const doc = n || "Documento";
-    return `${outPrefix}${forTitle ? doc : truncateListPreviewSnippet(doc, 6)}`;
+    return `${outPrefix}${n || "Documento"}`;
   }
 
-  if (txt) return `${outPrefix}${forTitle ? txt : truncateListPreviewSnippet(txt, 5)}`;
+  if (txt) return `${outPrefix}${txt}`;
   return `${outPrefix}(sem texto)`;
 }
 
@@ -760,7 +750,7 @@ function PreviewLine({ chat, audioDurationSec }) {
     isPlaceholderFileText(txt) ||
     isPlaceholderLocationText(txt);
 
-  const cap = !isPlaceholder ? truncateListPreviewSnippet(txt, 5) : "";
+  const cap = !isPlaceholder ? txt.slice(0, 60) : "";
 
   if (tipo === "audio") {
     const dur = formatDuracaoSegundos(audioDurationSec);
@@ -823,11 +813,11 @@ function PreviewLine({ chat, audioDurationSec }) {
         const e = String(lm.endereco || "").trim();
         const bits = [n, e].filter(Boolean);
         if (bits.length) line = bits.join(" · ");
-        else if (txt && !isPlaceholderLocationText(txt)) line = truncateListPreviewSnippet(txt, 5);
+        else if (txt && !isPlaceholderLocationText(txt)) line = txt.slice(0, 60);
         else line = "Localização";
       }
     } else if (!line || isPlaceholderLocationText(txt)) {
-      line = txt && !isPlaceholderLocationText(txt) ? truncateListPreviewSnippet(txt, 5) : "Localização";
+      line = txt && !isPlaceholderLocationText(txt) ? txt.slice(0, 60) : "Localização";
     }
     return (
       <span className={`chat-list-previewLine ${out ? "is-out" : ""}`}>
@@ -881,7 +871,7 @@ function PreviewLine({ chat, audioDurationSec }) {
   return (
     <span className="chat-list-previewLine">
       {out ? <ChatTicks status={status} isGroup={isGroup} /> : null}
-      <span className="chat-list-previewText">{atendentePrefix}{txt ? truncateListPreviewSnippet(txt, 5) : "Sem mensagens"}</span>
+      <span className="chat-list-previewText">{atendentePrefix}{txt || "Sem mensagens"}</span>
     </span>
   );
 }
@@ -1058,58 +1048,18 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
   }
 
   if (it) {
-    const mainPill = (
-      <span
-        className={it.cls}
-        title={
-          s === "aguardando_cliente"
-            ? "Aguardando cliente (marcado manualmente)"
-            : it.label
-        }
-      >
-        {it.label}
-      </span>
-    );
-    const noteAguardandoFuncionario =
-      aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico && !esperaLinhaAtiva ? (
-        <span
-          className="chat-list-status-note"
-          title="Última mensagem do cliente — equipe deve responder"
-        >
-          Aguardando funcionário
-        </span>
-      ) : null;
-    const stackEmAtendimento =
-      s === "em_atendimento" &&
-      (Boolean(reabertoHint) || Boolean(aguardandoClienteAutomatico) || Boolean(noteAguardandoFuncionario));
-
-    if (stackEmAtendimento) {
-      return (
-        <span className="chat-list-statusRow chat-list-statusRow--stack">
-          <span className="chat-list-statusRow-primary">{mainPill}</span>
-          <span className="chat-list-statusRow-secondary">
-            {reabertoHint ? (
-              <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
-                Reaberto pelo cliente
-              </span>
-            ) : null}
-            {aguardandoClienteAutomatico ? (
-              <span
-                className="chat-list-badge-await chat-list-badge-await--subtle"
-                title="Aguardando resposta do cliente (detecção automática — em atendimento)"
-              >
-                Aguardando cliente
-              </span>
-            ) : null}
-            {noteAguardandoFuncionario}
-          </span>
-        </span>
-      );
-    }
-
     return (
       <span className="chat-list-statusRow">
-        {mainPill}
+        <span
+          className={it.cls}
+          title={
+            s === "aguardando_cliente"
+              ? "Aguardando cliente (marcado manualmente)"
+              : it.label
+          }
+        >
+          {it.label}
+        </span>
         {reabertoHint ? (
           <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
             Reaberto pelo cliente
@@ -1123,7 +1073,14 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             Aguardando cliente
           </span>
         ) : null}
-        {noteAguardandoFuncionario}
+        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico && !esperaLinhaAtiva ? (
+          <span
+            className="chat-list-status-note"
+            title="Última mensagem do cliente — equipe deve responder"
+          >
+            Aguardando funcionário
+          </span>
+        ) : null}
       </span>
     );
   }
@@ -1219,9 +1176,25 @@ function ChatRow({
     };
   }, [audioUrl]);
 
-  const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec, forTitle: true });
+  const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec });
   const previewNode = semConversa ? <span className="chat-list-previewText">Sem mensagens</span> : <PreviewLine chat={chat} audioDurationSec={audioSec} />;
   const unread = Number(chat?.unread_count ?? chat?.unread ?? 0);
+  const isResponsavel =
+    !isGroup &&
+    currentUserId != null &&
+    chat?.atendente_id != null &&
+    String(chat.atendente_id) === String(currentUserId);
+  const stAt = getStatusAtendimentoEffective(chat);
+  const isHumanAtendimentoRow =
+    stAt === "em_atendimento" || stAt === "aguardando_cliente";
+  const lastDir = getLastDirection(chat);
+  const hintNovaMsg =
+    !lastDir &&
+    (Boolean(chat?.tem_novas_mensagens_em_atendimento) || unread > 0);
+  const showAtendimentoDot =
+    isResponsavel &&
+    isHumanAtendimentoRow &&
+    (lastDir === "in" || hintNovaMsg);
   const rp = rowPrefs(chat);
   const showMutedIndicator = !isGroup && rp.silenciado;
   const showPinnedIndicator = !isGroup && rp.fixada;
@@ -1273,11 +1246,7 @@ function ChatRow({
       aria-disabled={opening ? "true" : "false"}
       data-chat-id={id ?? undefined}
       data-cliente-id={clienteId ?? undefined}
-      aria-label={
-        unread > 0
-          ? `Conversa com ${displayName}, ${unread > 99 ? "mais de 99" : unread} mensagens não lidas`
-          : `Conversa com ${displayName}`
-      }
+      aria-label={`Conversa com ${displayName}`}
     >
       <div className="chat-list-avatar" style={{ background: showAvatarImg ? "transparent" : color }} aria-hidden="true">
         {showAvatarImg ? (
@@ -1328,32 +1297,28 @@ function ChatRow({
               <span className="chat-list-badge-sem-conversa" title="Clique para iniciar conversa">Sem conversa</span>
             ) : (
               <div className="chat-list-statusCol">
-                <div className="chat-list-statusStack">
-                  <StatusPill
-                    status={getStatusAtendimentoEffective(chat)}
-                    exibirBadgeAberta={chat?.exibir_badge_aberta}
-                    chat={chat}
-                    aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
-                    esperaLinhaAtiva={Boolean(esperaInfo)}
-                  />
-                </div>
+                <StatusPill
+                  status={getStatusAtendimentoEffective(chat)}
+                  exibirBadgeAberta={chat?.exibir_badge_aberta}
+                  chat={chat}
+                  aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
+                  esperaLinhaAtiva={Boolean(esperaInfo)}
+                />
+                {esperaInfo ? <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} /> : null}
               </div>
             )}
           </div>
         </div>
-        {!semConversa && esperaInfo ? (
-          <div className="chat-list-row-esperaBar">
-            <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} />
-          </div>
-        ) : null}
         <div className="chat-list-row-mid">
           <div className="chat-list-midLeft">
             <div className="chat-list-preview-line">
               <div className="chat-list-preview" title={previewTitle}>
                 {previewNode}
               </div>
+              <AtendimentoUnreadDot show={showAtendimentoDot} />
             </div>
           </div>
+          <UnreadBadge n={unread} />
         </div>
       </div>
       {!semConversa ? (
