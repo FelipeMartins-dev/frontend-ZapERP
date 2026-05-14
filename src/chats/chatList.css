@@ -995,7 +995,7 @@ a { color: inherit; text-decoration: none; }
   margin: 0;
   display: flex;
   gap: var(--cl-space-3);
-  padding: 14px var(--cl-space-4);
+  padding: 14px var(--cl-space-4) 16px;
   background: var(--cl-surface);
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 12px;
@@ -1362,7 +1362,7 @@ a { color: inherit; text-decoration: none; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   justify-content: center;
 }
 
@@ -1370,12 +1370,13 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--cl-space-2);
+  gap: var(--cl-space-3);
 }
 
 .chat-list-row-title-wrap {
   min-width: 0;
   flex: 1 1 0;
+  padding-bottom: 2px;
 }
 
 .chat-list-title-line {
@@ -1425,7 +1426,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .chat-list-setor {
-  margin-top: 1px;
+  margin-top: 4px;
   font-size: var(--cl-font-size-xs);
   color: var(--cl-text-muted);
   white-space: nowrap;
@@ -1435,7 +1436,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .chat-list-empresa{
-  margin-top: 1px;
+  margin-top: 3px;
   font-size: var(--cl-font-size-xs);
   color: var(--cl-text-muted);
   white-space: nowrap;
@@ -1560,6 +1561,8 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: space-between;
   gap: var(--cl-space-2);
+  margin-top: 2px;
+  padding-top: 4px;
 }
 
 .chat-list-midLeft{
@@ -1928,7 +1931,7 @@ a { color: inherit; text-decoration: none; }
   max-width: 100%;
 }
 
-/* Selo + linha de espera: coluna alinhada à direita, sem texto “solto” fora do bloco */
+/* Selos de status (coluna direita); linha de espera fica em .chat-list-row-esperaBar */
 .chat-list-statusStack {
   display: flex;
   flex-direction: column;
@@ -1938,32 +1941,50 @@ a { color: inherit; text-decoration: none; }
   max-width: 100%;
 }
 
-/* “Aguardando funcionário · N min” — uma linha; ellipsis se não couber */
+/* Linha de espera: largura do cartão (não só coluna da direita) — “Aguardando funcionário · N min” numa linha */
+.chat-list-row-esperaBar {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  min-width: 0;
+  margin-top: 2px;
+}
+
+.chat-list-row-esperaBar .chat-list-espera-wrap {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* “Aguardando funcionário · N min” — uma linha, sem reticências (usa a barra full-width) */
 .chat-list-espera-wrap {
   display: block;
-  width: 100%;
+  width: auto;
   max-width: 100%;
   min-width: 0;
   text-align: right;
-  line-height: 1.25;
+  line-height: 1.35;
   letter-spacing: 0.01em;
 }
 
 .chat-list-espera-inner {
-  display: inline-block;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  vertical-align: bottom;
+  overflow: visible;
   font-size: 10.5px;
   font-weight: 600;
+  vertical-align: bottom;
 }
 
 .chat-list-espera-label,
 .chat-list-espera-sep,
 .chat-list-espera-time {
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .chat-list-espera-sep {

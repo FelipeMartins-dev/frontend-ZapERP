@@ -594,7 +594,18 @@ function loadAudioDuration(url) {
   });
 }
 
-function getPreview(chat, { audioDurationSec } = {}) {
+/** Prévia curta na lista (poucas palavras + "…"); `forTitle: true` em getPreview mantém texto longo no tooltip. */
+function truncateListPreviewSnippet(raw, maxWords = 5) {
+  const t = String(raw || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!t) return "";
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return t;
+  return `${words.slice(0, maxWords).join(" ")}…`;
+}
+
+function getPreview(chat, { audioDurationSec, forTitle = false } = {}) {
   const ultima = chat?.ultima_mensagem || chat?.ultima_mensagem_preview;
   const last = ultima || getLastMessage(chat);
   if (!last) return "Sem mensagens";
@@ -632,7 +643,12 @@ function getPreview(chat, { audioDurationSec } = {}) {
         if (bits.length) return `${outPrefix}📍 ${bits.join(" • ")}`;
       }
     }
-    const capLoc = txt && !isPlaceholderLocationText(txt) ? txt.slice(0, 60) : "";
+    const capLoc =
+      txt && !isPlaceholderLocationText(txt)
+        ? forTitle
+          ? txt.slice(0, 160)
+          : truncateListPreviewSnippet(txt, 5)
+        : "";
     return `${outPrefix}📍 ${capLoc || "Localização"}`;
   }
 
@@ -646,7 +662,7 @@ function getPreview(chat, { audioDurationSec } = {}) {
     txt === "(figurinha)" ||
     txt === "(arquivo)" ||
     isPlaceholderLocationText(txt);
-  const cap = !isPlaceholder ? txt.slice(0, 60) : "";
+  const cap = !isPlaceholder ? (forTitle ? txt.slice(0, 160) : truncateListPreviewSnippet(txt, 5)) : "";
 
   // Preferir preview por tipo (estilo WhatsApp)
   if (tipo === "audio") {
@@ -658,10 +674,11 @@ function getPreview(chat, { audioDurationSec } = {}) {
   if (tipo === "sticker") return `${outPrefix}Figurinha${cap ? `: ${cap}` : ""}`;
   if (tipo === "arquivo") {
     const n = String(last?.nome_arquivo || "").trim();
-    return `${outPrefix}${n || "Documento"}`;
+    const doc = n || "Documento";
+    return `${outPrefix}${forTitle ? doc : truncateListPreviewSnippet(doc, 6)}`;
   }
 
-  if (txt) return `${outPrefix}${txt}`;
+  if (txt) return `${outPrefix}${forTitle ? txt : truncateListPreviewSnippet(txt, 5)}`;
   return `${outPrefix}(sem texto)`;
 }
 
@@ -743,7 +760,7 @@ function PreviewLine({ chat, audioDurationSec }) {
     isPlaceholderFileText(txt) ||
     isPlaceholderLocationText(txt);
 
-  const cap = !isPlaceholder ? txt.slice(0, 60) : "";
+  const cap = !isPlaceholder ? truncateListPreviewSnippet(txt, 5) : "";
 
   if (tipo === "audio") {
     const dur = formatDuracaoSegundos(audioDurationSec);
@@ -806,11 +823,11 @@ function PreviewLine({ chat, audioDurationSec }) {
         const e = String(lm.endereco || "").trim();
         const bits = [n, e].filter(Boolean);
         if (bits.length) line = bits.join(" · ");
-        else if (txt && !isPlaceholderLocationText(txt)) line = txt.slice(0, 60);
+        else if (txt && !isPlaceholderLocationText(txt)) line = truncateListPreviewSnippet(txt, 5);
         else line = "Localização";
       }
     } else if (!line || isPlaceholderLocationText(txt)) {
-      line = txt && !isPlaceholderLocationText(txt) ? txt.slice(0, 60) : "Localização";
+      line = txt && !isPlaceholderLocationText(txt) ? truncateListPreviewSnippet(txt, 5) : "Localização";
     }
     return (
       <span className={`chat-list-previewLine ${out ? "is-out" : ""}`}>
@@ -864,7 +881,7 @@ function PreviewLine({ chat, audioDurationSec }) {
   return (
     <span className="chat-list-previewLine">
       {out ? <ChatTicks status={status} isGroup={isGroup} /> : null}
-      <span className="chat-list-previewText">{atendentePrefix}{txt || "Sem mensagens"}</span>
+      <span className="chat-list-previewText">{atendentePrefix}{txt ? truncateListPreviewSnippet(txt, 5) : "Sem mensagens"}</span>
     </span>
   );
 }
@@ -1202,7 +1219,7 @@ function ChatRow({
     };
   }, [audioUrl]);
 
-  const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec });
+  const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec, forTitle: true });
   const previewNode = semConversa ? <span className="chat-list-previewText">Sem mensagens</span> : <PreviewLine chat={chat} audioDurationSec={audioSec} />;
   const unread = Number(chat?.unread_count ?? chat?.unread ?? 0);
   const rp = rowPrefs(chat);
@@ -1319,12 +1336,16 @@ function ChatRow({
                     aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
                     esperaLinhaAtiva={Boolean(esperaInfo)}
                   />
-                  {esperaInfo ? <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} /> : null}
                 </div>
               </div>
             )}
           </div>
         </div>
+        {!semConversa && esperaInfo ? (
+          <div className="chat-list-row-esperaBar">
+            <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} />
+          </div>
+        ) : null}
         <div className="chat-list-row-mid">
           <div className="chat-list-midLeft">
             <div className="chat-list-preview-line">
