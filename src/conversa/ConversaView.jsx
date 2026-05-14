@@ -1697,6 +1697,7 @@ const Bubble = memo(function Bubble({
 }) {
   const out = isOutgoingMessage(msg);
   const isApagadaParaTodos = !!msg?.apagada_para_todos;
+  const mediaUrl = getMediaUrl(msg?.url, msg?.url_absoluta);
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
     if (msg?.apagada_para_todos) return false;
@@ -1704,13 +1705,14 @@ const Bubble = memo(function Bubble({
     if (msg?.autor_usuario_id == null) return false;
     return String(msg.autor_usuario_id) === String(currentUserId);
   }, [out, currentUserId, msg?.autor_usuario_id, msg?.apagada_para_todos]);
-  const isImg = !isApagadaParaTodos && msg?.tipo === "imagem";
-  const isSticker = !isApagadaParaTodos && msg?.tipo === "sticker";
-  const isFile = !isApagadaParaTodos && msg?.tipo === "arquivo";
-  const isAudio = !isApagadaParaTodos && msg?.tipo === "audio";
-  const isVoice = !isApagadaParaTodos && msg?.tipo === "voice";
+  /* Com mídia preservada no painel, ainda exibe imagem/áudio após “apagar para todos” no WhatsApp. */
+  const isImg = msg?.tipo === "imagem" && (!isApagadaParaTodos || !!mediaUrl);
+  const isSticker = msg?.tipo === "sticker" && (!isApagadaParaTodos || !!mediaUrl);
+  const isFile = msg?.tipo === "arquivo" && (!isApagadaParaTodos || !!mediaUrl);
+  const isAudio = msg?.tipo === "audio" && (!isApagadaParaTodos || !!mediaUrl);
+  const isVoice = msg?.tipo === "voice" && (!isApagadaParaTodos || !!mediaUrl);
   const isAudioOrVoice = isAudio || isVoice;
-  const isVideo = !isApagadaParaTodos && msg?.tipo === "video";
+  const isVideo = msg?.tipo === "video" && (!isApagadaParaTodos || !!mediaUrl);
   const contactBubbleMeta = useMemo(() => resolveContactMetaFromMessage(msg), [msg]);
   const isContact = !!contactBubbleMeta;
   const isLocation = msg?.tipo === "location";
@@ -1718,7 +1720,6 @@ const Bubble = memo(function Bubble({
   const texto =
     isApagadaParaTodos && !textoRaw ? "Esta mensagem foi apagada para todos." : textoRaw;
   const hasText = !!texto;
-  const mediaUrl = getMediaUrl(msg?.url, msg?.url_absoluta);
   const remetente = showRemetente && !out && (msg?.remetente_nome || msg?.remetente_telefone);
   const isPlaceholderCaption =
     !texto ||

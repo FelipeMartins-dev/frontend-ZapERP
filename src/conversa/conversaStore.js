@@ -173,6 +173,38 @@ function mergeMsgPreferringTombstone(prev, mergedCandidate) {
   return mergedCandidate
 }
 
+const MEDIA_TIPOS = new Set(["imagem", "sticker", "audio", "voice", "video", "arquivo", "ptt", "documento"])
+
+function isMediaTipo(tipo) {
+  return MEDIA_TIPOS.has(String(tipo || "").toLowerCase().trim())
+}
+
+function hasRenderableUrl(m) {
+  if (!m) return false
+  const u = m.url || m.url_absoluta
+  return u != null && String(u).trim() !== ""
+}
+
+/**
+ * Se a API devolver mensagem de mídia sem URL (link expirado, campo omitido, etc.),
+ * mantém url/nome do que já estava no cliente — evita “sumir” foto/áudio após refresh ou merge.
+ */
+function preserveLocalMediaFields(prev, merged) {
+  if (!merged) return merged
+  if (!prev) return merged
+  const tipo = String(merged.tipo || prev.tipo || "").toLowerCase().trim()
+  if (!isMediaTipo(tipo)) return merged
+  if (hasRenderableUrl(merged)) return merged
+  if (!hasRenderableUrl(prev)) return merged
+  const next = { ...merged }
+  if (!next.tipo || String(next.tipo).trim() === "") next.tipo = prev.tipo
+  next.url = prev.url
+  next.url_absoluta = prev.url_absoluta
+  if (prev.nome_arquivo) next.nome_arquivo = prev.nome_arquivo
+  if (prev.thumbnail_url) next.thumbnail_url = prev.thumbnail_url
+  return next
+}
+
 /** Evita que `criado_em` do servidor (às vezes mais antigo que o relógio local) empurre a bolha para cima na ordenação. */
 function pickLaterCriadoEmIso(existing, incoming) {
   const te = toMillis(existing?.criado_em)
@@ -238,7 +270,7 @@ function applyAnexarOneToList(list, convId, msg) {
   const existingIdx = findExisting()
   if (existingIdx >= 0) {
     const existing = list[existingIdx]
-    const merged = { ...existing, ...msg }
+    const merged = preserveLocalMediaFields(existing, { ...existing, ...msg })
     if (convId) merged.conversa_id = convId
     if (msg.id && !existing.id) merged.id = msg.id
     if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
@@ -289,7 +321,7 @@ function applyAnexarOneToList(list, convId, msg) {
     }
     if (replaceIdx >= 0) {
       const existing = list[replaceIdx]
-      const merged = { ...existing, ...msg, conversa_id: convId }
+      const merged = preserveLocalMediaFields(existing, { ...existing, ...msg, conversa_id: convId })
       if (msg.id) merged.id = msg.id
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
       if (msg.status != null) merged.status = msg.status
@@ -315,7 +347,7 @@ function applyAnexarOneToList(list, convId, msg) {
       if (!Number.isFinite(ts) || nowC3 - ts > recentMsC3) break
       const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
       if (m.whatsapp_id && !m.id && textoMatch) {
-        const merged = { ...m, ...msg, conversa_id: convId }
+        const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
         if (isOutgoingLike(m) && isOutgoingLike(msg)) merged.criado_em = pickLaterCriadoEmIso(m, msg)
         const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
         const mVal = order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
@@ -348,7 +380,7 @@ function applyAnexarOneToList(list, convId, msg) {
   if (dupIdx >= 0) {
     const prevRow = list[dupIdx]
     if (canMergeDedupeEntries(prevRow, candNew)) {
-      let mergedNew = mergeMsgPreferringTombstone(prevRow, candNew)
+      let mergedNew = preserveLocalMediaFields(prevRow, mergeMsgPreferringTombstone(prevRow, candNew))
       if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
         mergedNew.criado_em = pickLaterCriadoEmIso(prevRow, candNew)
       }
@@ -550,7 +582,7 @@ export const useConversaStore = create((set, get) => {
           const k = mapDedupeKey(copy, normalizedId)
           const prev = byKey.get(k)
           const cand = prev ? { ...prev, ...copy } : copy
-          let merged = mergeMsgPreferringTombstone(prev, cand)
+          let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
           merged._stableInsertSeq = mergeStableSeq(prev || null, copy, idx + 1)
           byKey.set(k, merged)
         })
@@ -658,7 +690,7 @@ export const useConversaStore = create((set, get) => {
         return
       }
       const cand = prev ? { ...prev, ...copy } : copy
-      let merged = mergeMsgPreferringTombstone(prev, cand)
+      let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
       if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
         merged.criado_em = pickLaterCriadoEmIso(prev, copy)
       }
@@ -820,7 +852,7 @@ export const useConversaStore = create((set, get) => {
             return
           }
           const cand = prev ? { ...prev, ...copy } : copy
-          let merged = mergeMsgPreferringTombstone(prev, cand)
+          let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
           if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
             merged.criado_em = pickLaterCriadoEmIso(prev, copy)
           }
@@ -874,7 +906,7 @@ export const useConversaStore = create((set, get) => {
         const next = [...list]
         const mergedRec = normalizeMsgForStore({ ...realMsg, conversa_id: state.conversa?.id })
         const prevRow = list[idx]
-        const flat = { ...prevRow, ...mergedRec }
+        const flat = preserveLocalMediaFields(prevRow, { ...prevRow, ...mergedRec })
         if (isOutgoingLike(prevRow) && isOutgoingLike(mergedRec)) {
           flat.criado_em = pickLaterCriadoEmIso(prevRow, mergedRec)
         }
@@ -945,10 +977,10 @@ export const useConversaStore = create((set, get) => {
           if (partial.status != null) allow.status = partial.status
           if (partial.status_mensagem != null) allow.status_mensagem = partial.status_mensagem
           if (Object.keys(allow).length === 0) return
-          next[i] = { ...cur, ...allow }
+          next[i] = preserveLocalMediaFields(cur, { ...cur, ...allow })
           return
         }
-        next[i] = { ...cur, ...partial }
+        next[i] = preserveLocalMediaFields(cur, { ...cur, ...partial })
       })
       return { mensagens: next }
     })
@@ -973,19 +1005,15 @@ export const useConversaStore = create((set, get) => {
           ? "Você apagou esta mensagem para todos."
           : "Esta mensagem foi apagada para todos."
       const next = [...list]
+      /* Mantém tipo e URLs de mídia no painel (histórico interno); o texto informa revogação no WhatsApp. */
       next[idx] = stripTempIdWhenPersisted({
         ...prev,
         texto,
         conteudo: texto,
         apagada_para_todos: true,
-        tipo: "texto",
         reply_meta: null,
         mensagem_respondida_id: null,
         encaminhado: false,
-        url: null,
-        url_absoluta: null,
-        nome_arquivo: null,
-        thumbnail_url: null,
       })
       return { mensagens: next }
     })
