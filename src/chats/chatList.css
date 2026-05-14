@@ -102,6 +102,13 @@
   color: #e9edef !important;
 }
 
+[data-theme="dark"] .chat-list-row.is-active .chat-list-time-espera-min {
+  color: #ffd54f !important;
+  text-shadow:
+    0 0 12px rgba(255, 200, 72, 0.55),
+    0 0 2px rgba(0, 0, 0, 0.35);
+}
+
 [data-theme="dark"] .chat-list-search-input::placeholder {
   color: rgba(233, 237, 239, 0.6);
 }
@@ -1461,18 +1468,20 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-time-espera-min {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 800;
   line-height: 1;
-  color: var(--cl-text-muted);
+  color: #a56d00;
   letter-spacing: 0.02em;
   white-space: nowrap;
   flex-shrink: 0;
-  opacity: 0.92;
+  opacity: 1;
 }
 
 [data-theme="dark"] .chat-list-time-espera-min {
-  color: #94a3b8;
-  opacity: 0.96;
+  color: #ffd54f;
+  text-shadow:
+    0 0 12px rgba(255, 200, 72, 0.55),
+    0 0 2px rgba(0, 0, 0, 0.35);
 }
 
 .chat-ticks{
