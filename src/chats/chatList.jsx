@@ -292,7 +292,8 @@ const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso 
 
   return (
     <span className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`} title={`Desde ${d.toLocaleString("pt-BR")}`}>
-      Aguardando funcionário · {minLabel}
+      <span className="chat-list-espera-sub__primary">Aguardando funcionário</span>
+      <span className="chat-list-espera-sub__meta">· {minLabel}</span>
     </span>
   );
 });

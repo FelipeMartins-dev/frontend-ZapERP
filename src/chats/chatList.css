@@ -1203,9 +1203,10 @@ a { color: inherit; text-decoration: none; }
     0 12px 46px rgba(249, 115, 22, 0.18);
 }
 
-/* Em atendimento + última mensagem do cliente — camada animada (não cobre o conteúdo) */
+/* Em atendimento + última mensagem do cliente — camada animada (não cobre o conteúdo).
+   Evita overflow:hidden no cartão: cortava prévia/status quando o bloco ficava mais alto. */
 .chat-list-row--atendimento-tech {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chat-list-row--atendimento-tech .chat-list-avatar,
@@ -1448,6 +1449,26 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 1;
   min-width: 0;
   max-width: min(46%, 248px);
+  padding-left: 6px;
+  box-sizing: border-box;
+}
+
+/* Fila com tempo de espera: um pouco mais de ar entre título e coluna da direita */
+.chat-list-row:has(.chat-list-espera-sub) .chat-list-row-top {
+  gap: 8px;
+}
+
+.chat-list-row:has(.chat-list-espera-sub) {
+  align-items: flex-start;
+  padding-bottom: calc(var(--cl-space-3) + 3px);
+}
+
+.chat-list-row:has(.chat-list-espera-sub) .chat-list-avatar {
+  margin-top: 2px;
+}
+
+.chat-list-row:has(.chat-list-espera-sub) .chat-list-row-meta {
+  max-width: min(50%, 220px);
 }
 
 .chat-list-time {
@@ -1888,7 +1909,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
   width: 100%;
   max-width: 100%;
@@ -1896,18 +1917,34 @@ a { color: inherit; text-decoration: none; }
 
 /* Segunda linha: “Aguardando funcionário · N min” (só nessa fila) */
 .chat-list-espera-sub {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   width: 100%;
   max-width: 100%;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.28;
   letter-spacing: 0.01em;
   text-align: right;
   white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
+  -webkit-hyphens: none;
+  padding-top: 1px;
+}
+
+.chat-list-espera-sub__primary,
+.chat-list-espera-sub__meta {
+  display: block;
+  max-width: 100%;
+}
+
+.chat-list-espera-sub__meta {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.95;
 }
 
 .chat-list-espera-sub--t0 {
