@@ -153,54 +153,9 @@ function isConversaAguardandoFuncionario(c, pendentesIdSet) {
   return lastDir === "in" || hintNovaMsg;
 }
 
-/** `criado_em` da última mensagem exposta na lista (preview > mensagens[0] > último item). */
-function getListaUltimaMensagemCriadoEm(c) {
-  if (!c) return null;
-  const p = c?.ultima_mensagem_preview?.criado_em;
-  if (p) return String(p).trim() || null;
-  const m0 = c?.mensagens?.[0]?.criado_em;
-  if (m0) return String(m0).trim() || null;
-  const last = getLastMessage(c)?.criado_em;
-  return last ? String(last).trim() || null : null;
-}
-
-/**
- * Linha com minutos só em “Em atendimento” + aguardando funcionário (equipe deve responder).
- * “Aguardando cliente” volta só à etiqueta no StatusPill, sem minutos.
- * @returns {{ anchorIso: string } | null}
- */
-function getEsperaAtendimentoInfo(c, pendentesIdSet) {
-  if (!c || isGroupConversation(c)) return null;
-  if (c?.atendente_id == null) return null;
-  if (getStatusAtendimentoEffective(c) !== "em_atendimento") return null;
-  if (isConversaAguardandoCliente(c)) return null;
-
-  const agFunc = isConversaAguardandoFuncionario(c, pendentesIdSet);
-  if (!agFunc) return null;
-
-  const lastDir = getLastDirection(c);
-  const previewDir = normalizeDirection(c?.ultima_mensagem_preview?.direcao);
-  const lastMsgTs = getListaUltimaMensagemCriadoEm(c);
-  const ultimaAtiv = c?.ultima_atividade != null ? String(c.ultima_atividade).trim() : "";
-  const pendenteSupervisor = c?.id != null && pendentesIdSet?.has?.(String(c.id));
-
-  let anchorIso = "";
-  if ((lastDir === "in" || previewDir === "in") && lastMsgTs) anchorIso = lastMsgTs;
-  else if (pendenteSupervisor && ultimaAtiv) anchorIso = ultimaAtiv;
-  else anchorIso = ultimaAtiv || lastMsgTs || "";
-
-  if (!anchorIso) return null;
-  return { anchorIso };
-}
-
-function esperaAtendimentoInfoKey(c, pendentesIdSet) {
-  const info = getEsperaAtendimentoInfo(c, pendentesIdSet);
-  return info ? String(info.anchorIso) : "";
-}
-
 /**
  * Classe do balão: calmo = em atendimento sem urgência; alerta = cliente aguardando o funcionário
- * (mesma regra do destaque de fila — antes havia ponto na prévia).
+ * (inclui mesma regra da bolinha verde/laranja para o responsável — antes o class era calculado antes do dot).
  */
 function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow, currentUserId) {
   if (!c || semConversaRow || isGroupConversation(c)) return "";
@@ -264,38 +219,23 @@ let audioDurationInFlight = 0;
 const AUDIO_DURATION_CONCURRENCY = 4;
 const audioDurationQueue = [];
 
-/** Atualiza “Aguardando funcionário · N min” a cada minuto; só este subárvore re-renderiza no tick. */
-const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso }) {
-  const [, setTick] = useState(0);
-  const bump = useCallback(() => setTick((t) => t + 1), []);
+function UnreadBadge({ n }) {
+  const v = Number(n || 0);
+  if (!v) return null;
+  return <span className="chat-list-unread">{v > 99 ? "99+" : v}</span>;
+}
 
-  useEffect(() => {
-    bump();
-    const ms = 60000 - (Date.now() % 60000) + 25;
-    let intervalId;
-    const timeoutId = setTimeout(() => {
-      bump();
-      intervalId = setInterval(bump, 60000);
-    }, ms);
-    return () => {
-      clearTimeout(timeoutId);
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [anchorIso, bump]);
-
-  const d = parseToDate(anchorIso);
-  if (!d) return null;
-  const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
-  const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
-  const minLabel = mins < 1 ? "menos de 1 min" : `${mins} min`;
-  const bucket = mins <= 10 ? "t0" : mins <= 30 ? "t1" : mins <= 60 ? "t2" : "t3";
-
+function AtendimentoUnreadDot({ show }) {
+  if (!show) return null;
   return (
-    <span className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`} title={`Desde ${d.toLocaleString("pt-BR")}`}>
-      Aguardando funcionário · {minLabel}
-    </span>
+    <span
+      className="chat-list-atendimento-dot"
+      title="Cliente aguardando sua resposta"
+      aria-label="Cliente aguardando sua resposta"
+      role="status"
+    />
   );
-});
+}
 
 function parseToDate(ts) {
   if (!ts) return null;
@@ -998,7 +938,7 @@ function Chip({ active, onClick, children, variant = "default", className = "" }
   );
 }
 
-function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, esperaLinhaAtiva = false }) {
+function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) {
   const s = String(status || "").toLowerCase().trim().replace(/\s+/g, "_");
   const map = {
     em_atendimento: { label: "Em atendimento", cls: "chat-list-status in" },
@@ -1055,7 +995,7 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             Aguardando cliente
           </span>
         ) : null}
-        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico && !esperaLinhaAtiva ? (
+        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico ? (
           <span
             className="chat-list-status-note"
             title="Última mensagem do cliente — equipe deve responder"
@@ -1109,10 +1049,6 @@ function ChatRow({
     currentUserId
   );
   const atendimentoTechClass = isEmAtendimentoUltimaDoCliente(chat) ? "chat-list-row--atendimento-tech" : "";
-  const esperaInfo = useMemo(
-    () => getEsperaAtendimentoInfo(chat, pendentesFuncionarioSet),
-    [chat, pendentesFuncionarioSet]
-  );
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
@@ -1161,6 +1097,22 @@ function ChatRow({
   const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec });
   const previewNode = semConversa ? <span className="chat-list-previewText">Sem mensagens</span> : <PreviewLine chat={chat} audioDurationSec={audioSec} />;
   const unread = Number(chat?.unread_count ?? chat?.unread ?? 0);
+  const isResponsavel =
+    !isGroup &&
+    currentUserId != null &&
+    chat?.atendente_id != null &&
+    String(chat.atendente_id) === String(currentUserId);
+  const stAt = getStatusAtendimentoEffective(chat);
+  const isHumanAtendimentoRow =
+    stAt === "em_atendimento" || stAt === "aguardando_cliente";
+  const lastDir = getLastDirection(chat);
+  const hintNovaMsg =
+    !lastDir &&
+    (Boolean(chat?.tem_novas_mensagens_em_atendimento) || unread > 0);
+  const showAtendimentoDot =
+    isResponsavel &&
+    isHumanAtendimentoRow &&
+    (lastDir === "in" || hintNovaMsg);
   const rp = rowPrefs(chat);
   const showMutedIndicator = !isGroup && rp.silenciado;
   const showPinnedIndicator = !isGroup && rp.fixada;
@@ -1262,16 +1214,12 @@ function ChatRow({
             {semConversa ? (
               <span className="chat-list-badge-sem-conversa" title="Clique para iniciar conversa">Sem conversa</span>
             ) : (
-              <div className="chat-list-statusCol">
-                <StatusPill
-                  status={getStatusAtendimentoEffective(chat)}
-                  exibirBadgeAberta={chat?.exibir_badge_aberta}
-                  chat={chat}
-                  aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
-                  esperaLinhaAtiva={Boolean(esperaInfo)}
-                />
-                {esperaInfo ? <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} /> : null}
-              </div>
+              <StatusPill
+                status={getStatusAtendimentoEffective(chat)}
+                exibirBadgeAberta={chat?.exibir_badge_aberta}
+                chat={chat}
+                aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
+              />
             )}
           </div>
         </div>
@@ -1281,8 +1229,10 @@ function ChatRow({
               <div className="chat-list-preview" title={previewTitle}>
                 {previewNode}
               </div>
+              <AtendimentoUnreadDot show={showAtendimentoDot} />
             </div>
           </div>
+          <UnreadBadge n={unread} />
         </div>
       </div>
       {!semConversa ? (
@@ -1335,7 +1285,6 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     semA === semB &&
     setA === setB &&
     isConversaAguardandoFuncionario(a, setA) === isConversaAguardandoFuncionario(b, setB) &&
-    esperaAtendimentoInfoKey(a, setA) === esperaAtendimentoInfoKey(b, setB) &&
     atendimentoRowVisualClass(a, setA, semA, useAuthStore.getState().user?.id) ===
       atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id) &&
     isEmAtendimentoUltimaDoCliente(a) === isEmAtendimentoUltimaDoCliente(b)
