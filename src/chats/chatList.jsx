@@ -1709,6 +1709,11 @@ export default function ChatList() {
 
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
 
+      /** Lista estrita: só o que a API devolveu — o merge com `prev` não pode reintroduzir conversas de outras abas. */
+      const strictMensagemDisparadaQuery =
+        separarMensagensDisparadasLigado &&
+        String(params.status_atendimento || "").toLowerCase() === "mensagem_disparada";
+
       const data = await fetchChats(params);
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
@@ -1772,6 +1777,8 @@ export default function ChatList() {
         if (aguardandoQuery) return merged;
         // Com filtro de tempo parado, a API já define o subconjunto; não misturar itens locais fora do critério.
         if (tempoParadoFilter) return merged;
+        // "Mensagens disparadas" (chip ou status avançado): alinhar lista ao contador — sem centenas da aba anterior.
+        if (strictMensagemDisparadaQuery) return merged;
         if (extra.length === 0) return merged;
         const getTs = (x) => x?.ultima_mensagem?.criado_em || x?.ultima_atividade || x?.criado_em || 0;
         const combined = [...merged, ...extra];
