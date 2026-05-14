@@ -1168,6 +1168,12 @@ async function copyTextToClipboard(text) {
   }
 }
 
+/** Mídia cujo apagamento o usuário costuma querer evitar por engano (foto, vídeo, áudio, arquivo…). */
+function isRichMediaMessage(msg) {
+  const tipo = safeString(msg?.tipo).toLowerCase();
+  return ["imagem", "video", "sticker", "audio", "voice", "arquivo"].includes(tipo);
+}
+
 function snippetFromMsg(msg) {
   const contactResolved = resolveContactMetaFromMessage(msg);
   if (contactResolved?.nome) return contactResolved.nome;
@@ -1371,7 +1377,7 @@ let __waCurrentAudio = null;
 
 const WA_AUDIO_SPEEDS = [1, 1.5, 2];
 
-function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
+function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sentAtLabel }) {
   const audioRef = useRef(null);
   const waveMeasureRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -1388,15 +1394,26 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
       setWaveBarCount(34);
       return;
     }
+    let rafId = 0;
     const update = () => {
       const w = el.getBoundingClientRect?.().width || el.offsetWidth || 200;
       const n = clamp(Math.floor(w / 4), 18, 56);
       setWaveBarCount((prev) => (prev === n ? prev : n));
     };
-    update();
-    const ro = new ResizeObserver(() => update());
+    const schedule = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        update();
+      });
+    };
+    schedule();
+    const ro = new ResizeObserver(() => schedule());
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [src]);
 
   const bars = useMemo(() => makeWaveBars(waveBarCount, seedFromAny(msgKey)), [msgKey, waveBarCount]);
@@ -1431,7 +1448,7 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
         /* ignore */
       }
     };
-    const onTime = () => setCur(Number(el.currentTime || 0));
+    const onSeeked = () => setCur(Number(el.currentTime || 0));
     const onEnded = () => {
       setPlaying(false);
       setCur(0);
@@ -1447,13 +1464,13 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
     const onPause = () => setPlaying(false);
 
     el.addEventListener("loadedmetadata", onLoaded);
-    el.addEventListener("timeupdate", onTime);
+    el.addEventListener("seeked", onSeeked);
     el.addEventListener("ended", onEnded);
     el.addEventListener("play", onPlay);
     el.addEventListener("pause", onPause);
     return () => {
       el.removeEventListener("loadedmetadata", onLoaded);
-      el.removeEventListener("timeupdate", onTime);
+      el.removeEventListener("seeked", onSeeked);
       el.removeEventListener("ended", onEnded);
       el.removeEventListener("play", onPlay);
       el.removeEventListener("pause", onPause);
@@ -1512,7 +1529,10 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
     const x = e.clientX - rect.left;
     const frac = rect.width > 0 ? clamp(x / rect.width, 0, 1) : 0;
     const target = (dur || el.duration || 0) * frac;
-    if (Number.isFinite(target)) el.currentTime = target;
+    if (Number.isFinite(target)) {
+      el.currentTime = target;
+      setCur(target);
+    }
   }, [dur]);
 
   const frac = dur > 0 ? clamp(cur / dur, 0, 1) : 0;
@@ -1596,6 +1616,11 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration }) {
           <span className="wa-audioTime wa-audioTime--cur" title={formatMmSs(cur)}>
             {formatMmSs(cur)}
           </span>
+          {sentAtLabel ? (
+            <span className="wa-audioSentAt" title={`Enviado às ${sentAtLabel}`}>
+              {sentAtLabel}
+            </span>
+          ) : null}
         </div>
       </div>
       {avatarUrl ? (
@@ -1720,11 +1745,11 @@ const Bubble = memo(function Bubble({
   /* Imagem/vídeo/figurinha com legenda: meta (hora/ticks) no rodapé do balão — hasInlineMeta reserva padding à direita sem uso e estoura o layout. */
   const inlineMeta = !showCaption || (!isImg && !isVideo && !isSticker);
   /* Só mensagens de texto usam classe hasInlineMeta (evita CSS esconder .wa-bubble-metaLeft em foto sem legenda). */
-  const hasInlineMetaClass = inlineMeta && !isImg && !isVideo && !isSticker;
-  /* Hora + ticks no canto / rodapé da mídia ou quando não há meta na linha do texto (comportamento original + foto sem legenda). */
+  const hasInlineMetaClass = inlineMeta && !isImg && !isVideo && !isSticker && !isAudioOrVoice;
+  /* Hora + ticks: rodapé/canto quando não há meta na linha do texto; áudio/voz nunca têm meta inline no corpo. */
   const showFloatingMetaTime =
-    !isAudio &&
-    (!inlineMeta || ((isImg || isSticker || isVideo) && !showCaption));
+    (!inlineMeta || ((isImg || isSticker || isVideo) && !showCaption)) ||
+    (isAudioOrVoice && !!mediaUrl);
   const replyMeta = !isApagadaParaTodos ? msg?.reply_meta || null : null;
   const hasReply = !!(replyMeta && (replyMeta.name || replyMeta.snippet || replyMeta.thumb));
 
@@ -2228,6 +2253,7 @@ const Bubble = memo(function Bubble({
                   msgKey={msg?.whatsapp_id || msg?.id || mediaUrl}
                   avatarUrl={!out ? peerAvatarUrl : null}
                   avatarLabel={!out ? peerName : null}
+                  sentAtLabel={formatHora(msg?.criado_em)}
                   onDuration={(d) => {
                     setAudioDur(d);
                     if (msg?.id) {
@@ -2304,7 +2330,9 @@ const Bubble = memo(function Bubble({
           <div className="wa-bubble-metaLeft">
             {showFloatingMetaTime ? (
               <>
-                <span className="wa-bubble-time">{formatHora(msg?.criado_em)}</span>
+                {!(isAudioOrVoice && mediaUrl) ? (
+                  <span className="wa-bubble-time">{formatHora(msg?.criado_em)}</span>
+                ) : null}
                 <MessageTicks msg={msg} isGroup={Boolean(isGroup)} />
               </>
             ) : null}
@@ -4563,7 +4591,7 @@ export default function ConversaView() {
         await handleEnviarArquivo(file);
       };
 
-      recorder.start();
+      recorder.start(400);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
     } catch (err) {
@@ -5154,6 +5182,19 @@ export default function ConversaView() {
   const handleDeleteForMe = useCallback(
     async (msg) => {
       if (!conversaId || !msg?.id) return;
+      const preview = snippetFromMsg(msg).slice(0, 120);
+      const isMedia = isRichMediaMessage(msg);
+      const ok = window.confirm(
+        isMedia
+          ? `Ocultar esta mídia só para você?\n\n` +
+              `• Ela continua no histórico para os outros atendentes.\n` +
+              `• Não apaga o arquivo no servidor nem no WhatsApp.\n\n` +
+              `Prévia: "${preview || "(mídia)"}"`
+          : `Ocultar esta mensagem só para você?\n\n` +
+              `Os outros da conversa continuam vendo.\n\n` +
+              `Prévia: "${preview || "(sem texto)"}"`
+      );
+      if (!ok) return;
       try {
         await excluirMensagem(conversaId, msg.id, { scope: "me" });
         removerMensagem(msg.id);
@@ -5189,8 +5230,15 @@ export default function ConversaView() {
       }
       const pk = String(mid);
       const preview = snippetFromMsg(msg).slice(0, 120);
+      const isMedia = isRichMediaMessage(msg);
       const ok = window.confirm(
-        `Apagar para todos esta mensagem?\n\n"${preview || "(sem texto)"}"\n\nSomente esta mensagem (id ${pk}) será substituída por um aviso.`
+        isMedia
+          ? `Apagar para todos esta mídia?\n\n` +
+              `• Só é permitido para mensagens que você enviou.\n` +
+              `• A conversa passará a mostrar um aviso no lugar da mídia.\n` +
+              `• A remoção no WhatsApp depende do provedor (UltraMsg).\n\n` +
+              `Prévia: "${preview || "(mídia)"}"\n(id ${pk})`
+          : `Apagar para todos esta mensagem?\n\n"${preview || "(sem texto)"}"\n\nSomente esta mensagem (id ${pk}) será substituída por um aviso.`
       );
       if (!ok) return;
       try {

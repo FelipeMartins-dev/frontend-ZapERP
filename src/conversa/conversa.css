@@ -3494,6 +3494,18 @@
   white-space: nowrap;
 }
 .wa-audioTime--cur{ opacity: .75; }
+.wa-audioSentAt {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 500;
+  opacity: 0.62;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+[data-theme="dark"] .wa-audioSentAt {
+  opacity: 0.58;
+  color: rgba(233, 237, 239, 0.78);
+}
 .wa-audioTime--dur{
   opacity: .95;
   font-weight: 600;
