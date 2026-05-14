@@ -2961,3 +2961,8 @@
   background: rgba(245, 158, 11, 0.06);
   border-left: 3px solid #f59e0b;
 }
+
+/* Seção 8 — alerta administrativo (discreto, mesmo grid) */
+.chatbot-card--admin-resumo {
+  border-color: rgba(59, 130, 246, 0.22);
+}
