@@ -165,24 +165,18 @@ function getListaUltimaMensagemCriadoEm(c) {
 }
 
 /**
- * Linha “Aguardando … · N min” só quando o selo principal é “Em atendimento” (não confundir com aguardando_cliente manual).
- * @returns {{ tipo: 'funcionario' | 'cliente', anchorIso: string } | null}
+ * Linha com minutos só em “Em atendimento” + aguardando funcionário (equipe deve responder).
+ * “Aguardando cliente” volta só à etiqueta no StatusPill, sem minutos.
+ * @returns {{ anchorIso: string } | null}
  */
 function getEsperaAtendimentoInfo(c, pendentesIdSet) {
   if (!c || isGroupConversation(c)) return null;
   if (c?.atendente_id == null) return null;
   if (getStatusAtendimentoEffective(c) !== "em_atendimento") return null;
+  if (isConversaAguardandoCliente(c)) return null;
 
-  const agCliente = isConversaAguardandoCliente(c);
   const agFunc = isConversaAguardandoFuncionario(c, pendentesIdSet);
-  if (!agCliente && !agFunc) return null;
-
-  if (agCliente) {
-    if (isAguardandoClienteManual(c)) return null;
-    const desde = c?.aguardando_cliente_desde;
-    if (!desde) return null;
-    return { tipo: "cliente", anchorIso: String(desde).trim() };
-  }
+  if (!agFunc) return null;
 
   const lastDir = getLastDirection(c);
   const previewDir = normalizeDirection(c?.ultima_mensagem_preview?.direcao);
@@ -196,13 +190,12 @@ function getEsperaAtendimentoInfo(c, pendentesIdSet) {
   else anchorIso = ultimaAtiv || lastMsgTs || "";
 
   if (!anchorIso) return null;
-  return { tipo: "funcionario", anchorIso };
+  return { anchorIso };
 }
 
 function esperaAtendimentoInfoKey(c, pendentesIdSet) {
   const info = getEsperaAtendimentoInfo(c, pendentesIdSet);
-  if (!info) return "";
-  return `${info.tipo}\t${info.anchorIso}`;
+  return info ? String(info.anchorIso) : "";
 }
 
 /**
@@ -271,14 +264,8 @@ let audioDurationInFlight = 0;
 const AUDIO_DURATION_CONCURRENCY = 4;
 const audioDurationQueue = [];
 
-function UnreadBadge({ n }) {
-  const v = Number(n || 0);
-  if (!v) return null;
-  return <span className="chat-list-unread">{v > 99 ? "99+" : v}</span>;
-}
-
-/** Atualiza o texto “N min” a cada minuto; só este subárvore re-renderiza no tick. */
-const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso, tipo }) {
+/** Atualiza “Aguardando funcionário · N min” a cada minuto; só este subárvore re-renderiza no tick. */
+const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso }) {
   const [, setTick] = useState(0);
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -301,12 +288,11 @@ const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso,
   const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
   const minLabel = mins < 1 ? "menos de 1 min" : `${mins} min`;
-  const prefix = tipo === "cliente" ? "Aguardando cliente" : "Aguardando funcionário";
   const bucket = mins <= 10 ? "t0" : mins <= 30 ? "t1" : mins <= 60 ? "t2" : "t3";
 
   return (
     <span className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`} title={`Desde ${d.toLocaleString("pt-BR")}`}>
-      {prefix} · {minLabel}
+      Aguardando funcionário · {minLabel}
     </span>
   );
 });
@@ -1061,7 +1047,7 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             Reaberto pelo cliente
           </span>
         ) : null}
-        {aguardandoClienteAutomatico && !esperaLinhaAtiva ? (
+        {aguardandoClienteAutomatico ? (
           <span
             className="chat-list-badge-await chat-list-badge-await--subtle"
             title="Aguardando resposta do cliente (detecção automática — em atendimento)"
@@ -1284,9 +1270,7 @@ function ChatRow({
                   aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
                   esperaLinhaAtiva={Boolean(esperaInfo)}
                 />
-                {esperaInfo ? (
-                  <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} tipo={esperaInfo.tipo} />
-                ) : null}
+                {esperaInfo ? <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} /> : null}
               </div>
             )}
           </div>
@@ -1299,7 +1283,6 @@ function ChatRow({
               </div>
             </div>
           </div>
-          <UnreadBadge n={unread} />
         </div>
       </div>
       {!semConversa ? (
