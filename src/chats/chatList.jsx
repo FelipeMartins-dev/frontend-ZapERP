@@ -289,31 +289,17 @@ const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso 
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
   const minLabel = mins < 1 ? "menos de 1 min" : `${mins} min`;
   const bucket = mins <= 10 ? "t0" : mins <= 30 ? "t1" : mins <= 60 ? "t2" : "t3";
+  const linha = `Aguardando funcionário · ${minLabel}`;
 
   return (
-    <span className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`} title={`Desde ${d.toLocaleString("pt-BR")}`}>
-      Aguardando funcionário · {minLabel}
+    <span
+      className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`}
+      title={`${linha} — desde ${d.toLocaleString("pt-BR")}`}
+    >
+      {linha}
     </span>
   );
 });
-
-function UnreadBadge({ n }) {
-  const v = Number(n || 0);
-  if (!v) return null;
-  return <span className="chat-list-unread">{v > 99 ? "99+" : v}</span>;
-}
-
-function AtendimentoUnreadDot({ show }) {
-  if (!show) return null;
-  return (
-    <span
-      className="chat-list-atendimento-dot"
-      title="Cliente aguardando sua resposta"
-      aria-label="Cliente aguardando sua resposta"
-      role="status"
-    />
-  );
-}
 
 function parseToDate(ts) {
   if (!ts) return null;
@@ -1179,22 +1165,6 @@ function ChatRow({
   const previewTitle = semConversa ? "Sem mensagens" : getPreview(chat, { audioDurationSec: audioSec });
   const previewNode = semConversa ? <span className="chat-list-previewText">Sem mensagens</span> : <PreviewLine chat={chat} audioDurationSec={audioSec} />;
   const unread = Number(chat?.unread_count ?? chat?.unread ?? 0);
-  const isResponsavel =
-    !isGroup &&
-    currentUserId != null &&
-    chat?.atendente_id != null &&
-    String(chat.atendente_id) === String(currentUserId);
-  const stAt = getStatusAtendimentoEffective(chat);
-  const isHumanAtendimentoRow =
-    stAt === "em_atendimento" || stAt === "aguardando_cliente";
-  const lastDir = getLastDirection(chat);
-  const hintNovaMsg =
-    !lastDir &&
-    (Boolean(chat?.tem_novas_mensagens_em_atendimento) || unread > 0);
-  const showAtendimentoDot =
-    isResponsavel &&
-    isHumanAtendimentoRow &&
-    (lastDir === "in" || hintNovaMsg);
   const rp = rowPrefs(chat);
   const showMutedIndicator = !isGroup && rp.silenciado;
   const showPinnedIndicator = !isGroup && rp.fixada;
@@ -1246,7 +1216,11 @@ function ChatRow({
       aria-disabled={opening ? "true" : "false"}
       data-chat-id={id ?? undefined}
       data-cliente-id={clienteId ?? undefined}
-      aria-label={`Conversa com ${displayName}`}
+      aria-label={
+        unread > 0
+          ? `Conversa com ${displayName}, ${unread > 99 ? "mais de 99" : unread} mensagens não lidas`
+          : `Conversa com ${displayName}`
+      }
     >
       <div className="chat-list-avatar" style={{ background: showAvatarImg ? "transparent" : color }} aria-hidden="true">
         {showAvatarImg ? (
@@ -1315,10 +1289,8 @@ function ChatRow({
               <div className="chat-list-preview" title={previewTitle}>
                 {previewNode}
               </div>
-              <AtendimentoUnreadDot show={showAtendimentoDot} />
             </div>
           </div>
-          <UnreadBadge n={unread} />
         </div>
       </div>
       {!semConversa ? (

@@ -1006,6 +1006,8 @@ a { color: inherit; text-decoration: none; }
   min-height: 68px;
   align-items: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .chat-row-action-trigger {
@@ -1378,7 +1380,7 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-title-line {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--cl-space-2);
   min-width: 0;
 }
@@ -1399,10 +1401,11 @@ a { color: inherit; text-decoration: none; }
   font-size: var(--cl-font-size-md);
   font-weight: 600;
   color: var(--cl-text);
-  white-space: normal;
-  overflow: visible;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
   min-width: 0;
   line-height: 1.28;
 }
@@ -1878,9 +1881,11 @@ a { color: inherit; text-decoration: none; }
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px 6px;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chat-list-statusCol {
@@ -1893,20 +1898,22 @@ a { color: inherit; text-decoration: none; }
   max-width: 100%;
 }
 
-/* Segunda linha: “Aguardando funcionário · N min” (só nessa fila) */
+/* Segunda linha: “Aguardando funcionário · N min” (só nessa fila) — uma linha, sem partir palavra */
 .chat-list-espera-sub {
   display: block;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: 0.01em;
   text-align: right;
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .chat-list-espera-sub--t0 {
