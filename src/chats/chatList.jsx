@@ -288,15 +288,22 @@ const EsperaAtendimentoLinha = memo(function EsperaAtendimentoLinha({ anchorIso 
   const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
   const minLabel = mins < 1 ? "menos de 1 min" : `${mins} min`;
-  const bucket = mins <= 10 ? "t0" : mins <= 30 ? "t1" : mins <= 60 ? "t2" : "t3";
+  /* Neutro <10 · amarelo 10–29 · laranja 30–60 · vermelho >60 */
+  const bucket = mins < 10 ? "t0" : mins < 30 ? "t1" : mins <= 60 ? "t2" : "t3";
   const linha = `Aguardando funcionário · ${minLabel}`;
 
   return (
     <span
-      className={`chat-list-espera-sub chat-list-espera-sub--${bucket}`}
+      className={`chat-list-espera-wrap chat-list-espera-wrap--${bucket}`}
       title={`${linha} — desde ${d.toLocaleString("pt-BR")}`}
     >
-      {linha}
+      <span className="chat-list-espera-inner">
+        <span className="chat-list-espera-label">Aguardando funcionário</span>
+        <span className="chat-list-espera-sep" aria-hidden>
+          {" · "}
+        </span>
+        <span className="chat-list-espera-time">{minLabel}</span>
+      </span>
     </span>
   );
 });
@@ -1304,14 +1311,16 @@ function ChatRow({
               <span className="chat-list-badge-sem-conversa" title="Clique para iniciar conversa">Sem conversa</span>
             ) : (
               <div className="chat-list-statusCol">
-                <StatusPill
-                  status={getStatusAtendimentoEffective(chat)}
-                  exibirBadgeAberta={chat?.exibir_badge_aberta}
-                  chat={chat}
-                  aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
-                  esperaLinhaAtiva={Boolean(esperaInfo)}
-                />
-                {esperaInfo ? <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} /> : null}
+                <div className="chat-list-statusStack">
+                  <StatusPill
+                    status={getStatusAtendimentoEffective(chat)}
+                    exibirBadgeAberta={chat?.exibir_badge_aberta}
+                    chat={chat}
+                    aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
+                    esperaLinhaAtiva={Boolean(esperaInfo)}
+                  />
+                  {esperaInfo ? <EsperaAtendimentoLinha anchorIso={esperaInfo.anchorIso} /> : null}
+                </div>
               </div>
             )}
           </div>
