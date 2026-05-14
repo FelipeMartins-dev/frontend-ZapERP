@@ -799,13 +799,18 @@ body:has(.login-wrap) {
   padding: 20px;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden;
+  /* overflow-y: auto: teclado virtual pode rolar a página e manter o campo visível (iOS/Android) */
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .login-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
+  /* Camada full-bleed não deve roubar toques do formulário (alguns WebKit com grid + absolute) */
+  pointer-events: none;
   background:
     linear-gradient(135deg, #05070a 0%, #0a0e17 25%, #0d1220 50%, #0a0e17 75%, #05070a 100%);
 }
@@ -974,6 +979,8 @@ body:has(.login-wrap) {
 .login-form {
   position: relative;
   z-index: 10;
+  pointer-events: auto;
+  isolation: isolate;
   width: 100%;
   max-width: 400px;
   padding: 36px;
@@ -1086,10 +1093,14 @@ body:has(.login-wrap) {
   padding: 12px 14px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 10px;
-  font-size: 15px;
+  /* ≥16px evita zoom automático no iOS ao focar e melhora abertura consistente do teclado */
+  font-size: 16px;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.9);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .login-form input:focus {

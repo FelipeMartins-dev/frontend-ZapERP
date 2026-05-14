@@ -58,8 +58,14 @@ export default function Login() {
         <label htmlFor="login-email">E-mail</label>
         <input
           id="login-email"
+          name="email"
           type="email"
+          inputMode="email"
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="next"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="seu@email.com"
@@ -71,8 +77,10 @@ export default function Login() {
         <label htmlFor="login-senha">Senha</label>
         <input
           id="login-senha"
+          name="password"
           type="password"
           autoComplete="current-password"
+          enterKeyHint="done"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
           placeholder="••••••••"
