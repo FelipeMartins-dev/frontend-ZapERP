@@ -237,6 +237,38 @@ function AtendimentoUnreadDot({ show }) {
   );
 }
 
+/** Só os minutos ao lado do relógio; atualiza a cada minuto. */
+const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso }) {
+  const [, setTick] = useState(0);
+  const bump = useCallback(() => setTick((t) => t + 1), []);
+
+  useEffect(() => {
+    bump();
+    const ms = 60000 - (Date.now() % 60000) + 25;
+    let intervalId;
+    const timeoutId = setTimeout(() => {
+      bump();
+      intervalId = setInterval(bump, 60000);
+    }, ms);
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [anchorIso, bump]);
+
+  const d = parseToDate(anchorIso);
+  if (!d) return null;
+  const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
+  const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
+  const label = mins < 1 ? "<1m" : `${mins}m`;
+
+  return (
+    <span className="chat-list-time-espera-min" title={`${mins} min — desde ${d.toLocaleString("pt-BR")}`}>
+      {label}
+    </span>
+  );
+});
+
 function parseToDate(ts) {
   if (!ts) return null;
   if (ts instanceof Date) return ts;
@@ -313,6 +345,46 @@ function getLastDirection(chat) {
   const dirFallback = normalizeDirection(getLastMessage(chat)?.direcao);
   if (dirFallback) return dirFallback;
   return "";
+}
+
+/** Timestamp da última mensagem visível na lista (preview > mensagens[0] > última). */
+function getListaUltimaMensagemCriadoEm(c) {
+  if (!c) return null;
+  const p = c?.ultima_mensagem_preview?.criado_em;
+  if (p) return String(p).trim() || null;
+  const m0 = c?.mensagens?.[0]?.criado_em;
+  if (m0) return String(m0).trim() || null;
+  const last = getLastMessage(c)?.criado_em;
+  return last ? String(last).trim() || null : null;
+}
+
+/**
+ * Só quando está em atendimento, fila “aguardando funcionário” e há âncora temporal.
+ * @returns {string} ISO-like anchor ou "" se não mostrar minutos
+ */
+function getEsperaMinutosAnchorIso(c, pendentesIdSet) {
+  if (!c || isGroupConversation(c)) return "";
+  if (c?.atendente_id == null) return "";
+  if (getStatusAtendimentoEffective(c) !== "em_atendimento") return "";
+  if (isConversaAguardandoCliente(c)) return "";
+  if (!isConversaAguardandoFuncionario(c, pendentesIdSet)) return "";
+
+  const lastDir = getLastDirection(c);
+  const previewDir = normalizeDirection(c?.ultima_mensagem_preview?.direcao);
+  const lastMsgTs = getListaUltimaMensagemCriadoEm(c);
+  const ultimaAtiv = c?.ultima_atividade != null ? String(c.ultima_atividade).trim() : "";
+  const pendenteSupervisor = c?.id != null && pendentesIdSet?.has?.(String(c.id));
+
+  let anchorIso = "";
+  if ((lastDir === "in" || previewDir === "in") && lastMsgTs) anchorIso = lastMsgTs;
+  else if (pendenteSupervisor && ultimaAtiv) anchorIso = ultimaAtiv;
+  else anchorIso = ultimaAtiv || lastMsgTs || "";
+
+  return anchorIso ? String(anchorIso).trim() : "";
+}
+
+function esperaMinutosAnchorKey(c, pendentesIdSet) {
+  return getEsperaMinutosAnchorIso(c, pendentesIdSet);
 }
 
 function getMediaUrl(url, urlAbsoluta) {
@@ -1049,6 +1121,10 @@ function ChatRow({
     currentUserId
   );
   const atendimentoTechClass = isEmAtendimentoUltimaDoCliente(chat) ? "chat-list-row--atendimento-tech" : "";
+  const esperaMinutosAnchor = useMemo(
+    () => getEsperaMinutosAnchorIso(chat, pendentesFuncionarioSet),
+    [chat, pendentesFuncionarioSet]
+  );
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
@@ -1210,7 +1286,12 @@ function ChatRow({
             ) : null}
           </div>
           <div className="chat-list-row-meta">
-            <div className="chat-list-time">{opening ? "Abrindo…" : hora || (semConversa ? "" : "")}</div>
+            <div className="chat-list-time">
+              {opening ? "Abrindo…" : hora || (semConversa ? "" : "")}
+              {!opening && !semConversa && esperaMinutosAnchor ? (
+                <EsperaMinutosInline anchorIso={esperaMinutosAnchor} />
+              ) : null}
+            </div>
             {semConversa ? (
               <span className="chat-list-badge-sem-conversa" title="Clique para iniciar conversa">Sem conversa</span>
             ) : (
@@ -1285,6 +1366,7 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     semA === semB &&
     setA === setB &&
     isConversaAguardandoFuncionario(a, setA) === isConversaAguardandoFuncionario(b, setB) &&
+    esperaMinutosAnchorKey(a, setA) === esperaMinutosAnchorKey(b, setB) &&
     atendimentoRowVisualClass(a, setA, semA, useAuthStore.getState().user?.id) ===
       atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id) &&
     isEmAtendimentoUltimaDoCliente(a) === isEmAtendimentoUltimaDoCliente(b)
