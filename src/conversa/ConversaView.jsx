@@ -2617,7 +2617,10 @@ function useAutoScroll({
     if (mensagensCount > 0) anchorLatestUntilMsgsRef.current = false;
 
     shouldStickToBottomRef.current = true;
-    const snap = () => snapThreadToBottom(container, virtualListRef);
+    const snap = () => {
+      if (!shouldStickToBottomRef.current) return;
+      snapThreadToBottom(container, virtualListRef);
+    };
     snap();
     let n = 0;
     const chain = () => {
@@ -2640,6 +2643,7 @@ function useAutoScroll({
       const c = messagesContainerRef?.current;
       stickAttempts += 1;
       if (!c || stickAttempts > 48) return;
+      if (!shouldStickToBottomRef.current) return;
       if (!isNearBottom(c, 200)) {
         snap();
         rafStick = requestAnimationFrame(tryStickOpen);
@@ -3579,10 +3583,11 @@ export default function ConversaView() {
     return `${diffD} dia(s)`;
   }, [mensagens]);
 
-  /** Só reancora ao fundo se o viewport já estiver lá — ResizeObserver pode disparar durante scroll pra cima com ref defasada. */
+  /** Só reancora ao fundo se o utilizador ainda está colado ao fim (evita “puxar” ao meio ao ler histórico). */
   const snapIfStickBottom = useCallback(() => {
     const c = messagesContainerRef.current;
     if (!c || loadingMore) return;
+    if (!shouldStickToBottomRef.current) return;
     if (!isNearBottom(c, 160)) return;
     shouldStickToBottomRef.current = true;
     snapThreadToBottom(c, virtualThreadRef);
@@ -6763,6 +6768,7 @@ export default function ConversaView() {
                       onClick={handleLoadOlderMessagesClick}
                       disabled={loadingMore}
                       aria-busy={loadingMore}
+                      title="Carrega o lote anterior de mensagens. Também pode rolar até ao topo da conversa."
                       aria-label={
                         loadingMore ? "Carregando mensagens antigas" : "Carregar mensagens antigas"
                       }
