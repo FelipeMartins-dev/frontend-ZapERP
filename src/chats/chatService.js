@@ -40,6 +40,8 @@ export async function fetchChats(params = {}) {
   if (params.aguardando_cliente === true || params.aguardando_cliente === 1 || params.aguardando_cliente === "1") {
     q.set("aguardando_cliente", "1");
   }
+  const tp = params.tempo_parado != null ? String(params.tempo_parado).trim().toLowerCase() : "";
+  if (tp) q.set("tempo_parado", tp);
   const query = q.toString();
   const { data } = await api.get(`/chats${query ? `?${query}` : ""}`);
   const wantsCollab =
@@ -334,6 +336,12 @@ export async function getZapiStatus() {
   return data;
 }
 
+/** Finalização por ausência em lote (supervisor/admin). Body: conversa_ids, dry_run?, execute?, confirm? */
+export async function postFinalizacaoAusenciaLote(body) {
+  const { data } = await api.post("/chats/finalizacao-ausencia-lote", body || {});
+  return data;
+}
+
 // 🔹 DEFAULT EXPORT (usado no Atendimento.jsx e wrappers)
 const chatService = {
   listar: fetchChats,
@@ -341,6 +349,7 @@ const chatService = {
   enviarMensagem,
   aplicarTag,
   removerTag,
+  postFinalizacaoAusenciaLote,
 
   // novos
   criarGrupo,

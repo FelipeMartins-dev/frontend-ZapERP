@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil } from "./chatService";
+import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil, postFinalizacaoAusenciaLote } from "./chatService";
 import { useChatStore } from "./chatsStore";
 import { useConversaStore } from "../conversa/conversaStore";
 import { listarTags } from "../api/tagService";
@@ -105,6 +105,18 @@ function countDistinctConversas(list) {
     if (key) byKey.add(String(key));
   });
   return byKey.size;
+}
+
+const CONFIRM_LOTE_AUSENCIA = "FINALIZAR_LOTE_AUSENCIA_CLIENTE";
+
+/** IDs de conversas individuais em atendimento (para assistente de lote por ausência). */
+function collectEmAtendimentoIdsFromChats(list, max = 50) {
+  return (Array.isArray(list) ? list : [])
+    .filter((c) => !isGroupConversation(c) && c?.id && !c.sem_conversa)
+    .filter((c) => getStatusAtendimentoEffective(c) === "em_atendimento" && c.atendente_id != null)
+    .map((c) => Number(c.id))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .slice(0, max);
 }
 
 function isConversaAguardandoCliente(c) {
@@ -926,9 +938,8 @@ function Chip({ active, onClick, children, variant = "default", className = "" }
   );
 }
 
-function StatusPill({ status, exibirBadgeAberta, chat }) {
+function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) {
   const s = String(status || "").toLowerCase().trim().replace(/\s+/g, "_");
-  /** Badge “Aguardando” secundário: só fluxo automático (job), nunca inferir manual pelo timestamp. */
   const map = {
     em_atendimento: { label: "Em atendimento", cls: "chat-list-status in" },
     aguardando_cliente: { label: "Aguardando cliente", cls: "chat-list-status awaiting-client" },
@@ -943,6 +954,20 @@ function StatusPill({ status, exibirBadgeAberta, chat }) {
     chat?.atendente_id != null &&
     chat?.aguardando_cliente_desde != null &&
     !isAguardandoClienteManual(chat);
+  const reabertoHint =
+    typeof chat?.ui_hint_reaberto_ausencia_cliente === "number" &&
+    Date.now() - chat.ui_hint_reaberto_ausencia_cliente < 120000;
+
+  if (ausenciaFechada) {
+    return (
+      <span className="chat-list-statusRow">
+        <span className="chat-list-status closed chat-list-status--muted" title="Encerrada automaticamente por ausência do cliente">
+          Finalizado por ausência
+        </span>
+      </span>
+    );
+  }
+
   if (it) {
     return (
       <span className="chat-list-statusRow">
@@ -951,24 +976,30 @@ function StatusPill({ status, exibirBadgeAberta, chat }) {
           title={
             s === "aguardando_cliente"
               ? "Aguardando cliente (marcado manualmente)"
-              : ausenciaFechada
-                ? `${it.label} — encerrada automaticamente por ausência do cliente`
-                : it.label
+              : it.label
           }
         >
           {it.label}
         </span>
-        {ausenciaFechada ? (
-          <span className="chat-list-badge-await" title="Encerrada automaticamente por ausência do cliente">
-            Ausência
+        {reabertoHint ? (
+          <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
+            Reaberto pelo cliente
           </span>
         ) : null}
         {aguardandoClienteAutomatico ? (
           <span
-            className="chat-list-badge-await"
+            className="chat-list-badge-await chat-list-badge-await--subtle"
             title="Aguardando resposta do cliente (detecção automática — em atendimento)"
           >
-            Aguardando
+            Aguardando cliente
+          </span>
+        ) : null}
+        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico ? (
+          <span
+            className="chat-list-status-note"
+            title="Última mensagem do cliente — equipe deve responder"
+          >
+            Aguardando funcionário
           </span>
         ) : null}
       </span>
@@ -977,8 +1008,15 @@ function StatusPill({ status, exibirBadgeAberta, chat }) {
   // Aberta ou vazio: usar exibir_badge_aberta para decidir se mostra "Aberta"
   if (exibirBadgeAberta === true) {
     return (
-      <span className="chat-list-status open" title="Aberta">
-        Aberta
+      <span className="chat-list-statusRow">
+        <span className="chat-list-status open" title="Aberta">
+          Aberta
+        </span>
+        {reabertoHint ? (
+          <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
+            Reaberto pelo cliente
+          </span>
+        ) : null}
       </span>
     );
   }
@@ -1179,6 +1217,7 @@ function ChatRow({
                 status={getStatusAtendimentoEffective(chat)}
                 exibirBadgeAberta={chat?.exibir_badge_aberta}
                 chat={chat}
+                aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
               />
             )}
           </div>
@@ -1231,6 +1270,7 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     String(a.finalizacao_motivo ?? "") === String(b.finalizacao_motivo ?? "") &&
     Boolean(a.finalizada_automaticamente) === Boolean(b.finalizada_automaticamente) &&
     String(a.aguardando_cliente_desde ?? "") === String(b.aguardando_cliente_desde ?? "") &&
+    String(a.ui_hint_reaberto_ausencia_cliente ?? "") === String(b.ui_hint_reaberto_ausencia_cliente ?? "") &&
     Boolean(a.exibir_badge_aberta) === Boolean(b.exibir_badge_aberta) &&
     pa.silenciado === pb.silenciado &&
     pa.fixada === pb.fixada &&
@@ -1243,6 +1283,7 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
       String(b?.ultima_mensagem?.id ?? b?.ultima_mensagem?.whatsapp_id ?? "") &&
     semA === semB &&
     setA === setB &&
+    isConversaAguardandoFuncionario(a, setA) === isConversaAguardandoFuncionario(b, setB) &&
     atendimentoRowVisualClass(a, setA, semA, useAuthStore.getState().user?.id) ===
       atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id) &&
     isEmAtendimentoUltimaDoCliente(a) === isEmAtendimentoUltimaDoCliente(b)
@@ -1322,6 +1363,11 @@ export default function ChatList() {
   const [onlyFinalizadasAusencia, setOnlyFinalizadasAusencia] = useState(false);
   /** Filtro avançado: conversas em atendimento com humano aguardando resposta do cliente. */
   const [aguardandoClienteOnly, setAguardandoClienteOnly] = useState(false);
+  /** GET /chats?tempo_parado= — conversas com aguardando_cliente_desde acima do limite (backend). */
+  const [tempoParadoFilter, setTempoParadoFilter] = useState("");
+  const [loteAusenciaBusy, setLoteAusenciaBusy] = useState(false);
+  const [loteAusenciaMsg, setLoteAusenciaMsg] = useState("");
+  const [loteAusenciaConfirm, setLoteAusenciaConfirm] = useState("");
 
   const [novoContatoModalOpen, setNovoContatoModalOpen] = useState(false);
   const [showProdutosPanel, setShowProdutosPanel] = useState(false);
@@ -1429,6 +1475,7 @@ export default function ChatList() {
         params.status_atendimento = "fechada";
         params.finalizacao_motivo = "ausencia_cliente";
       }
+      if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
       const data = await fetchChats(params);
       const list = Array.isArray(data) ? data : [];
       setMinhaFilaCount(countDistinctConversas(list));
@@ -1442,7 +1489,7 @@ export default function ChatList() {
         setMinhaFilaList([]);
       }
     }
-  }, [tagFilter, departamentoFilter, atendenteFilter, dataInicio, dataFim, onlyFinalizadasAusencia]);
+  }, [tagFilter, departamentoFilter, atendenteFilter, dataInicio, dataFim, onlyFinalizadasAusencia, tempoParadoFilter]);
 
   const refreshEmAtendimentoBadge = useCallback(async () => {
     try {
@@ -1618,6 +1665,8 @@ export default function ChatList() {
         }
       }
 
+      if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
+
       const data = await fetchChats(params);
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
@@ -1679,6 +1728,8 @@ export default function ChatList() {
         const extra = arr.filter((c) => c?.id != null && !fromApi.has(String(c.id)));
         // Em consultas de "aguardando_cliente", não reaproveitar conversas antigas fora do filtro.
         if (aguardandoQuery) return merged;
+        // Com filtro de tempo parado, a API já define o subconjunto; não misturar itens locais fora do critério.
+        if (tempoParadoFilter) return merged;
         if (extra.length === 0) return merged;
         const getTs = (x) => x?.ultima_mensagem?.criado_em || x?.ultima_atividade || x?.criado_em || 0;
         const combined = [...merged, ...extra];
@@ -1726,12 +1777,72 @@ export default function ChatList() {
     adminAtendenteFilterId,
     onlyFinalizadasAusencia,
     aguardandoClienteOnly,
+    tempoParadoFilter,
     refreshSupervisaoData,
   ]);
 
   // loadRef para sync/interval — deve estar definido antes dos effects que o usam
   const loadRef = useRef(load);
   loadRef.current = load;
+
+  const handleLoteAusenciaSimular = useCallback(async () => {
+    setLoteAusenciaMsg("");
+    const ids = collectEmAtendimentoIdsFromChats(useChatStore.getState().chats);
+    if (!ids.length) {
+      setLoteAusenciaMsg("Nenhuma conversa em atendimento na lista atual.");
+      return;
+    }
+    setLoteAusenciaBusy(true);
+    try {
+      const r = await postFinalizacaoAusenciaLote({ conversa_ids: ids, dry_run: true });
+      const res = Array.isArray(r?.resultados) ? r.resultados : [];
+      const ok = res.filter((x) => x.ok).length;
+      setLoteAusenciaMsg(`Simulação: ${ok} de ${ids.length} conversa(s) elegível(is) ao critério do servidor.`);
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.message || "Falha na simulação";
+      showToast({ type: "error", title: "Lote por ausência", message: String(msg) });
+      setLoteAusenciaMsg(String(msg));
+    } finally {
+      setLoteAusenciaBusy(false);
+    }
+  }, [showToast]);
+
+  const handleLoteAusenciaExecutar = useCallback(async () => {
+    setLoteAusenciaMsg("");
+    const ids = collectEmAtendimentoIdsFromChats(useChatStore.getState().chats);
+    if (!ids.length) {
+      setLoteAusenciaMsg("Nenhuma conversa em atendimento na lista atual.");
+      return;
+    }
+    if (String(loteAusenciaConfirm).trim() !== CONFIRM_LOTE_AUSENCIA) {
+      showToast({
+        type: "info",
+        title: "Confirmação necessária",
+        message: `Digite exatamente: ${CONFIRM_LOTE_AUSENCIA}`,
+      });
+      return;
+    }
+    setLoteAusenciaBusy(true);
+    try {
+      const r = await postFinalizacaoAusenciaLote({
+        conversa_ids: ids,
+        dry_run: false,
+        execute: true,
+        confirm: CONFIRM_LOTE_AUSENCIA,
+      });
+      const res = Array.isArray(r?.resultados) ? r.resultados : [];
+      const ok = res.filter((x) => x.ok).length;
+      setLoteAusenciaMsg(`Concluído: ${ok} conversa(s) processada(s).`);
+      setLoteAusenciaConfirm("");
+      loadRef.current?.();
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.message || "Falha na execução";
+      showToast({ type: "error", title: "Lote por ausência", message: String(msg) });
+      setLoteAusenciaMsg(String(msg));
+    } finally {
+      setLoteAusenciaBusy(false);
+    }
+  }, [showToast, loteAusenciaConfirm]);
 
   const chatListResyncNonce = useChatStore((s) => s.chatListResyncNonce);
   useEffect(() => {
@@ -1793,6 +1904,9 @@ export default function ChatList() {
         setMineOnly(false);
         setOrder("recentes");
         setTab("minha_fila");
+        setTempoParadoFilter("");
+        setLoteAusenciaMsg("");
+        setLoteAusenciaConfirm("");
         setShowNovoMenu(false);
       }
     }
@@ -2690,6 +2804,63 @@ export default function ChatList() {
               </select>
             </label>
           </div>
+          <div className="chat-list-filters-row chat-list-filters-row--tempo-parado">
+            <span className="chat-list-field-label">Tempo parado</span>
+            <div className="chat-list-tempo-parado-chips" role="group" aria-label="Filtro por tempo parado">
+              {[
+                { v: "", l: "Todos" },
+                { v: "2h", l: "+2h" },
+                { v: "12h", l: "+12h" },
+                { v: "24h", l: "+24h" },
+                { v: "7d", l: "+7d" },
+                { v: "30d", l: "+30d" },
+              ].map(({ v, l }) => (
+                <button
+                  key={v || "none"}
+                  type="button"
+                  className={`chat-list-tempo-chip${tempoParadoFilter === v ? " is-on" : ""}`}
+                  onClick={() => setTempoParadoFilter(v)}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          {isSupervisorOrAdmin(user) && (
+            <div className="chat-list-ausencia-lote">
+              <div className="chat-list-ausencia-lote-head">
+                <span className="chat-list-ausencia-lote-title">Ausência — lote</span>
+                <span className="chat-list-ausencia-lote-sub">Até 50 conversas em atendimento da lista atual</span>
+              </div>
+              <div className="chat-list-ausencia-lote-row">
+                <button
+                  type="button"
+                  className="chat-list-ausencia-lote-btn"
+                  disabled={loteAusenciaBusy}
+                  onClick={() => void handleLoteAusenciaSimular()}
+                >
+                  Simular
+                </button>
+                <input
+                  type="text"
+                  className="chat-list-ausencia-lote-input"
+                  value={loteAusenciaConfirm}
+                  onChange={(e) => setLoteAusenciaConfirm(e.target.value)}
+                  placeholder={CONFIRM_LOTE_AUSENCIA}
+                  aria-label="Texto de confirmação para executar o lote"
+                />
+                <button
+                  type="button"
+                  className="chat-list-ausencia-lote-btn chat-list-ausencia-lote-btn--primary"
+                  disabled={loteAusenciaBusy}
+                  onClick={() => void handleLoteAusenciaExecutar()}
+                >
+                  Executar
+                </button>
+              </div>
+              {loteAusenciaMsg ? <div className="chat-list-ausencia-lote-msg">{loteAusenciaMsg}</div> : null}
+            </div>
+          )}
         </div>
       )}
 

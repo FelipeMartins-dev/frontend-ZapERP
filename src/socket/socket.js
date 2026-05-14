@@ -869,7 +869,8 @@ export function initSocket(token) {
     const chats = chatStore.chats || []
     const idx = chats.findIndex((c) => String(c.id) === String(id))
     if (idx >= 0) {
-      const next = { ...chats[idx] }
+      const cur = chats[idx]
+      const next = { ...cur }
       if (payload.ultima_atividade != null) next.ultima_atividade = payload.ultima_atividade
       if (payload.contato_nome != null && payload.contato_nome !== "") next.contato_nome = payload.contato_nome
       if (payload.nome_contato_cache != null && payload.nome_contato_cache !== "") next.nome_contato_cache = payload.nome_contato_cache
@@ -908,6 +909,16 @@ export function initSocket(token) {
       for (const k of ausenciaKeys) {
         if (k in payload) next[k] = payload[k]
       }
+      const prevSt = String(cur?.status_atendimento_real ?? cur?.status_atendimento ?? '').toLowerCase()
+      const nextSt = String(payload?.status_atendimento ?? next.status_atendimento ?? '').toLowerCase()
+      const mot = String(cur?.finalizacao_motivo ?? '').toLowerCase()
+      const reaberturaAusenciaCliente =
+        prevSt === 'fechada' &&
+        mot === 'ausencia_cliente' &&
+        (nextSt === 'aberta' || nextSt === 'em_atendimento')
+      if (reaberturaAusenciaCliente) {
+        next.ui_hint_reaberto_ausencia_cliente = Date.now()
+      }
       chatStore.updateChat({ id, ...next })
     }
     const convStore = useConversaStore.getState()
@@ -915,7 +926,18 @@ export function initSocket(token) {
       convStore.patchConversa({ ...payload, id })
     }
     if (payloadImpactaListaLateral(payload)) {
-      chatStore.requestChatListResync()
+      const cur = chats[idx]
+      const prevSt = cur ? String(cur?.status_atendimento_real ?? cur?.status_atendimento ?? '').toLowerCase() : ''
+      const nextSt = String(payload?.status_atendimento ?? '').toLowerCase()
+      const mot = cur ? String(cur?.finalizacao_motivo ?? '').toLowerCase() : ''
+      const skipResyncReaberturaAusencia =
+        idx >= 0 &&
+        prevSt === 'fechada' &&
+        mot === 'ausencia_cliente' &&
+        (nextSt === 'aberta' || nextSt === 'em_atendimento')
+      if (!skipResyncReaberturaAusencia) {
+        chatStore.requestChatListResync()
+      }
     }
   }
 
