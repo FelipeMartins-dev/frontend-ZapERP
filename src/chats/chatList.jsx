@@ -1610,7 +1610,7 @@ export default function ChatList() {
         departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
         data_inicio: dataInicio || undefined,
         data_fim: dataFim || undefined,
-        incluir_todos_clientes: "1",
+        incluir_todos_clientes: "0",
       };
       const data = await fetchChats(params);
       const list = Array.isArray(data) ? data : [];
