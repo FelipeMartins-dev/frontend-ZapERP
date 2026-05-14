@@ -1793,6 +1793,18 @@ a { color: inherit; text-decoration: none; }
   border-color: rgba(59, 130, 246, 0.22);
 }
 
+.chat-list-status.dispatched {
+  background: rgba(139, 92, 246, 0.12);
+  color: #6d28d9;
+  border-color: rgba(139, 92, 246, 0.25);
+}
+
+[data-theme="dark"] .chat-list-status.dispatched {
+  background: rgba(167, 139, 250, 0.18);
+  color: #ddd6fe;
+  border-color: rgba(167, 139, 250, 0.35);
+}
+
 .chat-list-status.in {
   background: rgba(99, 102, 241, 0.14);
   color: #3730a3;

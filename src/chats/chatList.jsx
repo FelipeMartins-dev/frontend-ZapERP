@@ -944,6 +944,7 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) 
     em_atendimento: { label: "Em atendimento", cls: "chat-list-status in" },
     aguardando_cliente: { label: "Aguardando cliente", cls: "chat-list-status awaiting-client" },
     fechada: { label: "Finalizada", cls: "chat-list-status closed" },
+    mensagem_disparada: { label: "Mensagem disparada", cls: "chat-list-status dispatched" },
   };
   const it = map[s];
   const ausenciaFechada =
