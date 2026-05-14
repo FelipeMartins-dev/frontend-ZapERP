@@ -1403,6 +1403,8 @@ export default function ChatList() {
   const [emAtendimentoBadgeCount, setEmAtendimentoBadgeCount] = useState(0);
   /** Contador do chip “Aguardando cliente”: sempre GET /chats?aguardando_cliente=1 (escopo do backend), nunca length de “Todas”. */
   const [aguardandoClienteBadgeCount, setAguardandoClienteBadgeCount] = useState(0);
+  /** Contador do chip “Mensagens Disparadas”: GET /chats?status_atendimento=mensagem_disparada (escopo backend). */
+  const [mensagensDisparadasCount, setMensagensDisparadasCount] = useState(0);
   /** Supervisão: resumo para badge e lista de conversas pendentes do funcionário. */
   const [supervisaoResumo, setSupervisaoResumo] = useState(null);
   const [pendentesFuncionarioIds, setPendentesFuncionarioIds] = useState([]);
@@ -1581,6 +1583,25 @@ export default function ChatList() {
     dataFim,
   ]);
 
+  const refreshMensagensDisparadasBadge = useCallback(async () => {
+    try {
+      const params = {
+        status_atendimento: "mensagem_disparada",
+        tag_id: tagFilter !== "todas" ? tagFilter : undefined,
+        departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
+        data_inicio: dataInicio || undefined,
+        data_fim: dataFim || undefined,
+        incluir_todos_clientes: "1",
+      };
+      const data = await fetchChats(params);
+      const list = Array.isArray(data) ? data : [];
+      setMensagensDisparadasCount(countDistinctConversas(list));
+    } catch (e) {
+      console.error("Erro ao carregar contagem Mensagens Disparadas:", e);
+      setMensagensDisparadasCount(0);
+    }
+  }, [tagFilter, departamentoFilter, dataInicio, dataFim]);
+
   const refreshSupervisaoData = useCallback(async () => {
     if (!isSupervisorOrAdmin(user)) {
       setSupervisaoResumo(null);
@@ -1662,6 +1683,8 @@ export default function ChatList() {
           params.finalizacao_motivo = "ausencia_cliente";
         } else if (tab === "abertas") {
           params.status_atendimento = "aberta";
+        } else if (tab === "mensagens_disparadas") {
+          params.status_atendimento = "mensagem_disparada";
         }
       }
 
@@ -1742,6 +1765,7 @@ export default function ChatList() {
         void refreshMinhaFila();
         void refreshEmAtendimentoBadge();
         void refreshAguardandoClienteBadge();
+        void refreshMensagensDisparadasBadge();
         void refreshSupervisaoData();
       };
       if (typeof requestAnimationFrame === "function") {
@@ -2065,6 +2089,7 @@ export default function ChatList() {
 
     const skipStatusFilterRow =
       tab === "abertas" ||
+      tab === "mensagens_disparadas" ||
       tab === "finalizadas_auto" ||
       onlyFinalizadasAusencia ||
       tab === "aguardando_cliente" ||
@@ -2634,6 +2659,10 @@ export default function ChatList() {
             <span>Abertas</span>
             <span className="chat-list-chip-count">{countAbertas}</span>
           </Chip>
+          <Chip active={tab === "mensagens_disparadas"} onClick={() => setTab("mensagens_disparadas")}>
+            <span>Mensagens Disparadas</span>
+            <span className="chat-list-chip-count">{mensagensDisparadasCount}</span>
+          </Chip>
           <Chip active={tab === "em_atendimento"} onClick={() => setTab("em_atendimento")}>
             <span>Em atendimento</span>
             <span className="chat-list-chip-count">{countEmAtendimento}</span>
@@ -2696,6 +2725,7 @@ export default function ChatList() {
               >
                 <option value="todos">Todos</option>
                 <option value="aberta">Aberta</option>
+                <option value="mensagem_disparada">Mensagem disparada</option>
                 <option value="em_atendimento">Em atendimento</option>
                 <option value="aguardando_cliente">Aguardando cliente</option>
                 <option value="fechada">Fechada</option>

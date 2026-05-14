@@ -381,6 +381,15 @@ function statusBadge(status, exibirBadgeAberta, finalizacaoMotivo) {
       dot: "var(--wa-status-orange)",
     };
   }
+  if (s === "mensagem_disparada") {
+    return {
+      text: "Mensagem disparada",
+      bg: "rgba(139,92,246,0.1)",
+      color: "#6d28d9",
+      border: "rgba(139,92,246,0.22)",
+      dot: "#7c3aed",
+    };
+  }
   if (exibirBadgeAberta !== true) return null;
   return {
     text: "Aberta",
@@ -3341,7 +3350,7 @@ export default function ConversaView() {
   const headerSetorBelowStatus = useMemo(() => {
     if (!conversa || isGroupConversation(conversa)) return false;
     const s = safeString(getStatusAtendimentoEffective(conversa)).toLowerCase();
-    return s === "aberta" || s === "fechada";
+    return s === "aberta" || s === "fechada" || s === "mensagem_disparada";
   }, [conversa]);
 
   /** Mobile: layout compacto em duas linhas + pill menor só em em_atendimento / aguardando_cliente */
