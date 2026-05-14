@@ -13,7 +13,8 @@ import { getSocket, leaveConversa, joinConversaIfNeeded } from "../socket/socket
 import { useChatStore } from "../chats/chatsStore"
 import { attachReplyMeta } from "./replyMeta"
 
-const PAGE_LIMIT = 100
+/** Primeira página + loadMore: 50 mensagens equilibra tempo de resposta e cobertura do histórico (backend limita a 200). */
+const PAGE_LIMIT = 50
 
 /** Ordem de chegada monotônica — desempate final quando timestamps coincidem (burst / segundo truncado).
  * Base alta: mensagens vindas da API usam índices pequenos (1…N); temps/socket novos usam este contador. */

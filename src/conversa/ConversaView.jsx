@@ -4151,6 +4151,16 @@ export default function ConversaView() {
     loadMoreScrollRef.current = { top: 0, height: 0 };
   }, [loadingMore]);
 
+  /** Mesma estratégia do scroll ao topo: grava altura/scroll antes do `loadMore` para restaurar posição após o lote. */
+  const handleLoadOlderMessagesClick = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const st = useConversaStore.getState();
+    if (!st.hasMore || st.loadingMore || !st.cursor || st.conversa?.mensagens_bloqueadas) return;
+    loadMoreScrollRef.current = { top: el.scrollTop, height: el.scrollHeight };
+    st.loadMore();
+  }, []);
+
   const handleDropFile = useCallback((file) => {
     if (!file) return;
     setPendingFile(file);
@@ -6743,6 +6753,28 @@ export default function ConversaView() {
             </div>
           ) : (
             <>
+              {!conversa?.mensagens_bloqueadas && Array.isArray(mensagens) && mensagens.length > 0 && !loading ? (
+                <div className="wa-loadOlderHistory">
+                  {hasMore && cursor ? (
+                    <button
+                      type="button"
+                      className="wa-loadOlderBtn"
+                      onClick={handleLoadOlderMessagesClick}
+                      disabled={loadingMore}
+                      aria-busy={loadingMore}
+                      aria-label={
+                        loadingMore ? "Carregando mensagens antigas" : "Carregar mensagens antigas"
+                      }
+                    >
+                      Carregar mensagens antigas
+                    </button>
+                  ) : !hasMore ? (
+                    <p className="wa-loadOlderEnd" role="status">
+                      Todas as mensagens foram carregadas
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {loadingMore ? (
                 <div className="wa-historyLoading" role="status" aria-live="polite" aria-label="Carregando histórico">
                   <span className="wa-historyLoading-bar" />

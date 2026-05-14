@@ -9582,3 +9582,74 @@ main.main-content--crm .wa-mediaPreview-composer {
     transform: scaleX(1);
   }
 }
+
+/* Botão discreto + fim do histórico (carregar página anterior sob demanda) */
+.wa-loadOlderHistory {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 12px 4px;
+}
+
+.wa-loadOlderBtn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 85%, transparent);
+  background: color-mix(in srgb, var(--wa-panel) 92%, transparent);
+  color: color-mix(in srgb, var(--wa-text) 82%, transparent);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  padding: 8px 16px;
+  min-height: 36px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+  max-width: min(100%, 320px);
+  text-align: center;
+}
+
+.wa-loadOlderBtn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--wa-bg-pattern) 55%, var(--wa-panel));
+  color: var(--wa-text);
+  border-color: color-mix(in srgb, var(--wa-green) 40%, var(--wa-panel-border));
+}
+
+.wa-loadOlderBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.wa-loadOlderBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.wa-loadOlderEnd {
+  margin: 0;
+  padding: 6px 12px 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--wa-text-muted);
+  text-align: center;
+  line-height: 1.35;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .wa-loadOlderHistory {
+    padding: 6px 10px 2px;
+  }
+  .wa-loadOlderBtn {
+    font-size: 12px;
+    padding: 9px 18px;
+    min-height: 40px;
+    width: 100%;
+    max-width: 100%;
+  }
+}

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, startTransition } from "react";
 import { createPortal } from "react-dom";
 import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil, postFinalizacaoAusenciaLote } from "./chatService";
 import { useChatStore } from "./chatsStore";
@@ -1415,7 +1415,9 @@ export default function ChatList() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchClearNonce, setSearchClearNonce] = useState(0);
   const handleSearchDebounced = useCallback((t) => {
-    setDebouncedSearch(t);
+    startTransition(() => {
+      setDebouncedSearch(t);
+    });
   }, []);
 
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -2239,43 +2241,59 @@ export default function ChatList() {
     if (term) {
       list = list.filter((c) => {
         const title = getDisplayName(c).toLowerCase();
-        const phone = String(getPhone(c) || "").toLowerCase();
+        const phone = String(getPhone(c) || "");
         const telRaw =
           c?.telefone_exibivel ||
           c?.cliente_telefone ||
           c?.telefone ||
           "";
         const telDigits = digitsOnly(telRaw);
+        const phoneDigits = termDigits ? digitsOnly(phone) : "";
 
         const matchName = title.includes(term);
         const matchPhone =
           termDigits &&
-          (digitsOnly(phone).includes(termDigits) || telDigits.includes(termDigits));
+          (phoneDigits.includes(termDigits) || telDigits.includes(termDigits));
 
         return matchName || matchPhone;
       });
     }
 
-    // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem
-    list.sort((a, b) => {
-      const aPinned = a?.fixada === true ? 1 : 0;
-      const bPinned = b?.fixada === true ? 1 : 0;
+    // ordenação: pré-calcula timestamp uma vez por linha (evita `new Date` no comparador — custo O(n log n) alto em listas grandes)
+    const decorated = list.map((c) => {
+      const raw =
+        c?.ultima_mensagem?.criado_em ||
+        getLastMessage(c)?.criado_em ||
+        c?.ultima_atividade ||
+        c?.criado_em ||
+        0;
+      let sortTs = 0;
+      if (typeof raw === "number" && Number.isFinite(raw)) sortTs = raw;
+      else if (raw instanceof Date) sortTs = raw.getTime();
+      else {
+        const ms = new Date(raw).getTime();
+        sortTs = Number.isFinite(ms) ? ms : 0;
+      }
+      return { c, sortTs };
+    });
+    decorated.sort((a, b) => {
+      const ca = a.c;
+      const cb = b.c;
+      const aPinned = ca?.fixada === true ? 1 : 0;
+      const bPinned = cb?.fixada === true ? 1 : 0;
       if (aPinned !== bPinned) return bPinned - aPinned;
-      if (a?.sem_conversa && !b?.sem_conversa) return 1;
-      if (!a?.sem_conversa && b?.sem_conversa) return -1;
-      if (a?.sem_conversa && b?.sem_conversa) {
-        const na = (a.contato_nome || "").toString().toLowerCase();
-        const nb = (b.contato_nome || "").toString().toLowerCase();
+      if (ca?.sem_conversa && !cb?.sem_conversa) return 1;
+      if (!ca?.sem_conversa && cb?.sem_conversa) return -1;
+      if (ca?.sem_conversa && cb?.sem_conversa) {
+        const na = (ca.contato_nome || "").toString().toLowerCase();
+        const nb = (cb.contato_nome || "").toString().toLowerCase();
         return na.localeCompare(nb);
       }
-      const aTs = new Date(
-        a?.ultima_mensagem?.criado_em || getLastMessage(a)?.criado_em || a?.ultima_atividade || a?.criado_em || 0
-      ).getTime();
-      const bTs = new Date(
-        b?.ultima_mensagem?.criado_em || getLastMessage(b)?.criado_em || b?.ultima_atividade || b?.criado_em || 0
-      ).getTime();
+      const aTs = a.sortTs;
+      const bTs = b.sortTs;
       return order === "antigas" ? aTs - bTs : bTs - aTs;
     });
+    list = decorated.map((d) => d.c);
 
     return list;
   }, [
