@@ -1129,11 +1129,14 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             </span>
             <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
-              <EsperaMinutosInline
-                anchorIso={String(esperaMinutosAnchorIso).trim()}
-                className="chat-list-time-espera-min--staff-pill"
-                format="hud"
-              />
+              <>
+                {" "}
+                <EsperaMinutosInline
+                  anchorIso={String(esperaMinutosAnchorIso).trim()}
+                  className="chat-list-time-espera-min--staff-pill"
+                  format="hud"
+                />
+              </>
             ) : null}
           </span>
         ) : null}
