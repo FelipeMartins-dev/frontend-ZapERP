@@ -7,7 +7,8 @@ export default defineConfig({
     port: 5173,
   },
   build: {
-    sourcemap: true,
+    // Source maps pesam build + upload (Vercel). Ative só quando precisar (ex.: Sentry): VITE_SOURCEMAP=1
+    sourcemap: process.env.VITE_SOURCEMAP === "1",
     rollupOptions: {
       output: {
         manualChunks(id) {
