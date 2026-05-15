@@ -3275,6 +3275,8 @@ a { color: inherit; text-decoration: none; }
     padding: 18px 14px;
     min-height: 88px;
     align-items: flex-start;
+    /* Isola reflow/pintura entre linhas em listas longas (touch). */
+    contain: layout style;
   }
 
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client),

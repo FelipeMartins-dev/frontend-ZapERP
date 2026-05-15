@@ -1167,10 +1167,7 @@ function ChatRow({
   active,
   onSelect,
   onOpenClienteSemConversa,
-  selectedId,
-  setSelectedId,
-  carregarConversa,
-  setUnread,
+  currentUserId,
   isMenuOpen,
   onToggleMenu,
   pendentesFuncionarioSet = EMPTY_PENDENTES_SET,
@@ -1178,8 +1175,6 @@ function ChatRow({
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
   const semConversa = Boolean(chat?.sem_conversa && chat?.cliente_id);
-  const authUser = useAuthStore((s) => s.user);
-  const currentUserId = authUser?.id != null ? authUser.id : null;
   const atendimentoRowClass = atendimentoRowVisualClass(
     chat,
     pendentesFuncionarioSet,
@@ -1286,9 +1281,7 @@ function ChatRow({
     }
     if (id == null || id === undefined || id === "") return;
     const normalizedId = Number(id) || String(id);
-    setSelectedId(normalizedId);
-    carregarConversa(normalizedId);
-    setUnread(normalizedId, 0);
+    /* Abertura: só via onSelect (handleSelecionarConversa) — evita duplicar carregarConversa/getChatById. */
     onSelect?.(normalizedId);
   }
 
@@ -1413,6 +1406,9 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
   return (
     identityOk &&
     prev.active === next.active &&
+    prev.onSelect === next.onSelect &&
+    prev.onOpenClienteSemConversa === next.onOpenClienteSemConversa &&
+    prev.onToggleMenu === next.onToggleMenu &&
     prev.isMenuOpen === next.isMenuOpen &&
     Number(a.unread_count ?? a.unread ?? 0) === Number(b.unread_count ?? b.unread ?? 0) &&
     String(getStatusAtendimentoEffective(a)) === String(getStatusAtendimentoEffective(b)) &&
@@ -1435,8 +1431,9 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
     setA === setB &&
     isConversaAguardandoFuncionario(a, setA) === isConversaAguardandoFuncionario(b, setB) &&
     esperaMinutosAnchorKey(a, setA) === esperaMinutosAnchorKey(b, setB) &&
-    atendimentoRowVisualClass(a, setA, semA, useAuthStore.getState().user?.id) ===
-      atendimentoRowVisualClass(b, setB, semB, useAuthStore.getState().user?.id) &&
+    prev.currentUserId === next.currentUserId &&
+    atendimentoRowVisualClass(a, setA, semA, prev.currentUserId) ===
+      atendimentoRowVisualClass(b, setB, semB, next.currentUserId) &&
     isEmAtendimentoUltimaDoCliente(a) === isEmAtendimentoUltimaDoCliente(b)
   );
 });
@@ -1463,6 +1460,7 @@ export default function ChatList() {
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
 
   const user = useAuthStore((s) => s.user);
+  const rowCurrentUserId = user?.id != null ? Number(user.id) : null;
   /** Empresa com opção ativa (GET /usuarios/me + login). Desligado: sem chip nem API de contagem. */
   const separarMensagensDisparadasLigado = user?.separar_mensagens_disparadas === true;
   const userRole = String(user?.role || user?.perfil || "").toLowerCase();
@@ -2169,7 +2167,7 @@ export default function ChatList() {
     if (path) navigate(path);
   }
 
-  function handleSelecionarConversa(chatId) {
+  const handleSelecionarConversa = useCallback((chatId) => {
     if (chatId == null || chatId === undefined || chatId === "") return;
     const id = Number(chatId) || String(chatId);
     /* Mobile: evita “flash” da lista em posição antiga antes do layout da conversa —
@@ -2181,9 +2179,9 @@ export default function ChatList() {
     setSelectedId(id);
     carregarConversa(id);
     setUnread(id, 0);
-  }
+  }, [carregarConversa, setSelectedId, setUnread]);
 
-  async function handleOpenClienteSemConversa(cliente_id) {
+  const handleOpenClienteSemConversa = useCallback(async (cliente_id) => {
     if (!cliente_id) return;
     try {
       const { conversa } = await abrirConversaCliente(cliente_id);
@@ -2200,7 +2198,7 @@ export default function ChatList() {
     } catch (e) {
       console.error("Erro ao abrir conversa do cliente:", e);
     }
-  }
+  }, [addChat, setSelectedId, carregarConversa, setUnread]);
 
   const chatsFiltrados = useMemo(() => {
     /**
@@ -3105,10 +3103,7 @@ export default function ChatList() {
                 active={active}
                 onSelect={handleSelecionarConversa}
                 onOpenClienteSemConversa={handleOpenClienteSemConversa}
-                selectedId={selectedId}
-                setSelectedId={setSelectedId}
-                carregarConversa={carregarConversa}
-                setUnread={setUnread}
+                currentUserId={rowCurrentUserId}
                 isMenuOpen={String(openConversationId) === String(c?.id)}
                 onToggleMenu={openMenu}
                 pendentesFuncionarioSet={pendentesFuncionarioSet}

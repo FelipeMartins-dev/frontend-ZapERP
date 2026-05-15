@@ -527,6 +527,11 @@ export const useConversaStore = create((set, get) => {
     const normalizedId = id != null && id !== "" ? (Number(id) || String(id)) : null
     if (!normalizedId) return
 
+    /* Evita segundo GET /chats/:id em duplo disparo (ex.: toque duplo na lista). */
+    if (get().loading && String(get().selectedId) === String(normalizedId)) {
+      return
+    }
+
     const prevId = get().selectedId
     if (prevId && String(prevId) !== String(normalizedId)) {
       leaveConversa(prevId)
