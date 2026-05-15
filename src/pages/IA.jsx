@@ -81,10 +81,17 @@ function normalizeHorarioAdminAlerta(t) {
 
 function mergeAdminAtendimentoAlertaFromApi(raw) {
   const s = raw && typeof raw === "object" ? raw : {};
+  const ativoRaw = s.ativo;
+  const ativo =
+    ativoRaw === true ||
+    ativoRaw === 1 ||
+    String(ativoRaw || "")
+      .trim()
+      .toLowerCase() === "true";
   return {
     ...DEFAULT_CONFIG.admin_atendimento_alerta,
     ...s,
-    ativo: s.ativo === true,
+    ativo,
     telefone_admin: String(s.telefone_admin || "").trim().slice(0, 40),
     horario_envio: normalizeHorarioAdminAlerta(s.horario_envio),
     timezone: String(s.timezone || "").trim().slice(0, 80),
@@ -1289,9 +1296,11 @@ function SecaoChatbotTriagem({
           <div className="chatbot-card chatbot-card--admin-alerta">
             <h3 className="chatbot-card-title">8. Alerta do administrador</h3>
             <p className="chatbot-card-subtitle chatbot-card-subtitle--muted">
-              Resumo automático por WhatsApp no horário definido. Desativado por padrão. Requer cron em{" "}
-              <code className="chatbot-inline-code">POST /jobs/admin-atendimento-alerta</code> (header{" "}
-              <code className="chatbot-inline-code">X-Cron-Secret</code>), por exemplo a cada 1–3 minutos.
+              Resumo automático por WhatsApp no horário definido (fuso da seção 4 ou campo abaixo). Desativado por
+              padrão. O backend verifica o horário periodicamente enquanto estiver em execução (pode desligar com{" "}
+              <code className="chatbot-inline-code">ADMIN_ATENDIMENTO_ALERTA_SCHEDULER_ENABLED=0</code>). Opcionalmente
+              use também <code className="chatbot-inline-code">POST /jobs/admin-atendimento-alerta</code> com header{" "}
+              <code className="chatbot-inline-code">X-Cron-Secret</code>.
             </p>
             <div className="ds-switch-row" style={{ marginBottom: 12 }}>
               <Switch checked={adminAl.ativo === true} onChange={(x) => setAdminAl((c) => ({ ...c, ativo: x }))} />
