@@ -1146,8 +1146,8 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
     return (
       <span className="chat-list-statusRow">
         <span className="chat-list-status open chat-list-status--hud-open" title="Aberta">
-          <span className="chat-list-status-hud-prefix chat-list-status-hud-prefix--diamond" aria-hidden>
-            ◈
+          <span className="chat-list-status-hud-prefix chat-list-status-hud-prefix--aberta" aria-hidden>
+            ▶
           </span>
           <span className="chat-list-status-hud-text">Aberta</span>
         </span>

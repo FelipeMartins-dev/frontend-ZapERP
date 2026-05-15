@@ -1466,6 +1466,10 @@ a { color: inherit; text-decoration: none; }
     will-change: auto !important;
   }
 
+  .chat-list-status-tech--staff::after {
+    content: none !important;
+  }
+
   .chat-list-status-tech-staff-badge-icon {
     opacity: 0.92;
     transform: scale(1);
@@ -1479,6 +1483,12 @@ a { color: inherit; text-decoration: none; }
     animation: none !important;
     content: none !important;
     opacity: 0 !important;
+  }
+
+  .chat-list-status-hud-prefix--aberta {
+    animation: none !important;
+    opacity: 1 !important;
+    will-change: auto !important;
   }
 
   .chat-list-status.dispatched.chat-list-status--hud-dispatched::before {
@@ -2150,10 +2160,14 @@ a { color: inherit; text-decoration: none; }
   white-space: nowrap;
 }
 
-.chat-list-status-hud-prefix--diamond {
+/* Prefixo “Aberta” — só anima em desktop (hover:none = estático) */
+.chat-list-status-hud-prefix--aberta {
   color: #00ff88;
-  font-size: 10px;
-  margin-right: 1px;
+  font-size: 6px;
+  line-height: 1;
+  margin-right: 3px;
+  font-weight: 700;
+  opacity: 1;
 }
 
 .chat-list-status-hud-prefix--check {
@@ -2179,21 +2193,43 @@ a { color: inherit; text-decoration: none; }
   animation: chatListHudCursorBlink 0.92s steps(1, end) infinite;
 }
 
-/* Aberta — verde HUD + shimmer horizontal suave (só desktop) */
-@keyframes chatListHudAbertaShimmer {
+/* Varredura diagonal fina — só ::after do badge (background-position) */
+@keyframes scan {
   0% {
-    transform: translateX(-62%);
-    opacity: 0;
-  }
-  18% {
-    opacity: 0.55;
-  }
-  45% {
-    opacity: 0.38;
+    background-position: -80% 40%;
   }
   100% {
-    transform: translateX(62%);
-    opacity: 0;
+    background-position: 180% 40%;
+  }
+}
+
+/* Aberta — bruma clara no ::after do badge (só desktop) */
+@keyframes chatListHudAbertaTechSweep {
+  0% {
+    background-position: 120% 50%;
+  }
+  100% {
+    background-position: -120% 50%;
+  }
+}
+
+@keyframes chatListAbertaPrefixSoftBlink {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes chatListStaffIconRadar {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
@@ -2224,6 +2260,11 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .chat-list-status-hud-prefix--aberta {
+    animation: chatListAbertaPrefixSoftBlink 2s ease-in-out infinite;
+    will-change: opacity;
+  }
+
   .chat-list-status.open.chat-list-status--hud-open::after {
     content: "";
     position: absolute;
@@ -2232,20 +2273,19 @@ a { color: inherit; text-decoration: none; }
     border-radius: inherit;
     pointer-events: none;
     background: linear-gradient(
-      100deg,
+      92deg,
       transparent 0%,
-      transparent 40%,
-      rgba(255, 255, 255, 0.05) 47%,
-      rgba(255, 255, 255, 0.22) 50%,
-      rgba(255, 255, 255, 0.05) 53%,
-      transparent 60%,
+      transparent 36%,
+      rgba(255, 255, 255, 0.04) 44%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0.04) 56%,
+      transparent 64%,
       transparent 100%
     );
-    background-size: 180% 100%;
-    background-position: 0 50%;
-    transform: translateX(-35%);
-    animation: chatListHudAbertaShimmer 3s ease-in-out infinite;
-    will-change: transform, opacity;
+    background-size: 220% 100%;
+    background-position: 50% 50%;
+    animation: chatListHudAbertaTechSweep 3s ease-in-out infinite;
+    will-change: background-position;
   }
 }
 
@@ -2492,7 +2532,7 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.02em;
 }
 
-/* Aguardando funcionário — navy + azul #0369a1; anel/glitch/sonar só em desktop (opacity+transform) */
+/* Aguardando funcionário — navy; varredura fina só no ::after do badge (desktop) */
 .chat-list-status-tech--staff {
   position: relative;
   display: inline-flex;
@@ -2510,7 +2550,7 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.2;
   width: max-content;
   max-width: min(100%, 100vw);
-  overflow: visible;
+  overflow: hidden;
   text-overflow: clip;
   white-space: nowrap;
   flex-shrink: 0;
@@ -2524,51 +2564,43 @@ a { color: inherit; text-decoration: none; }
 }
 
 .chat-list-status-tech--staff::before {
-  content: "";
-  position: absolute;
-  inset: -45%;
-  z-index: 3;
-  background: linear-gradient(
-    122deg,
-    transparent 44%,
-    rgba(3, 105, 161, 0.26) 50%,
-    transparent 56%
-  );
-  transform: translate3d(-32%, 22%, 0) skewX(-16deg);
-  opacity: 0;
-  pointer-events: none;
-  animation: none;
-  will-change: auto;
+  content: none;
+  display: none;
 }
 
 .chat-list-status-tech--staff::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  z-index: 0;
-  border: 1px solid rgba(3, 105, 161, 0.48);
-  pointer-events: none;
-  animation: none;
-  will-change: auto;
+  content: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .chat-list-status-tech--staff::before {
-    animation: chatListHudStaffGlitch 3s cubic-bezier(0.45, 0, 0.2, 1) infinite;
-    will-change: opacity, transform;
-  }
-
   .chat-list-status-tech--staff::after {
-    animation: chatListHudStaffRing 2.15s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-    will-change: opacity, transform;
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      118deg,
+      transparent 0%,
+      transparent 42%,
+      rgba(0, 229, 255, 0) 49.35%,
+      rgba(0, 229, 255, 0.45) 49.65%,
+      rgba(0, 229, 255, 0.65) 50%,
+      rgba(0, 229, 255, 0.45) 50.35%,
+      rgba(0, 229, 255, 0) 50.65%,
+      transparent 58%,
+      transparent 100%
+    );
+    background-size: 240% 240%;
+    background-position: -20% 35%;
+    animation: scan 2.5s linear infinite;
+    will-change: background-position;
   }
 
   .chat-list-status-tech-staff-badge-icon {
-    animation:
-      chatListBadgeIconPulseOpacity 1.2s ease-in-out infinite,
-      chatListBadgeIconPulseScale 1.5s ease-in-out infinite;
-    will-change: opacity, transform;
+    animation: chatListStaffIconRadar 1.2s ease-in-out infinite;
+    will-change: opacity;
   }
 }
 
@@ -2671,37 +2703,6 @@ a { color: inherit; text-decoration: none; }
   50%,
   100% {
     opacity: 0.2;
-  }
-}
-
-@keyframes chatListHudStaffGlitch {
-  0%,
-  88% {
-    opacity: 0;
-    transform: translate3d(-38%, 24%, 0) skewX(-16deg);
-  }
-  91% {
-    opacity: 1;
-  }
-  94% {
-    opacity: 0.85;
-    transform: translate3d(42%, -18%, 0) skewX(-16deg);
-  }
-  97%,
-  100% {
-    opacity: 0;
-    transform: translate3d(52%, -28%, 0) skewX(-16deg);
-  }
-}
-
-@keyframes chatListHudStaffRing {
-  0% {
-    transform: scale(1);
-    opacity: 0.55;
-  }
-  100% {
-    transform: scale(1.38);
-    opacity: 0;
   }
 }
 
@@ -3751,7 +3752,8 @@ a { color: inherit; text-decoration: none; }
     will-change: auto !important;
   }
   .chat-list-status-tech--staff::after {
-    opacity: 0.4 !important;
+    content: none !important;
+    opacity: 0 !important;
   }
   .chat-list-status-tech--staff::before {
     opacity: 0 !important;
@@ -3765,6 +3767,10 @@ a { color: inherit; text-decoration: none; }
 
   .chat-list-status.open.chat-list-status--hud-open::after {
     content: none !important;
+  }
+  .chat-list-status-hud-prefix--aberta {
+    animation: none !important;
+    opacity: 1 !important;
   }
   .chat-list-status-tech-await-client-badge-icon {
     animation: none !important;
