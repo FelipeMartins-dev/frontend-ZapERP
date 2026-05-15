@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { shallow } from "zustand/shallow";
 import { useConversaStore, getMessageListReactKey } from "./conversaStore";
@@ -5790,12 +5790,8 @@ export default function ConversaView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversaId]);
 
-  // No mobile, adia o processamento pesado da lista de mensagens para depois que
-  // o layout do chat já estiver visível — elimina o travamento ao trocar de conversa.
-  const mensagensDeferred = useDeferredValue(mensagens);
-
   const mensagensComSeparadores = useMemo(() => {
-    const raw = Array.isArray(mensagensDeferred) ? mensagensDeferred : [];
+    const raw = Array.isArray(mensagens) ? mensagens : [];
     const list = [];
     const reactionsByMsgId = {};
 
@@ -5887,7 +5883,7 @@ export default function ConversaView() {
     }
 
     return out;
-  }, [mensagensDeferred, isGroup]);
+  }, [mensagens, isGroup]);
 
   mensagensComSeparadoresRef.current = mensagensComSeparadores;
 

@@ -16,6 +16,28 @@ import { attachReplyMeta } from "./replyMeta"
 /** Primeira página + loadMore: 50 mensagens equilibra tempo de resposta e cobertura do histórico (backend limita a 200). */
 const PAGE_LIMIT = 50
 
+/** Cancela GET anterior e ignora respostas obsoletas ao trocar de conversa rápido (mobile). */
+let carregarConversaGeneration = 0
+let carregarConversaAbortController = null
+
+function isAbortError(err) {
+  if (!err) return false
+  if (err.name === "AbortError" || err.name === "CanceledError") return true
+  if (err.code === "ERR_CANCELED") return true
+  return false
+}
+
+function cancelCarregarConversaInFlight() {
+  if (carregarConversaAbortController) {
+    try {
+      carregarConversaAbortController.abort()
+    } catch (_) {
+      /* ignore */
+    }
+    carregarConversaAbortController = null
+  }
+}
+
 /** Ordem de chegada monotônica — desempate final quando timestamps coincidem (burst / segundo truncado).
  * Base alta: mensagens vindas da API usam índices pequenos (1…N); temps/socket novos usam este contador. */
 const RUNTIME_INSERT_SEQ_BASE = 10_000_000
@@ -487,7 +509,20 @@ export const useConversaStore = create((set, get) => {
   /** Texto enfileirado para colar no composer (ex.: painel de produtos na lista de chats). */
   composerAppendQueue: null,
 
-  setSelectedId: (id) => set({ selectedId: id }),
+  setSelectedId: (id) => {
+    if (id == null || id === "") {
+      cancelCarregarConversaInFlight()
+      carregarConversaGeneration += 1
+      set({
+        selectedId: null,
+        loading: false,
+        loadError: null,
+        loadingMore: false,
+      })
+      return
+    }
+    set({ selectedId: id })
+  },
 
   queueComposerAppend: (text) => {
     const t = String(text || "").trim()
@@ -527,10 +562,10 @@ export const useConversaStore = create((set, get) => {
     const normalizedId = id != null && id !== "" ? (Number(id) || String(id)) : null
     if (!normalizedId) return
 
-    /* Evita segundo GET /chats/:id em duplo disparo (ex.: toque duplo na lista). */
-    if (get().loading && String(get().selectedId) === String(normalizedId)) {
-      return
-    }
+    cancelCarregarConversaInFlight()
+    const generation = ++carregarConversaGeneration
+    const abortController = new AbortController()
+    carregarConversaAbortController = abortController
 
     const prevId = get().selectedId
     if (prevId && String(prevId) !== String(normalizedId)) {
@@ -557,9 +592,12 @@ export const useConversaStore = create((set, get) => {
     })
 
     try {
-      const data = await getChatById(normalizedId, { limit: PAGE_LIMIT })
+      const data = await getChatById(normalizedId, {
+        limit: PAGE_LIMIT,
+        signal: abortController.signal,
+      })
 
-      // Evita aplicar resposta de conversa antiga se o usuário já trocou de conversa (race condition)
+      if (generation !== carregarConversaGeneration) return
       if (String(get().selectedId) !== String(normalizedId)) return
 
       let conversa = data?.conversa ? data.conversa : (data ?? null)
@@ -633,6 +671,10 @@ export const useConversaStore = create((set, get) => {
       let mensagens = blockedViewer ? [] : get()._mergeMensagensFromApi(clientSnapshot, apiMensagens, normalizedId)
       mensagens = attachReplyMeta(normalizedId, mensagens)
 
+      /* Revalida após processamento síncrono — troca rápida no mobile pode invalidar o lote. */
+      if (generation !== carregarConversaGeneration) return
+      if (String(get().selectedId) !== String(normalizedId)) return
+
       set({
         conversa,
         mensagens,
@@ -650,7 +692,6 @@ export const useConversaStore = create((set, get) => {
         socket.emit("marcar_conversa_lida", { conversa_id: normalizedId })
       }
       useChatStore.getState().clearUnread(normalizedId)
-      // Sincroniza status na lista lateral com o header/detalhe (GET /chats/:id).
       if (
         conversa?.status_atendimento != null ||
         conversa?.status_atendimento_real != null ||
@@ -666,9 +707,25 @@ export const useConversaStore = create((set, get) => {
         })
       }
     } catch (err) {
+      if (isAbortError(err)) return
+      if (generation !== carregarConversaGeneration) return
+      if (String(get().selectedId) !== String(normalizedId)) return
       const msg = err?.response?.data?.error || err?.message || "Erro ao carregar conversa"
       console.error("Erro ao carregar conversa:", err)
       set({ loading: false, loadError: msg })
+    } finally {
+      if (carregarConversaAbortController === abortController) {
+        carregarConversaAbortController = null
+      }
+      if (generation !== carregarConversaGeneration) return
+      const st = get()
+      if (
+        st.loading &&
+        st.selectedId != null &&
+        String(st.selectedId) === String(normalizedId)
+      ) {
+        set({ loading: false })
+      }
     }
   },
 
@@ -1229,6 +1286,8 @@ export const useConversaStore = create((set, get) => {
      LIMPAR
   ===================================================== */
   limpar: () => {
+    cancelCarregarConversaInFlight()
+    carregarConversaGeneration += 1
     discardPendingAnexar()
     set({
       selectedId: null,

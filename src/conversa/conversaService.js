@@ -51,7 +51,9 @@ export async function getChatById(conversaId, opts = {}) {
   if (opts?.limit) params.set("limit", String(opts.limit));
 
   const qs = params.toString();
-  const { data } = await api.get(`/chats/${conversaId}${qs ? `?${qs}` : ""}`);
+  const config = {};
+  if (opts?.signal) config.signal = opts.signal;
+  const { data } = await api.get(`/chats/${conversaId}${qs ? `?${qs}` : ""}`, config);
   return data;
 }
 
