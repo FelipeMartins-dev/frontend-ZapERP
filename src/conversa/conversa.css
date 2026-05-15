@@ -1182,6 +1182,9 @@
   .wa-messages {
     padding: 8px 12px 12px;
     scroll-padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    /* Cria camada de composição dedicada ao scroll — reduz repaints do layout
+       durante a abertura de conversas no mobile (menos travamento). */
+    will-change: scroll-position;
   }
 }
 

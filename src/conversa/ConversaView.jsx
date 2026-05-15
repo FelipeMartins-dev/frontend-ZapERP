@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { shallow } from "zustand/shallow";
 import { useConversaStore, getMessageListReactKey } from "./conversaStore";
@@ -2621,8 +2621,10 @@ function useAutoScroll({
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(max-width: 640px)").matches;
-    const rafCap = mobileLike ? 8 : 14;
-    const stickMax = mobileLike ? 16 : 28;
+    // Mobile: menos rAF encadeados — o virtualizer já âncora via scrollToEnd,
+    // iterações extras bloqueiam o thread principal e causam travamento ao abrir.
+    const rafCap = mobileLike ? 3 : 10;
+    const stickMax = mobileLike ? 5 : 18;
 
     const snap = () => {
       if (!shouldStickToBottomRef.current) return;
@@ -2631,14 +2633,16 @@ function useAutoScroll({
     snap();
     let n = 0;
     const chain = () => {
+      // Para imediatamente se já estiver na posição correta — evita saturar mobile.
+      if (mobileLike && isNearBottom(messagesContainerRef?.current, 80)) return;
       n += 1;
       snap();
       if (n < rafCap) requestAnimationFrame(chain);
     };
     requestAnimationFrame(chain);
     const t1 = window.setTimeout(snap, 0);
-    const t2 = window.setTimeout(snap, mobileLike ? 90 : 120);
-    const t3 = window.setTimeout(snap, mobileLike ? 260 : 380);
+    const t2 = window.setTimeout(snap, mobileLike ? 80 : 120);
+    const t3 = !mobileLike ? window.setTimeout(snap, 380) : 0;
 
     let rafStick = 0;
     let stickAttempts = 0;
@@ -2647,17 +2651,18 @@ function useAutoScroll({
       stickAttempts += 1;
       if (!c || stickAttempts > stickMax) return;
       if (!shouldStickToBottomRef.current) return;
-      if (!isNearBottom(c, 200)) {
+      if (!isNearBottom(c, mobileLike ? 80 : 200)) {
         snap();
         rafStick = requestAnimationFrame(tryStickOpen);
       }
+      // Se já está perto do fundo: para o loop, estava travando o mobile.
     };
     rafStick = requestAnimationFrame(tryStickOpen);
 
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
-      window.clearTimeout(t3);
+      if (t3) window.clearTimeout(t3);
       if (rafStick) cancelAnimationFrame(rafStick);
     };
   }, [conversaId, loading, mensagensCount, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
@@ -5785,8 +5790,12 @@ export default function ConversaView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversaId]);
 
+  // No mobile, adia o processamento pesado da lista de mensagens para depois que
+  // o layout do chat já estiver visível — elimina o travamento ao trocar de conversa.
+  const mensagensDeferred = useDeferredValue(mensagens);
+
   const mensagensComSeparadores = useMemo(() => {
-    const raw = Array.isArray(mensagens) ? mensagens : [];
+    const raw = Array.isArray(mensagensDeferred) ? mensagensDeferred : [];
     const list = [];
     const reactionsByMsgId = {};
 
@@ -5878,7 +5887,7 @@ export default function ConversaView() {
     }
 
     return out;
-  }, [mensagens, isGroup]);
+  }, [mensagensDeferred, isGroup]);
 
   mensagensComSeparadoresRef.current = mensagensComSeparadores;
 
@@ -6788,7 +6797,7 @@ export default function ConversaView() {
               key={`wa-thread-${String(scrollThreadId ?? conversaId ?? "")}`}
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
-              overscan={30}
+              overscan={headerCompact ? 5 : 15}
               conversaId={scrollThreadId ?? conversaId}
               items={mensagensComSeparadores}
               onVirtualContentResize={snapIfStickBottom}
