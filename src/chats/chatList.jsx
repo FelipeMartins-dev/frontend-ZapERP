@@ -238,7 +238,7 @@ function AtendimentoUnreadDot({ show }) {
 }
 
 /** Só os minutos ao lado do relógio; atualiza a cada minuto. */
-const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso }) {
+const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso, className = "" }) {
   const [, setTick] = useState(0);
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -261,9 +261,10 @@ const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso }) {
   const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
   const label = mins < 1 ? "<1m" : `${mins}m`;
+  const cn = ["chat-list-time-espera-min", className].filter(Boolean).join(" ");
 
   return (
-    <span className="chat-list-time-espera-min" title={`${mins} min — desde ${d.toLocaleString("pt-BR")}`}>
+    <span className={cn} title={`${mins} min — desde ${d.toLocaleString("pt-BR")}`}>
       {label}
     </span>
   );
@@ -1010,7 +1011,7 @@ function Chip({ active, onClick, children, variant = "default", className = "" }
   );
 }
 
-function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) {
+function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, esperaMinutosAnchorIso = "" }) {
   const s = String(status || "").toLowerCase().trim().replace(/\s+/g, "_");
   const map = {
     em_atendimento: { label: "Em atendimento", cls: "chat-list-status in" },
@@ -1085,7 +1086,13 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) 
             className="chat-list-status-tech chat-list-status-tech--staff"
             title="Última mensagem do cliente — equipe deve responder"
           >
-            Aguardando funcionário
+            {String(esperaMinutosAnchorIso || "").trim() ? (
+              <EsperaMinutosInline
+                anchorIso={String(esperaMinutosAnchorIso).trim()}
+                className="chat-list-time-espera-min--staff-pill"
+              />
+            ) : null}
+            <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
           </span>
         ) : null}
       </span>
@@ -1138,6 +1145,19 @@ function ChatRow({
     () => getEsperaMinutosAnchorIso(chat, pendentesFuncionarioSet),
     [chat, pendentesFuncionarioSet]
   );
+  const statusEff = getStatusAtendimentoEffective(chat);
+  const aguardandoClienteAutomaticoRow =
+    statusEff === "em_atendimento" &&
+    chat?.atendente_id != null &&
+    chat?.aguardando_cliente_desde != null &&
+    !isAguardandoClienteManual(chat);
+  const aguardandoFuncionarioVisivelRow =
+    isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet) &&
+    statusEff === "em_atendimento" &&
+    !aguardandoClienteAutomaticoRow;
+  /** Contador de espera: ao lado do relógio só se não estiver na etiqueta “Aguardando funcionário”. */
+  const mostrarEsperaMinutosAoLadoDoRelogio =
+    Boolean(esperaMinutosAnchor) && !aguardandoFuncionarioVisivelRow;
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
@@ -1301,7 +1321,7 @@ function ChatRow({
           <div className="chat-list-row-meta">
             <div className="chat-list-time">
               {opening ? "Abrindo…" : hora || (semConversa ? "" : "")}
-              {!opening && !semConversa && esperaMinutosAnchor ? (
+              {!opening && !semConversa && mostrarEsperaMinutosAoLadoDoRelogio ? (
                 <EsperaMinutosInline anchorIso={esperaMinutosAnchor} />
               ) : null}
             </div>
@@ -1309,10 +1329,11 @@ function ChatRow({
               <span className="chat-list-badge-sem-conversa" title="Clique para iniciar conversa">Sem conversa</span>
             ) : (
               <StatusPill
-                status={getStatusAtendimentoEffective(chat)}
+                status={statusEff}
                 exibirBadgeAberta={chat?.exibir_badge_aberta}
                 chat={chat}
                 aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
+                esperaMinutosAnchorIso={esperaMinutosAnchor}
               />
             )}
           </div>
