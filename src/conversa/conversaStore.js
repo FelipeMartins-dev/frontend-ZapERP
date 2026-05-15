@@ -19,6 +19,8 @@ const PAGE_LIMIT = 50
 /** Cancela GET anterior e ignora respostas obsoletas ao trocar de conversa rápido (mobile). */
 let carregarConversaGeneration = 0
 let carregarConversaAbortController = null
+/** Preenchido em `create()` — permite refresh mobile pós-abertura fora do closure do store. */
+let conversaStoreGetState = null
 
 function isAbortError(err) {
   if (!err) return false
@@ -36,6 +38,28 @@ function cancelCarregarConversaInFlight() {
     }
     carregarConversaAbortController = null
   }
+}
+
+/** Mobile: reforço após abrir — recupera lista vazia/travada ao trocar conversas rápido. */
+function scheduleMobileSilentRefreshAfterOpen(normalizedId, generation) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
+  if (!window.matchMedia("(max-width: 640px)").matches) return
+
+  const run = () => {
+    const getState = conversaStoreGetState
+    if (!getState) return
+    if (generation !== carregarConversaGeneration) return
+    if (String(getState().selectedId) !== String(normalizedId)) return
+    const st = getState()
+    if (st.loading || st.loadError) return
+    getState().refresh({ silent: true })
+  }
+
+  queueMicrotask(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(run)
+    })
+  })
 }
 
 /** Ordem de chegada monotônica — desempate final quando timestamps coincidem (burst / segundo truncado).
@@ -440,6 +464,7 @@ function resolveMensagensBloqueadasForViewer(conversaLike, apiSaysBlocked) {
 }
 
 export const useConversaStore = create((set, get) => {
+  conversaStoreGetState = get
   const pendingAnexar = []
   let anexarFlushScheduled = false
 
@@ -706,6 +731,8 @@ export const useConversaStore = create((set, get) => {
           exibir_badge_aberta: conversa?.exibir_badge_aberta,
         })
       }
+
+      scheduleMobileSilentRefreshAfterOpen(normalizedId, generation)
     } catch (err) {
       if (isAbortError(err)) return
       if (generation !== carregarConversaGeneration) return
