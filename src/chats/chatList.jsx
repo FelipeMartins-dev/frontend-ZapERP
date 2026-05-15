@@ -1014,7 +1014,10 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) 
   const s = String(status || "").toLowerCase().trim().replace(/\s+/g, "_");
   const map = {
     em_atendimento: { label: "Em atendimento", cls: "chat-list-status in" },
-    aguardando_cliente: { label: "Aguardando cliente", cls: "chat-list-status awaiting-client" },
+    aguardando_cliente: {
+      label: "Aguardando cliente",
+      cls: "chat-list-status chat-list-status-tech chat-list-status-tech--client",
+    },
     fechada: { label: "Finalizada", cls: "chat-list-status closed" },
     mensagem_disparada: { label: "Mensagem disparada", cls: "chat-list-status dispatched" },
   };
@@ -1027,6 +1030,11 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) 
     chat?.atendente_id != null &&
     chat?.aguardando_cliente_desde != null &&
     !isAguardandoClienteManual(chat);
+  const aguardandoFuncionarioVisivel =
+    Boolean(aguardandoFuncionario) && s === "em_atendimento" && !aguardandoClienteAutomatico;
+  /** Sem “Em atendimento” quando já há etiqueta de aguardando cliente ou funcionário — libera espaço ao nome. */
+  const suprimirPilulaEmAtendimento =
+    s === "em_atendimento" && (aguardandoClienteAutomatico || aguardandoFuncionarioVisivel);
   const reabertoHint =
     typeof chat?.ui_hint_reaberto_ausencia_cliente === "number" &&
     Date.now() - chat.ui_hint_reaberto_ausencia_cliente < 120000;
@@ -1042,18 +1050,23 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) 
   }
 
   if (it) {
+    const rowClass =
+      "chat-list-statusRow" + (suprimirPilulaEmAtendimento ? " chat-list-statusRow--await-solo" : "");
+    const mostrarPilulaPrincipal = !(s === "em_atendimento" && suprimirPilulaEmAtendimento);
     return (
-      <span className="chat-list-statusRow">
-        <span
-          className={it.cls}
-          title={
-            s === "aguardando_cliente"
-              ? "Aguardando cliente (marcado manualmente)"
-              : it.label
-          }
-        >
-          {it.label}
-        </span>
+      <span className={rowClass}>
+        {mostrarPilulaPrincipal ? (
+          <span
+            className={it.cls}
+            title={
+              s === "aguardando_cliente"
+                ? "Aguardando cliente (marcado manualmente)"
+                : it.label
+            }
+          >
+            {it.label}
+          </span>
+        ) : null}
         {reabertoHint ? (
           <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
             Reaberto pelo cliente
@@ -1061,15 +1074,15 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario }) 
         ) : null}
         {aguardandoClienteAutomatico ? (
           <span
-            className="chat-list-badge-await chat-list-badge-await--subtle"
+            className="chat-list-status-tech chat-list-status-tech--client"
             title="Aguardando resposta do cliente (detecção automática — em atendimento)"
           >
             Aguardando cliente
           </span>
         ) : null}
-        {aguardandoFuncionario && s === "em_atendimento" && !aguardandoClienteAutomatico ? (
+        {aguardandoFuncionarioVisivel ? (
           <span
-            className="chat-list-status-note"
+            className="chat-list-status-tech chat-list-status-tech--staff"
             title="Última mensagem do cliente — equipe deve responder"
           >
             Aguardando funcionário
