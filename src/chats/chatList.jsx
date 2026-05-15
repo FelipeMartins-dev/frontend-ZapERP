@@ -238,7 +238,12 @@ function AtendimentoUnreadDot({ show }) {
 }
 
 /** Só os minutos ao lado do relógio; atualiza a cada minuto. */
-const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso, className = "", wordUnit = false }) {
+const EsperaMinutosInline = memo(function EsperaMinutosInline({
+  anchorIso,
+  className = "",
+  wordUnit = false,
+  format = "default",
+}) {
   const [, setTick] = useState(0);
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -254,20 +259,24 @@ const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso, class
       clearTimeout(timeoutId);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [anchorIso, bump, wordUnit]);
+  }, [anchorIso, bump, wordUnit, format]);
 
   const d = parseToDate(anchorIso);
   if (!d) return null;
   const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
   const label =
-    mins < 1
-      ? wordUnit
-        ? "< 1 min"
-        : "<1m"
-      : wordUnit
-        ? `${mins}\u00a0min`
-        : `${mins}m`;
+    format === "hud"
+      ? mins < 1
+        ? "• <1m"
+        : `• ${mins}m`
+      : mins < 1
+        ? wordUnit
+          ? "< 1 min"
+          : "<1m"
+        : wordUnit
+          ? `${mins}\u00a0min`
+          : `${mins}m`;
   const cn = ["chat-list-time-espera-min", className].filter(Boolean).join(" ");
 
   return (
@@ -1021,13 +1030,30 @@ function Chip({ active, onClick, children, variant = "default", className = "" }
 function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, esperaMinutosAnchorIso = "" }) {
   const s = String(status || "").toLowerCase().trim().replace(/\s+/g, "_");
   const map = {
-    em_atendimento: { label: "Em atendimento", cls: "chat-list-status in" },
+    em_atendimento: {
+      label: "Em atendimento",
+      cls: "chat-list-status in chat-list-status--hud-in",
+      prefix: "▹",
+      prefixClass: "chat-list-status-hud-prefix--session",
+    },
     aguardando_cliente: {
       label: "Aguardando cliente",
-      cls: "chat-list-status chat-list-status-tech chat-list-status-tech--client",
+      cls: "chat-list-status chat-list-status--hud-await-client",
+      prefix: "▋",
+      prefixClass: "chat-list-status-hud-prefix--cursor",
     },
-    fechada: { label: "Finalizada", cls: "chat-list-status closed" },
-    mensagem_disparada: { label: "Mensagem disparada", cls: "chat-list-status dispatched" },
+    fechada: {
+      label: "Finalizada",
+      cls: "chat-list-status closed chat-list-status--hud-closed",
+      prefix: "✓",
+      prefixClass: "chat-list-status-hud-prefix--check",
+    },
+    mensagem_disparada: {
+      label: "Mensagem disparada",
+      cls: "chat-list-status dispatched chat-list-status--hud-dispatched",
+      prefix: "↯",
+      prefixClass: "chat-list-status-hud-prefix--dispatch",
+    },
   };
   const it = map[s];
   const ausenciaFechada =
@@ -1050,8 +1076,14 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
   if (ausenciaFechada) {
     return (
       <span className="chat-list-statusRow">
-        <span className="chat-list-status closed chat-list-status--muted" title="Encerrada automaticamente por ausência do cliente">
-          Finalizado por ausência
+        <span
+          className="chat-list-status closed chat-list-status--hud-closed chat-list-status--hud-closed-muted chat-list-status--muted"
+          title="Encerrada automaticamente por ausência do cliente"
+        >
+          <span className="chat-list-status-hud-prefix chat-list-status-hud-prefix--check" aria-hidden>
+            ✓
+          </span>
+          <span className="chat-list-status-hud-text">Finalizado por ausência</span>
         </span>
       </span>
     );
@@ -1072,7 +1104,10 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
                 : it.label
             }
           >
-            {it.label}
+            <span className={`chat-list-status-hud-prefix ${it.prefixClass}`.trim()} aria-hidden>
+              {it.prefix}
+            </span>
+            <span className="chat-list-status-hud-text">{it.label}</span>
           </span>
         ) : null}
         {reabertoHint ? (
@@ -1082,10 +1117,13 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
         ) : null}
         {aguardandoClienteAutomatico ? (
           <span
-            className="chat-list-status-tech chat-list-status-tech--client"
+            className="chat-list-status chat-list-status--hud-await-client"
             title="Aguardando resposta do cliente (detecção automática — em atendimento)"
           >
-            Aguardando cliente
+            <span className="chat-list-status-hud-prefix chat-list-status-hud-prefix--cursor" aria-hidden>
+              ▋
+            </span>
+            <span className="chat-list-status-hud-text">Aguardando cliente</span>
           </span>
         ) : null}
         {aguardandoFuncionarioVisivel ? (
@@ -1093,19 +1131,18 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             className="chat-list-status-tech chat-list-status-tech--staff"
             title="Última mensagem do cliente — equipe deve responder"
           >
-            <span className="chat-list-status-tech-staff-live" aria-hidden="true" />
+            <span className="chat-list-status-tech-staff-sonar" aria-hidden="true">
+              <span className="chat-list-status-tech-staff-sonar-dot" />
+              <span className="chat-list-status-tech-staff-sonar-dot" />
+              <span className="chat-list-status-tech-staff-sonar-dot" />
+            </span>
             <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
-              <>
-                <span className="chat-list-status-tech-staff-sep" aria-hidden="true">
-                  <span className="chat-list-status-tech-staff-dot" />
-                </span>
-                <EsperaMinutosInline
-                  anchorIso={String(esperaMinutosAnchorIso).trim()}
-                  className="chat-list-time-espera-min--staff-pill"
-                  wordUnit
-                />
-              </>
+              <EsperaMinutosInline
+                anchorIso={String(esperaMinutosAnchorIso).trim()}
+                className="chat-list-time-espera-min--staff-pill"
+                format="hud"
+              />
             ) : null}
           </span>
         ) : null}
@@ -1116,8 +1153,11 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
   if (exibirBadgeAberta === true) {
     return (
       <span className="chat-list-statusRow">
-        <span className="chat-list-status open" title="Aberta">
-          Aberta
+        <span className="chat-list-status open chat-list-status--hud-open" title="Aberta">
+          <span className="chat-list-status-hud-prefix chat-list-status-hud-prefix--diamond" aria-hidden>
+            ◈
+          </span>
+          <span className="chat-list-status-hud-text">Aberta</span>
         </span>
         {reabertoHint ? (
           <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
