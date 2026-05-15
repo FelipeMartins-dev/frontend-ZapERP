@@ -141,10 +141,13 @@
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status-tech--await-client {
-  background: #1e1b4b;
+  background: #451a03;
   color: #fff !important;
-  border-color: rgba(167, 139, 250, 0.72);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 14px rgba(167, 139, 250, 0.2);
+  border-color: rgba(251, 191, 36, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(124, 58, 237, 0.28),
+    0 0 12px rgba(180, 83, 9, 0.2);
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status-tech--await-client .chat-list-time-espera-min--client-pill {
@@ -154,10 +157,10 @@
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status-tech--staff {
   color: #f8fafc !important;
-  border-color: rgba(0, 229, 255, 0.62) !important;
+  border-color: rgba(56, 189, 248, 0.65) !important;
   box-shadow:
     0 0 0 1px rgba(15, 23, 42, 0.95),
-    0 0 18px rgba(0, 229, 255, 0.28) !important;
+    0 0 14px rgba(3, 105, 161, 0.35) !important;
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status-tech--staff .chat-list-time-espera-min--staff-pill {
@@ -1030,7 +1033,7 @@ a { color: inherit; text-decoration: none; }
   padding: 14px 16px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   border-radius: 10px;
   text-align: left;
   cursor: pointer;
@@ -1039,6 +1042,18 @@ a { color: inherit; text-decoration: none; }
   min-height: 72px;
   align-items: center;
   box-shadow: none;
+}
+
+.chat-list-row:not(.chat-list-row--atendimento-calm):not(.chat-list-row--atendimento-alerta):not(
+    .chat-list-row--await-staff-premium
+  ):not(.chat-list-row--await-client-card):hover {
+  background: transparent;
+}
+
+.chat-list-row:not(.chat-list-row--atendimento-calm):not(.chat-list-row--atendimento-alerta):not(
+    .chat-list-row--await-staff-premium
+  ):not(.chat-list-row--await-client-card):active {
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .chat-row-action-trigger {
@@ -1107,7 +1122,7 @@ a { color: inherit; text-decoration: none; }
 .chat-list-row.is-active {
   background: var(--cl-green-soft);
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   box-shadow: 0 0 0 1px rgba(0, 168, 132, 0.12);
 }
 
@@ -1189,7 +1204,7 @@ a { color: inherit; text-decoration: none; }
 /* Tema claro: índigo suave vs âmbar — contraste limpo */
 .chat-list-row.chat-list-row--atendimento-calm:not(.is-active) {
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   background: rgba(248, 250, 252, 0.98);
   box-shadow: inset 0 0 0 1px rgba(241, 245, 249, 0.8);
 }
@@ -1238,7 +1253,7 @@ a { color: inherit; text-decoration: none; }
     0 12px 46px rgba(249, 115, 22, 0.18);
 }
 
-/* Aguardando funcionário — bruma animada só no ::after (opacity + transform); card estático */
+/* Aguardando funcionário — azul forte + moldura; bruma só ::after em desktop claro */
 @keyframes chatListRowStaffGlowPulse {
   0%,
   100% {
@@ -1252,48 +1267,49 @@ a { color: inherit; text-decoration: none; }
 }
 
 .chat-list-row.chat-list-row--await-staff-premium:not(.is-active) {
-  border: none;
-  border-left: 4px solid #0284c7;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(2, 132, 199, 0.09);
+  border: 1px solid rgba(3, 105, 161, 0.25);
+  border-left: 4px solid #0369a1;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  background: rgba(2, 100, 180, 0.13);
   box-shadow: none;
 }
 
 .chat-list-row.chat-list-row--await-staff-premium:not(.is-active):hover {
-  background: rgba(2, 132, 199, 0.1);
+  background: rgba(2, 100, 180, 0.15);
 }
 
 .chat-list-row.chat-list-row--await-staff-premium.is-active {
-  border: none;
-  border-left: 4px solid #0284c7;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  background: linear-gradient(90deg, rgba(2, 132, 199, 0.12) 0%, var(--cl-green-soft) 52%);
+  border: 1px solid rgba(3, 105, 161, 0.28);
+  border-left: 4px solid #0369a1;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  background: linear-gradient(90deg, rgba(2, 100, 180, 0.16) 0%, var(--cl-green-soft) 52%);
   box-shadow: none;
 }
 
 .chat-list-row.chat-list-row--atendimento-alerta.chat-list-row--await-staff-premium:not(.is-active) {
-  background: rgba(2, 132, 199, 0.09);
+  background: rgba(2, 100, 180, 0.13);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-staff-premium:not(.is-active) {
-  border: none;
+  border: 1px solid rgba(56, 189, 248, 0.28);
   border-left: 4px solid #38bdf8;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(2, 132, 199, 0.12);
+  background: rgba(2, 100, 180, 0.18);
   box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-staff-premium:not(.is-active):hover {
-  background: rgba(2, 132, 199, 0.15);
+  background: rgba(2, 100, 180, 0.22);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-staff-premium.is-active {
+  border: 1px solid rgba(56, 189, 248, 0.32);
   border-left: 4px solid #38bdf8;
-  background: linear-gradient(90deg, rgba(2, 132, 199, 0.14) 0%, rgba(32, 44, 51, 0.55) 48%);
+  background: linear-gradient(90deg, rgba(2, 100, 180, 0.2) 0%, rgba(32, 44, 51, 0.55) 48%);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta.chat-list-row--await-staff-premium:not(.is-active) {
-  background: rgba(2, 132, 199, 0.12);
+  background: rgba(2, 100, 180, 0.18);
 }
 
 .chat-list-row.chat-list-row--await-staff-premium .chat-list-avatar,
@@ -1306,7 +1322,6 @@ a { color: inherit; text-decoration: none; }
   z-index: 3;
 }
 
-/* Pulso cyan: desktop ponteiro fino + tema claro (html sem data-theme="dark") */
 @media (hover: hover) and (pointer: fine) {
   html:not([data-theme="dark"]) .chat-list-row.chat-list-row--await-staff-premium:not(.chat-list-row--atendimento-tech):not(.is-active)::after,
   html:not([data-theme="dark"]) .chat-list-row.chat-list-row--await-staff-premium:not(.chat-list-row--atendimento-tech).is-active::after {
@@ -1316,104 +1331,87 @@ a { color: inherit; text-decoration: none; }
     pointer-events: none;
     z-index: 0;
     border-radius: inherit;
-    background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(2, 132, 199, 0.38) 0%, transparent 62%);
+    background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.42) 0%, transparent 62%);
     will-change: opacity, transform;
     animation: chatListRowStaffGlowPulse 2.5s ease-in-out infinite;
   }
 
   html:not([data-theme="dark"]) .chat-list-row.chat-list-row--await-staff-premium:not(.chat-list-row--atendimento-tech).is-active::after {
-    background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(2, 132, 199, 0.28) 0%, transparent 65%);
+    background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.32) 0%, transparent 65%);
   }
 
   .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
     box-shadow:
-      inset 0 0 0 1px rgba(109, 40, 217, 0.06),
-      0 0 10px rgba(109, 40, 217, 0.14);
+      inset 0 0 0 1px rgba(180, 83, 9, 0.12),
+      0 0 12px rgba(180, 83, 9, 0.12);
   }
 
   .chat-list-row.chat-list-row--await-client-card:not(.is-active):hover {
-    background: rgba(109, 40, 217, 0.085);
+    background: rgba(180, 100, 0, 0.11);
     box-shadow:
-      inset 0 0 0 1px rgba(109, 40, 217, 0.08),
-      0 0 12px rgba(109, 40, 217, 0.18);
+      inset 0 0 0 1px rgba(180, 83, 9, 0.16),
+      0 0 14px rgba(180, 83, 9, 0.14);
   }
 
   .chat-list-row.chat-list-row--await-client-card.is-active {
     box-shadow:
       0 0 0 1px rgba(0, 168, 132, 0.12),
-      0 0 10px rgba(109, 40, 217, 0.12);
+      0 0 12px rgba(180, 83, 9, 0.1);
   }
 }
 
-/* Aguardando cliente */
+/* Aguardando cliente — cartão âmbar/dourado (sem violeta) */
 .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
-  border: none;
-  border-left: 4px solid #6d28d9;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(109, 40, 217, 0.07);
+  border: 1px solid rgba(180, 83, 9, 0.22);
+  border-left: 4px solid #b45309;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  background: rgba(180, 100, 0, 0.09);
   box-shadow: none;
 }
 
 .chat-list-row.chat-list-row--await-client-card:not(.is-active):hover {
-  background: rgba(109, 40, 217, 0.085);
+  background: rgba(180, 100, 0, 0.11);
 }
 
 .chat-list-row.chat-list-row--await-client-card.is-active {
-  border: none;
-  border-left: 4px solid #6d28d9;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  background: linear-gradient(90deg, rgba(109, 40, 217, 0.1) 0%, var(--cl-green-soft) 55%);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  border-left: 4px solid #b45309;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  background: linear-gradient(90deg, rgba(180, 100, 0, 0.12) 0%, var(--cl-green-soft) 55%);
   box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
+  border: 1px solid rgba(251, 191, 36, 0.22);
   border-bottom-color: rgba(255, 255, 255, 0.08);
-  border-left-color: #a78bfa;
-  background: rgba(109, 40, 217, 0.1);
+  border-left: 4px solid #f59e0b;
+  background: rgba(180, 100, 0, 0.14);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card:not(.is-active):hover {
-  background: rgba(109, 40, 217, 0.13);
+  background: rgba(180, 100, 0, 0.17);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card.is-active {
-  border-left-color: #a78bfa;
-  background: linear-gradient(90deg, rgba(109, 40, 217, 0.14) 0%, rgba(32, 44, 51, 0.5) 55%);
+  border: 1px solid rgba(251, 191, 36, 0.26);
+  border-left: 4px solid #fbbf24;
+  background: linear-gradient(90deg, rgba(180, 100, 0, 0.16) 0%, rgba(32, 44, 51, 0.5) 55%);
 }
 
 @media (hover: hover) and (pointer: fine) {
   [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
     box-shadow:
-      inset 0 0 0 1px rgba(167, 139, 250, 0.08),
-      0 0 10px rgba(109, 40, 217, 0.18);
+      inset 0 0 0 1px rgba(251, 191, 36, 0.1),
+      0 0 12px rgba(180, 83, 9, 0.16);
   }
 }
 
-/* Touch: sem animações nem sombras nos destaques — plano e rápido */
+/* Touch: zero animação; cartões staff/cliente mantêm moldura e tinta */
 @media (hover: none) {
-  .chat-list-row.chat-list-row--await-staff-premium:not(.is-active) {
-    background: rgba(2, 132, 199, 0.07);
-    box-shadow: none !important;
-  }
-
-  .chat-list-row.chat-list-row--await-staff-premium.is-active {
-    background: linear-gradient(90deg, rgba(2, 132, 199, 0.09) 0%, var(--cl-green-soft) 52%);
-    box-shadow: none !important;
-  }
-
   .chat-list-row.chat-list-row--await-staff-premium::after {
     content: none !important;
     animation: none !important;
     will-change: auto !important;
-  }
-
-  .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
-    background: rgba(109, 40, 217, 0.05);
-    box-shadow: none !important;
-  }
-
-  .chat-list-row.chat-list-row--await-client-card.is-active {
-    box-shadow: none !important;
   }
 
   .chat-list-row--atendimento-tech::after {
@@ -1442,7 +1440,18 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status-tech--await-client .chat-list-status-tech-await-client-cursor {
     opacity: 1;
   }
+
+  .chat-list-status.open.chat-list-status--hud-open::after {
+    animation: none !important;
+    content: none !important;
+    opacity: 0 !important;
+  }
+
+  .chat-list-status.dispatched.chat-list-status--hud-dispatched::before {
+    animation: none !important;
+  }
 }
+
 /* Em atendimento + última mensagem do cliente — camada animada (não cobre o conteúdo) */
 .chat-list-row--atendimento-tech {
   overflow: hidden;
@@ -1502,7 +1511,7 @@ a { color: inherit; text-decoration: none; }
 /* Staff + tech: substitui animações pesadas por bruma cyan (pulso só desktop claro) */
 .chat-list-row.chat-list-row--await-staff-premium.chat-list-row--atendimento-tech::after {
   mix-blend-mode: normal;
-  background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(2, 132, 199, 0.34) 0%, transparent 62%);
+  background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.38) 0%, transparent 62%);
   background-size: auto;
   background-position: 0 0;
   opacity: 0.26;
@@ -1551,6 +1560,11 @@ a { color: inherit; text-decoration: none; }
     opacity: 0.26 !important;
     transform: none !important;
     will-change: auto !important;
+  }
+
+  .chat-list-status.open.chat-list-status--hud-open::after {
+    animation: none !important;
+    content: none !important;
   }
 }
 
@@ -2056,9 +2070,9 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: center;
   gap: 3px;
-  min-height: 19px;
+  min-height: 20px;
   height: auto;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 600;
@@ -2066,6 +2080,9 @@ a { color: inherit; text-decoration: none; }
   white-space: nowrap;
   line-height: 1.15;
   border: 1px solid transparent;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .chat-list-status-hud-prefix {
@@ -2079,10 +2096,11 @@ a { color: inherit; text-decoration: none; }
 .chat-list-status-hud-text {
   position: relative;
   z-index: 1;
-  flex-shrink: 1;
+  flex-shrink: 0;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .chat-list-status-hud-prefix--diamond {
@@ -2114,7 +2132,24 @@ a { color: inherit; text-decoration: none; }
   animation: chatListHudCursorBlink 0.92s steps(1, end) infinite;
 }
 
-/* Aberta — verde HUD + data stream */
+/* Aberta — verde HUD + shimmer horizontal suave (só desktop) */
+@keyframes chatListHudAbertaShimmer {
+  0% {
+    transform: translateX(-62%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.55;
+  }
+  45% {
+    opacity: 0.38;
+  }
+  100% {
+    transform: translateX(62%);
+    opacity: 0;
+  }
+}
+
 .chat-list-status.open.chat-list-status--hud-open {
   position: relative;
   overflow: hidden;
@@ -2127,25 +2162,44 @@ a { color: inherit; text-decoration: none; }
   background: #052e16;
   border: 1px solid #00ff88;
   box-shadow: inset 0 0 0 1px rgba(0, 255, 136, 0.06);
+  padding: 5px 15px;
+  min-height: 22px;
 }
 
 .chat-list-status.open.chat-list-status--hud-open::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -55%;
-  width: 42%;
-  height: 100%;
-  z-index: 0;
-  background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.28), transparent);
-  animation: chatListHudOpenStream 1.05s linear infinite;
-  pointer-events: none;
+  content: none;
 }
 
 .chat-list-status.open.chat-list-status--hud-open .chat-list-status-hud-prefix,
 .chat-list-status.open.chat-list-status--hud-open .chat-list-status-hud-text {
   position: relative;
   z-index: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chat-list-status.open.chat-list-status--hud-open::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(255, 255, 255, 0.05) 47%,
+      rgba(255, 255, 255, 0.22) 50%,
+      rgba(255, 255, 255, 0.05) 53%,
+      transparent 60%,
+      transparent 100%
+    );
+    background-size: 180% 100%;
+    background-position: 0 50%;
+    transform: translateX(-35%);
+    animation: chatListHudAbertaShimmer 3s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
 }
 
 /* Mensagem disparada — painel escuro + sweep âmbar */
@@ -2275,19 +2329,19 @@ a { color: inherit; text-decoration: none; }
 }
 
 .chat-list-row-meta:has(.chat-list-status-tech--await-client) {
-  max-width: min(62%, 320px);
+  max-width: min(72%, 400px);
 }
 
-/* Aguardando cliente — badge: violeta #6d28d9, roxo profundo, ▋ (blink só desktop) */
+/* Aguardando cliente — badge âmbar escuro + acento violeta; texto branco */
 .chat-list-status-tech--await-client {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
-  min-height: 23px;
+  min-height: 24px;
   height: auto;
-  padding: 5px 12px 5px 10px;
+  padding: 6px 13px 6px 11px;
   border-radius: 999px;
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 9.5px;
@@ -2303,9 +2357,11 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
   color: #fff;
   cursor: default;
-  background: #5b21b6;
-  border: 1px solid #6d28d9;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: #78350f;
+  border: 1px solid #b45309;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(124, 58, 237, 0.22);
   animation: none;
 }
 
@@ -2316,7 +2372,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .chat-list-status-tech-await-client-cursor {
-  color: #e9d5ff;
+  color: #c4b5fd;
   font-weight: 700;
   animation: none;
   will-change: auto;
@@ -2335,9 +2391,11 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-status-tech--await-client {
-  background: #4c1d95;
-  border-color: #a78bfa;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: #451a03;
+  border-color: #f59e0b;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(167, 139, 250, 0.2);
 }
 
 .chat-list-status-tech--await-client:hover {
@@ -2353,9 +2411,9 @@ a { color: inherit; text-decoration: none; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 18px;
-  height: 18px;
-  padding: 0 7px;
+  min-height: 19px;
+  height: auto;
+  padding: 2px 9px;
   border-radius: 999px;
   font-size: 9.5px;
   font-weight: 600;
@@ -2363,9 +2421,9 @@ a { color: inherit; text-decoration: none; }
   white-space: nowrap;
   line-height: 1;
   border: 1px solid transparent;
-  max-width: 118px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: min(100%, 100vw);
+  overflow: visible;
+  text-overflow: clip;
   flex-shrink: 0;
 }
 
@@ -2373,16 +2431,16 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.02em;
 }
 
-/* Aguardando funcionário — navy + cyan #0284c7; anel/glitch/sonar só em desktop (opacity+transform) */
+/* Aguardando funcionário — navy + azul #0369a1; anel/glitch/sonar só em desktop (opacity+transform) */
 .chat-list-status-tech--staff {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
-  min-height: 23px;
+  min-height: 24px;
   height: auto;
-  padding: 5px 12px 5px 10px;
+  padding: 6px 13px 6px 11px;
   border-radius: 999px;
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 9.5px;
@@ -2398,7 +2456,7 @@ a { color: inherit; text-decoration: none; }
   color: #fff;
   cursor: default;
   background: #0f172a;
-  border: 1px solid rgba(2, 132, 199, 0.78);
+  border: 1px solid rgba(3, 105, 161, 0.82);
   box-shadow:
     0 0 0 1px rgba(2, 6, 23, 0.65),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -2412,7 +2470,7 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(
     122deg,
     transparent 44%,
-    rgba(2, 132, 199, 0.24) 50%,
+    rgba(3, 105, 161, 0.26) 50%,
     transparent 56%
   );
   transform: translate3d(-32%, 22%, 0) skewX(-16deg);
@@ -2428,7 +2486,7 @@ a { color: inherit; text-decoration: none; }
   inset: -1px;
   border-radius: inherit;
   z-index: 0;
-  border: 1px solid rgba(2, 132, 199, 0.45);
+  border: 1px solid rgba(3, 105, 161, 0.48);
   pointer-events: none;
   animation: none;
   will-change: auto;
@@ -2464,8 +2522,8 @@ a { color: inherit; text-decoration: none; }
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: #0284c7;
-  box-shadow: 0 0 5px rgba(2, 132, 199, 0.75);
+  background: #0369a1;
+  box-shadow: 0 0 5px rgba(3, 105, 161, 0.75);
   animation: none;
   will-change: auto;
 }
@@ -2518,22 +2576,13 @@ a { color: inherit; text-decoration: none; }
   border-color: rgba(56, 189, 248, 0.62);
   box-shadow:
     0 0 0 1px rgba(2, 6, 23, 0.92),
-    0 0 12px rgba(14, 165, 233, 0.2),
+    0 0 12px rgba(3, 105, 161, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 [data-theme="dark"] .chat-list-time-espera-min--staff-pill {
   color: #f59e0b !important;
   text-shadow: none !important;
-}
-
-@keyframes chatListHudOpenStream {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(260%);
-  }
 }
 
 @keyframes chatListHudDispatchSweep {
@@ -2915,8 +2964,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status {
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .chat-list-badge-sem-conversa {
@@ -3042,21 +3091,30 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-status {
-    min-height: 19px;
-    height: 19px;
-    padding: 0 7px;
+    min-height: 20px;
+    height: auto;
+    padding: 3px 8px;
     font-size: 10px;
   }
 
-  .chat-list-status.open.chat-list-status--hud-open,
+  .chat-list-status.open.chat-list-status--hud-open {
+    min-height: 22px;
+    padding: 5px 15px;
+  }
+
   .chat-list-status.in.chat-list-status--hud-in,
   .chat-list-status.closed.chat-list-status--hud-closed,
   .chat-list-status.dispatched.chat-list-status--hud-dispatched,
   .chat-list-status-tech--await-client {
     height: auto;
-    min-height: 20px;
+    min-height: 21px;
     line-height: 1.15;
-    padding: 2px 7px;
+    padding: 3px 8px;
+  }
+
+  .chat-list-status-tech--staff {
+    min-height: 23px;
+    padding: 6px 12px 6px 10px;
   }
 
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client),
@@ -3081,8 +3139,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status {
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .chat-row-action-trigger {
@@ -3131,8 +3189,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status {
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
   }
 }
 
@@ -3223,52 +3281,62 @@ a { color: inherit; text-decoration: none; }
     line-height: 1.35;
   }
 
-  /* Pill de status mais compacto no telefone (o bloco 12px deixava a coluna meta muito alta) */
+  /* Pills de status: sem truncar etiquetas longas */
   .chat-list-status {
-    min-height: 19px;
-    height: 19px;
-    padding: 0 7px;
+    min-height: 20px;
+    height: auto;
+    padding: 3px 8px;
     font-size: 10px;
-    line-height: 1;
+    line-height: 1.15;
     font-weight: 600;
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
   }
 
-  .chat-list-status.open.chat-list-status--hud-open,
+  .chat-list-status.open.chat-list-status--hud-open {
+    min-height: 22px;
+    padding: 5px 15px;
+  }
+
   .chat-list-status.in.chat-list-status--hud-in,
   .chat-list-status.closed.chat-list-status--hud-closed,
   .chat-list-status.dispatched.chat-list-status--hud-dispatched,
   .chat-list-status-tech--await-client {
     height: auto;
-    min-height: 20px;
+    min-height: 21px;
     line-height: 1.15;
-    padding: 2px 6px;
+    padding: 3px 8px;
+  }
+
+  .chat-list-status-tech--staff {
+    min-height: 23px;
+    padding: 6px 12px 6px 10px;
   }
 
   .chat-list-row-meta .chat-list-status-tech {
     min-height: 19px;
-    height: 19px;
-    padding: 0 7px;
+    height: auto;
+    padding: 2px 9px;
     font-size: 10px;
-    max-width: 100%;
+    max-width: min(100%, calc(100vw - 80px));
+    overflow: visible;
   }
 
   .chat-list-row-meta .chat-list-status-tech--staff {
-    min-height: 22px;
+    min-height: 23px;
     height: auto;
-    padding: 3px 9px 3px 7px;
+    padding: 6px 12px 6px 10px;
     font-size: 9.5px;
     width: max-content;
     max-width: min(100%, calc(100vw - 100px));
   }
 
   .chat-list-row-meta .chat-list-status-tech--await-client {
-    min-height: 22px;
+    min-height: 23px;
     height: auto;
-    padding: 3px 9px 3px 7px;
+    padding: 6px 12px 6px 10px;
     font-size: 9.5px;
     width: max-content;
     max-width: min(100%, calc(100vw - 100px)) !important;
@@ -3609,7 +3677,7 @@ a { color: inherit; text-decoration: none; }
   }
   .chat-list-status-tech--staff {
     transition: none !important;
-    border-color: rgba(2, 132, 199, 0.65) !important;
+    border-color: rgba(3, 105, 161, 0.65) !important;
     box-shadow:
       0 0 0 1px rgba(15, 23, 42, 0.8),
       inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
@@ -3626,9 +3694,14 @@ a { color: inherit; text-decoration: none; }
     opacity: 0 !important;
   }
   .chat-list-status.open.chat-list-status--hud-open::before,
+  .chat-list-status.open.chat-list-status--hud-open::after,
   .chat-list-status.dispatched.chat-list-status--hud-dispatched::before {
     animation: none !important;
     opacity: 0 !important;
+  }
+
+  .chat-list-status.open.chat-list-status--hud-open::after {
+    content: none !important;
   }
   .chat-list-status-tech-await-client-cursor {
     animation: none !important;
