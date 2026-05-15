@@ -238,7 +238,7 @@ function AtendimentoUnreadDot({ show }) {
 }
 
 /** Só os minutos ao lado do relógio; atualiza a cada minuto. */
-const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso, className = "" }) {
+const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso, className = "", wordUnit = false }) {
   const [, setTick] = useState(0);
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -254,13 +254,20 @@ const EsperaMinutosInline = memo(function EsperaMinutosInline({ anchorIso, class
       clearTimeout(timeoutId);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [anchorIso, bump]);
+  }, [anchorIso, bump, wordUnit]);
 
   const d = parseToDate(anchorIso);
   if (!d) return null;
   const rawMin = Math.floor((Date.now() - d.getTime()) / 60000);
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
-  const label = mins < 1 ? "<1m" : `${mins}m`;
+  const label =
+    mins < 1
+      ? wordUnit
+        ? "< 1 min"
+        : "<1m"
+      : wordUnit
+        ? `${mins}\u00a0min`
+        : `${mins}m`;
   const cn = ["chat-list-time-espera-min", className].filter(Boolean).join(" ");
 
   return (
@@ -1088,10 +1095,16 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
           >
             <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
-              <EsperaMinutosInline
-                anchorIso={String(esperaMinutosAnchorIso).trim()}
-                className="chat-list-time-espera-min--staff-pill"
-              />
+              <>
+                <span className="chat-list-status-tech-staff-sep" aria-hidden="true">
+                  <span className="chat-list-status-tech-staff-dot" />
+                </span>
+                <EsperaMinutosInline
+                  anchorIso={String(esperaMinutosAnchorIso).trim()}
+                  className="chat-list-time-espera-min--staff-pill"
+                  wordUnit
+                />
+              </>
             ) : null}
           </span>
         ) : null}
