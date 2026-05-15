@@ -1093,6 +1093,7 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             className="chat-list-status-tech chat-list-status-tech--staff"
             title="Última mensagem do cliente — equipe deve responder"
           >
+            <span className="chat-list-status-tech-staff-live" aria-hidden="true" />
             <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
               <>

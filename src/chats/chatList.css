@@ -165,9 +165,11 @@
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status-tech--staff {
-  color: #fffbeb !important;
-  border-color: rgba(253, 224, 71, 0.55) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important;
+  color: #f8fafc !important;
+  border-color: rgba(103, 232, 249, 0.55) !important;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.95),
+    0 0 18px rgba(34, 211, 238, 0.32) !important;
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.closed {
@@ -1998,36 +2000,74 @@ a { color: inherit; text-decoration: none; }
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 3px;
-  min-height: 21px;
+  gap: 6px;
+  min-height: 22px;
   height: auto;
-  padding: 2px 9px 2px 7px;
+  padding: 4px 11px 4px 9px;
   border-radius: 999px;
   font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: 500;
+  letter-spacing: 0.07em;
   line-height: 1.2;
   width: max-content;
   max-width: min(100%, 100vw);
-  overflow: visible;
+  overflow: hidden;
   text-overflow: clip;
   white-space: nowrap;
   flex-shrink: 0;
-  color: #fff7ed;
+  color: #f1f5f9;
   cursor: default;
-  background: linear-gradient(125deg, #6b1515 0%, #991b1b 50%, #7f1d1d 100%);
-  border: 1px solid rgba(234, 179, 8, 0.48);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
+  background: linear-gradient(135deg, #0a0f1a 0%, #1e293b 38%, #0f172a 72%, #0c1220 100%);
+  border: 1px solid rgba(34, 211, 238, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.75),
+    0 0 10px rgba(34, 211, 238, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  animation: chatListStaffBorderGlow 2.6s ease-in-out infinite;
+  transition: filter 0.18s ease;
+}
+
+.chat-list-status-tech--staff > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chat-list-status-tech--staff::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0) 36%,
+    rgba(165, 243, 252, 0.16) 50%,
+    rgba(56, 189, 248, 0) 64%,
+    transparent 100%
+  );
+  transform: translateX(-130%);
+  animation: chatListStaffShimmer 3.1s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .chat-list-status-tech--staff:hover {
-  filter: brightness(1.05);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+  filter: brightness(1.07);
 }
 
 .chat-list-status-tech--staff:active {
-  filter: brightness(1.02);
+  filter: brightness(1.03);
+}
+
+.chat-list-status-tech-staff-live {
+  display: block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(34, 211, 238, 0.22);
+  border-top-color: rgba(103, 232, 249, 0.95);
+  animation: chatListStaffSpin 0.88s linear infinite;
 }
 
 .chat-list-status-tech-staff-sep {
@@ -2043,19 +2083,17 @@ a { color: inherit; text-decoration: none; }
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: rgba(253, 224, 71, 0.75);
-  opacity: 0.7;
-  transform: scale(1);
-  animation: chatListStaffDotPulse 2s ease-in-out infinite;
+  background: rgba(56, 189, 248, 0.95);
+  animation: chatListStaffDotBlink 1.2s ease-in-out infinite;
 }
 
 .chat-list-time-espera-min--staff-pill {
   display: inline !important;
   font-size: 8.5px !important;
   font-weight: 500 !important;
-  letter-spacing: 0.01em !important;
+  letter-spacing: 0.06em !important;
   line-height: 1.2 !important;
-  color: rgba(255, 247, 237, 0.92) !important;
+  color: rgba(226, 232, 240, 0.9) !important;
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
@@ -2073,23 +2111,28 @@ a { color: inherit; text-decoration: none; }
   white-space: nowrap;
   overflow: visible;
   text-overflow: clip;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #f8fafc;
 }
 
 [data-theme="dark"] .chat-list-status-tech--staff {
-  color: #fffbeb;
-  background: linear-gradient(125deg, #3f0a0a 0%, #7f1d1d 48%, #5c1010 100%);
-  border-color: rgba(253, 224, 71, 0.4);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  color: #f1f5f9;
+  background: linear-gradient(135deg, #020617 0%, #1e293b 45%, #0f172a 100%);
+  border-color: rgba(34, 211, 238, 0.38);
+  box-shadow:
+    0 0 0 1px rgba(2, 6, 23, 0.9),
+    0 0 12px rgba(34, 211, 238, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 [data-theme="dark"] .chat-list-time-espera-min--staff-pill {
-  color: rgba(254, 249, 195, 0.9) !important;
+  color: rgba(226, 232, 240, 0.88) !important;
   text-shadow: none !important;
 }
 
 [data-theme="dark"] .chat-list-status-tech-staff-dot {
-  background: rgba(253, 224, 71, 0.7);
+  background: rgba(103, 232, 249, 0.92);
 }
 
 [data-theme="dark"] .chat-list-status-tech--client {
@@ -2117,15 +2160,55 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
-@keyframes chatListStaffDotPulse {
+@keyframes chatListStaffBorderGlow {
   0%,
   100% {
-    transform: scale(1);
-    opacity: 0.62;
+    border-color: rgba(34, 211, 238, 0.35);
+    box-shadow:
+      0 0 0 1px rgba(15, 23, 42, 0.75),
+      0 0 8px rgba(34, 211, 238, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
   50% {
-    transform: scale(1.1);
-    opacity: 0.95;
+    border-color: rgba(103, 232, 249, 0.62);
+    box-shadow:
+      0 0 0 1px rgba(15, 23, 42, 0.85),
+      0 0 16px rgba(56, 189, 248, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+}
+
+@keyframes chatListStaffShimmer {
+  0%,
+  28% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+  42% {
+    opacity: 1;
+  }
+  58%,
+  100% {
+    transform: translateX(130%);
+    opacity: 0;
+  }
+}
+
+@keyframes chatListStaffSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes chatListStaffDotBlink {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
   }
 }
 
@@ -3086,10 +3169,24 @@ a { color: inherit; text-decoration: none; }
   }
   .chat-list-status-tech--staff {
     transition: none !important;
+    border-color: rgba(34, 211, 238, 0.45) !important;
+    box-shadow:
+      0 0 0 1px rgba(15, 23, 42, 0.8),
+      0 0 10px rgba(34, 211, 238, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  }
+  .chat-list-status-tech--staff::before {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .chat-list-status-tech-staff-live {
+    animation: none !important;
+    border-color: rgba(34, 211, 238, 0.28);
+    border-top-color: rgba(103, 232, 249, 0.75);
   }
   .chat-list-status-tech-staff-dot {
     animation: none !important;
-    opacity: 0.85 !important;
+    opacity: 0.75 !important;
     transform: none !important;
   }
 }
