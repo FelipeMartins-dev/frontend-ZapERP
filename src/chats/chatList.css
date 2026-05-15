@@ -1030,7 +1030,7 @@ a { color: inherit; text-decoration: none; }
   margin: 0;
   display: flex;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 18px 16px;
   background: transparent;
   border: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.07);
@@ -1266,6 +1266,17 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
+/* Sweep diagonal muito subtil — só camada ::after em desktop claro (ver media query) */
+@keyframes bgpulse {
+  0%,
+  100% {
+    background-position: 0% 0%, 0% 50%;
+  }
+  50% {
+    background-position: 100% 100%, 0% 50%;
+  }
+}
+
 .chat-list-row.chat-list-row--await-staff-premium:not(.is-active) {
   border: 1px solid rgba(3, 105, 161, 0.25);
   border-left: 4px solid #0369a1;
@@ -1331,13 +1342,35 @@ a { color: inherit; text-decoration: none; }
     pointer-events: none;
     z-index: 0;
     border-radius: inherit;
-    background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.42) 0%, transparent 62%);
-    will-change: opacity, transform;
-    animation: chatListRowStaffGlowPulse 2.5s ease-in-out infinite;
+    background:
+      linear-gradient(
+        128deg,
+        rgba(2, 100, 180, 0.07) 0%,
+        rgba(2, 100, 180, 0.13) 42%,
+        rgba(2, 100, 180, 0.1) 58%,
+        rgba(2, 100, 180, 0.07) 100%
+      ),
+      radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.42) 0%, transparent 62%);
+    background-size: 200% 200%, 100% 100%;
+    background-position: 0% 0%, 0% 50%;
+    will-change: opacity, transform, background-position;
+    animation:
+      bgpulse 3s ease-in-out infinite,
+      chatListRowStaffGlowPulse 2.5s ease-in-out infinite;
   }
 
   html:not([data-theme="dark"]) .chat-list-row.chat-list-row--await-staff-premium:not(.chat-list-row--atendimento-tech).is-active::after {
-    background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.32) 0%, transparent 65%);
+    background:
+      linear-gradient(
+        128deg,
+        rgba(2, 100, 180, 0.07) 0%,
+        rgba(2, 100, 180, 0.13) 42%,
+        rgba(2, 100, 180, 0.1) 58%,
+        rgba(2, 100, 180, 0.07) 100%
+      ),
+      radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.32) 0%, transparent 65%);
+    background-size: 200% 200%, 100% 100%;
+    background-position: 0% 0%, 0% 50%;
   }
 
   .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
@@ -1427,17 +1460,18 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status-tech--staff,
   .chat-list-status-tech--staff::before,
   .chat-list-status-tech--staff::after,
-  .chat-list-status-tech-staff-sonar-dot,
-  .chat-list-status-tech--await-client .chat-list-status-tech-await-client-cursor {
+  .chat-list-status-tech-staff-badge-icon,
+  .chat-list-status-tech-await-client-badge-icon {
     animation: none !important;
     will-change: auto !important;
   }
 
-  .chat-list-status-tech-staff-sonar-dot {
-    opacity: 0.9;
+  .chat-list-status-tech-staff-badge-icon {
+    opacity: 0.92;
+    transform: scale(1);
   }
 
-  .chat-list-status-tech--await-client .chat-list-status-tech-await-client-cursor {
+  .chat-list-status-tech--await-client .chat-list-status-tech-await-client-badge-icon {
     opacity: 1;
   }
 
@@ -1522,8 +1556,21 @@ a { color: inherit; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) {
   html:not([data-theme="dark"]) .chat-list-row.chat-list-row--await-staff-premium.chat-list-row--atendimento-tech:not(.is-active)::after,
   html:not([data-theme="dark"]) .chat-list-row.chat-list-row--await-staff-premium.chat-list-row--atendimento-tech.is-active::after {
-    will-change: opacity, transform;
-    animation: chatListRowStaffGlowPulse 2.5s ease-in-out infinite;
+    background:
+      linear-gradient(
+        128deg,
+        rgba(2, 100, 180, 0.07) 0%,
+        rgba(2, 100, 180, 0.13) 42%,
+        rgba(2, 100, 180, 0.1) 58%,
+        rgba(2, 100, 180, 0.07) 100%
+      ),
+      radial-gradient(ellipse 125% 130% at 0% 50%, rgba(3, 105, 161, 0.38) 0%, transparent 62%);
+    background-size: 200% 200%, 100% 100%;
+    background-position: 0% 0%, 0% 50%;
+    will-change: opacity, transform, background-position;
+    animation:
+      bgpulse 3s ease-in-out infinite,
+      chatListRowStaffGlowPulse 2.5s ease-in-out infinite;
   }
 }
 
@@ -2160,7 +2207,7 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.04em;
   color: #fff;
   background: #052e16;
-  border: 1px solid #00ff88;
+  border: 1px solid rgba(22, 163, 74, 0.35);
   box-shadow: inset 0 0 0 1px rgba(0, 255, 136, 0.06);
   padding: 5px 15px;
   min-height: 22px;
@@ -2365,23 +2412,37 @@ a { color: inherit; text-decoration: none; }
   animation: none;
 }
 
-.chat-list-status-tech-await-client-cursor,
+.chat-list-status-tech-await-client-badge-icon,
 .chat-list-status-tech-await-client-label {
   position: relative;
   z-index: 1;
 }
 
-.chat-list-status-tech-await-client-cursor {
-  color: #c4b5fd;
-  font-weight: 700;
+.chat-list-status-tech-await-client-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 7px;
+  min-width: 7px;
+  height: 7px;
+  font-size: 7px;
+  line-height: 1;
+  font-weight: 800;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #fde047;
+  text-shadow: 0 0 4px rgba(245, 158, 11, 0.35);
+  transform-origin: 50% 50%;
   animation: none;
   will-change: auto;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .chat-list-status-tech-await-client-cursor {
-    animation: chatListHudCursorBlink 0.92s steps(1, end) infinite;
-    will-change: opacity;
+  .chat-list-status-tech-await-client-badge-icon {
+    animation:
+      chatListBadgeIconPulseOpacity 1.2s ease-in-out infinite,
+      chatListBadgeIconPulseScale 1.5s ease-in-out infinite;
+    will-change: opacity, transform;
   }
 }
 
@@ -2503,37 +2564,33 @@ a { color: inherit; text-decoration: none; }
     will-change: opacity, transform;
   }
 
-  .chat-list-status-tech-staff-sonar-dot {
-    animation: chatListHudSonarDot 1.05s ease-in-out infinite;
+  .chat-list-status-tech-staff-badge-icon {
+    animation:
+      chatListBadgeIconPulseOpacity 1.2s ease-in-out infinite,
+      chatListBadgeIconPulseScale 1.5s ease-in-out infinite;
     will-change: opacity, transform;
   }
 }
 
-.chat-list-status-tech-staff-sonar {
+.chat-list-status-tech-staff-badge-icon {
   position: relative;
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  margin-right: 1px;
-}
-
-.chat-list-status-tech-staff-sonar-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #0369a1;
-  box-shadow: 0 0 5px rgba(3, 105, 161, 0.75);
+  justify-content: center;
+  flex-shrink: 0;
+  width: 7px;
+  min-width: 7px;
+  height: 7px;
+  font-size: 7px;
+  line-height: 1;
+  font-weight: 800;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #38bdf8;
+  text-shadow: 0 0 4px rgba(3, 105, 161, 0.45);
+  transform-origin: 50% 50%;
   animation: none;
   will-change: auto;
-}
-
-.chat-list-status-tech-staff-sonar-dot:nth-child(2) {
-  animation-delay: 0.14s;
-}
-
-.chat-list-status-tech-staff-sonar-dot:nth-child(3) {
-  animation-delay: 0.28s;
 }
 
 .chat-list-time-espera-min--staff-pill {
@@ -2648,19 +2705,23 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
-@keyframes chatListHudSonarDot {
+@keyframes chatListBadgeIconPulseOpacity {
   0%,
   100% {
-    opacity: 0.2;
-    transform: scale(0.88);
+    opacity: 0.4;
   }
-  35% {
+  50% {
     opacity: 1;
-    transform: scale(1.08);
   }
-  70% {
-    opacity: 0.35;
-    transform: scale(0.95);
+}
+
+@keyframes chatListBadgeIconPulseScale {
+  0%,
+  100% {
+    transform: scale(0.85);
+  }
+  50% {
+    transform: scale(1.1);
   }
 }
 
@@ -3054,7 +3115,7 @@ a { color: inherit; text-decoration: none; }
 
   .chat-list-row {
     gap: 10px;
-    padding: 9px 11px;
+    padding: 13px 11px;
     min-height: 68px;
     border-radius: 11px;
   }
@@ -3122,8 +3183,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-setor):has(.chat-list-statusRow--await-solo),
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status-tech--await-client) {
     min-height: 76px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 14px;
+    padding-bottom: 14px;
   }
 
   .chat-list-row-meta {
@@ -3211,7 +3272,7 @@ a { color: inherit; text-decoration: none; }
      direita (hora + status em 2 linhas) fica mais alta que o bloco do nome. */
   .chat-list-row {
     gap: 12px;
-    padding: 14px 14px;
+    padding: 18px 14px;
     min-height: 88px;
     align-items: flex-start;
   }
@@ -3226,8 +3287,8 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--staff),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--await-client) {
     min-height: 104px;
-    padding-top: 15px;
-    padding-bottom: 15px;
+    padding-top: 19px;
+    padding-bottom: 19px;
   }
 
   .chat-list-row-main {
@@ -3703,22 +3764,18 @@ a { color: inherit; text-decoration: none; }
   .chat-list-status.open.chat-list-status--hud-open::after {
     content: none !important;
   }
-  .chat-list-status-tech-await-client-cursor {
+  .chat-list-status-tech-await-client-badge-icon {
     animation: none !important;
     opacity: 1 !important;
+    transform: none !important;
+  }
+  .chat-list-status-tech-staff-badge-icon {
+    animation: none !important;
+    opacity: 0.92 !important;
+    transform: scale(1) !important;
   }
   .chat-list-status-hud-prefix--cursor {
     animation: none !important;
     opacity: 1 !important;
-  }
-  .chat-list-status-tech-staff-sonar-dot {
-    animation: none !important;
-    opacity: 0.85 !important;
-    transform: none !important;
-  }
-  .chat-list-status-tech-await-client-sonar-dot {
-    animation: none !important;
-    opacity: 0.85 !important;
-    transform: none !important;
   }
 }

@@ -1018,8 +1018,8 @@ function AwaitClienteBadge({ title, auto = false }) {
       }
       title={title}
     >
-      <span className="chat-list-status-tech-await-client-cursor" aria-hidden="true">
-        ▋
+      <span className="chat-list-status-tech-await-client-badge-icon" aria-hidden="true">
+        ◈
       </span>
       <span className="chat-list-status-tech-await-client-label">Aguardando cliente</span>
     </span>
@@ -1122,10 +1122,8 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             className="chat-list-status-tech chat-list-status-tech--staff"
             title="Última mensagem do cliente — equipe deve responder"
           >
-            <span className="chat-list-status-tech-staff-sonar" aria-hidden="true">
-              <span className="chat-list-status-tech-staff-sonar-dot" />
-              <span className="chat-list-status-tech-staff-sonar-dot" />
-              <span className="chat-list-status-tech-staff-sonar-dot" />
+            <span className="chat-list-status-tech-staff-badge-icon" aria-hidden="true">
+              ◈
             </span>
             <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
