@@ -40,10 +40,9 @@ function cancelCarregarConversaInFlight() {
   }
 }
 
-/** Mobile: reforço após abrir — recupera lista vazia/travada ao trocar conversas rápido. */
-function scheduleMobileSilentRefreshAfterOpen(normalizedId, generation) {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
-  if (!window.matchMedia("(max-width: 640px)").matches) return
+/** Reforço após abrir conversa — mesmo efeito do refresh manual (silencioso). */
+function scheduleSilentRefreshAfterOpen(normalizedId, generation) {
+  if (typeof window === "undefined") return
 
   const run = () => {
     const getState = conversaStoreGetState
@@ -732,7 +731,7 @@ export const useConversaStore = create((set, get) => {
         })
       }
 
-      scheduleMobileSilentRefreshAfterOpen(normalizedId, generation)
+      scheduleSilentRefreshAfterOpen(normalizedId, generation)
     } catch (err) {
       if (isAbortError(err)) return
       if (generation !== carregarConversaGeneration) return
