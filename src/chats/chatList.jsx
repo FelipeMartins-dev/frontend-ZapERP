@@ -386,12 +386,6 @@ function esperaMinutosAnchorKey(c, pendentesIdSet) {
   return getEsperaMinutosAnchorIso(c, pendentesIdSet);
 }
 
-/** Âncora para minutos na badge “Aguardando cliente” (automático ou manual com `aguardando_cliente_desde`). */
-function getEsperaClienteMinutosAnchorIso(c) {
-  if (!c) return "";
-  return String(c.aguardando_cliente_desde ?? "").trim();
-}
-
 function getMediaUrl(url, urlAbsoluta) {
   if (urlAbsoluta) return urlAbsoluta;
   if (!url) return "";
@@ -1015,8 +1009,7 @@ function Chip({ active, onClick, children, variant = "default", className = "" }
   );
 }
 
-function AwaitClienteBadge({ esperaClienteAnchorIso = "", title, auto = false }) {
-  const anchor = String(esperaClienteAnchorIso || "").trim();
+function AwaitClienteBadge({ title, auto = false }) {
   return (
     <span
       className={
@@ -1025,34 +1018,15 @@ function AwaitClienteBadge({ esperaClienteAnchorIso = "", title, auto = false })
       }
       title={title}
     >
-      <span className="chat-list-status-tech-await-client-sonar" aria-hidden="true">
-        <span className="chat-list-status-tech-await-client-sonar-dot" />
-        <span className="chat-list-status-tech-await-client-sonar-dot" />
-        <span className="chat-list-status-tech-await-client-sonar-dot" />
-      </span>
       <span className="chat-list-status-tech-await-client-cursor" aria-hidden="true">
         ▋
       </span>
       <span className="chat-list-status-tech-await-client-label">Aguardando cliente</span>
-      {anchor ? (
-        <EsperaMinutosInline
-          anchorIso={anchor}
-          className="chat-list-time-espera-min--client-pill"
-          format="hud"
-        />
-      ) : null}
     </span>
   );
 }
 
-function StatusPill({
-  status,
-  exibirBadgeAberta,
-  chat,
-  aguardandoFuncionario,
-  esperaMinutosAnchorIso = "",
-  esperaClienteAnchorIso = "",
-}) {
+function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, esperaMinutosAnchorIso = "" }) {
   const s = String(status || "").toLowerCase().trim().replace(/\s+/g, "_");
   const map = {
     em_atendimento: {
@@ -1111,11 +1085,7 @@ function StatusPill({
   if (s === "aguardando_cliente") {
     return (
       <span className="chat-list-statusRow">
-        <AwaitClienteBadge
-          esperaClienteAnchorIso={esperaClienteAnchorIso}
-          title="Aguardando cliente (marcado manualmente)"
-          auto={false}
-        />
+        <AwaitClienteBadge title="Aguardando cliente (marcado manualmente)" auto={false} />
         {reabertoHint ? (
           <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
             Reaberto pelo cliente
@@ -1145,11 +1115,7 @@ function StatusPill({
           </span>
         ) : null}
         {aguardandoClienteAutomatico ? (
-          <AwaitClienteBadge
-            esperaClienteAnchorIso={esperaClienteAnchorIso}
-            title="Aguardando resposta do cliente (detecção automática — em atendimento)"
-            auto
-          />
+          <AwaitClienteBadge title="Aguardando resposta do cliente (detecção automática — em atendimento)" auto />
         ) : null}
         {aguardandoFuncionarioVisivel ? (
           <span
@@ -1224,7 +1190,6 @@ function ChatRow({
     () => getEsperaMinutosAnchorIso(chat, pendentesFuncionarioSet),
     [chat, pendentesFuncionarioSet]
   );
-  const esperaClienteAnchorIso = useMemo(() => getEsperaClienteMinutosAnchorIso(chat), [chat]);
   const statusEff = getStatusAtendimentoEffective(chat);
   const aguardandoClienteAutomaticoRow =
     statusEff === "em_atendimento" &&
@@ -1235,13 +1200,15 @@ function ChatRow({
     isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet) &&
     statusEff === "em_atendimento" &&
     !aguardandoClienteAutomaticoRow;
-  const clienteMinutosNaBadge =
-    Boolean(esperaClienteAnchorIso) &&
-    (aguardandoClienteAutomaticoRow || statusEff === "aguardando_cliente");
-  /** Minutos ao lado do relógio só quando não estão na badge (funcionário ou cliente). */
+  /** Minutos ao lado do relógio só quando não estão na badge “Aguardando funcionário”. */
   const mostrarEsperaMinutosAoLadoDoRelogio =
-    Boolean(esperaMinutosAnchor) && !aguardandoFuncionarioVisivelRow && !clienteMinutosNaBadge;
+    Boolean(esperaMinutosAnchor) && !aguardandoFuncionarioVisivelRow;
   const staffPremiumRowClass = aguardandoFuncionarioVisivelRow ? " chat-list-row--await-staff-premium" : "";
+  const awaitClientCardClass =
+    !aguardandoFuncionarioVisivelRow &&
+    (aguardandoClienteAutomaticoRow || statusEff === "aguardando_cliente")
+      ? " chat-list-row--await-client-card"
+      : "";
   const contact = getContactDisplay(chat);
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
@@ -1335,7 +1302,7 @@ function ChatRow({
   return (
     <div
       tabIndex={opening ? -1 : 0}
-      className={`chat-list-row ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}`.trim()}
+      className={`chat-list-row ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${awaitClientCardClass}`.trim()}
       onClick={handleClick}
       onKeyDown={handleRowKeyDown}
       aria-disabled={opening ? "true" : "false"}
@@ -1402,7 +1369,6 @@ function ChatRow({
                 chat={chat}
                 aguardandoFuncionario={isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet)}
                 esperaMinutosAnchorIso={esperaMinutosAnchor}
-                esperaClienteAnchorIso={esperaClienteAnchorIso}
               />
             )}
           </div>
