@@ -607,7 +607,7 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       <button
         key={a.id}
         type="button"
-        className={a.className}
+        className={`${a.className} zap-action-btn`.trim()}
         onClick={a.onClick}
         disabled={busy}
         title={a.title}

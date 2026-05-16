@@ -258,7 +258,7 @@ const SendToCrmChatButton = forwardRef(function SendToCrmChatButton(
       {!hideToolbarButton ? (
         <button
           type="button"
-          className={`wa-header-btn wa-crmSendBtn ${successFlash ? "wa-crmSendBtn--successPulse" : ""}`}
+          className={`wa-header-btn wa-crmSendBtn zap-action-btn ${successFlash ? "wa-crmSendBtn--successPulse" : ""}`}
           onClick={openModal}
           disabled={!conversaId || headerBusy}
           title="Enviar conversa ao CRM"

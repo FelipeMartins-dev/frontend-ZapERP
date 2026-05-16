@@ -18,6 +18,7 @@ import {
 } from "./conversaService";
 import { isGroupConversation, getStatusAtendimentoEffective, resolveContactMetaFromMessage } from "../utils/conversaUtils";
 import "./conversa.css";
+import "../styles/zap-animations.css";
 import api from "../api/http";
 import { useAuthStore } from "../auth/authStore";
 import { canAssumir, canGerenciarSetores, canTag, canTransferirSetorConversa } from "../auth/permissions";
@@ -1694,6 +1695,7 @@ const Bubble = memo(function Bubble({
   /** Mobile/tablet: sem setinha fixa; menu por long press + folha inferior */
   mobileMessageChrome = false,
   menuUsesBottomSheet = false,
+  zapAnimateIn = false,
 }) {
   const out = isOutgoingMessage(msg);
   const isApagadaParaTodos = !!msg?.apagada_para_todos;
@@ -1762,8 +1764,17 @@ const Bubble = memo(function Bubble({
   const menuElRef = useRef(null);
   const longPressTimerRef = useRef(null);
   const longPressCleanupRef = useRef(null);
+  const bubbleRef = useRef(null);
   /** Mobile: após long press abrir menu, ignorar o próximo clique na foto/vídeo (evita abrir viewer). */
   const skipNextMediaTapRef = useRef(false);
+
+  useEffect(() => {
+    if (!zapAnimateIn || !bubbleRef.current) return undefined;
+    const el = bubbleRef.current;
+    const onEnd = () => el.classList.add("zap-anim-settled");
+    el.addEventListener("animationend", onEnd, { once: true });
+    return () => el.removeEventListener("animationend", onEnd);
+  }, [zapAnimateIn]);
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
   const isCall = !isApagadaParaTodos && msg?.tipo === "call";
@@ -2008,9 +2019,13 @@ const Bubble = memo(function Bubble({
         }}
       >
       <div
-        ref={menuAnchorRef}
+        ref={(node) => {
+          menuAnchorRef.current = node;
+          bubbleRef.current = node;
+        }}
         className={[
           "wa-bubble",
+          zapAnimateIn ? "zap-message-enter" : "",
           out ? "wa-bubble-out" : "wa-bubble-in",
           hasInlineMetaClass ? "hasInlineMeta" : "",
           (isImg || isSticker) ? "wa-bubble-media" : "",
@@ -2948,6 +2963,8 @@ export default function ConversaView() {
   const autoCorrectFlashTimeoutRef = useRef(null);
   const autoCorrectTrackedRef = useRef([]);
   const autoCorrectIgnoredRef = useRef([]);
+  const zapSeenMsgKeysRef = useRef(new Set());
+  const zapMsgsInitialPassRef = useRef(true);
 
   const AUTO_CORRECT_CONTEXT_WINDOW = 12;
   const AUTO_CORRECT_CONTEXT_MATCH = 6;
@@ -3600,6 +3617,22 @@ export default function ConversaView() {
     virtualListRef: virtualThreadRef,
     mensagensCount: Array.isArray(mensagens) ? mensagens.length : 0,
   });
+
+  useLayoutEffect(() => {
+    zapSeenMsgKeysRef.current = new Set();
+    zapMsgsInitialPassRef.current = true;
+  }, [conversaId]);
+
+  useLayoutEffect(() => {
+    if (loading || !conversaId) return;
+    const list = Array.isArray(mensagens) ? mensagens : [];
+    if (!zapMsgsInitialPassRef.current) return;
+    if (list.length === 0) return;
+    list.forEach((m) => {
+      zapSeenMsgKeysRef.current.add(getMessageListReactKey(m, conversaId));
+    });
+    zapMsgsInitialPassRef.current = false;
+  }, [loading, conversaId, mensagens]);
 
   const showToast = useCallback(
     (next) => {
@@ -6800,10 +6833,16 @@ export default function ConversaView() {
               renderItem={(item) => {
                 if (item.__type === "day") return <DaySeparator key={item.id} label={item.label} />;
                 const msgKey = getMessageListReactKey(item, conversaId);
+                let zapAnimateIn = false;
+                if (!zapMsgsInitialPassRef.current && !zapSeenMsgKeysRef.current.has(msgKey)) {
+                  zapAnimateIn = true;
+                }
+                zapSeenMsgKeysRef.current.add(msgKey);
                 return (
                   <Bubble
                     key={msgKey}
                     msg={item}
+                    zapAnimateIn={zapAnimateIn}
                     showRemetente={Boolean(item.__showRemetente)}
                     isGroup={isGroup}
                     peerAvatarUrl={avatarUrl}

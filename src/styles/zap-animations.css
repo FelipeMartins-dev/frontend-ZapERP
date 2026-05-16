@@ -1,0 +1,284 @@
+/* ZapERP — animações premium (somente visual; classes prefixadas zap-) */
+
+:root,
+[data-theme="light"] {
+  --zap-badge-bg-staff: #0f172a;
+  --zap-badge-bg-await-client: #78350f;
+  --zap-badge-bg-em-atendimento: #0f172a;
+  --zap-urgency-ring: rgba(239, 68, 68, 0.5);
+  --zap-wait-low: #22c55e;
+  --zap-wait-mid: #f59e0b;
+  --zap-wait-high: #ef4444;
+  --zap-hover-accent: var(--cl-green, var(--ds-accent, #22c55e));
+  --zap-skeleton-base: var(--ds-surface-2, #e8e4df);
+  --zap-skeleton-highlight: var(--ds-hover, rgba(0, 0, 0, 0.06));
+  --zap-shimmer-highlight: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] {
+  --zap-badge-bg-staff: #0f172a;
+  --zap-badge-bg-await-client: #451a03;
+  --zap-badge-bg-em-atendimento: #0f172a;
+  --zap-urgency-ring: rgba(248, 113, 113, 0.55);
+  --zap-shimmer-highlight: rgba(255, 255, 255, 0.1);
+  --zap-skeleton-base: var(--ds-surface-2, #202c33);
+  --zap-skeleton-highlight: var(--ds-hover, rgba(255, 255, 255, 0.06));
+}
+
+/* ---- Keyframes ---- */
+
+@keyframes zapUrgencyPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--zap-urgency-ring);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes zapDotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.75);
+  }
+}
+
+@keyframes zapBreathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes zapShimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes zapCounterBump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes zapMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zapSkeletonShimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+/* ---- 1) Aguardando funcionário ---- */
+
+.zap-badge-aguardando-funcionario {
+  animation: zapUrgencyPulse 1.8s ease-out infinite;
+  will-change: box-shadow;
+}
+
+.zap-badge-aguardando-funcionario .zap-dot,
+.zap-badge-aguardando-funcionario .chat-list-status-tech-staff-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--zap-wait-high) !important;
+  text-shadow: 0 0 4px rgba(239, 68, 68, 0.45) !important;
+  animation: zapDotPulse 1.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ---- 2) Em atendimento ---- */
+
+.zap-badge-em-atendimento .zap-dot,
+.zap-badge-em-atendimento .chat-list-status-hud-prefix--session {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--zap-wait-low) !important;
+  animation: zapBreathe 2.5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ---- 3) Aguardando cliente ---- */
+
+.zap-badge-aguardando-cliente {
+  background: linear-gradient(
+    90deg,
+    var(--zap-badge-bg-await-client) 25%,
+    var(--zap-shimmer-highlight) 50%,
+    var(--zap-badge-bg-await-client) 75%
+  ) !important;
+  background-size: 200% auto !important;
+  animation: zapShimmer 2.5s linear infinite;
+  will-change: background-position;
+}
+
+/* ---- 4) Contador bump ---- */
+
+.zap-counter-bump {
+  display: inline-block;
+  animation: zapCounterBump 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+/* ---- 5) Tempo de espera progressivo ---- */
+
+.chat-list-time-espera-min[data-wait-level="low"],
+.zap-wait-time[data-wait-level="low"] {
+  color: var(--zap-wait-low) !important;
+}
+
+.chat-list-time-espera-min[data-wait-level="mid"],
+.zap-wait-time[data-wait-level="mid"] {
+  color: var(--zap-wait-mid) !important;
+}
+
+.chat-list-time-espera-min[data-wait-level="high"],
+.zap-wait-time[data-wait-level="high"] {
+  color: var(--zap-wait-high) !important;
+  animation: zapDotPulse 1.5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ---- 6–7) Cards de conversa ---- */
+
+.chat-list-row.zap-conversation-card {
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  cursor: pointer;
+}
+
+.chat-list-row.zap-conversation-card:not(.is-active):hover {
+  transform: translateX(3px);
+  box-shadow: -3px 0 0 0 var(--zap-hover-accent);
+}
+
+.chat-list-row.zap-conversation-card.is-active {
+  background: var(--cl-green-soft, rgba(0, 168, 132, 0.08));
+  border-left: 3px solid var(--zap-hover-accent);
+  box-shadow: 0 0 0 1px rgba(0, 168, 132, 0.12);
+}
+
+.chat-list-row.zap-conversation-card.is-active::before {
+  background: var(--zap-hover-accent);
+}
+
+[data-theme="dark"] .chat-list-row.zap-conversation-card.is-active {
+  background: var(--cl-green-soft, rgba(0, 168, 132, 0.18));
+  box-shadow: 0 0 0 1px rgba(0, 168, 132, 0.22);
+}
+
+/* ---- 8) Entrada de mensagens ---- */
+
+.wa-bubble.zap-message-enter {
+  animation: zapMessageIn 200ms ease-out;
+  will-change: transform, opacity;
+}
+
+.wa-bubble.zap-message-enter.zap-anim-settled {
+  animation: none;
+  will-change: auto;
+}
+
+/* ---- 9) Ripple nos botões de ação ---- */
+
+.zap-action-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.zap-action-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(0);
+  border-radius: inherit;
+  transition: transform 400ms ease, opacity 400ms ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.zap-action-btn:active::after {
+  transform: scale(1);
+  opacity: 1;
+  transition: 0ms;
+}
+
+[data-theme="dark"] .zap-action-btn::after {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ---- 10) Skeleton ao trocar filtro ---- */
+
+.zap-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.zap-skeleton-card {
+  margin: 0 0 0;
+  padding: 18px 16px;
+  min-height: 72px;
+  box-sizing: border-box;
+  background: linear-gradient(
+    90deg,
+    var(--zap-skeleton-base) 25%,
+    var(--zap-skeleton-highlight) 50%,
+    var(--zap-skeleton-base) 75%
+  );
+  background-size: 800px 100%;
+  animation: zapSkeletonShimmer 1.2s infinite linear;
+  border-radius: 8px;
+  border-bottom: 1px solid var(--cl-border-subtle, rgba(0, 0, 0, 0.06));
+  will-change: background-position;
+}
+
+/* ---- Acessibilidade: reduzir movimento ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -26,6 +26,8 @@ import "../components/feedback/skeleton.css";
 import "../components/ui/button.css";
 import "./chatList.css";
 import "./chatList.chips-premium.css";
+import "../styles/zap-animations.css";
+import { initZapDomEnhancements } from "./zapDomEnhancements";
 import NovoContatoModal from "./NovoContatoModal";
 import ProdutoConsultaPanel from "../conversa/ProdutoConsultaPanel";
 import ConversationActionMenuTrigger from "./ConversationActionMenuTrigger";
@@ -259,10 +261,15 @@ const EsperaMinutosInline = memo(function EsperaMinutosInline({
         : wordUnit
           ? `${mins}\u00a0min`
           : `${mins}m`;
-  const cn = ["chat-list-time-espera-min", className].filter(Boolean).join(" ");
+  const cn = ["chat-list-time-espera-min", "zap-wait-time", className].filter(Boolean).join(" ");
+  const waitLevel = mins < 5 ? "low" : mins <= 15 ? "mid" : "high";
 
   return (
-    <span className={cn} title={`${mins} min — desde ${d.toLocaleString("pt-BR")}`}>
+    <span
+      className={cn}
+      data-wait-level={waitLevel}
+      title={`${mins} min — desde ${d.toLocaleString("pt-BR")}`}
+    >
       {label}
     </span>
   );
@@ -1013,12 +1020,12 @@ function AwaitClienteBadge({ title, auto = false }) {
   return (
     <span
       className={
-        "chat-list-status-tech chat-list-status-tech--await-client" +
+        "chat-list-status-tech chat-list-status-tech--await-client zap-badge-aguardando-cliente" +
         (auto ? " chat-list-status-tech--await-client-auto" : "")
       }
       title={title}
     >
-      <span className="chat-list-status-tech-await-client-badge-icon" aria-hidden="true">
+      <span className="chat-list-status-tech-await-client-badge-icon zap-dot" aria-hidden="true">
         ◈
       </span>
       <span className="chat-list-status-tech-await-client-label">Aguardando cliente</span>
@@ -1102,8 +1109,14 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
     return (
       <span className={rowClass}>
         {mostrarPilulaPrincipal ? (
-          <span className={it.cls} title={it.label}>
-            <span className={`chat-list-status-hud-prefix ${it.prefixClass}`.trim()} aria-hidden>
+          <span
+            className={`${it.cls}${s === "em_atendimento" ? " zap-badge-em-atendimento" : ""}`.trim()}
+            title={it.label}
+          >
+            <span
+              className={`chat-list-status-hud-prefix ${it.prefixClass}${s === "em_atendimento" ? " zap-dot" : ""}`.trim()}
+              aria-hidden
+            >
               {it.prefix}
             </span>
             <span className="chat-list-status-hud-text">{it.label}</span>
@@ -1119,11 +1132,11 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
         ) : null}
         {aguardandoFuncionarioVisivel ? (
           <span
-            className="chat-list-status-tech chat-list-status-tech--staff"
+            className="chat-list-status-tech chat-list-status-tech--staff zap-badge-aguardando-funcionario"
             title="Última mensagem do cliente — equipe deve responder"
           >
-            <span className="chat-list-status-tech-staff-badge-icon" aria-hidden="true">
-              ◈
+            <span className="chat-list-status-tech-staff-badge-icon zap-dot" aria-hidden="true">
+              ●
             </span>
             <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
@@ -1296,7 +1309,7 @@ function ChatRow({
   return (
     <div
       tabIndex={opening ? -1 : 0}
-      className={`chat-list-row ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${awaitClientCardClass}`.trim()}
+      className={`chat-list-row zap-conversation-card ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${awaitClientCardClass}`.trim()}
       onClick={handleClick}
       onKeyDown={handleRowKeyDown}
       aria-disabled={opening ? "true" : "false"}
@@ -1534,8 +1547,17 @@ export default function ChatList() {
   // tabs estilo WhatsApp (chip row)
   // todas | hoje | abertas | minha_fila | em_atendimento | finalizadas | finalizadas_auto | aguardando_cliente | aguardando_funcionario
   const [tab, setTab] = useState("minha_fila");
+  const [zapFilterSkeleton, setZapFilterSkeleton] = useState(false);
   const tabRef = useRef(tab);
+  const prevTabForSkeletonRef = useRef(tab);
   tabRef.current = tab;
+
+  useEffect(() => {
+    if (prevTabForSkeletonRef.current !== tab) {
+      prevTabForSkeletonRef.current = tab;
+      setZapFilterSkeleton(true);
+    }
+  }, [tab]);
 
   useEffect(() => {
     if (tab === "nao_lidas") setTab("todas");
@@ -2378,6 +2400,17 @@ export default function ChatList() {
     pendentesFuncionarioSet,
   ]);
 
+  useEffect(() => {
+    if (!zapFilterSkeleton) return undefined;
+    const t = window.setTimeout(() => setZapFilterSkeleton(false), 220);
+    return () => window.clearTimeout(t);
+  }, [zapFilterSkeleton, chatsFiltrados]);
+
+  useEffect(() => {
+    const cleanup = initZapDomEnhancements(document.querySelector(".chat-list-root") || document);
+    return cleanup;
+  }, []);
+
   const visibleConversationIds = useMemo(
     () => chatsFiltrados.map((c) => String(c?.id)).filter(Boolean),
     [chatsFiltrados]
@@ -2863,7 +2896,7 @@ export default function ChatList() {
               className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
             >
               <span>Aguardando funcionario</span>
-              <span className="chat-list-chip-count">{countAguardandoFuncionario}</span>
+              <span className="chat-list-chip-count zap-counter-target">{countAguardandoFuncionario}</span>
               {aguardandoFuncionarioVisualState === "critical" ? (
                 <span className="chat-list-chip-critical-dot" aria-hidden="true" />
               ) : null}
@@ -3086,6 +3119,12 @@ export default function ChatList() {
               actionLabel="Criar novo contato"
               action={() => setNovoContatoModalOpen(true)}
             />
+          </div>
+        ) : zapFilterSkeleton ? (
+          <div className="zap-skeleton-list" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={`zap-skel-${i}`} className="zap-skeleton-card" />
+            ))}
           </div>
         ) : (
           chatsFiltrados.map((c) => {
