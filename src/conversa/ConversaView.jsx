@@ -8325,7 +8325,7 @@ export default function ConversaView() {
     return null;
   }
 
-  if (headerCompact && loadError && !conversa) {
+  if (headerCompact && loadError && !loading) {
       return (
       <div className="wa-empty">
         <div className="wa-empty-card">
@@ -8346,7 +8346,7 @@ export default function ConversaView() {
       );
   }
 
-  if (headerCompact && loading && !conversa) {
+  if (headerCompact && loading) {
     return <ConversaLoadingScreen />;
   }
 

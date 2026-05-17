@@ -707,7 +707,11 @@ export const useConversaStore = create((set, get) => {
 
       let conversa = data?.conversa ? data.conversa : (data ?? null)
       if (!conversa || conversa.id == null) {
-        conversa = { ...conversaShell, ...(conversa && typeof conversa === "object" ? conversa : {}) }
+        conversa = {
+          ...conversaShellWithId,
+          ...(conversa && typeof conversa === "object" ? conversa : {}),
+          id: normalizedId,
+        }
       }
       let apiMensagens = data?.mensagens ?? conversa?.mensagens ?? []
       const tags = data?.tags ?? conversa?.tags ?? []
@@ -825,7 +829,7 @@ export const useConversaStore = create((set, get) => {
       if (String(get().selectedId) !== String(normalizedId)) return
       const msg = err?.response?.data?.error || err?.message || "Erro ao carregar conversa"
       console.error("Erro ao carregar conversa:", err)
-      set({ loading: false, loadError: msg })
+      set({ loading: false, loadError: msg, conversa: conversaShellWithId })
     } finally {
       if (carregarConversaAbortController === abortController) {
         carregarConversaAbortController = null

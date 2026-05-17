@@ -1185,7 +1185,6 @@ function ChatRow({
   isMenuOpen,
   onToggleMenu,
   pendentesFuncionarioSet = EMPTY_PENDENTES_SET,
-  touchGuardRef = null,
 }) {
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
@@ -1304,7 +1303,6 @@ function ChatRow({
   }, [opening, active]);
 
   function handleClick() {
-    if (touchGuardRef?.current?.moved) return;
     if (semConversa && chat?.cliente_id) {
       setOpening(true);
       onOpenClienteSemConversa?.(chat.cliente_id)
@@ -1489,36 +1487,6 @@ const ChatListRows = memo(function ChatListRows({
 }) {
   const selectedId = useConversaStore((s) => s.selectedId);
   const mobileConversaAberta = isMobileLayout && selectedId != null;
-  const touchGuardRef = useRef({ moved: false });
-
-  useEffect(() => {
-    if (!isMobileLayout) return undefined;
-    const el = scrollRef.current;
-    if (!el) return undefined;
-    let startScrollTop = 0;
-    const onTouchStart = () => {
-      startScrollTop = el.scrollTop;
-      touchGuardRef.current.moved = false;
-    };
-    const onTouchMove = () => {
-      if (Math.abs(el.scrollTop - startScrollTop) > 4) touchGuardRef.current.moved = true;
-    };
-    const onTouchEnd = () => {
-      window.setTimeout(() => {
-        touchGuardRef.current.moved = false;
-      }, 100);
-    };
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: true });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-    };
-  }, [isMobileLayout, scrollRef]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -1578,7 +1546,6 @@ const ChatListRows = memo(function ChatListRows({
             isMenuOpen={String(openConversationId) === String(c?.id)}
             onToggleMenu={onToggleMenu}
             pendentesFuncionarioSet={pendentesFuncionarioSet}
-            touchGuardRef={isMobileLayout ? touchGuardRef : null}
           />
         );
       })}
@@ -2330,10 +2297,9 @@ export default function ChatList() {
     if (isMobileLayout) {
       scrollSaveRef.current = scrollRef.current?.scrollTop ?? 0;
     }
-    /* Um clique por vez — evita misturar GET/resposta de outro contato (aba Todas no mobile). */
+    /* clearUnread roda ao fim do carregarConversa — evita re-render da lista inteira no clique (travava mobile). */
     carregarConversa(chatId);
-    setUnread(chatId, 0);
-  }, [carregarConversa, setUnread, isMobileLayout]);
+  }, [carregarConversa, isMobileLayout]);
 
   const handleOpenClienteSemConversa = useCallback(async (cliente_id) => {
     if (!cliente_id) return;
@@ -2346,12 +2312,11 @@ export default function ChatList() {
           if (scrollRef.current) scrollRef.current.scrollTop = 0;
         }
         carregarConversa(conversa.id);
-        setUnread(conversa.id, 0);
       }
     } catch (e) {
       console.error("Erro ao abrir conversa do cliente:", e);
     }
-  }, [addChat, carregarConversa, setUnread]);
+  }, [addChat, carregarConversa]);
 
   const chatsFiltrados = useMemo(() => {
     /**
