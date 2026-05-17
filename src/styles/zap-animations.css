@@ -178,13 +178,19 @@
 /* ---- 6–7) Cards de conversa ---- */
 
 .chat-list-row.zap-conversation-card {
-  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
   cursor: pointer;
+  /* Sem transition no hover — evita “delay” do cursor e deixa o clique instantâneo. */
 }
 
-.chat-list-row.zap-conversation-card:not(.is-active):hover {
-  transform: translateX(3px);
-  box-shadow: -3px 0 0 0 var(--zap-hover-accent);
+@media (hover: hover) and (pointer: fine) {
+  .chat-list-row.zap-conversation-card:not(.is-active):not(.is-opening):hover {
+    background: rgba(0, 0, 0, 0.04);
+    box-shadow: inset 3px 0 0 0 var(--zap-hover-accent);
+  }
+
+  [data-theme="dark"] .chat-list-row.zap-conversation-card:not(.is-active):not(.is-opening):hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
 
 .chat-list-row.zap-conversation-card.is-active {

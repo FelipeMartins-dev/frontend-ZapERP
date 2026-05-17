@@ -547,12 +547,21 @@ export const useConversaStore = create((set, get) => {
     if (id == null || id === "") {
       cancelCarregarConversaInFlight()
       carregarConversaGeneration += 1
+      const prevId = get().selectedId
       set({
         selectedId: null,
         loading: false,
         loadError: null,
         loadingMore: false,
       })
+      if (prevId) {
+        const pid = prevId
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => leaveConversa(pid))
+        } else {
+          leaveConversa(pid)
+        }
+      }
       return
     }
     set({ selectedId: id })
@@ -608,22 +617,34 @@ export const useConversaStore = create((set, get) => {
     joinConversaIfNeeded(normalizedId)
 
     discardPendingAnexar()
+    /* Fase 1 (síncrona mínima): feedback imediato no clique sem travar o thread. */
     set({
       loading: true,
       selectedId: normalizedId,
       loadError: null,
-      cursor: null,
-      cursorId: null,
-      hasMore: true,
-      mensagens: [],
-      tags: [],
-      conversa: null,
-      lockedBy: null,
-
-      atendimentos: [],
-      atendimentosLoading: false,
-      atendimentosLoadedFor: null,
     })
+
+    const applyHeavyReset = () => {
+      if (generation !== carregarConversaGeneration) return
+      if (String(get().selectedId) !== String(normalizedId)) return
+      set({
+        cursor: null,
+        cursorId: null,
+        hasMore: true,
+        mensagens: [],
+        tags: [],
+        conversa: null,
+        lockedBy: null,
+        atendimentos: [],
+        atendimentosLoading: false,
+        atendimentosLoadedFor: null,
+      })
+    }
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(applyHeavyReset)
+    } else {
+      applyHeavyReset()
+    }
 
     try {
       const data = await getChatById(normalizedId, {

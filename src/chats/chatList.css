@@ -1050,11 +1050,19 @@ a { color: inherit; text-decoration: none; }
   border-radius: 10px;
   text-align: left;
   cursor: pointer;
-  transition: background 0.14s ease, opacity 0.15s ease;
   position: relative;
   min-height: 72px;
   align-items: center;
   box-shadow: none;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+  contain: layout style paint;
+  touch-action: manipulation;
+}
+
+.chat-list-row.is-opening {
+  background: var(--cl-green-soft);
+  box-shadow: 0 0 0 1px rgba(0, 168, 132, 0.12);
 }
 
 .chat-list-row:not(.chat-list-row--atendimento-calm):not(.chat-list-row--atendimento-alerta):not(
@@ -1124,8 +1132,10 @@ a { color: inherit; text-decoration: none; }
 }
 
 
-.chat-list-row:hover {
-  background: rgba(0, 0, 0, 0.03);
+@media (hover: hover) and (pointer: fine) {
+  .chat-list-row:not(.is-active):not(.is-opening):hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
 }
 
 .chat-list-row:active {

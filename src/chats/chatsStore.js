@@ -362,16 +362,15 @@ export const useChatStore = create((set, get) => ({
      usa unread_count (não unread)
   ========================================= */
   setUnread: (conversa_id, count) =>
-    set((state) => ({
-      chats: state.chats.map(c =>
-        String(c.id) === String(conversa_id)
-          ? {
-              ...c,
-              unread_count: Number(count) || 0,
-            }
-          : c
-      )
-    })),
+    set((state) => {
+      const target = Number(count) || 0;
+      const idx = state.chats.findIndex((c) => String(c.id) === String(conversa_id));
+      if (idx < 0) return state;
+      if (Number(state.chats[idx]?.unread_count ?? 0) === target) return state;
+      const chats = state.chats.slice();
+      chats[idx] = { ...chats[idx], unread_count: target };
+      return { chats };
+    }),
 
   incUnread: (conversa_id, inc = 1) =>
     set((state) => ({

@@ -76,6 +76,16 @@ function verifySearchDebounce() {
 }
 
 let listObserver = null;
+let listScanTimer = null;
+
+function scheduleListWaitScan(listEl) {
+  if (!listEl) return;
+  if (listScanTimer) window.clearTimeout(listScanTimer);
+  listScanTimer = window.setTimeout(() => {
+    listScanTimer = null;
+    scanWaitTimes(listEl);
+  }, 120);
+}
 
 /**
  * @param {HTMLElement | Document} [root]
@@ -88,16 +98,24 @@ export function initZapDomEnhancements(root = document) {
   verifySearchDebounce();
 
   if (listObserver) listObserver.disconnect();
+  if (listScanTimer) {
+    window.clearTimeout(listScanTimer);
+    listScanTimer = null;
+  }
   const listEl = scope.querySelector?.(".chat-list-list") || document.querySelector(".chat-list-list");
   if (listEl) {
     listObserver = new MutationObserver(() => {
-      scanWaitTimes(listEl);
+      scheduleListWaitScan(listEl);
     });
-    listObserver.observe(listEl, { childList: true, subtree: true, characterData: true });
+    listObserver.observe(listEl, { childList: true, subtree: true });
   }
 
   return () => {
     listObserver?.disconnect();
     listObserver = null;
+    if (listScanTimer) {
+      window.clearTimeout(listScanTimer);
+      listScanTimer = null;
+    }
   };
 }
