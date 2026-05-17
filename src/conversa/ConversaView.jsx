@@ -6139,14 +6139,12 @@ export default function ConversaView() {
   // Tags: só carregamos ao abrir o painel (evita toast "falha ao carregar" em background)
   // handleToggleTagPanel já chama carregarTags() ao abrir quando allTags está vazio
 
-  const mobileHydratedLoading =
-    headerCompact &&
-    loading &&
-    conversa &&
-    selectedId != null &&
-    String(conversa.id ?? selectedId) === String(selectedId);
+  /* Mobile: sem conversa selecionada, não ocupa a tela — lista permanece clicável. */
+  if (headerCompact && (selectedId == null || selectedId === "")) {
+    return null;
+  }
 
-  if (loading && !mobileHydratedLoading) {
+  if (loading) {
     return (
       <div className="wa-empty">
         <div className="wa-empty-card wa-empty-card-loading">
@@ -6163,7 +6161,7 @@ export default function ConversaView() {
   }
 
   // Erro ao carregar ou conversa não encontrada — permite tentar de novo
-  if (selectedId && !loading && (loadError || !conversa)) {
+  if (selectedId && !conversa && !loading) {
     return (
       <div className="wa-empty">
         <div className="wa-empty-card">
@@ -6769,17 +6767,7 @@ export default function ConversaView() {
             </div>
           ) : null}
 
-          {mobileHydratedLoading ? (
-            <div className="wa-messages-loading" role="status" aria-live="polite" aria-label="Carregando mensagens">
-              <div className="wa-empty-skel wa-empty-skel--thread">
-                <SkeletonLine width="62%" />
-                <SkeletonLine width="48%" />
-                <SkeletonLine width="78%" />
-                <SkeletonLine width="55%" />
-                <SkeletonLine width="70%" />
-              </div>
-            </div>
-          ) : conversa?.mensagens_bloqueadas ? (
+          {conversa?.mensagens_bloqueadas ? (
             <div className="wa-messages-empty">
               <div className="wa-messages-emptyCard wa-messages-emptyCard--blocked">
                 <span className="wa-messages-blocked-icon" aria-hidden="true">🔒</span>

@@ -48,18 +48,6 @@ function isMobileViewport() {
   )
 }
 
-/** Cabeçalho imediato no celular enquanto o GET completa (dados já existem na lista). */
-function hydrateConversaFromChatList(normalizedId) {
-  try {
-    const chats = useChatStore.getState?.().chats || []
-    const fromList = chats.find?.((c) => String(c?.id) === String(normalizedId))
-    if (!fromList) return null
-    return { ...fromList, id: normalizedId }
-  } catch (_) {
-    return null
-  }
-}
-
 /** Reforço após abrir conversa — mesmo efeito do refresh manual (silencioso). */
 function scheduleSilentRefreshAfterOpen(normalizedId, generation) {
   if (typeof window === "undefined") return
@@ -620,7 +608,6 @@ export const useConversaStore = create((set, get) => {
     joinConversaIfNeeded(normalizedId)
 
     discardPendingAnexar()
-    const mobileHydrate = isMobileViewport() ? hydrateConversaFromChatList(normalizedId) : null
     set({
       loading: true,
       selectedId: normalizedId,
@@ -630,7 +617,7 @@ export const useConversaStore = create((set, get) => {
       hasMore: true,
       mensagens: [],
       tags: [],
-      conversa: mobileHydrate,
+      conversa: null,
       lockedBy: null,
 
       atendimentos: [],
