@@ -705,6 +705,15 @@ export const useConversaStore = create((set, get) => {
       if (generation !== carregarConversaGeneration) return
       if (String(get().selectedId) !== String(normalizedId)) return
 
+      /* Mobile: libera a UI logo após o GET (merge pesado não pode segurar loading=true). */
+      if (isMobileViewport()) {
+        set({
+          loading: false,
+          conversa: conversaShellWithId,
+          loadError: null,
+        })
+      }
+
       let conversa = data?.conversa ? data.conversa : (data ?? null)
       if (!conversa || conversa.id == null) {
         conversa = {
@@ -833,6 +842,14 @@ export const useConversaStore = create((set, get) => {
     } finally {
       if (carregarConversaAbortController === abortController) {
         carregarConversaAbortController = null
+      }
+      if (generation !== carregarConversaGeneration) return
+      if (String(get().selectedId ?? "") !== String(normalizedId)) return
+      if (get().loading) {
+        set({
+          loading: false,
+          conversa: get().conversa || conversaShellWithId,
+        })
       }
     }
   },

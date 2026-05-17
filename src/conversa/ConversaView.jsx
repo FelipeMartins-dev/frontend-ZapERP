@@ -8346,7 +8346,8 @@ export default function ConversaView() {
       );
   }
 
-  if (headerCompact && loading) {
+  /* conversa já vem da lista no carregarConversa — monta o painel e mostra "Carregando mensagens…" no thread. */
+  if (headerCompact && loading && !conversa) {
     return <ConversaLoadingScreen />;
   }
 
