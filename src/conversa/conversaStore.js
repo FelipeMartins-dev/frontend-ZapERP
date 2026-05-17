@@ -617,34 +617,30 @@ export const useConversaStore = create((set, get) => {
     joinConversaIfNeeded(normalizedId)
 
     discardPendingAnexar()
-    /* Fase 1 (síncrona mínima): feedback imediato no clique sem travar o thread. */
+
+    const switching =
+      prevId != null && String(prevId) !== String(normalizedId)
+    /* Preserva mensagens/mídia da conversa atual até o merge com a API (nunca apagar do cliente antes). */
+    const mensagensSnapshotParaMerge = switching
+      ? []
+      : [...(get().mensagens || [])]
+
     set({
       loading: true,
       selectedId: normalizedId,
       loadError: null,
+      cursor: null,
+      cursorId: null,
+      hasMore: true,
+      tags: [],
+      lockedBy: null,
+      atendimentos: [],
+      atendimentosLoading: false,
+      atendimentosLoadedFor: null,
+      ...(switching
+        ? { conversa: null, mensagens: [] }
+        : {}),
     })
-
-    const applyHeavyReset = () => {
-      if (generation !== carregarConversaGeneration) return
-      if (String(get().selectedId) !== String(normalizedId)) return
-      set({
-        cursor: null,
-        cursorId: null,
-        hasMore: true,
-        mensagens: [],
-        tags: [],
-        conversa: null,
-        lockedBy: null,
-        atendimentos: [],
-        atendimentosLoading: false,
-        atendimentosLoadedFor: null,
-      })
-    }
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(applyHeavyReset)
-    } else {
-      applyHeavyReset()
-    }
 
     try {
       const data = await getChatById(normalizedId, {
@@ -721,7 +717,10 @@ export const useConversaStore = create((set, get) => {
       /* Flush da fila realtime antes do merge — evita perder otimistas/socket só na fila.
          Mescla o que já está no cliente durante o GET com o lote da API (mesmo critério do refresh). */
       takeAndApplyAnexarBatch()
-      const clientSnapshot = get().mensagens || []
+      const clientSnapshot =
+        mensagensSnapshotParaMerge.length > 0
+          ? mensagensSnapshotParaMerge
+          : get().mensagens || []
       const blockedViewer = !!conversa?.mensagens_bloqueadas
       let mensagens = blockedViewer ? [] : get()._mergeMensagensFromApi(clientSnapshot, apiMensagens, normalizedId)
       mensagens = attachReplyMeta(normalizedId, mensagens)
@@ -781,6 +780,8 @@ export const useConversaStore = create((set, get) => {
         st.selectedId != null &&
         String(st.selectedId) === String(normalizedId)
       ) {
+        /* Não derrubar loading com conversa vazia — evita “Selecione uma conversa” no mobile. */
+        if (!st.conversa && !st.loadError) return
         set({ loading: false })
       }
     }

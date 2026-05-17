@@ -6144,6 +6144,10 @@ function ConversaViewBody() {
     return <ConversaLoadingScreen />;
   }
 
+  if (headerCompact && selectedId && !conversa) {
+    return <ConversaLoadingScreen />;
+  }
+
   if (!conversa) {
     if (selectedId && loadError) {
       return (
@@ -8319,13 +8323,10 @@ export default function ConversaView() {
     return null;
   }
 
-  /* Só no mobile: tela leve durante o GET — no desktop o Body permanece montado (mais rápido ao trocar). */
-  if (headerCompact && loading) {
-    return <ConversaLoadingScreen />;
-  }
-
-  if (headerCompact && selectedId && !conversa && !loading && loadError) {
-    return (
+  /* Mobile: enquanto não houver conversa carregada, manter loading (não mostrar empty state). */
+  if (headerCompact && selectedId && !conversa) {
+    if (loadError) {
+      return (
       <div className="wa-empty">
         <div className="wa-empty-card">
           <div className="wa-empty-title">Não foi possível abrir a conversa</div>
@@ -8342,7 +8343,13 @@ export default function ConversaView() {
           </button>
         </div>
       </div>
-    );
+      );
+    }
+    return <ConversaLoadingScreen />;
+  }
+
+  if (headerCompact && loading) {
+    return <ConversaLoadingScreen />;
   }
 
   return <ConversaViewBody />;

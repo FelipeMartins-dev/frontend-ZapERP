@@ -2281,20 +2281,12 @@ export default function ChatList() {
   const handleSelecionarConversa = useCallback((chatId) => {
     if (chatId == null || chatId === undefined || chatId === "") return;
     const id = Number(chatId) || String(chatId);
-    const open = () => {
-      carregarConversa(id);
-      setUnread(id, 0);
-    };
-    /* Próximo frame: destaca o card (is-opening) e só então dispara o store pesado. */
     if (isMobileLayout) {
       scrollSaveRef.current = 0;
-      requestAnimationFrame(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = 0;
-        open();
-      });
-      return;
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
     }
-    requestAnimationFrame(open);
+    carregarConversa(id);
+    setUnread(id, 0);
   }, [carregarConversa, setUnread, isMobileLayout]);
 
   const handleOpenClienteSemConversa = useCallback(async (cliente_id) => {
