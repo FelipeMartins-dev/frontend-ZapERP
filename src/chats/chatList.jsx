@@ -1495,14 +1495,13 @@ const ChatListRows = memo(function ChatListRows({
     if (!isMobileLayout) return undefined;
     const el = scrollRef.current;
     if (!el) return undefined;
-    let startY = 0;
-    const onTouchStart = (e) => {
-      startY = e.touches?.[0]?.clientY ?? 0;
+    let startScrollTop = 0;
+    const onTouchStart = () => {
+      startScrollTop = el.scrollTop;
       touchGuardRef.current.moved = false;
     };
-    const onTouchMove = (e) => {
-      const y = e.touches?.[0]?.clientY ?? startY;
-      if (Math.abs(y - startY) > 12) touchGuardRef.current.moved = true;
+    const onTouchMove = () => {
+      if (Math.abs(el.scrollTop - startScrollTop) > 4) touchGuardRef.current.moved = true;
     };
     const onTouchEnd = () => {
       window.setTimeout(() => {
@@ -1563,7 +1562,10 @@ const ChatListRows = memo(function ChatListRows({
         if (!clienteSemConv && (id == null || id === "")) return null;
         const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id);
         const active =
-          !clienteSemConv && id != null && String(selectedId) === String(id);
+          !clienteSemConv &&
+          id != null &&
+          selectedId != null &&
+          String(selectedId) === String(id);
 
         return (
           <MemoChatRow
@@ -2328,6 +2330,7 @@ export default function ChatList() {
     if (isMobileLayout) {
       scrollSaveRef.current = scrollRef.current?.scrollTop ?? 0;
     }
+    /* Um clique por vez — evita misturar GET/resposta de outro contato (aba Todas no mobile). */
     carregarConversa(chatId);
     setUnread(chatId, 0);
   }, [carregarConversa, setUnread, isMobileLayout]);

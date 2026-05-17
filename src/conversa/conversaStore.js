@@ -16,6 +16,32 @@ import { attachReplyMeta } from "./replyMeta"
 /** Primeira página + loadMore: 50 mensagens equilibra tempo de resposta e cobertura do histórico (backend limita a 200). */
 const PAGE_LIMIT = 50
 
+function mensagensBelongToConversa(mensagens, conversaId) {
+  const cid = String(conversaId)
+  return (mensagens || []).every((m) => {
+    const mid = m?.conversa_id
+    return mid == null || String(mid) === cid
+  })
+}
+
+/** Só reaproveita cache local se for exatamente a mesma conversa (evita mensagens de outro contato no mobile). */
+function canReuseClientStateForConversa(state, normalizedId) {
+  if (normalizedId == null) return false
+  const nid = String(normalizedId)
+  if (state.selectedId == null || String(state.selectedId) !== nid) return false
+  if (!state.conversa || state.conversa.id == null || String(state.conversa.id) !== nid) return false
+  if (!mensagensBelongToConversa(state.mensagens, normalizedId)) return false
+  return true
+}
+
+function filterMensagensForConversa(mensagens, conversaId) {
+  const cid = String(conversaId)
+  return (mensagens || []).filter((m) => {
+    const mid = m?.conversa_id
+    return mid == null || String(mid) === cid
+  })
+}
+
 /** ID estável — evita corromper IDs numéricos grandes (Number perde precisão). */
 function normalizeConversaId(id) {
   if (id == null || id === "") return null
@@ -577,6 +603,12 @@ export const useConversaStore = create((set, get) => {
         loading: false,
         loadError: null,
         loadingMore: false,
+        conversa: null,
+        mensagens: [],
+        tags: [],
+        cursor: null,
+        cursorId: null,
+        hasMore: true,
       })
       if (prevId) {
         const pid = prevId
@@ -642,32 +674,26 @@ export const useConversaStore = create((set, get) => {
 
     discardPendingAnexar()
 
-    const switching =
-      prevId != null && String(prevId) !== String(normalizedId)
-    /* Preserva mensagens/mídia da conversa atual até o merge com a API (nunca apagar do cliente antes). */
-    const mensagensSnapshotParaMerge = switching
-      ? []
-      : [...(get().mensagens || [])]
+    const st0 = get()
+    const reuseClient = canReuseClientStateForConversa(st0, normalizedId)
     const conversaShell = pickConversaShellFromChatList(normalizedId)
-    const conversaImediata =
-      !switching && get().conversa && String(get().conversa?.id) === String(normalizedId)
-        ? get().conversa
-        : conversaShell
+    const conversaShellWithId = { ...conversaShell, id: normalizedId }
+    const mensagensSnapshotParaMerge = reuseClient ? [...(st0.mensagens || [])] : []
 
     set({
       loading: true,
       selectedId: normalizedId,
       loadError: null,
-      conversa: conversaImediata,
+      conversa: reuseClient ? st0.conversa : conversaShellWithId,
+      mensagens: reuseClient ? st0.mensagens : [],
       cursor: null,
       cursorId: null,
       hasMore: true,
-      tags: [],
+      tags: reuseClient ? st0.tags : [],
       lockedBy: null,
       atendimentos: [],
       atendimentosLoading: false,
       atendimentosLoadedFor: null,
-      ...(switching ? { mensagens: [] } : {}),
     })
 
     try {
@@ -748,20 +774,20 @@ export const useConversaStore = create((set, get) => {
       /* Flush da fila realtime antes do merge — evita perder otimistas/socket só na fila.
          Mescla o que já está no cliente durante o GET com o lote da API (mesmo critério do refresh). */
       takeAndApplyAnexarBatch()
-      const clientSnapshot =
-        mensagensSnapshotParaMerge.length > 0
-          ? mensagensSnapshotParaMerge
-          : get().mensagens || []
+      const clientSnapshot = filterMensagensForConversa(
+        mensagensSnapshotParaMerge.length > 0 ? mensagensSnapshotParaMerge : get().mensagens || [],
+        normalizedId
+      )
       const blockedViewer = !!conversa?.mensagens_bloqueadas
       let mensagens = blockedViewer ? [] : get()._mergeMensagensFromApi(clientSnapshot, apiMensagens, normalizedId)
-      mensagens = attachReplyMeta(normalizedId, mensagens)
+      mensagens = filterMensagensForConversa(attachReplyMeta(normalizedId, mensagens), normalizedId)
 
       /* Revalida após processamento síncrono — troca rápida no mobile pode invalidar o lote. */
       if (generation !== carregarConversaGeneration) return
       if (String(get().selectedId) !== String(normalizedId)) return
 
       set({
-        conversa,
+        conversa: conversa ? { ...conversa, id: normalizedId } : conversaShellWithId,
         mensagens,
         tags: Array.isArray(tags) ? tags : [],
         loading: false,
@@ -813,6 +839,7 @@ export const useConversaStore = create((set, get) => {
   /** UPSERT: mescla mensagens da API com as existentes. Preserva mensagens que chegaram via socket e ainda não estão na API (evita "aparecer e sumir"). */
   _mergeMensagensFromApi: (existing, fromApi, conversaId) => {
     if (!Array.isArray(fromApi)) fromApi = []
+    existing = filterMensagensForConversa(existing, conversaId)
     const map = new Map()
     let batchOrd = 0
     const put = (raw) => {
