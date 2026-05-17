@@ -930,11 +930,17 @@ a { color: inherit; text-decoration: none; }
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   padding: 8px 12px 14px;
   gap: 6px;
+  overflow-anchor: none;
+  scroll-behavior: auto;
+}
+
+.chat-list-scroll.is-scrolling {
+  will-change: scroll-position;
 }
 
 .chat-list-rows {
@@ -955,6 +961,13 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-row-virtual-slot {
   box-sizing: border-box;
+  contain: layout style;
+  backface-visibility: hidden;
+}
+
+.chat-list-row-virtual-slot .chat-list-row {
+  content-visibility: visible;
+  contain: none;
 }
 
 @media (max-width: 640px) {

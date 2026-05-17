@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { getMessageListReactKey } from "./conversaStore";
 
@@ -11,13 +11,17 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
   ref
 ) {
   const innerRootRef = useRef(null);
+  const isScrollingRef = useRef(false);
+  const resizeAfterScrollRef = useRef(false);
   const count = Array.isArray(items) ? items.length : 0;
 
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => scrollRef?.current ?? null,
-    estimateSize: () => 92,
+    estimateSize: () => 96,
     overscan,
+    scrollPaddingStart: 12,
+    scrollPaddingEnd: 16,
     getItemKey: (index) => {
       const item = items[index];
       if (!item) return `row-${index}`;
@@ -48,6 +52,33 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     [virtualizer, count]
   );
 
+  useEffect(() => {
+    const scrollEl = scrollRef?.current;
+    if (!scrollEl) return undefined;
+    let scrollEndTimer = 0;
+    const flushResizeAfterScroll = () => {
+      if (!resizeAfterScrollRef.current || !onVirtualContentResize) return;
+      resizeAfterScrollRef.current = false;
+      onVirtualContentResize();
+    };
+    const onScroll = () => {
+      isScrollingRef.current = true;
+      scrollEl.classList.add("is-scrolling");
+      window.clearTimeout(scrollEndTimer);
+      scrollEndTimer = window.setTimeout(() => {
+        isScrollingRef.current = false;
+        scrollEl.classList.remove("is-scrolling");
+        flushResizeAfterScroll();
+      }, 150);
+    };
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.clearTimeout(scrollEndTimer);
+      scrollEl.classList.remove("is-scrolling");
+    };
+  }, [scrollRef, onVirtualContentResize]);
+
   useLayoutEffect(() => {
     if (!onVirtualContentResize) return undefined;
     const el = innerRootRef.current;
@@ -57,8 +88,12 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     const run = () => {
       onVirtualContentResize();
     };
-    /** Dois rAF: coalesce medições (menos callbacks durante scroll tátil). */
+    /** Coalesce medições; durante scroll tátil adia snap (menos “puxões” no thread). */
     const schedule = () => {
+      if (isScrollingRef.current) {
+        resizeAfterScrollRef.current = true;
+        return;
+      }
       if (rafOuter || rafInner) return;
       rafOuter = requestAnimationFrame(() => {
         rafOuter = 0;
@@ -101,7 +136,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
             left: 0,
             width: "100%",
             maxWidth: "100%",
-            transform: `translateY(${vRow.start}px)`,
+            transform: `translate3d(0, ${vRow.start}px, 0)`,
           }}
         >
           {renderItem(items[vRow.index], vRow.index)}

@@ -1580,8 +1580,35 @@ const ChatListRows = memo(function ChatListRows({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 84,
     gap: 8,
-    overscan: isMobileLayout ? 5 : 8,
+    overscan: isMobileLayout ? 12 : 10,
+    scrollPaddingStart: 8,
+    scrollPaddingEnd: 12,
+    getItemKey: (index) => {
+      const c = chatsFiltrados[index];
+      if (!c) return `row-${index}`;
+      if (c.sem_conversa && c.cliente_id) return `sem-${c.cliente_id}`;
+      return `chat-${String(c.id ?? index)}`;
+    },
   });
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    let scrollEndTimer = 0;
+    const onScroll = () => {
+      el.classList.add("is-scrolling");
+      window.clearTimeout(scrollEndTimer);
+      scrollEndTimer = window.setTimeout(() => {
+        el.classList.remove("is-scrolling");
+      }, 140);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      window.clearTimeout(scrollEndTimer);
+      el.classList.remove("is-scrolling");
+    };
+  }, [scrollRef, useVirtual]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -1643,7 +1670,7 @@ const ChatListRows = memo(function ChatListRows({
                   top: 0,
                   left: 0,
                   width: "100%",
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translate3d(0, ${virtualRow.start}px, 0)`,
                 }}
               >
                 {renderChatListRow(c, selectedIdHighlight, rowProps)}

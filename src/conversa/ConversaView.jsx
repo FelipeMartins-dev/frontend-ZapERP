@@ -6808,7 +6808,7 @@ function ConversaViewBody() {
               key={`wa-thread-${String(scrollThreadId ?? conversaId ?? "")}`}
               ref={virtualThreadRef}
               scrollRef={messagesContainerRef}
-              overscan={headerCompact ? 5 : 15}
+              overscan={headerCompact ? 12 : 16}
               conversaId={scrollThreadId ?? conversaId}
               items={mensagensComSeparadores}
               onVirtualContentResize={headerCompact ? undefined : snapIfStickBottom}

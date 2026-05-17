@@ -1181,11 +1181,23 @@
 @media (max-width: 640px) {
   .wa-messages {
     padding: 8px 12px 12px;
-    scroll-padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-    /* Cria camada de composição dedicada ao scroll — reduz repaints do layout
-       durante a abertura de conversas no mobile (menos travamento). */
+    scroll-padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    scroll-padding-top: 8px;
+  }
+
+  /* Glow animado no fundo custa GPU durante scroll tátil — estático no mobile. */
+  .wa-messages::after {
+    animation: none;
+  }
+
+  .wa-messages.is-scrolling {
     will-change: scroll-position;
   }
+}
+
+.wa-messages-virtual-root > div {
+  contain: layout style;
+  backface-visibility: hidden;
 }
 
 /* Bolhas = só gestos do app (copiar pelo menu). Sem isto, long press no iOS abre seleção nativa + menu azul. */
