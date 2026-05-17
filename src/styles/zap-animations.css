@@ -193,12 +193,7 @@
   }
 }
 
-.chat-list-row.zap-conversation-card.is-active {
-  background: var(--cl-green-soft, rgba(0, 168, 132, 0.08));
-  border-left: 3px solid var(--zap-hover-accent);
-  box-shadow: 0 0 0 1px rgba(0, 168, 132, 0.12);
-}
-
+/* Estado ativo — detalhes em chatList.css (.zap-conversation-card.is-active) */
 .chat-list-row.zap-conversation-card.is-active::before {
   background: var(--zap-hover-accent);
 }

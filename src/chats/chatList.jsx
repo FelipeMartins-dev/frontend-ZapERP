@@ -1302,7 +1302,8 @@ function ChatRow({
     return () => window.clearTimeout(t);
   }, [opening, active]);
 
-  function handleClick() {
+  function handleClick(e) {
+    if (e?.target?.closest?.(".chat-row-action-trigger")) return;
     if (semConversa && chat?.cliente_id) {
       setOpening(true);
       onOpenClienteSemConversa?.(chat.cliente_id)
@@ -1310,8 +1311,7 @@ function ChatRow({
       return;
     }
     if (id == null || id === undefined || id === "") return;
-    setOpening(true);
-    /* Abertura: só via onSelect (handleSelecionarConversa) — evita duplicar carregarConversa/getChatById. */
+    /* Abertura: só via onSelect — sem estado "opening" (evita tabIndex -1 e cliques ignorados no mobile). */
     onSelect?.(id);
   }
 
@@ -1324,11 +1324,11 @@ function ChatRow({
 
   return (
     <div
-      tabIndex={opening ? -1 : 0}
+      tabIndex={0}
       className={`chat-list-row zap-conversation-card ${active || opening ? "is-active" : ""} ${opening ? "is-opening" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${awaitClientCardClass}`.trim()}
       onClick={handleClick}
       onKeyDown={handleRowKeyDown}
-      aria-disabled={opening ? "true" : "false"}
+      aria-disabled={semConversa && opening ? "true" : "false"}
       data-chat-id={id ?? undefined}
       data-cliente-id={clienteId ?? undefined}
       aria-label={`Conversa com ${displayName}`}
@@ -2294,6 +2294,12 @@ export default function ChatList() {
 
   const handleSelecionarConversa = useCallback((chatId) => {
     if (chatId == null || chatId === undefined || chatId === "") return;
+    const cid = String(chatId);
+    const st = useConversaStore.getState();
+    if (String(st.selectedId ?? "") === cid) {
+      if (st.loading) return;
+      if (st.conversa && (st.mensagens?.length ?? 0) > 0) return;
+    }
     if (isMobileLayout) {
       scrollSaveRef.current = scrollRef.current?.scrollTop ?? 0;
     }
