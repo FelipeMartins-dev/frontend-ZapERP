@@ -1285,6 +1285,10 @@ function ChatRow({
     setImgError(false);
   }, [avatarUrl]);
 
+  useEffect(() => {
+    if (active) setOpening(false);
+  }, [active]);
+
   function handleClick() {
     if (opening) return;
     if (semConversa && chat?.cliente_id) {
@@ -1295,6 +1299,7 @@ function ChatRow({
     }
     if (id == null || id === undefined || id === "") return;
     const normalizedId = Number(id) || String(id);
+    setOpening(true);
     /* Abertura: só via onSelect (handleSelecionarConversa) — evita duplicar carregarConversa/getChatById. */
     onSelect?.(normalizedId);
   }
@@ -1310,7 +1315,7 @@ function ChatRow({
   return (
     <div
       tabIndex={opening ? -1 : 0}
-      className={`chat-list-row zap-conversation-card ${active ? "is-active" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${awaitClientCardClass}`.trim()}
+      className={`chat-list-row zap-conversation-card ${active || opening ? "is-active" : ""} ${opening ? "is-opening" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${awaitClientCardClass}`.trim()}
       onClick={handleClick}
       onKeyDown={handleRowKeyDown}
       aria-disabled={opening ? "true" : "false"}
@@ -1453,6 +1458,93 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
 });
 
 /* =====================================================
+   Linhas da lista — isolado para não re-renderizar o ChatList (3k+ linhas) no clique.
+===================================================== */
+
+const ChatListRows = memo(function ChatListRows({
+  chatsFiltrados,
+  isMobileLayout,
+  scrollRef,
+  scrollSaveRef,
+  scrollTopNoncePrevRef,
+  chatListScrollToTopNonce,
+  onSelect,
+  onOpenClienteSemConversa,
+  currentUserId,
+  openConversationId,
+  onToggleMenu,
+  pendentesFuncionarioSet,
+}) {
+  const selectedId = useConversaStore((s) => s.selectedId);
+  const mobileConversaAberta = isMobileLayout && selectedId != null;
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (isMobileLayout && selectedId != null) {
+      scrollSaveRef.current = 0;
+      el.scrollTop = 0;
+      return;
+    }
+    const n = chatListScrollToTopNonce;
+    if (n !== scrollTopNoncePrevRef.current) {
+      scrollTopNoncePrevRef.current = n;
+      if (n > 0) {
+        scrollSaveRef.current = 0;
+        requestAnimationFrame(() => {
+          if (scrollRef.current) scrollRef.current.scrollTop = 0;
+        });
+        return;
+      }
+    }
+    const saved = scrollSaveRef.current;
+    requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = saved;
+    });
+  }, [
+    mobileConversaAberta ? selectedId : chatsFiltrados,
+    chatListScrollToTopNonce,
+    selectedId,
+    isMobileLayout,
+    scrollRef,
+    scrollSaveRef,
+    scrollTopNoncePrevRef,
+  ]);
+
+  return (
+    <div
+      className={
+        mobileConversaAberta ? "chat-list-rows chat-list-rows--conversa-aberta" : "chat-list-rows"
+      }
+      aria-hidden={mobileConversaAberta ? true : undefined}
+    >
+      {chatsFiltrados.map((c) => {
+        const id = c?.id;
+        const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
+        if (!clienteSemConv && (id == null || id === "")) return null;
+        const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id);
+        const active =
+          !clienteSemConv && id != null && String(selectedId) === String(id);
+
+        return (
+          <MemoChatRow
+            key={rowKey}
+            chat={c}
+            active={active}
+            onSelect={onSelect}
+            onOpenClienteSemConversa={onOpenClienteSemConversa}
+            currentUserId={currentUserId}
+            isMenuOpen={String(openConversationId) === String(c?.id)}
+            onToggleMenu={onToggleMenu}
+            pendentesFuncionarioSet={pendentesFuncionarioSet}
+          />
+        );
+      })}
+    </div>
+  );
+});
+
+/* =====================================================
    COMPONENTE PRINCIPAL (lógica mantida)
 ===================================================== */
 
@@ -1469,7 +1561,6 @@ export default function ChatList() {
   const location = useLocation();
 
   const carregarConversa = useConversaStore((s) => s.carregarConversa);
-  const selectedId = useConversaStore((s) => s.selectedId);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
   const isMobileLayout = useMatchMedia("(max-width: 640px)");
 
@@ -2423,7 +2514,6 @@ export default function ChatList() {
     openMenu,
     closeMenu,
   } = useConversationActionMenu({
-    selectedConversationId: selectedId,
     visibleConversationIds,
     resetKey: `${tab}-${adminAtendenteFilterId ?? ""}`,
   });
@@ -2603,36 +2693,6 @@ export default function ChatList() {
       loadRef.current?.();
     }
   }, [confirmDelete, showToast]);
-
-  const mobileConversaAberta = isMobileLayout && selectedId != null;
-
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const mobile = isMobileLayout;
-    /* Com conversa aberta no celular, manter a lista ancorada no topo — updates da lista
-       não devem reaplicar scroll salvo (causa saltos para conversas antigas). */
-    if (mobile && selectedId != null) {
-      scrollSaveRef.current = 0;
-      el.scrollTop = 0;
-      return;
-    }
-    const n = chatListScrollToTopNonce;
-    if (n !== scrollTopNoncePrevRef.current) {
-      scrollTopNoncePrevRef.current = n;
-      if (n > 0) {
-        scrollSaveRef.current = 0;
-        requestAnimationFrame(() => {
-          if (scrollRef.current) scrollRef.current.scrollTop = 0;
-        });
-        return;
-      }
-    }
-    const saved = scrollSaveRef.current;
-    requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = saved;
-    });
-  }, [mobileConversaAberta ? selectedId : chatsFiltrados, chatListScrollToTopNonce, selectedId, isMobileLayout]);
 
   // KPIs derivados da lista base (memoizados para evitar trabalho repetido por render).
   const baseCounts = useMemo(() => {
@@ -3128,29 +3188,21 @@ export default function ChatList() {
               <div key={`zap-skel-${i}`} className="zap-skeleton-card" />
             ))}
           </div>
-        ) : mobileConversaAberta ? null : (
-          chatsFiltrados.map((c) => {
-            const id = c?.id;
-            const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
-            if (!clienteSemConv && (id == null || id === "")) return null;
-            const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id);
-            const active =
-              !clienteSemConv && id != null && String(selectedId) === String(id);
-
-            return (
-              <MemoChatRow
-                key={rowKey}
-                chat={c}
-                active={active}
-                onSelect={handleSelecionarConversa}
-                onOpenClienteSemConversa={handleOpenClienteSemConversa}
-                currentUserId={rowCurrentUserId}
-                isMenuOpen={String(openConversationId) === String(c?.id)}
-                onToggleMenu={openMenu}
-                pendentesFuncionarioSet={pendentesFuncionarioSet}
-              />
-            );
-          })
+        ) : (
+          <ChatListRows
+            chatsFiltrados={chatsFiltrados}
+            isMobileLayout={isMobileLayout}
+            scrollRef={scrollRef}
+            scrollSaveRef={scrollSaveRef}
+            scrollTopNoncePrevRef={scrollTopNoncePrevRef}
+            chatListScrollToTopNonce={chatListScrollToTopNonce}
+            onSelect={handleSelecionarConversa}
+            onOpenClienteSemConversa={handleOpenClienteSemConversa}
+            currentUserId={rowCurrentUserId}
+            openConversationId={openConversationId}
+            onToggleMenu={openMenu}
+            pendentesFuncionarioSet={pendentesFuncionarioSet}
+          />
         )}
       </div>
 

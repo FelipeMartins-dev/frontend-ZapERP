@@ -937,6 +937,19 @@ a { color: inherit; text-decoration: none; }
   gap: 6px;
 }
 
+.chat-list-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Mobile: ocultar linhas sem desmontar — clique e volta à lista ficam instantâneos. */
+@media (max-width: 640px) {
+  .chat-list-rows--conversa-aberta {
+    display: none;
+  }
+}
+
 .chat-list-scroll::-webkit-scrollbar {
   width: 6px;
 }

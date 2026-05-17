@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useConversaStore } from "../conversa/conversaStore";
 
-export function useConversationActionMenu({ selectedConversationId, visibleConversationIds, resetKey }) {
+export function useConversationActionMenu({ visibleConversationIds, resetKey }) {
   const [openConversationId, setOpenConversationId] = useState(null);
   const [anchorRect, setAnchorRect] = useState(null);
   const [restoreFocusEl, setRestoreFocusEl] = useState(null);
   const restoreFocusRef = useRef(null);
-  const prevSelectedRef = useRef(selectedConversationId);
 
   const closeMenu = useCallback(() => {
     setOpenConversationId(null);
@@ -46,14 +46,17 @@ export function useConversationActionMenu({ selectedConversationId, visibleConve
     };
   }, [openConversationId]);
 
+  /* Fecha o menu ao trocar conversa sem re-renderizar o ChatList inteiro. */
   useEffect(() => {
-    if (!openConversationId) return;
-    const prevSelected = prevSelectedRef.current;
-    prevSelectedRef.current = selectedConversationId;
-    if (prevSelected == null || selectedConversationId == null) return;
-    if (String(prevSelected) === String(selectedConversationId)) return;
-    closeMenu();
-  }, [selectedConversationId, openConversationId, closeMenu]);
+    if (!openConversationId) return undefined;
+    return useConversaStore.subscribe((state, prevState) => {
+      const next = state.selectedId;
+      const prev = prevState?.selectedId;
+      if (prev == null || next == null) return;
+      if (String(prev) === String(next)) return;
+      closeMenu();
+    });
+  }, [openConversationId, closeMenu]);
 
   useEffect(() => {
     if (!openConversationId) return;
