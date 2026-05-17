@@ -472,6 +472,16 @@ function resolveMensagensBloqueadasForViewer(conversaLike, apiSaysBlocked) {
   return !!apiSaysBlocked
 }
 
+/** Shell mínimo da conversa a partir da lista — mobile abre o painel sem ficar preso no loading. */
+function pickConversaShellFromChatList(normalizedId) {
+  try {
+    const chats = useChatStore.getState?.().chats || []
+    const fromList = chats.find?.((c) => String(c?.id) === String(normalizedId))
+    if (fromList) return { ...fromList, id: normalizedId }
+  } catch (_) {}
+  return { id: normalizedId }
+}
+
 export const useConversaStore = create((set, get) => {
   conversaStoreGetState = get
   const pendingAnexar = []
@@ -624,11 +634,17 @@ export const useConversaStore = create((set, get) => {
     const mensagensSnapshotParaMerge = switching
       ? []
       : [...(get().mensagens || [])]
+    const conversaShell = pickConversaShellFromChatList(normalizedId)
+    const conversaImediata =
+      !switching && get().conversa && String(get().conversa?.id) === String(normalizedId)
+        ? get().conversa
+        : conversaShell
 
     set({
       loading: true,
       selectedId: normalizedId,
       loadError: null,
+      conversa: conversaImediata,
       cursor: null,
       cursorId: null,
       hasMore: true,
@@ -637,9 +653,7 @@ export const useConversaStore = create((set, get) => {
       atendimentos: [],
       atendimentosLoading: false,
       atendimentosLoadedFor: null,
-      ...(switching
-        ? { conversa: null, mensagens: [] }
-        : {}),
+      ...(switching ? { mensagens: [] } : {}),
     })
 
     try {
@@ -652,6 +666,9 @@ export const useConversaStore = create((set, get) => {
       if (String(get().selectedId) !== String(normalizedId)) return
 
       let conversa = data?.conversa ? data.conversa : (data ?? null)
+      if (!conversa || conversa.id == null) {
+        conversa = { ...conversaShell, ...(conversa && typeof conversa === "object" ? conversa : {}) }
+      }
       let apiMensagens = data?.mensagens ?? conversa?.mensagens ?? []
       const tags = data?.tags ?? conversa?.tags ?? []
 
@@ -772,17 +789,6 @@ export const useConversaStore = create((set, get) => {
     } finally {
       if (carregarConversaAbortController === abortController) {
         carregarConversaAbortController = null
-      }
-      if (generation !== carregarConversaGeneration) return
-      const st = get()
-      if (
-        st.loading &&
-        st.selectedId != null &&
-        String(st.selectedId) === String(normalizedId)
-      ) {
-        /* Não derrubar loading com conversa vazia — evita “Selecione uma conversa” no mobile. */
-        if (!st.conversa && !st.loadError) return
-        set({ loading: false })
       }
     }
   },

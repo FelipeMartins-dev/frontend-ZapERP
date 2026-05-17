@@ -6144,10 +6144,6 @@ function ConversaViewBody() {
     return <ConversaLoadingScreen />;
   }
 
-  if (headerCompact && selectedId && !conversa) {
-    return <ConversaLoadingScreen />;
-  }
-
   if (!conversa) {
     if (selectedId && loadError) {
       return (
@@ -6754,6 +6750,12 @@ function ConversaViewBody() {
               <div className="wa-messages-emptyCard wa-messages-emptyCard--blocked">
                 <span className="wa-messages-blocked-icon" aria-hidden="true">🔒</span>
                 <strong>Este atendimento foi assumido por {conversa?.atendente_nome?.trim() ? conversa.atendente_nome : "outro usuário"}.</strong>
+              </div>
+            </div>
+          ) : loading && mensagensComSeparadores.length === 0 ? (
+            <div className="wa-messages-empty">
+              <div className="wa-messages-emptyCard wa-messages-emptyCard--loading">
+                <p className="wa-messages-emptyText">Carregando mensagens…</p>
               </div>
             </div>
           ) : mensagensComSeparadores.length === 0 ? (
@@ -8323,9 +8325,7 @@ export default function ConversaView() {
     return null;
   }
 
-  /* Mobile: enquanto não houver conversa carregada, manter loading (não mostrar empty state). */
-  if (headerCompact && selectedId && !conversa) {
-    if (loadError) {
+  if (headerCompact && loadError && !conversa) {
       return (
       <div className="wa-empty">
         <div className="wa-empty-card">
@@ -8344,11 +8344,9 @@ export default function ConversaView() {
         </div>
       </div>
       );
-    }
-    return <ConversaLoadingScreen />;
   }
 
-  if (headerCompact && loading) {
+  if (headerCompact && loading && !conversa) {
     return <ConversaLoadingScreen />;
   }
 
