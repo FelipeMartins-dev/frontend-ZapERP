@@ -944,6 +944,19 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* Mobile: ocultar linhas sem desmontar — clique e volta à lista ficam instantâneos. */
+.chat-list-rows--virtual {
+  display: block;
+  width: 100%;
+}
+
+.chat-list-rows-virtual-inner {
+  width: 100%;
+}
+
+.chat-list-row-virtual-slot {
+  box-sizing: border-box;
+}
+
 @media (max-width: 640px) {
   .chat-list-rows--conversa-aberta {
     display: none;
@@ -955,8 +968,18 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row {
-    content-visibility: visible;
-    contain: none;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 76px;
+    contain: layout style;
+  }
+
+  .chat-list-row.zap-conversation-card {
+    box-shadow: none;
+  }
+
+  .chat-list-row.zap-conversation-card:active:not(.is-active) {
+    transform: none;
+    transition: background 0.08s ease, border-color 0.08s ease;
   }
 }
 

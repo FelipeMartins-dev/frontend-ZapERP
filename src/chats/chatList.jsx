@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import { createPortal } from "react-dom";
 import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil, postFinalizacaoAusenciaLote } from "./chatService";
@@ -46,6 +47,10 @@ import {
   toggleMuteConversation,
   togglePinConversation,
 } from "./conversationActionsService";
+
+/** A partir deste tamanho, lista virtualizada (crítico na aba Todas no mobile). */
+const CHAT_LIST_VIRTUAL_THRESHOLD = 48;
+const CHAT_ROW_TOUCH_MOVE_PX = 12;
 
 /** Preferências por item (API pode enviar `silenciada` ou `silenciado`). */
 function rowPrefs(c) {
@@ -1302,8 +1307,9 @@ function ChatRow({
     return () => window.clearTimeout(t);
   }, [opening, active]);
 
-  function handleClick(e) {
-    if (e?.target?.closest?.(".chat-row-action-trigger")) return;
+  const touchRef = useRef(null);
+
+  const activateRow = useCallback(() => {
     if (semConversa && chat?.cliente_id) {
       setOpening(true);
       onOpenClienteSemConversa?.(chat.cliente_id)
@@ -1311,14 +1317,46 @@ function ChatRow({
       return;
     }
     if (id == null || id === undefined || id === "") return;
-    /* Abertura: só via onSelect — sem estado "opening" (evita tabIndex -1 e cliques ignorados no mobile). */
     onSelect?.(id);
+  }, [semConversa, chat?.cliente_id, id, onOpenClienteSemConversa, onSelect]);
+
+  function handleTouchStart(e) {
+    const t = e.touches?.[0];
+    if (!t) return;
+    touchRef.current = { x: t.clientX, y: t.clientY, moved: false };
+  }
+
+  function handleTouchMove(e) {
+    const st = touchRef.current;
+    const t = e.touches?.[0];
+    if (!st || !t) return;
+    if (
+      Math.abs(t.clientX - st.x) > CHAT_ROW_TOUCH_MOVE_PX ||
+      Math.abs(t.clientY - st.y) > CHAT_ROW_TOUCH_MOVE_PX
+    ) {
+      st.moved = true;
+    }
+  }
+
+  function handleTouchEnd(e) {
+    const st = touchRef.current;
+    touchRef.current = null;
+    if (!st || st.moved) return;
+    if (e.target?.closest?.(".chat-row-action-trigger")) return;
+    e.preventDefault();
+    activateRow();
+  }
+
+  function handleClick(e) {
+    if (e?.target?.closest?.(".chat-row-action-trigger")) return;
+    if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) return;
+    activateRow();
   }
 
   function handleRowKeyDown(e) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      handleClick();
+      activateRow();
     }
   }
 
@@ -1326,6 +1364,9 @@ function ChatRow({
     <div
       tabIndex={0}
       className={`chat-list-row zap-conversation-card ${active || opening ? "is-active" : ""} ${opening ? "is-opening" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${awaitClientCardClass}`.trim()}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onClick={handleClick}
       onKeyDown={handleRowKeyDown}
       aria-disabled={semConversa && opening ? "true" : "false"}
@@ -1471,6 +1512,31 @@ const MemoChatRow = memo(ChatRow, (prev, next) => {
    Linhas da lista — isolado para não re-renderizar o ChatList (3k+ linhas) no clique.
 ===================================================== */
 
+function renderChatListRow(c, selectedId, props) {
+  const id = c?.id;
+  const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
+  if (!clienteSemConv && (id == null || id === "")) return null;
+  const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id);
+  const active =
+    !clienteSemConv &&
+    id != null &&
+    selectedId != null &&
+    String(selectedId) === String(id);
+
+  return (
+    <MemoChatRow
+      chat={c}
+      active={active}
+      onSelect={props.onSelect}
+      onOpenClienteSemConversa={props.onOpenClienteSemConversa}
+      currentUserId={props.currentUserId}
+      isMenuOpen={String(props.openConversationId) === String(c?.id)}
+      onToggleMenu={props.onToggleMenu}
+      pendentesFuncionarioSet={props.pendentesFuncionarioSet}
+    />
+  );
+}
+
 const ChatListRows = memo(function ChatListRows({
   chatsFiltrados,
   isMobileLayout,
@@ -1485,13 +1551,42 @@ const ChatListRows = memo(function ChatListRows({
   onToggleMenu,
   pendentesFuncionarioSet,
 }) {
-  const selectedId = useConversaStore((s) => s.selectedId);
-  const mobileConversaAberta = isMobileLayout && selectedId != null;
+  const mobileSelectedId = useConversaStore((s) => (isMobileLayout ? s.selectedId : null));
+  const selectedIdHighlight = useConversaStore((s) => (isMobileLayout ? null : s.selectedId));
+  const mobileConversaAberta = isMobileLayout && mobileSelectedId != null;
+  const useVirtual = chatsFiltrados.length >= CHAT_LIST_VIRTUAL_THRESHOLD;
+
+  const rowProps = useMemo(
+    () => ({
+      onSelect,
+      onOpenClienteSemConversa,
+      currentUserId,
+      openConversationId,
+      onToggleMenu,
+      pendentesFuncionarioSet,
+    }),
+    [
+      onSelect,
+      onOpenClienteSemConversa,
+      currentUserId,
+      openConversationId,
+      onToggleMenu,
+      pendentesFuncionarioSet,
+    ]
+  );
+
+  const virtualizer = useVirtualizer({
+    count: chatsFiltrados.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 84,
+    gap: 8,
+    overscan: isMobileLayout ? 5 : 8,
+  });
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (isMobileLayout && selectedId != null) return;
+    if (isMobileLayout && mobileSelectedId != null) return;
     const n = chatListScrollToTopNonce;
     if (n !== scrollTopNoncePrevRef.current) {
       scrollTopNoncePrevRef.current = n;
@@ -1508,47 +1603,61 @@ const ChatListRows = memo(function ChatListRows({
       if (scrollRef.current) scrollRef.current.scrollTop = saved;
     });
   }, [
-    mobileConversaAberta ? selectedId : chatsFiltrados,
+    chatsFiltrados,
     chatListScrollToTopNonce,
-    selectedId,
+    mobileSelectedId,
     isMobileLayout,
     scrollRef,
     scrollSaveRef,
     scrollTopNoncePrevRef,
   ]);
 
-  return (
-    <div
-      className={
-        mobileConversaAberta ? "chat-list-rows chat-list-rows--conversa-aberta" : "chat-list-rows"
-      }
-      aria-hidden={mobileConversaAberta ? true : undefined}
-    >
-      {chatsFiltrados.map((c) => {
-        const id = c?.id;
-        const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
-        if (!clienteSemConv && (id == null || id === "")) return null;
-        const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id);
-        const active =
-          !clienteSemConv &&
-          id != null &&
-          selectedId != null &&
-          String(selectedId) === String(id);
+  const rowsClassName = mobileConversaAberta
+    ? "chat-list-rows chat-list-rows--conversa-aberta"
+    : useVirtual
+      ? "chat-list-rows chat-list-rows--virtual"
+      : "chat-list-rows";
 
-        return (
-          <MemoChatRow
-            key={rowKey}
-            chat={c}
-            active={active}
-            onSelect={onSelect}
-            onOpenClienteSemConversa={onOpenClienteSemConversa}
-            currentUserId={currentUserId}
-            isMenuOpen={String(openConversationId) === String(c?.id)}
-            onToggleMenu={onToggleMenu}
-            pendentesFuncionarioSet={pendentesFuncionarioSet}
-          />
-        );
-      })}
+  if (useVirtual) {
+    const virtualItems = virtualizer.getVirtualItems();
+    return (
+      <div className={rowsClassName} aria-hidden={mobileConversaAberta ? true : undefined}>
+        <div
+          className="chat-list-rows-virtual-inner"
+          style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}
+        >
+          {virtualItems.map((virtualRow) => {
+            const c = chatsFiltrados[virtualRow.index];
+            if (!c) return null;
+            const id = c?.id;
+            const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
+            const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id ?? virtualRow.index);
+            return (
+              <div
+                key={rowKey}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+                className="chat-list-row-virtual-slot"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {renderChatListRow(c, selectedIdHighlight, rowProps)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={rowsClassName} aria-hidden={mobileConversaAberta ? true : undefined}>
+      {chatsFiltrados.map((c) => renderChatListRow(c, selectedIdHighlight, rowProps))}
     </div>
   );
 });
@@ -2294,16 +2403,9 @@ export default function ChatList() {
 
   const handleSelecionarConversa = useCallback((chatId) => {
     if (chatId == null || chatId === undefined || chatId === "") return;
-    const cid = String(chatId);
-    const st = useConversaStore.getState();
-    if (String(st.selectedId ?? "") === cid) {
-      if (st.loading) return;
-      if (st.conversa && (st.mensagens?.length ?? 0) > 0) return;
-    }
     if (isMobileLayout) {
       scrollSaveRef.current = scrollRef.current?.scrollTop ?? 0;
     }
-    /* clearUnread roda ao fim do carregarConversa — evita re-render da lista inteira no clique (travava mobile). */
     carregarConversa(chatId);
   }, [carregarConversa, isMobileLayout]);
 
@@ -2509,9 +2611,12 @@ export default function ChatList() {
   }, [zapFilterSkeleton, chatsFiltrados]);
 
   useEffect(() => {
+    if (isMobileLayout && (chats?.length ?? 0) >= CHAT_LIST_VIRTUAL_THRESHOLD) {
+      return undefined;
+    }
     const cleanup = initZapDomEnhancements(document.querySelector(".chat-list-root") || document);
     return cleanup;
-  }, []);
+  }, [isMobileLayout, chats?.length]);
 
   const visibleConversationIds = useMemo(
     () => chatsFiltrados.map((c) => String(c?.id)).filter(Boolean),

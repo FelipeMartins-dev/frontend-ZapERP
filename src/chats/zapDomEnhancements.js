@@ -103,7 +103,10 @@ export function initZapDomEnhancements(root = document) {
     listScanTimer = null;
   }
   const listEl = scope.querySelector?.(".chat-list-list") || document.querySelector(".chat-list-list");
-  if (listEl) {
+  const rowCount = listEl?.querySelectorAll?.(".chat-list-row")?.length ?? 0;
+  const virtualList = listEl?.querySelector?.(".chat-list-rows--virtual");
+  /* Listas grandes / virtualizadas: observer em subtree dispara milhares de vezes e trava o scroll. */
+  if (listEl && !virtualList && rowCount < 80) {
     listObserver = new MutationObserver(() => {
       scheduleListWaitScan(listEl);
     });
