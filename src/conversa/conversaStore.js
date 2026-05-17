@@ -40,9 +40,31 @@ function cancelCarregarConversaInFlight() {
   }
 }
 
+function isMobileViewport() {
+  if (typeof window === "undefined") return false
+  return (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 640px)").matches
+  )
+}
+
+/** Cabeçalho imediato no celular enquanto o GET completa (dados já existem na lista). */
+function hydrateConversaFromChatList(normalizedId) {
+  try {
+    const chats = useChatStore.getState?.().chats || []
+    const fromList = chats.find?.((c) => String(c?.id) === String(normalizedId))
+    if (!fromList) return null
+    return { ...fromList, id: normalizedId }
+  } catch (_) {
+    return null
+  }
+}
+
 /** Reforço após abrir conversa — mesmo efeito do refresh manual (silencioso). */
 function scheduleSilentRefreshAfterOpen(normalizedId, generation) {
   if (typeof window === "undefined") return
+  /* Mobile: segundo GET + merge pesado logo após abrir congela a UI; socket cobre atualizações. */
+  if (isMobileViewport()) return
 
   const run = () => {
     const getState = conversaStoreGetState
@@ -598,6 +620,7 @@ export const useConversaStore = create((set, get) => {
     joinConversaIfNeeded(normalizedId)
 
     discardPendingAnexar()
+    const mobileHydrate = isMobileViewport() ? hydrateConversaFromChatList(normalizedId) : null
     set({
       loading: true,
       selectedId: normalizedId,
@@ -607,7 +630,7 @@ export const useConversaStore = create((set, get) => {
       hasMore: true,
       mensagens: [],
       tags: [],
-      conversa: null,
+      conversa: mobileHydrate,
       lockedBy: null,
 
       atendimentos: [],

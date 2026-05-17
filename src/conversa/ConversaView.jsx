@@ -2636,28 +2636,33 @@ function useAutoScroll({
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(max-width: 640px)").matches;
-    // Mobile: menos rAF encadeados — o virtualizer já âncora via scrollToEnd,
-    // iterações extras bloqueiam o thread principal e causam travamento ao abrir.
-    const rafCap = mobileLike ? 3 : 10;
-    const stickMax = mobileLike ? 5 : 18;
 
     const snap = () => {
       if (!shouldStickToBottomRef.current) return;
       snapThreadToBottom(container, virtualListRef);
     };
+
+    /* Mobile: um único passe — cadeias de rAF + ResizeObserver geravam congelamento ao abrir. */
+    if (mobileLike) {
+      snap();
+      const rafOnce = requestAnimationFrame(snap);
+      return () => cancelAnimationFrame(rafOnce);
+    }
+
+    const rafCap = 10;
+    const stickMax = 18;
+
     snap();
     let n = 0;
     const chain = () => {
-      // Para imediatamente se já estiver na posição correta — evita saturar mobile.
-      if (mobileLike && isNearBottom(messagesContainerRef?.current, 80)) return;
       n += 1;
       snap();
       if (n < rafCap) requestAnimationFrame(chain);
     };
     requestAnimationFrame(chain);
     const t1 = window.setTimeout(snap, 0);
-    const t2 = window.setTimeout(snap, mobileLike ? 80 : 120);
-    const t3 = !mobileLike ? window.setTimeout(snap, 380) : 0;
+    const t2 = window.setTimeout(snap, 120);
+    const t3 = window.setTimeout(snap, 380);
 
     let rafStick = 0;
     let stickAttempts = 0;
@@ -2666,11 +2671,10 @@ function useAutoScroll({
       stickAttempts += 1;
       if (!c || stickAttempts > stickMax) return;
       if (!shouldStickToBottomRef.current) return;
-      if (!isNearBottom(c, mobileLike ? 80 : 200)) {
+      if (!isNearBottom(c, 200)) {
         snap();
         rafStick = requestAnimationFrame(tryStickOpen);
       }
-      // Se já está perto do fundo: para o loop, estava travando o mobile.
     };
     rafStick = requestAnimationFrame(tryStickOpen);
 
@@ -6135,7 +6139,14 @@ export default function ConversaView() {
   // Tags: só carregamos ao abrir o painel (evita toast "falha ao carregar" em background)
   // handleToggleTagPanel já chama carregarTags() ao abrir quando allTags está vazio
 
-  if (loading) {
+  const mobileHydratedLoading =
+    headerCompact &&
+    loading &&
+    conversa &&
+    selectedId != null &&
+    String(conversa.id ?? selectedId) === String(selectedId);
+
+  if (loading && !mobileHydratedLoading) {
     return (
       <div className="wa-empty">
         <div className="wa-empty-card wa-empty-card-loading">
@@ -6151,19 +6162,8 @@ export default function ConversaView() {
     );
   }
 
-  // Selecionou uma conversa mas ainda carregando
-  if (selectedId && !conversa && loading) {
-    return (
-      <div className="wa-empty">
-        <div className="wa-empty-card wa-empty-card-loading">
-          <div className="wa-empty-title">Carregando conversa…</div>
-        </div>
-      </div>
-    );
-  }
-
   // Erro ao carregar ou conversa não encontrada — permite tentar de novo
-  if (selectedId && !conversa && !loading) {
+  if (selectedId && !loading && (loadError || !conversa)) {
     return (
       <div className="wa-empty">
         <div className="wa-empty-card">
@@ -6769,7 +6769,17 @@ export default function ConversaView() {
             </div>
           ) : null}
 
-          {conversa?.mensagens_bloqueadas ? (
+          {mobileHydratedLoading ? (
+            <div className="wa-messages-loading" role="status" aria-live="polite" aria-label="Carregando mensagens">
+              <div className="wa-empty-skel wa-empty-skel--thread">
+                <SkeletonLine width="62%" />
+                <SkeletonLine width="48%" />
+                <SkeletonLine width="78%" />
+                <SkeletonLine width="55%" />
+                <SkeletonLine width="70%" />
+              </div>
+            </div>
+          ) : conversa?.mensagens_bloqueadas ? (
             <div className="wa-messages-empty">
               <div className="wa-messages-emptyCard wa-messages-emptyCard--blocked">
                 <span className="wa-messages-blocked-icon" aria-hidden="true">🔒</span>
@@ -6829,7 +6839,7 @@ export default function ConversaView() {
               overscan={headerCompact ? 5 : 15}
               conversaId={scrollThreadId ?? conversaId}
               items={mensagensComSeparadores}
-              onVirtualContentResize={snapIfStickBottom}
+              onVirtualContentResize={headerCompact ? undefined : snapIfStickBottom}
               renderItem={(item) => {
                 if (item.__type === "day") return <DaySeparator key={item.id} label={item.label} />;
                 const msgKey = getMessageListReactKey(item, conversaId);
