@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMatchMedia } from "../hooks/useMatchMedia";
 import { createPortal } from "react-dom";
 import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil, postFinalizacaoAusenciaLote } from "./chatService";
 import { useChatStore } from "./chatsStore";
@@ -1468,9 +1469,9 @@ export default function ChatList() {
   const location = useLocation();
 
   const carregarConversa = useConversaStore((s) => s.carregarConversa);
-  const setSelectedId = useConversaStore((s) => s.setSelectedId);
   const selectedId = useConversaStore((s) => s.selectedId);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
+  const isMobileLayout = useMatchMedia("(max-width: 640px)");
 
   const user = useAuthStore((s) => s.user);
   const rowCurrentUserId = user?.id != null ? Number(user.id) : null;
@@ -1943,6 +1944,8 @@ export default function ChatList() {
           };
         });
         const extra = arr.filter((c) => c?.id != null && !fromApi.has(String(c.id)));
+        // Aba "Todas": lista estrita da API — evita centenas de itens "extra" de outras abas (travava o mobile ao abrir).
+        if (tab === "todas") return merged;
         // Em consultas de "aguardando_cliente", não reaproveitar conversas antigas fora do filtro.
         if (aguardandoQuery) return merged;
         // Com filtro de tempo parado, a API já define o subconjunto; não misturar itens locais fora do critério.
@@ -2192,16 +2195,15 @@ export default function ChatList() {
   const handleSelecionarConversa = useCallback((chatId) => {
     if (chatId == null || chatId === undefined || chatId === "") return;
     const id = Number(chatId) || String(chatId);
-    /* Mobile: evita “flash” da lista em posição antiga antes do layout da conversa —
-       recentes ficam no topo; ao voltar, o usuário vê o topo e pode rolar para baixo. */
-    if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {
+    /* Mobile: evita “flash” da lista em posição antiga antes do layout da conversa. */
+    if (isMobileLayout) {
       scrollSaveRef.current = 0;
       if (scrollRef.current) scrollRef.current.scrollTop = 0;
     }
-    setSelectedId(id);
+    /* Um único update no store (carregarConversa já define selectedId + loading). */
     carregarConversa(id);
     setUnread(id, 0);
-  }, [carregarConversa, setSelectedId, setUnread]);
+  }, [carregarConversa, setUnread, isMobileLayout]);
 
   const handleOpenClienteSemConversa = useCallback(async (cliente_id) => {
     if (!cliente_id) return;
@@ -2213,14 +2215,13 @@ export default function ChatList() {
           scrollSaveRef.current = 0;
           if (scrollRef.current) scrollRef.current.scrollTop = 0;
         }
-        setSelectedId(conversa.id);
         carregarConversa(conversa.id);
         setUnread(conversa.id, 0);
       }
     } catch (e) {
       console.error("Erro ao abrir conversa do cliente:", e);
     }
-  }, [addChat, setSelectedId, carregarConversa, setUnread]);
+  }, [addChat, carregarConversa, setUnread]);
 
   const chatsFiltrados = useMemo(() => {
     /**
@@ -2603,11 +2604,12 @@ export default function ChatList() {
     }
   }, [confirmDelete, showToast]);
 
+  const mobileConversaAberta = isMobileLayout && selectedId != null;
+
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const mobile =
-      typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+    const mobile = isMobileLayout;
     /* Com conversa aberta no celular, manter a lista ancorada no topo — updates da lista
        não devem reaplicar scroll salvo (causa saltos para conversas antigas). */
     if (mobile && selectedId != null) {
@@ -2630,7 +2632,7 @@ export default function ChatList() {
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = saved;
     });
-  }, [chatsFiltrados, chatListScrollToTopNonce, selectedId]);
+  }, [mobileConversaAberta ? selectedId : chatsFiltrados, chatListScrollToTopNonce, selectedId, isMobileLayout]);
 
   // KPIs derivados da lista base (memoizados para evitar trabalho repetido por render).
   const baseCounts = useMemo(() => {
@@ -3126,7 +3128,7 @@ export default function ChatList() {
               <div key={`zap-skel-${i}`} className="zap-skeleton-card" />
             ))}
           </div>
-        ) : (
+        ) : mobileConversaAberta ? null : (
           chatsFiltrados.map((c) => {
             const id = c?.id;
             const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
@@ -3207,7 +3209,6 @@ export default function ChatList() {
           if (conversa?.id) {
             addChat(conversa);
             load();
-            setSelectedId(conversa.id);
             carregarConversa(conversa.id);
             setUnread(conversa.id, 0);
             showToast({

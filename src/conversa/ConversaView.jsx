@@ -53,6 +53,7 @@ import { getAutocorrectEdit } from "../utils/autocorrectText";
 import EmptyState from "../components/feedback/EmptyState";
 import DSToast from "../components/feedback/Toast";
 import { SkeletonLine } from "../components/feedback/Skeleton";
+import ConversaLoadingScreen from "./ConversaLoadingScreen";
 import "../components/feedback/empty-state.css";
 import "../components/feedback/skeleton.css";
 import "../components/feedback/toast.css";
@@ -2719,7 +2720,7 @@ function useGlobalHotkeys({ onToggleTimeline, onFocusInput, onEscape, disabled }
    Main
 ========================================================= */
 
-export default function ConversaView() {
+function ConversaViewBody() {
   const {
     conversa,
     mensagens,
@@ -6139,46 +6140,32 @@ export default function ConversaView() {
   // Tags: só carregamos ao abrir o painel (evita toast "falha ao carregar" em background)
   // handleToggleTagPanel já chama carregarTags() ao abrir quando allTags está vazio
 
-  /* Mobile: sem conversa selecionada, não ocupa a tela — lista permanece clicável. */
-  if (headerCompact && (selectedId == null || selectedId === "")) {
-    return null;
+  /* Desktop: loading leve aqui; mobile usa ConversaLoadingScreen no gate (evita remontar este componente). */
+  if (!headerCompact && loading) {
+    return <ConversaLoadingScreen />;
   }
 
-  if (loading) {
-    return (
-      <div className="wa-empty">
-        <div className="wa-empty-card wa-empty-card-loading">
-          <div className="wa-empty-title">Carregando conversa…</div>
-          <div className="wa-empty-skel">
-            <SkeletonLine width="70%" />
-            <SkeletonLine width="92%" />
-            <SkeletonLine width="84%" />
-            <SkeletonLine width="60%" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Erro ao carregar ou conversa não encontrada — permite tentar de novo
-  if (selectedId && !conversa && !loading) {
-    return (
-      <div className="wa-empty">
-        <div className="wa-empty-card">
-          <div className="wa-empty-title">Não foi possível abrir a conversa</div>
-          <div className="wa-empty-sub">
-            {loadError || "Selecione outra na lista ou tente novamente."}
-          </div>
-          <button type="button" className="wa-btn wa-btn-primary" style={{ marginTop: 12 }} onClick={() => carregarConversa(selectedId)}>
-            Tentar novamente
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Nenhuma conversa selecionada
   if (!conversa) {
+    if (selectedId && loadError) {
+      return (
+        <div className="wa-empty">
+          <div className="wa-empty-card">
+            <div className="wa-empty-title">Não foi possível abrir a conversa</div>
+            <div className="wa-empty-sub">
+              {loadError || "Selecione outra na lista ou tente novamente."}
+            </div>
+            <button
+              type="button"
+              className="wa-btn wa-btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => carregarConversa(selectedId)}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="wa-empty">
         <EmptyState
@@ -8321,4 +8308,51 @@ export default function ConversaView() {
         />
     </div>
   );
+}
+
+/** Gate leve: não monta o painel pesado durante loading (crítico no mobile + aba Todas). */
+export default function ConversaView() {
+  const { loading, selectedId, conversa, loadError, carregarConversa } = useConversaStore(
+    (s) => ({
+      loading: s.loading,
+      selectedId: s.selectedId,
+      conversa: s.conversa,
+      loadError: s.loadError,
+      carregarConversa: s.carregarConversa,
+    }),
+    shallow
+  );
+  const headerCompact = useMatchMedia("(max-width: 640px)");
+
+  if (headerCompact && (selectedId == null || selectedId === "")) {
+    return null;
+  }
+
+  /* Só no mobile: tela leve durante o GET — no desktop o Body permanece montado (mais rápido ao trocar). */
+  if (headerCompact && loading) {
+    return <ConversaLoadingScreen />;
+  }
+
+  if (headerCompact && selectedId && !conversa && !loading && loadError) {
+    return (
+      <div className="wa-empty">
+        <div className="wa-empty-card">
+          <div className="wa-empty-title">Não foi possível abrir a conversa</div>
+          <div className="wa-empty-sub">
+            {loadError || "Selecione outra na lista ou tente novamente."}
+          </div>
+          <button
+            type="button"
+            className="wa-btn wa-btn-primary"
+            style={{ marginTop: 12 }}
+            onClick={() => carregarConversa(selectedId)}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return <ConversaViewBody />;
 }
