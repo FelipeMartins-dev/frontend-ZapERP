@@ -16,6 +16,20 @@ import { attachReplyMeta } from "./replyMeta"
 /** Primeira página + loadMore: 50 mensagens equilibra tempo de resposta e cobertura do histórico (backend limita a 200). */
 const PAGE_LIMIT = 50
 
+/** ID estável — evita corromper IDs numéricos grandes (Number perde precisão). */
+function normalizeConversaId(id) {
+  if (id == null || id === "") return null
+  if (typeof id === "number" && Number.isFinite(id)) return id
+  const s = String(id).trim()
+  if (!s) return null
+  if (/^\d+$/.test(s)) {
+    const n = Number(s)
+    if (Number.isSafeInteger(n)) return n
+    return s
+  }
+  return s
+}
+
 /** Cancela GET anterior e ignora respostas obsoletas ao trocar de conversa rápido (mobile). */
 let carregarConversaGeneration = 0
 let carregarConversaAbortController = null
@@ -612,7 +626,7 @@ export const useConversaStore = create((set, get) => {
      CARREGAR CONVERSA
   ===================================================== */
   carregarConversa: async (id) => {
-    const normalizedId = id != null && id !== "" ? (Number(id) || String(id)) : null
+    const normalizedId = normalizeConversaId(id)
     if (!normalizedId) return
 
     cancelCarregarConversaInFlight()

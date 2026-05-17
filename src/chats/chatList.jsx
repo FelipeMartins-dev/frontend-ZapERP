@@ -1185,6 +1185,7 @@ function ChatRow({
   isMenuOpen,
   onToggleMenu,
   pendentesFuncionarioSet = EMPTY_PENDENTES_SET,
+  touchGuardRef = null,
 }) {
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
@@ -1289,8 +1290,21 @@ function ChatRow({
     if (active) setOpening(false);
   }, [active]);
 
+  useEffect(() => {
+    if (!opening) return undefined;
+    const t = window.setTimeout(() => setOpening(false), 5000);
+    return () => window.clearTimeout(t);
+  }, [opening]);
+
+  /* Se abriu outra conversa ou falhou, não deixar "opening" travar o clique. */
+  useEffect(() => {
+    if (!opening || active) return undefined;
+    const t = window.setTimeout(() => setOpening(false), 400);
+    return () => window.clearTimeout(t);
+  }, [opening, active]);
+
   function handleClick() {
-    if (opening) return;
+    if (touchGuardRef?.current?.moved) return;
     if (semConversa && chat?.cliente_id) {
       setOpening(true);
       onOpenClienteSemConversa?.(chat.cliente_id)
@@ -1298,14 +1312,12 @@ function ChatRow({
       return;
     }
     if (id == null || id === undefined || id === "") return;
-    const normalizedId = Number(id) || String(id);
     setOpening(true);
     /* Abertura: só via onSelect (handleSelecionarConversa) — evita duplicar carregarConversa/getChatById. */
-    onSelect?.(normalizedId);
+    onSelect?.(id);
   }
 
   function handleRowKeyDown(e) {
-    if (opening) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       handleClick();
@@ -1477,10 +1489,42 @@ const ChatListRows = memo(function ChatListRows({
 }) {
   const selectedId = useConversaStore((s) => s.selectedId);
   const mobileConversaAberta = isMobileLayout && selectedId != null;
+  const touchGuardRef = useRef({ moved: false });
+
+  useEffect(() => {
+    if (!isMobileLayout) return undefined;
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    let startY = 0;
+    const onTouchStart = (e) => {
+      startY = e.touches?.[0]?.clientY ?? 0;
+      touchGuardRef.current.moved = false;
+    };
+    const onTouchMove = (e) => {
+      const y = e.touches?.[0]?.clientY ?? startY;
+      if (Math.abs(y - startY) > 12) touchGuardRef.current.moved = true;
+    };
+    const onTouchEnd = () => {
+      window.setTimeout(() => {
+        touchGuardRef.current.moved = false;
+      }, 100);
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [isMobileLayout, scrollRef]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    if (isMobileLayout && selectedId != null) return;
     const n = chatListScrollToTopNonce;
     if (n !== scrollTopNoncePrevRef.current) {
       scrollTopNoncePrevRef.current = n;
@@ -1532,6 +1576,7 @@ const ChatListRows = memo(function ChatListRows({
             isMenuOpen={String(openConversationId) === String(c?.id)}
             onToggleMenu={onToggleMenu}
             pendentesFuncionarioSet={pendentesFuncionarioSet}
+            touchGuardRef={isMobileLayout ? touchGuardRef : null}
           />
         );
       })}
@@ -2280,13 +2325,11 @@ export default function ChatList() {
 
   const handleSelecionarConversa = useCallback((chatId) => {
     if (chatId == null || chatId === undefined || chatId === "") return;
-    const id = Number(chatId) || String(chatId);
     if (isMobileLayout) {
-      scrollSaveRef.current = 0;
-      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+      scrollSaveRef.current = scrollRef.current?.scrollTop ?? 0;
     }
-    carregarConversa(id);
-    setUnread(id, 0);
+    carregarConversa(chatId);
+    setUnread(chatId, 0);
   }, [carregarConversa, setUnread, isMobileLayout]);
 
   const handleOpenClienteSemConversa = useCallback(async (cliente_id) => {

@@ -948,6 +948,16 @@ a { color: inherit; text-decoration: none; }
   .chat-list-rows--conversa-aberta {
     display: none;
   }
+
+  .chat-list-scroll {
+    overflow-anchor: none;
+    scroll-behavior: auto;
+  }
+
+  .chat-list-row {
+    content-visibility: visible;
+    contain: none;
+  }
 }
 
 .chat-list-scroll::-webkit-scrollbar {
