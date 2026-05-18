@@ -1141,19 +1141,18 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
             className="chat-list-status-tech chat-list-status-tech--staff zap-badge-aguardando-funcionario"
             title="Última mensagem do cliente — equipe deve responder"
           >
-            <span className="chat-list-status-tech-staff-badge-icon zap-dot" aria-hidden="true">
-              ●
+            <span className="chat-list-status-tech-staff-main">
+              <span className="chat-list-status-tech-staff-badge-icon zap-dot" aria-hidden="true">
+                ●
+              </span>
+              <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             </span>
-            <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
-              <>
-                {" "}
-                <EsperaMinutosInline
-                  anchorIso={String(esperaMinutosAnchorIso).trim()}
-                  className="chat-list-time-espera-min--staff-pill"
-                  format="hud"
-                />
-              </>
+              <EsperaMinutosInline
+                anchorIso={String(esperaMinutosAnchorIso).trim()}
+                className="chat-list-time-espera-min--staff-pill"
+                format="hud"
+              />
             ) : null}
           </span>
         ) : null}

@@ -39,6 +39,24 @@
   }
 }
 
+/** Brilho suave pulsante — etiqueta “Aguardando funcionário”. */
+@keyframes zapStaffSoftGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(3, 105, 161, 0.45),
+      0 0 8px rgba(56, 189, 248, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(56, 189, 248, 0.72),
+      0 0 14px rgba(56, 189, 248, 0.38),
+      0 0 26px rgba(3, 105, 161, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
 @keyframes zapDotPulse {
   0%,
   100% {
@@ -107,7 +125,7 @@
 /* ---- 1) Aguardando funcionário ---- */
 
 .zap-badge-aguardando-funcionario {
-  animation: zapUrgencyPulse 1.8s ease-out infinite;
+  animation: zapStaffSoftGlow 2.4s ease-in-out infinite;
   will-change: box-shadow;
 }
 
