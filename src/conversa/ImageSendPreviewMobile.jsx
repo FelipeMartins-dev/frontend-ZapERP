@@ -1,7 +1,11 @@
 import { useCallback, useState } from "react";
 import Cropper from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
-import { RotateCw, X } from "lucide-react";
+import { Crop, Maximize2, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
+
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 5;
+const ZOOM_STEP = 0.18;
 
 /**
  * Preview unificado (mobile): crop/zoom/pan + legenda + envio numa única tela.
@@ -28,6 +32,7 @@ export default function ImageSendPreviewMobile({
   const [exporting, setExporting] = useState(false);
 
   const busy = sending || exporting;
+  const cropMode = !sendAsOriginal;
 
   const onCropComplete = useCallback((_area, pixels) => {
     setCroppedAreaPixels(pixels);
@@ -35,6 +40,14 @@ export default function ImageSendPreviewMobile({
 
   const handleRotate = useCallback(() => {
     setRotation((r) => (r + 90) % 360);
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    setZoom((z) => Math.min(ZOOM_MAX, Number((z + ZOOM_STEP).toFixed(2))));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((z) => Math.max(ZOOM_MIN, Number((z - ZOOM_STEP).toFixed(2))));
   }, []);
 
   const handleSend = useCallback(async () => {
@@ -72,7 +85,7 @@ export default function ImageSendPreviewMobile({
       <div className="wa-mediaPreview-head wa-mediaPreview-head--overlay">
         <button
           type="button"
-          className="wa-mediaPreview-close"
+          className="wa-mediaPreview-close wa-imageSend-closeBtn"
           onClick={onCancel}
           disabled={busy}
           aria-label="Cancelar envio"
@@ -98,8 +111,11 @@ export default function ImageSendPreviewMobile({
             crop={crop}
             zoom={zoom}
             rotation={rotation}
+            minZoom={ZOOM_MIN}
+            maxZoom={ZOOM_MAX}
             cropShape="rect"
-            showGrid={false}
+            showGrid
+            restrictPosition={false}
             objectFit="contain"
             onCropChange={setCrop}
             onZoomChange={setZoom}
@@ -112,60 +128,71 @@ export default function ImageSendPreviewMobile({
             }}
           />
         )}
-      </div>
 
-      <div className="wa-imageSendToolbar">
-        <button
-          type="button"
-          className="wa-imageEditor-toolBtn"
-          onClick={handleRotate}
-          disabled={busy || sendAsOriginal}
-          aria-label="Girar 90 graus"
-          title="Girar"
-        >
-          <RotateCw size={20} strokeWidth={2} aria-hidden="true" />
-        </button>
-
-        <label
-          className={`wa-imageEditor-zoom${sendAsOriginal ? " wa-imageEditor-zoom--disabled" : ""}`}
-          aria-label="Zoom da imagem"
-        >
-          <span className="wa-imageEditor-zoomLabel" aria-hidden="true">
-            −
+        {sendAsOriginal ? (
+          <span className="wa-imageSend-originalBadge" aria-live="polite">
+            Foto original
           </span>
-          <input
-            type="range"
-            min={1}
-            max={3}
-            step={0.02}
-            value={zoom}
-            disabled={busy || sendAsOriginal}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="wa-imageEditor-zoomInput"
-          />
-          <span className="wa-imageEditor-zoomLabel" aria-hidden="true">
-            +
-          </span>
-        </label>
+        ) : null}
 
-        <div className="wa-imageSendMode" role="group" aria-label="Modo de envio da foto">
+        <div className="wa-imageSendFloatTools" role="toolbar" aria-label="Ferramentas de edição">
           <button
             type="button"
-            className={`wa-imageSendMode-btn${!sendAsOriginal ? " is-active" : ""}`}
+            className="wa-imageSendTool"
+            onClick={handleRotate}
+            disabled={busy || sendAsOriginal}
+            aria-label="Girar imagem"
+            title="Girar"
+          >
+            <RotateCw size={20} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            className="wa-imageSendTool"
+            onClick={handleZoomOut}
+            disabled={busy || sendAsOriginal || zoom <= ZOOM_MIN}
+            aria-label="Diminuir zoom"
+            title="Diminuir zoom"
+          >
+            <ZoomOut size={20} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            className="wa-imageSendTool"
+            onClick={handleZoomIn}
+            disabled={busy || sendAsOriginal || zoom >= ZOOM_MAX}
+            aria-label="Aumentar zoom"
+            title="Aumentar zoom"
+          >
+            <ZoomIn size={20} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+
+          <span className="wa-imageSendToolSep" aria-hidden="true" />
+
+          <button
+            type="button"
+            className={`wa-imageSendTool${cropMode ? " is-active" : ""}`}
             disabled={busy}
             onClick={() => setSendAsOriginal(false)}
-            aria-pressed={!sendAsOriginal}
+            aria-label="Ajustar enquadramento"
+            aria-pressed={cropMode}
+            title="Recortar e ajustar"
           >
-            Ajustar
+            <Crop size={20} strokeWidth={1.75} aria-hidden="true" />
           </button>
+
           <button
             type="button"
-            className={`wa-imageSendMode-btn${sendAsOriginal ? " is-active" : ""}`}
+            className={`wa-imageSendTool${!cropMode ? " is-active" : ""}`}
             disabled={busy}
             onClick={() => setSendAsOriginal(true)}
-            aria-pressed={sendAsOriginal}
+            aria-label="Enviar foto original sem corte"
+            aria-pressed={!cropMode}
+            title="Foto original"
           >
-            Original
+            <Maximize2 size={20} strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
       </div>
