@@ -124,13 +124,15 @@
 
 /* ---- 1) Aguardando funcionário ---- */
 
-.zap-badge-aguardando-funcionario {
-  animation: zapStaffSoftGlow 2.4s ease-in-out infinite;
+.zap-badge-aguardando-funcionario,
+.chat-list-status-tech-staff-main.zap-badge-aguardando-funcionario {
+  animation: zapStaffSoftGlow 2.4s ease-in-out infinite !important;
   will-change: box-shadow;
 }
 
 .zap-badge-aguardando-funcionario .zap-dot,
-.zap-badge-aguardando-funcionario .chat-list-status-tech-staff-badge-icon {
+.zap-badge-aguardando-funcionario .chat-list-status-tech-staff-badge-icon,
+.chat-list-status-tech-staff-main.zap-badge-aguardando-funcionario .chat-list-status-tech-staff-badge-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;

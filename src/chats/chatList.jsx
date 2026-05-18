@@ -1138,10 +1138,10 @@ function StatusPill({ status, exibirBadgeAberta, chat, aguardandoFuncionario, es
         ) : null}
         {aguardandoFuncionarioVisivel ? (
           <span
-            className="chat-list-status-tech chat-list-status-tech--staff zap-badge-aguardando-funcionario"
+            className="chat-list-status-tech chat-list-status-tech--staff"
             title="Última mensagem do cliente — equipe deve responder"
           >
-            <span className="chat-list-status-tech-staff-main">
+            <span className="chat-list-status-tech-staff-main zap-badge-aguardando-funcionario">
               <span className="chat-list-status-tech-staff-badge-icon zap-dot" aria-hidden="true">
                 ●
               </span>
