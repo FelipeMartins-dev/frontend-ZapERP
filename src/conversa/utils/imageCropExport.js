@@ -14,6 +14,55 @@ function toRadians(degree) {
   return (degree * Math.PI) / 180;
 }
 
+/** Crop em % ou px (coordenadas da imagem exibida) → pixels da imagem original. */
+export function cropToNaturalPixels(crop, imageEl) {
+  if (!crop || !imageEl?.width || !imageEl?.height) return null;
+  const { width: dw, height: dh, naturalWidth: nw, naturalHeight: nh } = imageEl;
+  let x;
+  let y;
+  let w;
+  let h;
+  if (crop.unit === "%") {
+    x = ((crop.x || 0) / 100) * dw;
+    y = ((crop.y || 0) / 100) * dh;
+    w = ((crop.width || 0) / 100) * dw;
+    h = ((crop.height || 0) / 100) * dh;
+  } else {
+    x = crop.x || 0;
+    y = crop.y || 0;
+    w = crop.width || 0;
+    h = crop.height || 0;
+  }
+  if (w <= 0 || h <= 0) return null;
+  const scaleX = nw / dw;
+  const scaleY = nh / dh;
+  return {
+    x: Math.max(0, Math.round(x * scaleX)),
+    y: Math.max(0, Math.round(y * scaleY)),
+    width: Math.min(nw, Math.round(w * scaleX)),
+    height: Math.min(nh, Math.round(h * scaleY)),
+  };
+}
+
+/** Gira 90° e devolve nova URL blob (revogar a anterior no componente). */
+export async function rotateImageBlobUrl(imageSrc) {
+  const image = await loadImageElement(imageSrc);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas indisponível.");
+  canvas.width = image.height;
+  canvas.height = image.width;
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(image, -image.width / 2, -image.height / 2);
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Falha ao girar."))), "image/jpeg", 0.92);
+  });
+  return URL.createObjectURL(blob);
+}
+
+export const FULL_IMAGE_CROP_PERCENT = { unit: "%", x: 0, y: 0, width: 100, height: 100 };
+
 /**
  * Gera File recortado (com rotação opcional) a partir do crop em pixels.
  * @param {{

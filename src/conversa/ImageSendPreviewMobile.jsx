@@ -1,15 +1,16 @@
-import { useCallback, useState } from "react";
-import Cropper from "react-easy-crop";
-import "react-easy-crop/react-easy-crop.css";
-import { Crop, Maximize2, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
-
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 5;
-const ZOOM_STEP = 0.18;
+import { useCallback, useEffect, useRef, useState } from "react";
+import ReactCrop from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
+import { Maximize2, RotateCw, X } from "lucide-react";
+import {
+  cropToNaturalPixels,
+  FULL_IMAGE_CROP_PERCENT,
+  rotateImageBlobUrl,
+} from "./utils/imageCropExport.js";
 
 /**
- * Preview unificado (mobile): crop/zoom/pan + legenda + envio numa única tela.
- * O envio em si é delegado ao pai (handleEnviarArquivo inalterado).
+ * Preview unificado (mobile): imagem em tamanho natural + quadro de corte
+ * arrastável/redimensionável (estilo WhatsApp). Legenda e envio inalterados no pai.
  */
 export default function ImageSendPreviewMobile({
   rootRef,
@@ -24,40 +25,102 @@ export default function ImageSendPreviewMobile({
   onSend,
   sendIcon,
 }) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
+  const imgRef = useRef(null);
+  const displayUrlRef = useRef(imageUrl);
+  const [displayUrl, setDisplayUrl] = useState(imageUrl);
+  const [crop, setCrop] = useState(FULL_IMAGE_CROP_PERCENT);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [sendAsOriginal, setSendAsOriginal] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [rotating, setRotating] = useState(false);
 
-  const busy = sending || exporting;
-  const cropMode = !sendAsOriginal;
+  const busy = sending || exporting || rotating;
 
-  const onCropComplete = useCallback((_area, pixels) => {
-    setCroppedAreaPixels(pixels);
+  const syncPixelCrop = useCallback((nextCrop) => {
+    const img = imgRef.current;
+    if (!img) return;
+    const pixels = cropToNaturalPixels(nextCrop, img);
+    if (pixels) setCroppedAreaPixels(pixels);
   }, []);
 
-  const handleRotate = useCallback(() => {
-    setRotation((r) => (r + 90) % 360);
-  }, []);
+  const onImageLoad = useCallback(
+    (e) => {
+      imgRef.current = e.currentTarget;
+      const initial = FULL_IMAGE_CROP_PERCENT;
+      setCrop(initial);
+      requestAnimationFrame(() => syncPixelCrop(initial));
+    },
+    [syncPixelCrop]
+  );
 
-  const handleZoomIn = useCallback(() => {
-    setZoom((z) => Math.min(ZOOM_MAX, Number((z + ZOOM_STEP).toFixed(2))));
-  }, []);
+  const onCropChange = useCallback(
+    (nextCrop) => {
+      setCrop(nextCrop);
+      syncPixelCrop(nextCrop);
+    },
+    [syncPixelCrop]
+  );
 
-  const handleZoomOut = useCallback(() => {
-    setZoom((z) => Math.max(ZOOM_MIN, Number((z - ZOOM_STEP).toFixed(2))));
-  }, []);
+  const handleResetCrop = useCallback(() => {
+    setCrop(FULL_IMAGE_CROP_PERCENT);
+    syncPixelCrop(FULL_IMAGE_CROP_PERCENT);
+  }, [syncPixelCrop]);
+
+  const handleRotate = useCallback(async () => {
+    if (rotating || sendAsOriginal) return;
+    setRotating(true);
+    try {
+      const prev = displayUrlRef.current;
+      const next = await rotateImageBlobUrl(prev);
+      if (prev && prev !== imageUrl && prev.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {
+          /* ignore */
+        }
+      }
+      displayUrlRef.current = next;
+      setDisplayUrl(next);
+      setCrop(FULL_IMAGE_CROP_PERCENT);
+    } catch (err) {
+      console.error("[ImageSendPreviewMobile] rotate:", err);
+    } finally {
+      setRotating(false);
+    }
+  }, [imageUrl, rotating, sendAsOriginal]);
+
+  useEffect(() => {
+    displayUrlRef.current = imageUrl;
+    setDisplayUrl(imageUrl);
+    setCrop(FULL_IMAGE_CROP_PERCENT);
+  }, [imageUrl]);
+
+  useEffect(
+    () => () => {
+      const u = displayUrlRef.current;
+      if (u && u !== imageUrl && String(u).startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(u);
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [imageUrl]
+  );
 
   const handleSend = useCallback(async () => {
     if (busy) return;
     setExporting(true);
     try {
+      let pixels = croppedAreaPixels;
+      if (!sendAsOriginal && imgRef.current && crop) {
+        pixels = cropToNaturalPixels(crop, imgRef.current) || pixels;
+      }
       await onSend({
         sendAsOriginal,
-        croppedAreaPixels,
-        rotation,
+        croppedAreaPixels: pixels,
+        rotation: 0,
         fileName: fileName || "foto.jpg",
         mimeType: mimeType || "image/jpeg",
       });
@@ -66,7 +129,7 @@ export default function ImageSendPreviewMobile({
     } finally {
       setExporting(false);
     }
-  }, [busy, croppedAreaPixels, fileName, mimeType, onSend, rotation, sendAsOriginal]);
+  }, [busy, crop, croppedAreaPixels, fileName, mimeType, onSend, sendAsOriginal]);
 
   return (
     <div
@@ -98,103 +161,75 @@ export default function ImageSendPreviewMobile({
       </div>
 
       <div className="wa-mediaPreview-stage wa-mediaPreview-stage--crop">
-        {sendAsOriginal ? (
-          <img
-            src={imageUrl}
-            alt="Foto original a enviar"
-            className="wa-mediaPreview-media wa-mediaPreview-media--original"
-            draggable={false}
-          />
-        ) : (
-          <Cropper
-            image={imageUrl}
-            crop={crop}
-            zoom={zoom}
-            rotation={rotation}
-            minZoom={ZOOM_MIN}
-            maxZoom={ZOOM_MAX}
-            cropShape="rect"
-            showGrid
-            restrictPosition={false}
-            objectFit="contain"
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onRotationChange={setRotation}
-            onCropComplete={onCropComplete}
-            classes={{
-              containerClassName: "wa-imageEditor-cropper",
-              mediaClassName: "wa-imageEditor-cropperMedia",
-              cropAreaClassName: "wa-imageEditor-cropArea",
-            }}
-          />
-        )}
+        <div className="wa-imageSend-canvas">
+          {sendAsOriginal ? (
+            <img
+              ref={imgRef}
+              src={displayUrl}
+              alt="Foto original a enviar"
+              className="wa-imageSend-photo wa-imageSend-photo--full"
+              draggable={false}
+              onLoad={onImageLoad}
+            />
+          ) : (
+            <ReactCrop
+              className="wa-imageSend-reactCrop ReactCrop--no-animate"
+              crop={crop}
+              ruleOfThirds
+              onChange={(_, percentCrop) => onCropChange(percentCrop)}
+              onComplete={(_, percentCrop) => onCropChange(percentCrop)}
+            >
+              <img
+                ref={imgRef}
+                src={displayUrl}
+                alt="Ajuste o quadro para recortar a foto"
+                className="wa-imageSend-photo"
+                draggable={false}
+                onLoad={onImageLoad}
+              />
+            </ReactCrop>
+          )}
+        </div>
 
         {sendAsOriginal ? (
           <span className="wa-imageSend-originalBadge" aria-live="polite">
             Foto original
           </span>
         ) : null}
+      </div>
 
-        <div className="wa-imageSendFloatTools" role="toolbar" aria-label="Ferramentas de edição">
-          <button
-            type="button"
-            className="wa-imageSendTool"
-            onClick={handleRotate}
-            disabled={busy || sendAsOriginal}
-            aria-label="Girar imagem"
-            title="Girar"
-          >
-            <RotateCw size={20} strokeWidth={1.75} aria-hidden="true" />
-          </button>
+      <div className="wa-imageSendEditBar" role="toolbar" aria-label="Ferramentas de recorte">
+        <button
+          type="button"
+          className="wa-imageSendEditBar-btn"
+          onClick={handleRotate}
+          disabled={busy || sendAsOriginal}
+          aria-label="Girar imagem"
+          title="Girar"
+        >
+          <RotateCw size={22} strokeWidth={1.75} aria-hidden="true" />
+        </button>
 
-          <button
-            type="button"
-            className="wa-imageSendTool"
-            onClick={handleZoomOut}
-            disabled={busy || sendAsOriginal || zoom <= ZOOM_MIN}
-            aria-label="Diminuir zoom"
-            title="Diminuir zoom"
-          >
-            <ZoomOut size={20} strokeWidth={1.75} aria-hidden="true" />
-          </button>
+        <button
+          type="button"
+          className="wa-imageSendEditBar-reset"
+          onClick={handleResetCrop}
+          disabled={busy || sendAsOriginal}
+        >
+          Redefinir
+        </button>
 
-          <button
-            type="button"
-            className="wa-imageSendTool"
-            onClick={handleZoomIn}
-            disabled={busy || sendAsOriginal || zoom >= ZOOM_MAX}
-            aria-label="Aumentar zoom"
-            title="Aumentar zoom"
-          >
-            <ZoomIn size={20} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-
-          <span className="wa-imageSendToolSep" aria-hidden="true" />
-
-          <button
-            type="button"
-            className={`wa-imageSendTool${cropMode ? " is-active" : ""}`}
-            disabled={busy}
-            onClick={() => setSendAsOriginal(false)}
-            aria-label="Ajustar enquadramento"
-            aria-pressed={cropMode}
-            title="Recortar e ajustar"
-          >
-            <Crop size={20} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-
-          <button
-            type="button"
-            className={`wa-imageSendTool${!cropMode ? " is-active" : ""}`}
-            disabled={busy}
-            onClick={() => setSendAsOriginal(true)}
-            aria-label="Enviar foto original sem corte"
-            aria-pressed={!cropMode}
-            title="Foto original"
-          >
-            <Maximize2 size={20} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        </div>
+        <button
+          type="button"
+          className={`wa-imageSendEditBar-btn wa-imageSendEditBar-btn--end${sendAsOriginal ? " is-active" : ""}`}
+          disabled={busy}
+          onClick={() => setSendAsOriginal((v) => !v)}
+          aria-label={sendAsOriginal ? "Voltar ao recorte" : "Enviar foto original sem corte"}
+          aria-pressed={sendAsOriginal}
+          title={sendAsOriginal ? "Recortar" : "Original"}
+        >
+          <Maximize2 size={22} strokeWidth={1.75} aria-hidden="true" />
+        </button>
       </div>
 
       <div className="wa-mediaPreview-composer">

@@ -6483,6 +6483,158 @@ main.main-content--crm .wa-mediaPreview-composer {
   padding: 0 !important;
   background: #000;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Imagem em tamanho natural (limitada à área visível) + quadro de corte móvel */
+.wa-imageSend-canvas {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wa-imageSend-reactCrop.ReactCrop {
+  max-width: 100%;
+  max-height: 100%;
+  cursor: default;
+}
+
+.wa-imageSend-photo {
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100%;
+  max-height: min(72vh, 100%);
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.wa-imageSend-photo--full {
+  max-height: min(72vh, 100%);
+}
+
+.wa-imageSend-reactCrop .ReactCrop__crop-mask {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.wa-imageSend-reactCrop .ReactCrop__crop-selection {
+  animation: none !important;
+  background-image: none !important;
+  outline: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  color: transparent !important;
+}
+
+.wa-imageSend-reactCrop .ReactCrop__rule-of-thirds-vt::before,
+.wa-imageSend-reactCrop .ReactCrop__rule-of-thirds-vt::after,
+.wa-imageSend-reactCrop .ReactCrop__rule-of-thirds-hz::before,
+.wa-imageSend-reactCrop .ReactCrop__rule-of-thirds-hz::after {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Cantos em L (referência WhatsApp) */
+.wa-imageSend-reactCrop .ReactCrop__drag-handle {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.wa-imageSend-reactCrop .ReactCrop__drag-handle.ord-nw {
+  width: 22px !important;
+  height: 22px !important;
+  border-top: 3px solid #fff !important;
+  border-left: 3px solid #fff !important;
+}
+
+.wa-imageSend-reactCrop .ReactCrop__drag-handle.ord-ne {
+  width: 22px !important;
+  height: 22px !important;
+  border-top: 3px solid #fff !important;
+  border-right: 3px solid #fff !important;
+}
+
+.wa-imageSend-reactCrop .ReactCrop__drag-handle.ord-sw {
+  width: 22px !important;
+  height: 22px !important;
+  border-bottom: 3px solid #fff !important;
+  border-left: 3px solid #fff !important;
+}
+
+.wa-imageSend-reactCrop .ReactCrop__drag-handle.ord-se {
+  width: 22px !important;
+  height: 22px !important;
+  border-bottom: 3px solid #fff !important;
+  border-right: 3px solid #fff !important;
+}
+
+.wa-imageSend-reactCrop .ReactCrop__drag-bar {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.wa-imageSendEditBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 28px 8px;
+  padding-left: calc(28px + env(safe-area-inset-left, 0));
+  padding-right: calc(28px + env(safe-area-inset-right, 0));
+  z-index: 5;
+  background: #000;
+}
+
+.wa-imageSendEditBar-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #e9edef;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.wa-imageSendEditBar-btn:active:not(:disabled) {
+  opacity: 0.7;
+}
+
+.wa-imageSendEditBar-btn.is-active {
+  color: var(--wa-green-send, #00a884);
+}
+
+.wa-imageSendEditBar-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.wa-imageSendEditBar-reset {
+  border: none;
+  background: transparent;
+  color: #e9edef;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.wa-imageSendEditBar-reset:active:not(:disabled) {
+  opacity: 0.65;
+}
+
+.wa-imageSendEditBar-reset:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .wa-mediaPreview-media--original {
