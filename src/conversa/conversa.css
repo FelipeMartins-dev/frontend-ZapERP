@@ -8744,8 +8744,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta {
-    font-size: 10px;
-    padding: 2px 8px;
+    font-size: 9px;
+    padding: 2px 7px;
+    min-height: 18px;
+    line-height: 1.15;
   }
 
   /* Faixa padrão: uma linha com scroll; duas linhas só com .wa-header--crmAtivo + :has(...) */
@@ -8810,8 +8812,18 @@ main.main-content--crm .wa-mediaPreview-composer {
     grid-row: 1;
     padding-right: 0;
     min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
     align-self: center;
     gap: 8px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-info,
+  .wa-header.wa-header--atendMobile .wa-header-titleBlock,
+  .wa-header.wa-header--atendMobile .wa-header-metaBlock {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-right {
@@ -8912,11 +8924,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex-wrap: wrap;
     align-items: flex-start;
     align-content: flex-start;
-    gap: 5px 6px;
-    row-gap: 4px;
+    gap: 4px 6px;
+    row-gap: 3px;
     margin-top: 0;
-    padding: 3px 0;
-    min-height: 30px;
+    padding: 2px 0;
+    min-height: 26px;
     box-sizing: border-box;
     overflow-x: visible;
     overflow-y: visible;
@@ -8950,17 +8962,21 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 1 0 100%;
     max-width: 100%;
     width: auto;
-    font-size: 9.5px;
+    font-size: 8.5px;
     font-weight: 600;
-    padding: 4px 9px;
+    padding: 2px 6px;
+    min-height: 17px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
-    line-height: 1.2;
-    overflow: visible;
+    justify-content: flex-start;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
     -webkit-line-clamp: unset;
     line-clamp: unset;
     box-sizing: border-box;
+    letter-spacing: -0.02em;
   }
 
   .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep {
@@ -9007,20 +9023,23 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip .wa-status-pill--meta {
-    flex: 0 0 auto;
-    max-width: none;
+    flex: 0 1 auto;
+    max-width: 100%;
     width: max-content;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 600;
-    padding: 4px 10px;
+    padding: 2px 7px;
+    min-height: 18px;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
-    line-height: 1.2;
-    overflow: visible;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
     -webkit-line-clamp: unset;
     line-clamp: unset;
     box-sizing: border-box;
+    letter-spacing: -0.02em;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-setorBtn {
