@@ -2565,7 +2565,10 @@ a { color: inherit; text-decoration: none; }
 
 /* Etiqueta “aguardando funcionário” (texto longo + minutos): prioriza largura sobre a regra acima */
 .chat-list-row-meta:has(.chat-list-status-tech--staff) {
+  flex-shrink: 1;
+  min-width: 0;
   max-width: min(72%, 400px);
+  overflow: hidden;
 }
 
 .chat-list-row-meta:has(.chat-list-status-tech--await-client) {
@@ -2715,11 +2718,11 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 6px;
+  justify-content: center;
+  gap: 0;
   min-height: 24px;
   height: auto;
-  padding: 6px 13px 6px 11px;
+  padding: 6px 12px;
   border-radius: 999px;
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 9.5px;
@@ -2853,6 +2856,17 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
   align-self: center;
   white-space: nowrap !important;
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+}
+
+.chat-list-time-espera-min--staff-pill[data-wait-level="low"],
+.chat-list-time-espera-min--staff-pill[data-wait-level="mid"],
+.chat-list-time-espera-min--staff-pill[data-wait-level="high"] {
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
 }
 
 .chat-list-status-tech-staff-label {
@@ -2880,6 +2894,12 @@ a { color: inherit; text-decoration: none; }
 [data-theme="dark"] .chat-list-time-espera-min--staff-pill {
   color: #f59e0b !important;
   text-shadow: none !important;
+  animation: none !important;
+}
+
+.chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-title-wrap {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 @keyframes chatListHudDispatchSweep {
@@ -3601,16 +3621,17 @@ a { color: inherit; text-decoration: none; }
     align-items: flex-end;
     justify-content: flex-start;
     gap: 3px;
-    width: max-content;
-    min-width: min-content;
-    max-width: max-content;
+    width: 100%;
+    max-width: 100%;
     padding: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .chat-list-row-meta:has(.chat-list-status-tech--staff) {
-    max-width: min(58%, 204px);
-    overflow: visible;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: min(50%, 188px);
+    overflow: hidden;
   }
 
   .chat-list-statusRow:has(.chat-list-status-tech--staff) {
@@ -3618,18 +3639,17 @@ a { color: inherit; text-decoration: none; }
     align-items: flex-end;
     align-content: flex-end;
     gap: 4px;
-    max-width: max-content;
-    overflow: visible;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .chat-list-row-meta .chat-list-status-tech-staff-main {
     justify-content: center;
     align-self: flex-end;
     width: max-content;
-    min-width: min-content;
-    max-width: max-content;
+    max-width: 100%;
     min-height: 23px;
-    padding: 6px 13px 6px 11px;
+    padding: 6px 11px;
     font-size: 9.5px;
     overflow: visible;
     white-space: nowrap;
@@ -3657,6 +3677,9 @@ a { color: inherit; text-decoration: none; }
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
+    animation: none !important;
+    transform: none !important;
+    will-change: auto !important;
   }
 
   /* Brilho/grid suave no mobile (touch) — só no balão da frase */
@@ -3709,11 +3732,6 @@ a { color: inherit; text-decoration: none; }
     background-position: -40% 20%;
     animation: scan 2.4s linear infinite;
     will-change: background-position;
-  }
-
-  .chat-list-status-tech-staff-main .chat-list-status-tech-staff-badge-icon {
-    animation: zapDotPulse 1.4s ease-in-out infinite !important;
-    will-change: transform, opacity;
   }
 
   .chat-list-status-tech-staff-main.zap-badge-aguardando-funcionario {
