@@ -2563,12 +2563,13 @@ a { color: inherit; text-decoration: none; }
   max-width: min(32%, 124px);
 }
 
-/* Etiqueta “aguardando funcionário” (texto longo + minutos): prioriza largura sobre a regra acima */
+/* Etiqueta “aguardando funcionário” — coluna direita não invade o nome */
 .chat-list-row-meta:has(.chat-list-status-tech--staff) {
-  flex-shrink: 1;
+  flex-shrink: 0;
+  flex-grow: 0;
   min-width: 0;
-  max-width: min(72%, 400px);
-  overflow: hidden;
+  max-width: min(62%, 220px);
+  overflow: visible;
 }
 
 .chat-list-row-meta:has(.chat-list-status-tech--await-client) {
@@ -2897,9 +2898,14 @@ a { color: inherit; text-decoration: none; }
   animation: none !important;
 }
 
+.chat-list-row-top:has(.chat-list-status-tech--staff) {
+  gap: 8px;
+}
+
 .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-title-wrap {
   flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 @keyframes chatListHudDispatchSweep {
@@ -3243,7 +3249,9 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-meta:has(.chat-list-status-tech--staff) {
+    flex-shrink: 0;
     max-width: min(54%, 292px);
+    overflow: visible;
   }
 
   .chat-list-statusRow {
@@ -3469,7 +3477,15 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-meta:has(.chat-list-status-tech--staff) {
-    max-width: min(52%, 280px);
+    flex-shrink: 0;
+    max-width: min(58%, 210px);
+    overflow: visible;
+  }
+
+  .chat-list-row-meta .chat-list-status-tech-staff-main {
+    font-size: 8.5px;
+    padding: 5px 10px;
+    min-height: 21px;
   }
 
   .chat-list-statusRow {
@@ -3550,8 +3566,21 @@ a { color: inherit; text-decoration: none; }
     max-width: min(40%, 142px);
   }
 
-  .chat-list-row-meta:has(.chat-list-status-tech--staff) {
-    max-width: min(56%, 268px);
+  .chat-list-row-top:has(.chat-list-status-tech--staff) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 4px;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-title-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-meta {
+    flex: 0 0 auto;
+    margin-left: auto;
   }
 
   .chat-list-statusRow {
@@ -3602,11 +3631,6 @@ a { color: inherit; text-decoration: none; }
     padding: 3px 8px;
   }
 
-  .chat-list-status-tech-staff-main {
-    min-height: 23px;
-    padding: 6px 12px 6px 10px;
-  }
-
   .chat-list-row-meta .chat-list-status-tech:not(.chat-list-status-tech--staff) {
     min-height: 19px;
     height: auto;
@@ -3621,17 +3645,17 @@ a { color: inherit; text-decoration: none; }
     align-items: flex-end;
     justify-content: flex-start;
     gap: 3px;
-    width: 100%;
-    max-width: 100%;
+    width: max-content;
+    max-width: none;
     padding: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .chat-list-row-meta:has(.chat-list-status-tech--staff) {
-    flex-shrink: 1;
+    flex-shrink: 0;
     min-width: 0;
-    max-width: min(50%, 188px);
-    overflow: hidden;
+    max-width: none;
+    overflow: visible;
   }
 
   .chat-list-statusRow:has(.chat-list-status-tech--staff) {
@@ -3639,24 +3663,26 @@ a { color: inherit; text-decoration: none; }
     align-items: flex-end;
     align-content: flex-end;
     gap: 4px;
-    max-width: 100%;
-    overflow: hidden;
+    max-width: none;
+    overflow: visible;
   }
 
   .chat-list-row-meta .chat-list-status-tech-staff-main {
     justify-content: center;
     align-self: flex-end;
     width: max-content;
-    max-width: 100%;
-    min-height: 23px;
-    padding: 6px 11px;
-    font-size: 9.5px;
+    max-width: none;
+    min-height: 20px;
+    padding: 5px 8px;
+    font-size: 8px;
+    letter-spacing: -0.045em;
     overflow: visible;
     white-space: nowrap;
     flex-shrink: 0;
   }
 
   .chat-list-status-tech-staff-label {
+    font-size: inherit;
     white-space: nowrap;
     overflow: visible;
     text-overflow: clip;
