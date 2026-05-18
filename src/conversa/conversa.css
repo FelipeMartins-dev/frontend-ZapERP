@@ -6236,6 +6236,188 @@ main.main-content--crm .wa-mediaPreview-composer {
   height: 22px;
 }
 
+/* =========================================================
+   IMAGE EDITOR — crop/zoom/rotação antes do envio (mobile)
+========================================================= */
+
+.wa-imageEditor {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  background: #0b141a;
+  color: #e9edef;
+  overflow: hidden;
+  animation: wa-mediaPreview-fadeIn 0.2s ease-out;
+}
+
+.wa-imageEditor-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  padding-top: max(10px, env(safe-area-inset-top, 0));
+  padding-left: calc(14px + env(safe-area-inset-left, 0));
+  padding-right: calc(14px + env(safe-area-inset-right, 0));
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  min-height: 52px;
+  z-index: 2;
+}
+
+.wa-imageEditor-title {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.wa-imageEditor-iconBtn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e9edef;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.wa-imageEditor-iconBtn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.wa-imageEditor-iconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wa-imageEditor-iconBtn--primary {
+  background: var(--wa-green-send, #00a884);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 168, 132, 0.35);
+}
+
+.wa-imageEditor-stage {
+  position: relative;
+  flex: 1 1 0%;
+  min-height: 0;
+  background: #000;
+}
+
+.wa-imageEditor-cropper {
+  position: absolute !important;
+  inset: 0 !important;
+}
+
+.wa-imageEditor-cropArea {
+  border: 2px solid rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.52) !important;
+}
+
+.wa-imageEditor-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
+  padding-left: calc(18px + env(safe-area-inset-left, 0));
+  padding-right: calc(18px + env(safe-area-inset-right, 0));
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  z-index: 2;
+}
+
+.wa-imageEditor-toolBtn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e9edef;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.wa-imageEditor-toolBtn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.wa-imageEditor-toolBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wa-imageEditor-zoom {
+  flex: 1 1 0%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wa-imageEditor-zoomLabel {
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(233, 237, 239, 0.75);
+  line-height: 1;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.wa-imageEditor-zoomInput {
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  outline: none;
+}
+
+.wa-imageEditor-zoomInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.wa-imageEditor-zoomInput::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.wa-imageEditor-toolSpacer {
+  width: 44px;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wa-imageEditor {
+    animation: none;
+  }
+}
+
 @media (max-width: 640px) {
   .wa-mediaPreview-stage {
     padding: 12px;

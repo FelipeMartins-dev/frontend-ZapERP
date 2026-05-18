@@ -48,6 +48,7 @@ import * as cfg from "../api/configService";
 import SidebarCliente from "./SidebarCliente";
 import { SwipeReplyTrack } from "./SwipeReplyTrack";
 import { useMatchMedia } from "../hooks/useMatchMedia";
+import ImageSendEditor from "./ImageSendEditor.jsx";
 import { getAutocorrectEdit } from "../utils/autocorrectText";
 import EmptyState from "../components/feedback/EmptyState";
 import DSToast from "../components/feedback/Toast";
@@ -407,6 +408,16 @@ function isImageFile(file) {
   if (t.startsWith("image/")) return true;
   const name = String(file.name || "").toLowerCase();
   return /\.(png|jpe?g|gif|webp|bmp)$/i.test(name);
+}
+
+/** Imagens estáticas editáveis no mobile (sem GIF/SVG). */
+function isEditableImageForSend(file) {
+  if (!file || !isImageFile(file)) return false;
+  const t = String(file.type || "").toLowerCase();
+  if (t === "image/gif" || t.includes("svg")) return false;
+  const name = String(file.name || "").toLowerCase();
+  if (name.endsWith(".gif") || name.endsWith(".svg")) return false;
+  return true;
 }
 
 function isAudioFile(file) {
@@ -2840,6 +2851,9 @@ function ConversaViewBody() {
   const [dragOver, setDragOver] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreview, setPendingPreview] = useState(null);
+  /** Etapa prévia no mobile: editar foto antes do preview com legenda. */
+  const [imageEditorSession, setImageEditorSession] = useState(null);
+  const imageEditorBlobRef = useRef(null);
   /** Legenda opcional digitada no preview (apenas imagem/vídeo, estilo WhatsApp). */
   const [pendingCaption, setPendingCaption] = useState("");
   const pendingCaptionRef = useRef(null);
@@ -3659,6 +3673,19 @@ function ConversaViewBody() {
     });
   }, [composerAppendQueue, clearComposerAppendQueue, focusMessageInput, showToast]);
 
+  const clearImageEditor = useCallback(() => {
+    const url = imageEditorBlobRef.current;
+    if (url && String(url).startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        /* ignore */
+      }
+    }
+    imageEditorBlobRef.current = null;
+    setImageEditorSession(null);
+  }, []);
+
   const clearPending = useCallback(() => {
     if (pendingPreview) {
       try {
@@ -3668,7 +3695,22 @@ function ConversaViewBody() {
     setPendingFile(null);
     setPendingPreview(null);
     setPendingCaption("");
-  }, [pendingPreview]);
+    clearImageEditor();
+  }, [pendingPreview, clearImageEditor]);
+
+  const openMediaSendPreview = useCallback((file) => {
+    if (!file) return;
+    setPendingFile(file);
+    setPendingCaption("");
+    if (isImageFile(file) || isVideoFile(file)) {
+      const url = fileToPreviewURL(file);
+      setPendingPreview(url);
+    } else if (isAudioFile(file)) {
+      setPendingPreview(null);
+    } else {
+      setPendingPreview(null);
+    }
+  }, []);
 
   const openMediaViewer = useCallback((url, type = "imagem", fileName) => {
     if (!url) return;
@@ -4207,20 +4249,40 @@ function ConversaViewBody() {
     st.loadMore();
   }, []);
 
-  const handleDropFile = useCallback((file) => {
-    if (!file) return;
-    setPendingFile(file);
-    setPendingCaption("");
+  const handleDropFile = useCallback(
+    (file) => {
+      if (!file) return;
+      if (headerCompact && isEditableImageForSend(file)) {
+        clearImageEditor();
+        const url = fileToPreviewURL(file);
+        if (!url) {
+          openMediaSendPreview(file);
+          return;
+        }
+        imageEditorBlobRef.current = url;
+        setImageEditorSession({
+          url,
+          fileName: file.name || "foto.jpg",
+          mimeType: file.type || "image/jpeg",
+        });
+        return;
+      }
+      openMediaSendPreview(file);
+    },
+    [headerCompact, clearImageEditor, openMediaSendPreview]
+  );
 
-    if (isImageFile(file) || isVideoFile(file)) {
-      const url = fileToPreviewURL(file);
-      setPendingPreview(url);
-    } else if (isAudioFile(file)) {
-      setPendingPreview(null); // áudio: sem preview visual
-    } else {
-      setPendingPreview(null);
-    }
-  }, []);
+  const handleImageEditorCancel = useCallback(() => {
+    clearImageEditor();
+  }, [clearImageEditor]);
+
+  const handleImageEditorConfirm = useCallback(
+    (editedFile) => {
+      clearImageEditor();
+      openMediaSendPreview(editedFile);
+    },
+    [clearImageEditor, openMediaSendPreview]
+  );
 
   const handleSendReaction = useCallback(
     async (msg, reaction) => {
@@ -6867,6 +6929,17 @@ function ConversaViewBody() {
 
           <div ref={bottomRef} />
         </div>
+
+        {/* Mobile: editar foto antes do preview com legenda (não altera envio/upload). */}
+        {imageEditorSession ? (
+          <ImageSendEditor
+            imageUrl={imageEditorSession.url}
+            fileName={imageEditorSession.fileName}
+            mimeType={imageEditorSession.mimeType}
+            onCancel={handleImageEditorCancel}
+            onConfirm={handleImageEditorConfirm}
+          />
+        ) : null}
 
         {/* PREVIEW antes de enviar — overlay full-screen (mídia ou arquivo) + legenda opcional */}
         {pendingFile ? (
