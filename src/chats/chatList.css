@@ -3649,23 +3649,6 @@ a { color: inherit; text-decoration: none; }
     max-width: min(40%, 142px);
   }
 
-  .chat-list-row-top:has(.chat-list-status-tech--staff) {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    row-gap: 4px;
-  }
-
-  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-title-wrap {
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-meta {
-    flex: 0 0 auto;
-    margin-left: auto;
-  }
-
   .chat-list-statusRow {
     min-width: 0;
   }
@@ -3720,131 +3703,6 @@ a { color: inherit; text-decoration: none; }
     font-size: 10px;
     max-width: min(100%, calc(100vw - 80px));
     overflow: visible;
-  }
-
-  .chat-list-status-tech--staff {
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: flex-start;
-    gap: 3px;
-    width: max-content;
-    max-width: none;
-    padding: 0;
-    overflow: visible;
-  }
-
-  .chat-list-row-meta:has(.chat-list-status-tech--staff) {
-    flex-shrink: 0;
-    min-width: 0;
-    max-width: none;
-    overflow: visible;
-  }
-
-  .chat-list-statusRow:has(.chat-list-status-tech--staff) {
-    flex-direction: column;
-    align-items: flex-end;
-    align-content: flex-end;
-    gap: 4px;
-    max-width: none;
-    overflow: visible;
-  }
-
-  .chat-list-row-meta .chat-list-status-tech-staff-main {
-    justify-content: center;
-    align-self: flex-end;
-    width: max-content;
-    max-width: none;
-    min-height: 18px;
-    padding: 3px 7px;
-    font-size: 8px;
-    letter-spacing: -0.045em;
-    overflow: visible;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .chat-list-status-tech-staff-label {
-    font-size: inherit;
-    white-space: nowrap;
-    overflow: visible;
-    text-overflow: clip;
-  }
-
-  /* Minutos avulsos — sem fundo, abaixo do balão */
-  .chat-list-row-meta .chat-list-time-espera-min--staff-pill {
-    display: block !important;
-    width: auto !important;
-    align-self: flex-end;
-    text-align: right;
-    font-size: 9.5px !important;
-    font-weight: 800 !important;
-    line-height: 1.15 !important;
-    letter-spacing: -0.02em !important;
-    margin: 0 !important;
-    padding: 0 2px 0 0 !important;
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    animation: none !important;
-    transform: none !important;
-    will-change: auto !important;
-  }
-
-  /* Brilho/grid suave no mobile (touch) — só no balão da frase */
-  .chat-list-status-tech-staff-main::before {
-    content: "";
-    display: block;
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background-image:
-      repeating-linear-gradient(
-        -22deg,
-        transparent 0 8px,
-        rgba(56, 189, 248, 0.2) 8px,
-        rgba(56, 189, 248, 0.2) 9px,
-        transparent 9px 17px
-      ),
-      repeating-linear-gradient(
-        68deg,
-        transparent 0 11px,
-        rgba(0, 229, 255, 0.12) 11px,
-        rgba(0, 229, 255, 0.12) 12px,
-        transparent 12px 22px
-      );
-    animation: chatListStaffBadgeGridPulse 3.2s ease-in-out infinite;
-    will-change: opacity;
-  }
-
-  .chat-list-status-tech-staff-main::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    mix-blend-mode: screen;
-    background: linear-gradient(
-      122deg,
-      transparent 0%,
-      transparent 42%,
-      rgba(0, 229, 255, 0) 49%,
-      rgba(0, 229, 255, 0.45) 50%,
-      rgba(0, 229, 255, 0) 51%,
-      transparent 58%,
-      transparent 100%
-    );
-    background-size: 240% 240%;
-    background-position: -40% 20%;
-    animation: scan 2.4s linear infinite;
-    will-change: background-position;
-  }
-
-  .chat-list-status-tech-staff-main.zap-badge-aguardando-funcionario {
-    animation: zapStaffSoftGlow 2.4s ease-in-out infinite !important;
-    will-change: box-shadow;
   }
 
   /*
@@ -3924,6 +3782,174 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status-tech--await-client) .chat-list-setor {
+    padding-right: 0;
+  }
+
+  /*
+   * Aguardando funcionário (mobile): grade — nome/setor + hora na 1ª linha;
+   * pill única (rótulo + minutos) na 2ª, sem brilho pesado nem minutos soltos.
+   */
+  .chat-list-row:has(.chat-list-status-tech--staff) {
+    contain: layout;
+    overflow: visible;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title time"
+      "badge badge";
+    column-gap: 8px;
+    row-gap: 5px;
+    align-items: start;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-title-wrap {
+    grid-area: title;
+    flex: unset;
+    max-width: none;
+    min-width: 0;
+    padding-right: 0;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-row-meta {
+    display: contents;
+    max-width: none !important;
+    flex-shrink: 0;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-time {
+    grid-area: time;
+    justify-self: end;
+    align-self: start;
+    white-space: nowrap;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-statusRow {
+    grid-area: badge;
+    justify-self: end;
+    align-self: start;
+    width: max-content;
+    max-width: calc(100% - 34px);
+    min-width: min-content;
+    overflow: visible;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    align-content: flex-end;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px 6px;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech--staff {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    width: max-content;
+    max-width: 100%;
+    min-height: 24px;
+    padding: 5px 10px 5px 9px;
+    border-radius: 999px;
+    box-sizing: border-box;
+    color: #f0f9ff;
+    background: #0c4a6e;
+    border: 1px solid rgba(3, 105, 161, 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    overflow: visible;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-main {
+    justify-content: flex-start;
+    align-self: center;
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    padding: 0;
+    font-size: 9px;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+    overflow: visible;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+    color: inherit;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-main::before,
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-main::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-main.zap-badge-aguardando-funcionario {
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-badge-icon {
+    text-shadow: none;
+    color: #7dd3fc;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-label {
+    font-size: inherit;
+    color: inherit;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-time-espera-min--staff-pill {
+    display: inline-flex !important;
+    align-items: center;
+    align-self: center;
+    width: auto !important;
+    flex-shrink: 0;
+    margin: 0 0 0 7px !important;
+    padding: 0 0 0 7px !important;
+    border: none !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.22) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: left;
+    font-size: 8.5px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.03em !important;
+    color: #fcd34d !important;
+    opacity: 1 !important;
+    animation: none !important;
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  [data-theme="dark"] .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech--staff {
+    background: #082f49;
+    border-color: rgba(56, 189, 248, 0.38);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  [data-theme="dark"] .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-time-espera-min--staff-pill {
+    border-left-color: rgba(56, 189, 248, 0.28) !important;
+    color: #fbbf24 !important;
+  }
+
+  [data-theme="dark"] .chat-list-row.is-active .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-main {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .chat-list-row:has(.chat-list-setor):has(.chat-list-status-tech--staff) .chat-list-setor {
     padding-right: 0;
   }
 
