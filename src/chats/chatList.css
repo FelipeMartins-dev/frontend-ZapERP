@@ -3645,18 +3645,8 @@ a { color: inherit; text-decoration: none; }
     gap: 3px;
   }
 
-  .chat-list-row-meta:has(.chat-list-statusRow--await-solo) {
+  .chat-list-row-meta:has(.chat-list-statusRow--await-solo):not(:has(.chat-list-status-tech--await-client)) {
     max-width: min(40%, 142px);
-  }
-
-  .chat-list-row-meta:has(.chat-list-status-tech--await-client) {
-    flex-shrink: 0;
-    max-width: min(44%, 162px);
-  }
-
-  .chat-list-row-top:has(.chat-list-status-tech--await-client) {
-    align-items: flex-start;
-    gap: 6px;
   }
 
   .chat-list-row-top:has(.chat-list-status-tech--staff) {
@@ -3716,15 +3706,14 @@ a { color: inherit; text-decoration: none; }
 
   .chat-list-status.in.chat-list-status--hud-in,
   .chat-list-status.closed.chat-list-status--hud-closed,
-  .chat-list-status.dispatched.chat-list-status--hud-dispatched,
-  .chat-list-status-tech--await-client {
+  .chat-list-status.dispatched.chat-list-status--hud-dispatched {
     height: auto;
     min-height: 21px;
     line-height: 1.15;
     padding: 3px 8px;
   }
 
-  .chat-list-row-meta .chat-list-status-tech:not(.chat-list-status-tech--staff) {
+  .chat-list-row-meta .chat-list-status-tech:not(.chat-list-status-tech--staff):not(.chat-list-status-tech--await-client) {
     min-height: 19px;
     height: auto;
     padding: 2px 9px;
@@ -3858,13 +3847,84 @@ a { color: inherit; text-decoration: none; }
     will-change: box-shadow;
   }
 
-  .chat-list-row-meta .chat-list-status-tech--await-client {
-    min-height: 19px;
-    height: auto;
-    padding: 3px 9px 3px 8px;
-    font-size: 9.5px;
+  /*
+   * Aguardando cliente (mobile): grid na linha superior — nome/setor + hora na 1ª linha;
+   * etiqueta inteira na 2ª linha (sem cortar bordas/texto e sem sobrepor setor).
+   */
+  .chat-list-row:has(.chat-list-status-tech--await-client) {
+    contain: layout;
+    overflow: visible;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title time"
+      "badge badge";
+    column-gap: 8px;
+    row-gap: 5px;
+    align-items: start;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-row-title-wrap {
+    grid-area: title;
+    flex: unset;
+    max-width: none;
+    min-width: 0;
+    padding-right: 0;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-row-meta {
+    display: contents;
+    max-width: none !important;
+    flex-shrink: 0;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-time {
+    grid-area: time;
+    justify-self: end;
+    align-self: start;
+    white-space: nowrap;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-statusRow {
+    grid-area: badge;
+    justify-self: end;
+    align-self: start;
     width: max-content;
-    max-width: min(100%, calc(100vw - 120px)) !important;
+    max-width: calc(100% - 34px);
+    min-width: min-content;
+    overflow: visible;
+    flex-shrink: 0;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-statusRow--await-solo {
+    flex-direction: row;
+    align-items: center;
+    align-content: flex-end;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px 6px;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-status-tech--await-client {
+    min-height: 24px;
+    height: auto;
+    padding: 6px 12px 6px 10px;
+    font-size: 9.5px;
+    line-height: 1.2;
+    width: max-content;
+    max-width: 100% !important;
+    flex-shrink: 0;
+    overflow: visible;
+    box-sizing: border-box;
+  }
+
+  .chat-list-row:has(.chat-list-setor):has(.chat-list-status-tech--await-client) .chat-list-setor {
+    padding-right: 0;
   }
 
   /* Seta do menu: menor e mais transparente só no mobile */
