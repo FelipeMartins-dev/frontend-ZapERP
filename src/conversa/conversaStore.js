@@ -209,6 +209,62 @@ function canMergeDedupeEntries(prev, incoming) {
   return false
 }
 
+/** Mesma bolha lógica com chaves diferentes (ex.: otimista temp-* vs socket id-*). */
+function areLikelySameMessageBubble(prev, incoming) {
+  if (!prev || !incoming) return false
+  if (canMergeDedupeEntries(prev, incoming)) return true
+  const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
+  const iwa = incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== "" ? String(incoming.whatsapp_id) : null
+  if (pwa && iwa && pwa === iwa) return true
+  const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
+  const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
+  if (pid && iid && pid === iid) return true
+  if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
+  const recentMs = 90_000
+  const now = Date.now()
+  const tsP = toMillis(prev?.criado_em)
+  const tsI = toMillis(incoming?.criado_em)
+  if (!Number.isFinite(tsP) || !Number.isFinite(tsI)) return false
+  if (Math.abs(tsP - tsI) > recentMs) return false
+  const textoP = (prev.texto || prev.conteudo || "").toString().trim()
+  const textoI = (incoming.texto || incoming.conteudo || "").toString().trim()
+  if (!textoP || !textoI || textoP !== textoI) return false
+  return isTipoTextoParaReconciliarPorConteudo(prev) && isTipoTextoParaReconciliarPorConteudo(incoming)
+}
+
+function findMergeableMapKey(map, copy) {
+  if (!map || !copy) return null
+  for (const [key, prev] of map.entries()) {
+    if (!prev) continue
+    if (areLikelySameMessageBubble(prev, copy)) return key
+  }
+  return null
+}
+
+/** Remove otimistas órfãos quando já existe a mensagem confirmada (id/whatsapp_id). */
+function pruneRedundantOutgoingTemps(list) {
+  if (!Array.isArray(list) || list.length < 2) return list
+  const recentMs = 90_000
+  const now = Date.now()
+  const confirmed = list.filter((m) => {
+    if (!isOutgoingLike(m) || m?.tempId) return false
+    const idOk = m.id != null && String(m.id).trim() !== ""
+    const waOk = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
+    return idOk || waOk
+  })
+  if (!confirmed.length) return list
+  return list.filter((m) => {
+    if (!m?.tempId || !isOutgoingLike(m)) return true
+    const ts = toMillis(m?.criado_em)
+    if (!Number.isFinite(ts) || now - ts >= recentMs) return true
+    return !confirmed.some((c) => areLikelySameMessageBubble(m, c))
+  })
+}
+
+function finalizeMensagensList(list) {
+  return sortMensagensChronological(pruneRedundantOutgoingTemps(list))
+}
+
 /** Chave estável para React (evita colisão e remount errado). */
 export function getMessageListReactKey(m, conversaId) {
   if (!m) return "unknown"
@@ -486,6 +542,23 @@ function applyAnexarOneToList(list, convId, msg) {
     }
   }
 
+  const crossIdx = list.findIndex(
+    (m, i) =>
+      i !== dupIdx &&
+      areLikelySameMessageBubble(m, candNew)
+  )
+  if (crossIdx >= 0) {
+    const prevRow = list[crossIdx]
+    let mergedNew = preserveLocalMediaFields(prevRow, mergeMsgPreferringTombstone(prevRow, candNew))
+    if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
+      mergedNew.criado_em = pickLaterCriadoEmIso(prevRow, candNew)
+    }
+    mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
+    const next = [...list]
+    next[crossIdx] = stripTempIdWhenPersisted(mergedNew)
+    return next
+  }
+
   const appended = { ...candNew, _stableInsertSeq: mergeStableSeq(null, candNew, null) }
   return [...list, stripTempIdWhenPersisted(appended)]
 }
@@ -546,7 +619,7 @@ export const useConversaStore = create((set, get) => {
         if (!cid) continue
         list = applyAnexarOneToList(list, cid, m)
       }
-      const sorted = sortMensagensChronological(list)
+      const sorted = finalizeMensagensList(list)
       if (import.meta.env.DEV && sorted.length < before) {
         console.warn("[conversaStore] flush anexar reduziu mensagens (inesperado)", {
           antes: before,
@@ -870,6 +943,18 @@ export const useConversaStore = create((set, get) => {
       const k = mapDedupeKey(copy, conversaId)
       const prev = map.get(k)
       if (prev && !canMergeDedupeEntries(prev, copy)) {
+        const altKey = findMergeableMapKey(map, copy)
+        if (altKey) {
+          const prevAlt = map.get(altKey)
+          const cand = prevAlt ? { ...prevAlt, ...copy } : copy
+          let merged = preserveLocalMediaFields(prevAlt, mergeMsgPreferringTombstone(prevAlt, cand))
+          if (prevAlt && isOutgoingLike(prevAlt) && isOutgoingLike(copy)) {
+            merged.criado_em = pickLaterCriadoEmIso(prevAlt, copy)
+          }
+          merged._stableInsertSeq = mergeStableSeq(prevAlt || null, copy, ord)
+          map.set(altKey, stripTempIdWhenPersisted(merged))
+          return
+        }
         let altK = `${k}::__split_${ord}`
         let n = 0
         while (map.has(altK) && n < 500) altK = `${k}::__split_${ord}_${++n}`
@@ -887,7 +972,7 @@ export const useConversaStore = create((set, get) => {
     }
     existing.forEach(put)
     fromApi.forEach(put)
-    return sortMensagensChronological(Array.from(map.values()))
+    return finalizeMensagensList(Array.from(map.values()))
   },
 
   refresh: async (opts = {}) => {
@@ -1032,6 +1117,18 @@ export const useConversaStore = create((set, get) => {
           const k = mapDedupeKey(copy, selectedId)
           const prev = map.get(k)
           if (prev && !canMergeDedupeEntries(prev, copy)) {
+            const altKey = findMergeableMapKey(map, copy)
+            if (altKey) {
+              const prevAlt = map.get(altKey)
+              const cand = prevAlt ? { ...prevAlt, ...copy } : copy
+              let merged = preserveLocalMediaFields(prevAlt, mergeMsgPreferringTombstone(prevAlt, cand))
+              if (prevAlt && isOutgoingLike(prevAlt) && isOutgoingLike(copy)) {
+                merged.criado_em = pickLaterCriadoEmIso(prevAlt, copy)
+              }
+              merged._stableInsertSeq = mergeStableSeq(prevAlt || null, copy, ord)
+              map.set(altKey, stripTempIdWhenPersisted(merged))
+              return
+            }
             let altK = `${k}::__split_${ord}`
             let n = 0
             while (map.has(altK) && n < 500) altK = `${k}::__split_${ord}_${++n}`
@@ -1049,7 +1146,7 @@ export const useConversaStore = create((set, get) => {
         }
         ;(mais || []).forEach(put)
         atual.forEach(put)
-        const sorted = sortMensagensChronological(Array.from(map.values()))
+        const sorted = finalizeMensagensList(Array.from(map.values()))
         return {
           mensagens: attachReplyMeta(selectedId, sorted),
           cursor: nextCursor,

@@ -79,6 +79,18 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     };
   }, [scrollRef, onVirtualContentResize]);
 
+  const prevCountRef = useRef(0);
+  useLayoutEffect(() => {
+    const prev = prevCountRef.current;
+    prevCountRef.current = count;
+    if (prev === 0 && count > 0) {
+      requestAnimationFrame(() => {
+        if (count <= 0) return;
+        virtualizer.scrollToIndex(count - 1, { align: "end", behavior: "auto" });
+      });
+    }
+  }, [count, virtualizer]);
+
   useLayoutEffect(() => {
     if (!onVirtualContentResize) return undefined;
     const el = innerRootRef.current;

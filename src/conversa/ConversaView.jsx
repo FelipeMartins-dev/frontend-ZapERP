@@ -2634,14 +2634,17 @@ function useAutoScroll({
 
     const shouldSnapLatest =
       pendingJumpToBottomRef.current ||
-      (anchorLatestUntilMsgsRef.current && mensagensCount > 0) ||
+      anchorLatestUntilMsgsRef.current ||
       (becameReady && mensagensCount > 0);
 
     if (!shouldSnapLatest) return;
 
+    /* Lista ainda vazia: mantém flags para reancorar quando as mensagens chegarem do GET/merge. */
+    if (mensagensCount === 0) return;
+
     const container = messagesContainerRef?.current;
     if (pendingJumpToBottomRef.current) pendingJumpToBottomRef.current = false;
-    if (mensagensCount > 0) anchorLatestUntilMsgsRef.current = false;
+    anchorLatestUntilMsgsRef.current = false;
 
     shouldStickToBottomRef.current = true;
     const mobileLike =
