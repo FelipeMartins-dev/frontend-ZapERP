@@ -238,6 +238,8 @@ function ConversaViewBody() {
   const mediaPreviewRootRef = useRef(null);
   const pendingBlobUrlRef = useRef(null);
   const confirmSendLockRef = useRef(false);
+  /** Evita POST duplicado do mesmo arquivo (double-click / Enter + botão). */
+  const arquivoEnvioInFlightRef = useRef(new Set());
   const [localReactions, setLocalReactions] = useState({});
   const [reactionLoading, setReactionLoading] = useState({});
 
@@ -1047,6 +1049,10 @@ function ConversaViewBody() {
         return;
       }
 
+      const flightKey = `${conversaId}:${file?.name || "arquivo"}:${file?.size ?? 0}:${file?.lastModified ?? 0}`;
+      if (arquivoEnvioInFlightRef.current.has(flightKey)) return;
+      arquivoEnvioInFlightRef.current.add(flightKey);
+
       const legenda = String(opts.caption ?? "").trim();
       const optimisticMsg = buildOptimisticOutgoingMessage({
         conversaId,
@@ -1103,6 +1109,7 @@ function ConversaViewBody() {
           message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar o arquivo. Tente novamente."),
         });
       } finally {
+        arquivoEnvioInFlightRef.current.delete(flightKey);
         setSending(false);
         focusMessageInput();
       }
