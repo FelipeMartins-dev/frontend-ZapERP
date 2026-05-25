@@ -69,7 +69,7 @@ const DEFAULT_CONFIG = {
     horario_envio: "09:00",
     timezone: "",
     incluir_nota_media: false,
-    incluir_conversas_sem_resposta: false,
+    incluir_conversas_sem_resposta: true,
   },
 };
 
@@ -101,7 +101,7 @@ function mergeAdminAtendimentoAlertaFromApi(raw) {
     horario_envio: normalizeHorarioAdminAlerta(s.horario_envio),
     timezone: String(s.timezone || "").trim().slice(0, 80),
     incluir_nota_media: s.incluir_nota_media === true,
-    incluir_conversas_sem_resposta: s.incluir_conversas_sem_resposta === true,
+    incluir_conversas_sem_resposta: s.incluir_conversas_sem_resposta !== false,
   };
 }
 
@@ -760,6 +760,7 @@ function SecaoChatbotTriagem({
   const [adminContatoBusca, setAdminContatoBusca] = useState("");
   const [adminContatoOptions, setAdminContatoOptions] = useState([]);
   const [adminContatoLoading, setAdminContatoLoading] = useState(false);
+  const [adminTesteEnviando, setAdminTesteEnviando] = useState(false);
   const [novaDataFechada, setNovaDataFechada] = useState("");
   useEffect(() => setV(config), [config]);
   useEffect(() => setAdminAl(adminAtendimentoAlerta), [adminAtendimentoAlerta]);
@@ -1352,7 +1353,18 @@ function SecaoChatbotTriagem({
               <code className="chatbot-inline-code">X-Cron-Secret</code>.
             </p>
             <div className="ds-switch-row" style={{ marginBottom: 12 }}>
-              <Switch checked={adminAl.ativo === true} onChange={(x) => setAdminAl((c) => ({ ...c, ativo: x }))} />
+              <Switch
+                checked={adminAl.ativo === true}
+                onChange={(x) =>
+                  setAdminAl((c) => {
+                    const next = { ...c, ativo: x };
+                    if (x && !c.incluir_nota_media && c.incluir_conversas_sem_resposta === false) {
+                      next.incluir_conversas_sem_resposta = true;
+                    }
+                    return next;
+                  })
+                }
+              />
               <span>Ativar alerta</span>
             </div>
             <div
@@ -1450,10 +1462,10 @@ function SecaoChatbotTriagem({
                 </label>
               </div>
               <p className="chatbot-hint" style={{ marginTop: 8 }}>
-                Métricas desmarcadas não entram na mensagem. Um envio por dia por empresa; dados sempre isolados por{" "}
-                <code className="chatbot-inline-code">company_id</code>.
+                Marque ao menos uma métrica (recomendado). O envio automático ocorre no horário configurado, com tolerância
+                de até 30 minutos (fuso da seção 4 ou campo acima). Um envio por dia por empresa.
               </p>
-              <div className="ia-btn-row" style={{ marginTop: 12 }}>
+              <div className="ia-btn-row" style={{ marginTop: 12, flexWrap: "wrap", gap: 8 }}>
                 <button
                   type="button"
                   className="ia-btn ia-btn--outline"
@@ -1464,6 +1476,18 @@ function SecaoChatbotTriagem({
                       showToast({ type: "error", title: "Alerta do administrador", message: "Selecione o contato que receberá o alerta." });
                       return;
                     }
+                    if (
+                      adminAl.ativo &&
+                      !adminAl.incluir_nota_media &&
+                      adminAl.incluir_conversas_sem_resposta === false
+                    ) {
+                      showToast({
+                        type: "error",
+                        title: "Alerta do administrador",
+                        message: "Marque ao menos uma métrica para incluir no resumo.",
+                      });
+                      return;
+                    }
                     onSaveAdminAlert({
                       ...adminAl,
                       cliente_id: Number.isInteger(clienteId) && clienteId > 0 ? clienteId : null,
@@ -1471,11 +1495,48 @@ function SecaoChatbotTriagem({
                       horario_envio: normalizeHorarioAdminAlerta(adminAl.horario_envio),
                       telefone_admin: telefoneAdmin,
                       timezone: String(adminAl.timezone || "").trim().slice(0, 80),
+                      incluir_conversas_sem_resposta: adminAl.incluir_conversas_sem_resposta !== false,
                     });
                   }}
                   disabled={saving}
                 >
                   {saving ? "Salvando…" : "Salvar alerta do administrador"}
+                </button>
+                <button
+                  type="button"
+                  className="ia-btn ia-btn--primary"
+                  disabled={saving || adminTesteEnviando || !adminAl.ativo}
+                  onClick={async () => {
+                    const clienteId = Number(adminAl.cliente_id);
+                    const telefoneAdmin = String(adminAl.telefone_admin || "").trim();
+                    if (!clienteId && telefoneAdmin.replace(/\D/g, "").length < 10) {
+                      showToast({
+                        type: "error",
+                        title: "Teste do alerta",
+                        message: "Salve o alerta com um contato válido antes de testar.",
+                      });
+                      return;
+                    }
+                    setAdminTesteEnviando(true);
+                    try {
+                      await iaApi.testarAdminAtendimentoAlerta();
+                      showToast({
+                        type: "success",
+                        title: "Teste enviado",
+                        message: "Verifique o WhatsApp do contato selecionado.",
+                      });
+                    } catch (e) {
+                      const msg =
+                        e?.response?.data?.error ||
+                        e?.response?.data?.message ||
+                        "Não foi possível enviar o teste.";
+                      showToast({ type: "error", title: "Teste do alerta", message: msg });
+                    } finally {
+                      setAdminTesteEnviando(false);
+                    }
+                  }}
+                >
+                  {adminTesteEnviando ? "Enviando teste…" : "Enviar teste agora"}
                 </button>
               </div>
             </div>

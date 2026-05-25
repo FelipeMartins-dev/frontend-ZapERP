@@ -10,6 +10,11 @@ export async function putConfig(config) {
   return data
 }
 
+export async function testarAdminAtendimentoAlerta() {
+  const { data } = await api.post('/ia/admin-atendimento-alerta/testar')
+  return data
+}
+
 export async function getRegras() {
   const { data } = await api.get('/ia/regras')
   return data || []
