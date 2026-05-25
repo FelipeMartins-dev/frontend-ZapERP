@@ -40,7 +40,11 @@ import {
   bumpChatListWithOptimisticMessage,
   normalizeArquivoApiToMessage,
 } from "./conversaOptimisticMessage";
-import { isNearBottom } from "./scrollUtils";
+import {
+  isNearBottom,
+  captureMessagesScrollAnchor,
+  restoreMessagesScrollAnchor,
+} from "./scrollUtils";
 import ConversaThread from "./ConversaThread";
 import ConversaComposer from "./ConversaComposer";
 
@@ -253,6 +257,9 @@ function ConversaViewBody() {
   const [callSending, setCallSending] = useState(false);
   const messagesContainerRef = useRef(null);
   const shouldStickToBottomRef = useRef(true);
+  /** Bloqueia snap automático ao fundo (Assumir, etc.). */
+  const suppressAutoScrollRef = useRef(false);
+  const messagesScrollPreserveSnapRef = useRef(null);
   const [allTags, setAllTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagsLoading, setTagsLoading] = useState(false);
@@ -727,6 +734,26 @@ function ConversaViewBody() {
     };
   }, [conversa, conversaId, fromChat, isGroup]);
 
+  useEffect(() => {
+    const begin = () => {
+      const el = messagesContainerRef.current;
+      messagesScrollPreserveSnapRef.current = captureMessagesScrollAnchor(el);
+      suppressAutoScrollRef.current = true;
+      shouldStickToBottomRef.current = false;
+    };
+    const end = () => {
+      const snap = messagesScrollPreserveSnapRef.current;
+      const el = messagesContainerRef.current;
+      if (snap && el) restoreMessagesScrollAnchor(el, snap);
+    };
+    const release = () => {
+      messagesScrollPreserveSnapRef.current = null;
+      suppressAutoScrollRef.current = false;
+    };
+    useConversaStore.getState().registerMessagesScrollPreserve({ begin, end, release });
+    return () => useConversaStore.getState().registerMessagesScrollPreserve(null);
+  }, []);
+
   useAutoScroll({
     conversaId: scrollThreadId,
     loading,
@@ -737,6 +764,7 @@ function ConversaViewBody() {
     shouldStickToBottomRef,
     virtualListRef: virtualThreadRef,
     mensagensCount: Array.isArray(mensagens) ? mensagens.length : 0,
+    suppressAutoScrollRef,
   });
 
   useLayoutEffect(() => {
@@ -1081,6 +1109,14 @@ function ConversaViewBody() {
           headers: { "Content-Type": false },
         });
 
+        if (data?.aviso_whatsapp) {
+          showToast({
+            type: "warning",
+            title: "Arquivo em processamento",
+            message: String(data.aviso_whatsapp),
+          });
+        }
+
         const realMsg = normalizeArquivoApiToMessage(data, conversaId);
         if (realMsg?.id != null || realMsg?.whatsapp_id) {
           reconciliarMensagem(tempId, realMsg);
@@ -1322,8 +1358,11 @@ function ConversaViewBody() {
 
   const handleCloseTimeline = useCallback(() => setShowTimeline(false), []);
 
+  const enviarTextoEmAndamentoRef = useRef(false);
+
   const handleEnviar = useCallback(async (forcedText) => {
     if (!conversaId) return;
+    if (enviarTextoEmAndamentoRef.current) return;
     if (!podeEnviar) {
       showToast({
         type: "warning",
@@ -1355,6 +1394,8 @@ function ConversaViewBody() {
     setReplyTo(null);
 
     let envioFalhou = false;
+    enviarTextoEmAndamentoRef.current = true;
+    setSending(true);
     try {
       const res = await enviarMensagem(conversaId, t, replyMeta || undefined);
       const resMsgId = res?.mensagem?.id ?? res?.id;
@@ -1383,6 +1424,9 @@ function ConversaViewBody() {
         message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar a mensagem. Verifique sua conexão."),
       });
       focusMessageInput();
+    } finally {
+      enviarTextoEmAndamentoRef.current = false;
+      setSending(false);
     }
     if (!envioFalhou) {
       focusMessageInput();
@@ -1991,7 +2035,9 @@ function ConversaViewBody() {
     setAssumeEmptyBusy(true);
     try {
       await assumirConversa(conversaId);
-      await refresh({ silent: true });
+      if ((useConversaStore.getState().mensagens || []).length === 0) {
+        await refresh({ silent: true });
+      }
       showToast({
         type: "success",
         title: "Conversa assumida",

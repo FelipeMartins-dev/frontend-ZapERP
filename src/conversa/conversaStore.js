@@ -796,6 +796,19 @@ export const useConversaStore = create((set, get) => {
   /** Texto enfileirado para colar no composer (ex.: painel de produtos na lista de chats). */
   composerAppendQueue: null,
 
+  /** Registrado pelo ConversaView — preserva scroll do thread ao Assumir (evita “pulo” ao topo). */
+  _messagesScrollPreserve: { begin: null, end: null, release: null },
+  registerMessagesScrollPreserve: (handlers) =>
+    set({
+      _messagesScrollPreserve: handlers
+        ? {
+            begin: handlers.begin ?? null,
+            end: handlers.end ?? null,
+            release: handlers.release ?? null,
+          }
+        : { begin: null, end: null, release: null },
+    }),
+
   setSelectedId: (id) => {
     if (id == null || id === "") {
       cancelCarregarConversaInFlight()
@@ -1534,23 +1547,46 @@ export const useConversaStore = create((set, get) => {
      AÇÕES DE ATENDIMENTO
   ===================================================== */
   assumirConversa: async (conversaId) => {
-    const data = await assumirChat(conversaId)
-    const payload = data?.conversa ?? data ?? {}
-    const me = getCurrentUserFromStorage()
-    const optimistic = {
-      id: conversaId,
-      status_atendimento: "em_atendimento",
-      status_atendimento_real: "em_atendimento",
-      exibir_badge_aberta: false,
-      mensagens_bloqueadas: false,
-      atendente_nome: me?.nome ?? null,
-      ...(me?.id != null ? { atendente_id: me.id } : {}),
+    const preserve = get()._messagesScrollPreserve
+    preserve?.begin?.()
+    const schedulePreserveEnd = () => {
+      const run = (phase) => {
+        const handlers = get()._messagesScrollPreserve
+        if (phase === "restore") handlers?.end?.()
+        else if (phase === "release") handlers?.release?.()
+      }
+      run("restore")
+      if (typeof queueMicrotask === "function") queueMicrotask(() => run("restore"))
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame?.(() => run("restore"))
+        window.setTimeout(() => run("restore"), 0)
+        window.setTimeout(() => run("restore"), 80)
+        window.setTimeout(() => run("release"), 200)
+      } else {
+        run("release")
+      }
     }
-    const patch = { ...optimistic, ...payload, id: conversaId }
-    get().patchConversa(patch)
-    useChatStore.getState().updateChat(patch)
-    useChatStore.getState().requestChatListResync()
-    set({ atendimentosLoadedFor: null })
+    try {
+      const data = await assumirChat(conversaId)
+      const payload = data?.conversa ?? data ?? {}
+      const me = getCurrentUserFromStorage()
+      const optimistic = {
+        id: conversaId,
+        status_atendimento: "em_atendimento",
+        status_atendimento_real: "em_atendimento",
+        exibir_badge_aberta: false,
+        mensagens_bloqueadas: false,
+        atendente_nome: me?.nome ?? null,
+        ...(me?.id != null ? { atendente_id: me.id } : {}),
+      }
+      const patch = { ...optimistic, ...payload, id: conversaId }
+      get().patchConversa(patch)
+      useChatStore.getState().updateChat(patch)
+      useChatStore.getState().requestChatListResync()
+      set({ atendimentosLoadedFor: null })
+    } finally {
+      schedulePreserveEnd()
+    }
   },
 
   transferirConversa: async (conversaId, novoAtendenteId, observacao = null) => {

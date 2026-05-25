@@ -145,6 +145,7 @@ const ChatListRows = memo(function ChatListRows({
       }
     }
     const saved = scrollSaveRef.current;
+    el.scrollTop = saved;
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = saved;
     });

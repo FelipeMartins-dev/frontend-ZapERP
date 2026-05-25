@@ -83,10 +83,12 @@ export function safeString(v) {
  *  - prefixos típicos de câmera/WhatsApp + extensão → "IMG_6559.png", "VID-2026.mp4"
  *  - "WhatsApp Image 2026-05-08 at 12.34.56.jpeg"
  */
-export function isFilenameOnlyText(texto) {
+export function isFilenameOnlyText(texto, nomeArquivo) {
   if (!texto) return false;
   const t = String(texto).trim();
   if (!t) return false;
+  const nome = String(nomeArquivo || "").trim();
+  if (nome && t.toLowerCase() === nome.toLowerCase()) return true;
   const knownExt =
     /\.(jpe?g|png|gif|webp|bmp|svg|heic|heif|tiff?|mp4|mov|webm|mkv|avi|3gp|m4v|mp3|m4a|wav|ogg|opus|aac|amr|pdf|docx?|xlsx?|pptx?|txt|csv|zip|rar|7z)$/i;
   if (!knownExt.test(t)) return false;
@@ -104,6 +106,7 @@ export function isFilenameOnlyText(texto) {
   ) {
     return true;
   }
+  if (/^chatgpt\s+image\b/i.test(baseNoExt)) return true;
   if (!/\s/.test(t)) return true;
   return false;
 }

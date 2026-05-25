@@ -69,6 +69,8 @@ export function useAutoScroll({
   virtualListRef,
   /** Contagem bruta no store — quando passa de 0 a N após o load, força novo snap até às mensagens mais recentes. */
   mensagensCount = 0,
+  /** Quando true (ex.: Assumir), não reancora o scroll — a tela permanece onde estava. */
+  suppressAutoScrollRef,
 }) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
@@ -84,6 +86,7 @@ export function useAutoScroll({
   // quando o usuário enviava uma mensagem). Para mensagens próprias / stick-to-bottom
   // a nova bolha simplesmente aparece colada no fundo — sem movimento perceptível.
   useLayoutEffect(() => {
+    if (suppressAutoScrollRef?.current) return;
     const conversaIdAtual = conversaId ? String(conversaId) : null;
     const container = messagesContainerRef?.current;
 
@@ -145,11 +148,13 @@ export function useAutoScroll({
     messagesContainerRef,
     shouldStickToBottomRef,
     virtualListRef,
+    suppressAutoScrollRef,
   ]);
 
   // Ao abrir/trocar conversa: ancora nas últimas mensagens UMA vez ao ficar pronto (não reexecuta a cada nova msg).
   // Menos rAF/timers no mobile = scroll tátil mais livre depois de entrar.
   useLayoutEffect(() => {
+    if (suppressAutoScrollRef?.current) return;
     if (!conversaId) return;
     const convKey = String(conversaId);
     if (prevSnapConversaKeyRef.current !== convKey) {
@@ -227,5 +232,13 @@ export function useAutoScroll({
       if (t3) window.clearTimeout(t3);
       if (rafStick) cancelAnimationFrame(rafStick);
     };
-  }, [conversaId, loading, mensagensCount, messagesContainerRef, shouldStickToBottomRef, virtualListRef]);
+  }, [
+    conversaId,
+    loading,
+    mensagensCount,
+    messagesContainerRef,
+    shouldStickToBottomRef,
+    virtualListRef,
+    suppressAutoScrollRef,
+  ]);
 }

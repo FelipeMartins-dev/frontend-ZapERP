@@ -12,6 +12,27 @@ export function scrollToBottom(container, behavior = "auto") {
 }
 
 /** Ancora o fim do thread no rodapé visível (útil com flex + sentinel no fim do scroll). */
+/** Guarda posição do thread antes de ações que remontam a lista (ex.: Assumir). */
+export function captureMessagesScrollAnchor(container) {
+  if (!container) return null;
+  return {
+    top: Number(container.scrollTop) || 0,
+    height: Number(container.scrollHeight) || 0,
+  };
+}
+
+/** Restaura posição após mudança de altura do conteúdo (merge/refresh/virtualizer). */
+export function restoreMessagesScrollAnchor(container, snap) {
+  if (!container || !snap) return;
+  const diff = Number(container.scrollHeight) - Number(snap.height) || 0;
+  const nextTop = Math.max(0, Number(snap.top) + diff);
+  try {
+    container.scrollTop = nextTop;
+  } catch {
+    /* ignore */
+  }
+}
+
 export function scrollBottomAnchorIntoView(anchorEl) {
   if (!anchorEl || typeof anchorEl.scrollIntoView !== "function") return;
   try {

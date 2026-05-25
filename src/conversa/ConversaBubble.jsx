@@ -708,7 +708,7 @@ const Bubble = memo(function Bubble({
     // (ex.: "IMG_6559.png", "VID-20260508.mp4", "WhatsApp Image 2026.jpeg",
     // "image1714560000000.jpg"). Tratamos isso como placeholder para nunca
     // exibir o nome do arquivo como legenda no balão da mensagem.
-    isFilenameOnlyText(texto);
+    isFilenameOnlyText(texto, msg?.nome_arquivo);
   const showCaption = (isImg || isVideo || isSticker) && hasText && !isPlaceholderCaption;
   const showAudioText = isAudioOrVoice && hasText && !isPlaceholderCaption;
   // Detecta mensagem encaminhada: campo encaminhado=true ou texto começa com [Encaminhado]
@@ -730,8 +730,10 @@ const Bubble = memo(function Bubble({
   // pedido do usuário: setinha no hover para mensagens do cliente
   const showMenuButton = !selectMode;
   const [menuOpen, setMenuOpen] = useState(false);
-  /** Âncora visual do menu: sempre na bolha (desktop e mobile). */
+  /** Âncora da bolha (long press / mobile). */
   const menuAnchorRef = useRef(null);
+  /** Botão ▾ no topo — evita menu cortado em fotos/vídeos altos. */
+  const menuBtnRef = useRef(null);
   const menuElRef = useRef(null);
   const longPressTimerRef = useRef(null);
   const longPressCleanupRef = useRef(null);
@@ -775,8 +777,8 @@ const Bubble = memo(function Bubble({
   }, [menuOpen]);
 
   const computeMenuPosition = useCallback(() => {
-    const a = menuAnchorRef.current;
-    if (!a) return;
+    const anchorEl = menuBtnRef.current || menuAnchorRef.current;
+    if (!anchorEl) return;
     const { innerWidth: vw, visibleHeight, visibleTop, keyboardInsetBottom } = getVisualViewportLayout();
     const visibleBottom = visibleTop + visibleHeight;
 
@@ -799,27 +801,40 @@ const Bubble = memo(function Bubble({
       return;
     }
 
-    const rect = a.getBoundingClientRect();
+    const rect = anchorEl.getBoundingClientRect();
     const desiredW = 220;
     const w = Math.max(180, Math.min(desiredW, vw - 16));
 
     let left = rect.right - w;
     left = clamp(left, 8, Math.max(8, vw - w - 8));
 
-    let top = rect.bottom + 6;
-    const approxH = menuElRef.current?.offsetHeight || 320;
-    let placed = "down";
+    const menuH = Math.max(menuElRef.current?.offsetHeight || 0, 300);
+    const spaceBelow = visibleBottom - rect.bottom - 10;
+    const spaceAbove = rect.top - visibleTop - 10;
+    const openDown = spaceBelow >= spaceAbove;
 
-    if (top + approxH > visibleBottom - 8) {
-      top = rect.top - approxH - 6;
+    let placed = openDown ? "down" : "up";
+    let top = openDown ? rect.bottom + 6 : Math.max(visibleTop + 8, rect.top - menuH - 6);
+    let maxHeight = Math.max(200, openDown ? spaceBelow : spaceAbove);
+
+    if (openDown && top + menuH > visibleBottom - 8 && spaceAbove > spaceBelow) {
       placed = "up";
+      top = Math.max(visibleTop + 8, rect.top - menuH - 6);
+      maxHeight = Math.max(200, spaceAbove);
+    } else if (!openDown && top < visibleTop + 8 && spaceBelow >= spaceAbove) {
+      placed = "down";
+      top = rect.bottom + 6;
+      maxHeight = Math.max(200, spaceBelow);
     }
-    top = clamp(top, visibleTop + 8, Math.max(visibleTop + 8, visibleBottom - 120));
 
-    const maxHeight =
-      placed === "down"
-        ? Math.max(160, visibleBottom - top - 8)
-        : Math.max(160, rect.top - visibleTop - 8);
+    if (maxHeight < menuH - 12) {
+      const fitH = Math.min(menuH, visibleHeight - 16);
+      top = visibleTop + Math.max(8, (visibleHeight - fitH) / 2);
+      maxHeight = fitH;
+      placed = "center";
+    }
+
+    top = clamp(top, visibleTop + 8, Math.max(visibleTop + 8, visibleBottom - Math.min(menuH, maxHeight) - 8));
 
     setMenuStyle({
       position: "fixed",
@@ -827,17 +842,23 @@ const Bubble = memo(function Bubble({
       left,
       width: w,
       maxHeight,
-      overflowY: "auto",
+      overflowY: maxHeight < menuH - 4 ? "auto" : "visible",
       WebkitOverflowScrolling: "touch",
       zIndex: 10002,
     });
   }, [menuUsesBottomSheet]);
 
+  useLayoutEffect(() => {
+    if (!menuOpen || menuUsesBottomSheet) return;
+    computeMenuPosition();
+    const raf = requestAnimationFrame(() => computeMenuPosition());
+    return () => cancelAnimationFrame(raf);
+  }, [menuOpen, menuUsesBottomSheet, computeMenuPosition]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const tick = () => computeMenuPosition();
     tick();
-    // recalcula após render/medida real
     const raf = requestAnimationFrame(tick);
 
     const onReflow = () => computeMenuPosition();
@@ -1028,6 +1049,7 @@ const Bubble = memo(function Bubble({
       >
         {showMenuButton && !mobileMessageChrome ? (
           <button
+            ref={menuBtnRef}
             type="button"
             className={`wa-msgMenuBtn wa-msgMenuBtn--top ${menuOpen ? "isOpen" : ""}`}
             onClick={(e) => {
