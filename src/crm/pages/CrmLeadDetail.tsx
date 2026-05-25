@@ -97,6 +97,10 @@ export default function CrmLeadDetail() {
     );
   }
 
+  if (!lead) {
+    return <div className="crm-empty">Lead nao encontrado.</div>;
+  }
+
   const nome = String(lead?.nome ?? "");
 
   return (
@@ -582,7 +586,7 @@ function MoveLeadButton({
     target?.tipo_fechamento === "perdido" && target.exige_motivo_perda;
 
   async function confirm() {
-    if (stageId === "") return;
+    if (stageId === "" || pipelineId == null) return;
     try {
       await moveLead(leadId, {
         stage_id: Number(stageId),

@@ -1,0 +1,1418 @@
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import { getSocket } from "../socket/socket";
+import { getAutocorrectEdit } from "../utils/autocorrectText";
+import {
+  IconCamera,
+  IconClose,
+  IconDocument,
+  IconEmoji,
+  IconMic,
+  IconPix,
+  IconPlus,
+  IconSend,
+  IconSticker,
+} from "./conversaComposerIcons";
+
+const WA_INPUT_MAX_HEIGHT_PX = 160;
+const STICKER_RECENTS_LIMIT = 36;
+const AUTO_CORRECT_CONTEXT_WINDOW = 12;
+const AUTO_CORRECT_CONTEXT_MATCH = 6;
+
+const __WA_EMOJIS = [
+  "😀","😁","😂","🤣","😊","😍","😘","😅","😎","🙂","🤝","🙏","👏","🔥","✅","❌","⚠️","⭐","🎉","💡","📎","📌","📞","🎧",
+  "👍","👎","👌","🤌","✌️","🤞","🫶","💪","🧠","🕒","📍","📅","💬","📷","🎥","🎙️","🎵","🗂️","🧾",
+  "❤️","💛","💚","💙","🤍","🖤","💔",
+];
+
+function safeString(v) {
+  return v == null ? "" : String(v);
+}
+
+function isImageFile(file) {
+  if (!file) return false;
+  const t = String(file.type || "").toLowerCase();
+  return t.startsWith("image/");
+}
+
+function buildStickerStorageKey(user) {
+  const companyId = user?.company_id ?? user?.empresa_id ?? user?.companyId ?? user?.empresaId ?? "default";
+  const userId = user?.id ?? user?.user_id ?? user?.userId ?? "anon";
+  return `wa_stickers_recent_${companyId}_${userId}`;
+}
+
+function buildAutoCorrectStorageKey(user) {
+  const companyId = user?.company_id ?? user?.empresa_id ?? user?.companyId ?? user?.empresaId ?? "default";
+  const userId = user?.id ?? user?.user_id ?? user?.userId ?? "anon";
+  return `wa_autocorrect_enabled_${companyId}_${userId}`;
+}
+
+function readRecentStickers(user) {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(buildStickerStorageKey(user));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function composerPropsAreEqual(prev, next) {
+  if (prev.conversaId !== next.conversaId) return false;
+  if (prev.scrollThreadId !== next.scrollThreadId) return false;
+  if (prev.loading !== next.loading) return false;
+  if (prev.sending !== next.sending) return false;
+  if (prev.podeEnviar !== next.podeEnviar) return false;
+  if (prev.headerCompact !== next.headerCompact) return false;
+  if (prev.composerEnterInsertsNewline !== next.composerEnterInsertsNewline) return false;
+  if (prev.autocorrectToggleInMenu !== next.autocorrectToggleInMenu) return false;
+  if (prev.pixActionBusy !== next.pixActionBusy) return false;
+  if (prev.pixConfigLoading !== next.pixConfigLoading) return false;
+  if (prev.appendTextQueue !== next.appendTextQueue) return false;
+  if (prev.mensagensBloqueadasHint !== next.mensagensBloqueadasHint) return false;
+  if (prev.atendenteNomeHint !== next.atendenteNomeHint) return false;
+  const pr = prev.replyBarPreview;
+  const nr = next.replyBarPreview;
+  if (pr !== nr) {
+    if (!pr || !nr) return false;
+    if (pr.thumb !== nr.thumb || pr.title !== nr.title || pr.text !== nr.text) return false;
+  }
+  return true;
+}
+
+/**
+ * Área de digitação (composer) — estado de texto isolado para não re-renderizar o thread a cada tecla.
+ */
+const ConversaComposer = forwardRef(function ConversaComposer(
+  {
+    conversaId,
+    scrollThreadId,
+    loading,
+    sending,
+    podeEnviar,
+    mensagensBloqueadasHint,
+    atendenteNomeHint,
+    headerCompact,
+    composerEnterInsertsNewline,
+    autocorrectToggleInMenu,
+    user,
+    replyBarPreview,
+    onCancelReply,
+    onSendMessage,
+    onSendAudioFile,
+    onPasteImageFile,
+    onFileInputChange,
+    onFototecaInputChange,
+    onCameraInputChange,
+    onStickerInputChange,
+    onSendStickerFile,
+    onPixMenuClick,
+    onOpenPixConfig,
+    onShareContact,
+    onShareLocation,
+    onUpdateAutoCorrectPreference,
+    pixActionBusy,
+    pixConfigLoading,
+    appendTextQueue,
+    onAppendConsumed,
+    onAppendTextApplied,
+    onTextMetrics,
+    clearTyping,
+    showToast,
+  },
+  ref
+) {
+  const [texto, setTexto] = useState("");
+  const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
+  const [autoCorrectFlash, setAutoCorrectFlash] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [emojiQuery, setEmojiQuery] = useState("");
+  const [stickerOpen, setStickerOpen] = useState(false);
+  const [stickerQuery, setStickerQuery] = useState("");
+  const [recentStickers, setRecentStickers] = useState([]);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+
+  const emojiPanelRef = useRef(null);
+  const emojiSearchRef = useRef(null);
+  const stickerPanelRef = useRef(null);
+  const stickerSearchRef = useRef(null);
+  const stickerBtnRef = useRef(null);
+  const attachMenuRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const fototecaInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const audioInputRef = useRef(null);
+  const documentInputRef = useRef(null);
+  const stickerInputRef = useRef(null);
+  const inputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const autoCorrectFlashTimeoutRef = useRef(null);
+  const autoCorrectTrackedRef = useRef([]);
+  const autoCorrectIgnoredRef = useRef([]);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingCanceledRef = useRef(false);
+  const recordingTimerRef = useRef(null);
+  const micStreamRef = useRef(null);
+  const prevTextLenRef = useRef(0);
+  const prevTextConversaRef = useRef(null);
+
+  const normalizeAutoWord = useCallback((value) => String(value || "").toLowerCase(), []);
+
+  const getAutoContext = useCallback((text, start, end) => {
+    const value = String(text || "");
+    const s = Math.max(0, Number(start) || 0);
+    const e = Math.max(s, Number(end) || s);
+    return {
+      before: value.slice(Math.max(0, s - AUTO_CORRECT_CONTEXT_WINDOW), s),
+      after: value.slice(e, Math.min(value.length, e + AUTO_CORRECT_CONTEXT_WINDOW)),
+    };
+  }, []);
+
+  const contextMatches = useCallback((candidate, tracked) => {
+    const beforeSize = Math.min(AUTO_CORRECT_CONTEXT_MATCH, candidate.before.length, tracked.before.length);
+    const afterSize = Math.min(AUTO_CORRECT_CONTEXT_MATCH, candidate.after.length, tracked.after.length);
+    const beforeOk =
+      beforeSize === 0 || candidate.before.slice(-beforeSize) === tracked.before.slice(-beforeSize);
+    const afterOk = afterSize === 0 || candidate.after.slice(0, afterSize) === tracked.after.slice(0, afterSize);
+    return beforeOk && afterOk;
+  }, []);
+
+  const resetAutocorrectTracking = useCallback(() => {
+    autoCorrectTrackedRef.current = [];
+    autoCorrectIgnoredRef.current = [];
+  }, []);
+
+  const hasWordWithContext = useCallback(
+    (text, wordLower, context) => {
+      const value = String(text || "");
+      if (!value || !wordLower) return false;
+      const re = /[A-Za-zÀ-ÖØ-öø-ÿ]+/g;
+      let m;
+      while ((m = re.exec(value)) != null) {
+        const found = normalizeAutoWord(m[0]);
+        if (found !== wordLower) continue;
+        const ctx = getAutoContext(value, m.index, m.index + m[0].length);
+        if (contextMatches(ctx, context)) return true;
+      }
+      return false;
+    },
+    [contextMatches, getAutoContext, normalizeAutoWord]
+  );
+
+  const focusInput = useCallback(({ force = false } = {}) => {
+    if (typeof window !== "undefined" && !force) {
+      const isCoarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+      const el = inputRef.current;
+      if (isCoarse && el && document.activeElement !== el) return;
+    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        try {
+          el.focus({ preventScroll: true });
+        } catch {
+          el.focus();
+        }
+      });
+    });
+  }, []);
+
+  const syncTextareaHeight = useCallback(() => {
+    const el = inputRef.current;
+    if (!el || el.tagName !== "TEXTAREA") return;
+    el.style.height = "auto";
+    const maxPx = parseFloat(getComputedStyle(el).maxHeight);
+    const cap =
+      Number.isFinite(maxPx) && maxPx > 0 ? Math.min(maxPx, WA_INPUT_MAX_HEIGHT_PX) : WA_INPUT_MAX_HEIGHT_PX;
+    const next = Math.min(el.scrollHeight, cap);
+    el.style.height = `${next}px`;
+  }, []);
+
+  const emitTypingStop = useCallback(() => {
+    if (!conversaId) return;
+    const socket = getSocket();
+    if (socket?.connected) socket.emit("typing_stop", { conversa_id: conversaId });
+  }, [conversaId]);
+
+  const emitTypingStart = useCallback(() => {
+    if (!conversaId) return;
+    const socket = getSocket();
+    if (socket?.connected) socket.emit("typing_start", { conversa_id: conversaId });
+  }, [conversaId]);
+
+  const closePanels = useCallback(() => {
+    let closed = false;
+    if (emojiOpen) {
+      setEmojiOpen(false);
+      setEmojiQuery("");
+      closed = true;
+    }
+    if (stickerOpen) {
+      setStickerOpen(false);
+      setStickerQuery("");
+      closed = true;
+    }
+    if (attachMenuOpen) {
+      setAttachMenuOpen(false);
+      closed = true;
+    }
+    return closed;
+  }, [attachMenuOpen, emojiOpen, stickerOpen]);
+
+  const handleCancelRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      recordingCanceledRef.current = true;
+      try {
+        if (mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {
+        /* ignore */
+      }
+      mediaRecorderRef.current = null;
+      setIsRecording(false);
+      setRecordingSeconds(0);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  }, [isRecording]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusInput,
+      setText: (value) => setTexto(String(value ?? "")),
+      appendText: (value) => {
+        const v = String(value || "").trim();
+        if (!v) return;
+        setTexto((prev) => (prev ? `${prev}\n${v}` : v));
+        focusInput();
+      },
+      getInputElement: () => inputRef.current,
+      isRecording: () => isRecording,
+      cancelRecording: handleCancelRecording,
+      closePanels,
+      getText: () => texto,
+    }),
+    [focusInput, handleCancelRecording, closePanels, isRecording, texto]
+  );
+
+  useLayoutEffect(() => {
+    syncTextareaHeight();
+  }, [texto, syncTextareaHeight]);
+
+  useLayoutEffect(() => {
+    const len = String(texto ?? "").length;
+    const threadKey = scrollThreadId ?? conversaId;
+    onTextMetrics?.({ length: len, threadKey, loading });
+    if (String(prevTextConversaRef.current) !== String(threadKey ?? "")) {
+      prevTextConversaRef.current = threadKey;
+      prevTextLenRef.current = len;
+      return;
+    }
+    const prevLen = prevTextLenRef.current;
+    prevTextLenRef.current = len;
+    if (prevLen <= 0 || len !== 0) return;
+    onTextMetrics?.({ length: len, threadKey, loading, cleared: true });
+  }, [texto, conversaId, scrollThreadId, loading, onTextMetrics]);
+
+  useEffect(() => {
+    resetAutocorrectTracking();
+    setTexto("");
+    setEmojiOpen(false);
+    setEmojiQuery("");
+    setStickerOpen(false);
+    setStickerQuery("");
+    setAttachMenuOpen(false);
+  }, [conversaId, resetAutocorrectTracking]);
+
+  useEffect(() => {
+    setRecentStickers(readRecentStickers(user));
+  }, [user?.id, user?.company_id, user?.empresa_id]);
+
+  useEffect(() => {
+    if (typeof localStorage === "undefined") return;
+    try {
+      const raw = localStorage.getItem(buildAutoCorrectStorageKey(user));
+      setAutoCorrectEnabled(raw == null ? true : raw === "1");
+    } catch {
+      setAutoCorrectEnabled(true);
+    }
+  }, [user?.id, user?.company_id, user?.empresa_id]);
+
+  useEffect(() => {
+    return () => {
+      if (autoCorrectFlashTimeoutRef.current) {
+        clearTimeout(autoCorrectFlashTimeoutRef.current);
+        autoCorrectFlashTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!appendTextQueue) return;
+    const value = appendTextQueue;
+    onAppendConsumed?.();
+    setTexto((prev) => (prev ? `${prev}\n${value}` : value));
+    focusInput();
+    onAppendTextApplied?.();
+  }, [appendTextQueue, onAppendConsumed, onAppendTextApplied, focusInput]);
+
+  useEffect(() => {
+    if (!conversaId) return;
+    if (!safeString(texto)) {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      emitTypingStop();
+      return;
+    }
+    const t = typingTimeoutRef.current;
+    if (t) clearTimeout(t);
+    typingTimeoutRef.current = setTimeout(() => {
+      typingTimeoutRef.current = null;
+      emitTypingStart();
+    }, 400);
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+    };
+  }, [conversaId, texto, emitTypingStart, emitTypingStop]);
+
+  useEffect(() => {
+    return () => {
+      if (conversaId) {
+        const socket = getSocket();
+        if (socket?.connected) socket.emit("typing_stop", { conversa_id: conversaId });
+        clearTyping?.(conversaId);
+      }
+    };
+  }, [conversaId, clearTyping]);
+
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const onDoc = (e) => {
+      const panel = emojiPanelRef.current;
+      if (panel && panel.contains(e.target)) return;
+      setEmojiOpen(false);
+      setEmojiQuery("");
+    };
+    document.addEventListener("mousedown", onDoc);
+    requestAnimationFrame(() => emojiSearchRef.current?.focus?.());
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [emojiOpen]);
+
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const onDoc = (e) => {
+      const menu = attachMenuRef.current;
+      if (menu && menu.contains(e.target)) return;
+      setAttachMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [attachMenuOpen]);
+
+  useEffect(() => {
+    if (stickerOpen) setRecentStickers(readRecentStickers(user));
+  }, [stickerOpen, user?.id, user?.company_id, user?.empresa_id]);
+
+  useEffect(() => {
+    if (!stickerOpen) return;
+    const onDoc = (e) => {
+      const panel = stickerPanelRef.current;
+      const btn = stickerBtnRef.current;
+      if ((panel && panel.contains(e.target)) || (btn && btn.contains(e.target))) return;
+      setStickerOpen(false);
+      setStickerQuery("");
+    };
+    document.addEventListener("mousedown", onDoc);
+    requestAnimationFrame(() => stickerSearchRef.current?.focus?.());
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [stickerOpen]);
+
+  useEffect(() => {
+    if (!isRecording) return;
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingSeconds((s) => s + 1);
+    }, 1000);
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, [isRecording]);
+
+  useEffect(() => {
+    return () => {
+      const s = micStreamRef.current;
+      if (!s) return;
+      try {
+        s.getTracks().forEach((t) => t.stop());
+      } catch {
+        /* ignore */
+      }
+      micStreamRef.current = null;
+    };
+  }, []);
+
+  const runInputFlash = useCallback(() => {
+    setAutoCorrectFlash(true);
+    if (autoCorrectFlashTimeoutRef.current) {
+      clearTimeout(autoCorrectFlashTimeoutRef.current);
+    }
+    autoCorrectFlashTimeoutRef.current = setTimeout(() => {
+      setAutoCorrectFlash(false);
+      autoCorrectFlashTimeoutRef.current = null;
+    }, 220);
+  }, []);
+
+  const updateAutoCorrectPreference = useCallback(
+    (next) => {
+      setAutoCorrectEnabled(next);
+      onUpdateAutoCorrectPreference?.(next);
+      if (typeof localStorage === "undefined") return;
+      try {
+        localStorage.setItem(buildAutoCorrectStorageKey(user), next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+    },
+    [onUpdateAutoCorrectPreference, user]
+  );
+
+  const applyAutocorrectFromEvent = useCallback(
+    (e, triggerChar) => {
+      if (!autoCorrectEnabled) return null;
+      if (e.nativeEvent?.isComposing || e.isComposing) return null;
+      const el = e.currentTarget;
+      if (!el || typeof el.selectionStart !== "number" || typeof el.selectionEnd !== "number") return null;
+
+      const edit = getAutocorrectEdit({
+        text: el.value,
+        selectionStart: el.selectionStart,
+        selectionEnd: el.selectionEnd,
+        triggerChar,
+      });
+      if (!edit) return null;
+
+      const originalWord = String(el.value || "").slice(edit.replaceStart, edit.replaceEnd);
+      const originalLower = normalizeAutoWord(originalWord);
+      const candidateContext = getAutoContext(el.value, edit.replaceStart, edit.replaceEnd);
+      const shouldIgnore = autoCorrectIgnoredRef.current.some(
+        (item) => item?.originalLower === originalLower && contextMatches(candidateContext, item.context)
+      );
+      if (shouldIgnore) return null;
+
+      e.preventDefault();
+      let nextValue = "";
+      if (typeof el.setRangeText === "function") {
+        el.setRangeText(edit.replacement, edit.replaceStart, edit.replaceEnd, "end");
+        nextValue = String(el.value || "");
+        setTexto(nextValue);
+        syncTextareaHeight();
+      } else {
+        const cur = String(el.value || "");
+        nextValue = `${cur.slice(0, edit.replaceStart)}${edit.replacement}${cur.slice(edit.replaceEnd)}`;
+        const nextPos = edit.replaceStart + edit.replacement.length;
+        setTexto(nextValue);
+        requestAnimationFrame(() => {
+          try {
+            el.setSelectionRange?.(nextPos, nextPos);
+          } catch {
+            /* ignore */
+          }
+        });
+      }
+
+      const correctedLower = normalizeAutoWord(edit.correctedWord);
+      const correctionContext = getAutoContext(
+        nextValue,
+        edit.replaceStart,
+        edit.replaceStart + String(edit.correctedWord || "").length
+      );
+      autoCorrectTrackedRef.current.push({
+        originalLower,
+        correctedLower,
+        context: correctionContext,
+      });
+
+      runInputFlash();
+      return edit;
+    },
+    [autoCorrectEnabled, contextMatches, getAutoContext, normalizeAutoWord, runInputFlash, syncTextareaHeight]
+  );
+
+  const handleInputChange = useCallback(
+    (e) => {
+      const nextValue = String(e.target.value || "");
+      const tracked = autoCorrectTrackedRef.current;
+
+      if (tracked.length > 0) {
+        const remaining = [];
+        for (const item of tracked) {
+          const stillCorrected = hasWordWithContext(nextValue, item.correctedLower, item.context);
+          if (stillCorrected) {
+            remaining.push(item);
+            continue;
+          }
+          const revertedToOriginal = hasWordWithContext(nextValue, item.originalLower, item.context);
+          if (revertedToOriginal) {
+            autoCorrectIgnoredRef.current.push({
+              originalLower: item.originalLower,
+              context: item.context,
+            });
+          }
+        }
+        autoCorrectTrackedRef.current = remaining;
+      }
+
+      if (!nextValue) {
+        resetAutocorrectTracking();
+      }
+
+      setTexto(nextValue);
+    },
+    [hasWordWithContext, resetAutocorrectTracking]
+  );
+
+  const handleSendFromComposer = useCallback(
+    (textToSend) => {
+      const t = safeString(textToSend);
+      if (!t) return;
+      resetAutocorrectTracking();
+      setTexto("");
+      onSendMessage?.(t);
+    },
+    [onSendMessage, resetAutocorrectTracking]
+  );
+
+  const handleKeyDownInput = useCallback(
+    (e) => {
+      if (e.nativeEvent?.isComposing || e.isComposing) return;
+
+      const key = String(e.key || "");
+      const punctuationTrigger = key.length === 1 && [".", ",", "!", "?", ";", ":"].includes(key);
+      if (key === " " || punctuationTrigger) {
+        applyAutocorrectFromEvent(e, key);
+        return;
+      }
+
+      if (key !== "Enter") return;
+
+      if (composerEnterInsertsNewline) {
+        applyAutocorrectFromEvent(e, "\n");
+        return;
+      }
+
+      if (e.shiftKey) {
+        applyAutocorrectFromEvent(e, "\n");
+        return;
+      }
+
+      const edit = applyAutocorrectFromEvent(e, "\n");
+      e.preventDefault();
+      const textToSend = edit
+        ? `${String(e.currentTarget?.value || "")}`.replace(/\n$/, "")
+        : texto;
+      handleSendFromComposer(textToSend);
+    },
+    [applyAutocorrectFromEvent, composerEnterInsertsNewline, handleSendFromComposer, texto]
+  );
+
+  const insertEmoji = useCallback(
+    (emoji) => {
+      const em = String(emoji || "");
+      if (!em) return;
+      const el = inputRef.current;
+      if (!el) {
+        setTexto((prev) => (prev ? `${prev}${em}` : em));
+        return;
+      }
+
+      const cur = String(texto || "");
+      const start = typeof el.selectionStart === "number" ? el.selectionStart : cur.length;
+      const end = typeof el.selectionEnd === "number" ? el.selectionEnd : cur.length;
+      const next = cur.slice(0, start) + em + cur.slice(end);
+      setTexto(next);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            el.focus({ preventScroll: true });
+            const pos = start + em.length;
+            el.setSelectionRange?.(pos, pos);
+          } catch {
+            /* ignore */
+          }
+        });
+      });
+    },
+    [texto]
+  );
+
+  const handlePaste = useCallback(
+    (e) => {
+      if (!conversaId) return;
+      const dt = e.clipboardData;
+      if (!dt) return;
+
+      const files = dt.files && dt.files.length > 0 ? Array.from(dt.files) : [];
+      const items = dt.items && dt.items.length > 0 ? Array.from(dt.items) : [];
+
+      let pickedFile = null;
+
+      if (files.length > 0) {
+        pickedFile = files.find((f) => f && isImageFile(f)) || files[0];
+      } else if (items.length > 0) {
+        const fileItem = items.find((it) => it.kind === "file" && it.type && it.type.startsWith("image/"));
+        if (fileItem) pickedFile = fileItem.getAsFile();
+      }
+
+      if (pickedFile && isImageFile(pickedFile)) {
+        e.preventDefault();
+        onPasteImageFile?.(pickedFile);
+      }
+    },
+    [conversaId, onPasteImageFile]
+  );
+
+  const handleStartRecording = useCallback(async () => {
+    if (!conversaId || sending || isRecording) return;
+    if (!podeEnviar) {
+      showToast?.({
+        type: "warning",
+        title: "Conversa não assumida",
+        message: "Clique em Assumir para enviar mensagens.",
+      });
+      return;
+    }
+    recordingCanceledRef.current = false;
+    setRecordingSeconds(0);
+    try {
+      if (!window.isSecureContext) {
+        showToast?.({
+          type: "error",
+          title: "Microfone",
+          message: "Para gravar áudio, acesse via HTTPS (ou localhost). Em HTTP o navegador bloqueia o microfone.",
+        });
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        showToast?.({
+          type: "error",
+          title: "Microfone",
+          message: "Seu navegador não suporta gravação de áudio (getUserMedia indisponível).",
+        });
+        return;
+      }
+
+      try {
+        const perm = await navigator.permissions?.query?.({ name: "microphone" });
+        if (perm?.state === "denied") {
+          showToast?.({
+            type: "error",
+            title: "Microfone bloqueado",
+            message: "O microfone está bloqueado para este site. Clique no cadeado do navegador e permita o microfone.",
+          });
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+
+      let stream = micStreamRef.current;
+      const audioTracks = stream?.getAudioTracks?.() || [];
+      const hasLiveMic = audioTracks.some((t) => t.readyState === "live");
+      if (!hasLiveMic) {
+        if (stream) {
+          try {
+            stream.getTracks().forEach((t) => t.stop());
+          } catch {
+            /* ignore */
+          }
+          micStreamRef.current = null;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
+        const track = stream.getAudioTracks?.()[0];
+        if (track) {
+          const onEnded = () => {
+            track.removeEventListener("ended", onEnded);
+            micStreamRef.current = null;
+          };
+          track.addEventListener("ended", onEnded);
+        }
+      }
+
+      const preferred = [
+        "audio/ogg;codecs=opus",
+        "audio/ogg",
+        "audio/webm;codecs=opus",
+        "audio/webm",
+      ];
+      const mimeType =
+        typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported
+          ? preferred.find((t) => MediaRecorder.isTypeSupported(t))
+          : null;
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        if (recordingCanceledRef.current || audioChunksRef.current.length === 0) return;
+        const finalType = recorder.mimeType || mimeType || "audio/webm";
+        const ext = finalType.includes("ogg") ? "ogg" : "webm";
+        const blob = new Blob(audioChunksRef.current, { type: finalType });
+        if (blob.size < 50) {
+          showToast?.({
+            type: "warning",
+            title: "Áudio muito curto",
+            message: "Grave por pelo menos 1 segundo antes de enviar.",
+          });
+          return;
+        }
+        const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: finalType });
+        await onSendAudioFile?.(file);
+      };
+
+      recorder.start(400);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Erro ao iniciar gravação:", err);
+      const name = String(err?.name || "");
+      if (name === "NotAllowedError" || name === "NotFoundError") {
+        try {
+          micStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+        } catch {
+          /* ignore */
+        }
+        micStreamRef.current = null;
+      }
+      const msg =
+        name === "NotAllowedError"
+          ? "Permissão negada. Clique no cadeado do navegador e permita o microfone."
+          : name === "NotFoundError"
+            ? "Nenhum microfone foi encontrado no dispositivo."
+            : "Não foi possível acessar o microfone. Verifique as permissões.";
+      showToast?.({
+        type: "error",
+        title: "Microfone",
+        message: msg,
+      });
+    }
+  }, [conversaId, sending, isRecording, onSendAudioFile, showToast, podeEnviar]);
+
+  const handleStopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      try {
+        if (mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {
+        /* ignore */
+      }
+      mediaRecorderRef.current = null;
+      setIsRecording(false);
+      setRecordingSeconds(0);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  }, [isRecording]);
+
+  const filteredRecentStickers = useMemo(
+    () =>
+      recentStickers.filter((item) => {
+        if (!safeString(stickerQuery)) return true;
+        return safeString(item?.name).toLowerCase().includes(safeString(stickerQuery).toLowerCase());
+      }),
+    [recentStickers, stickerQuery]
+  );
+
+  const hasDraft = Boolean(safeString(texto));
+
+  const placeholderText = podeEnviar
+    ? "Digite uma mensagem"
+    : mensagensBloqueadasHint
+      ? "Este atendimento foi assumido por outro usuário."
+      : "Assuma esta conversa para responder";
+
+  const inputAriaLabel = podeEnviar
+    ? composerEnterInsertsNewline
+      ? "Digite sua resposta. Retorno ou Enter para nova linha; use o botão enviar para mandar a mensagem. Esc para fechar painéis."
+      : "Digite sua resposta. Enter para enviar, Shift+Enter para nova linha, Esc para fechar painéis."
+    : mensagensBloqueadasHint
+      ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens."
+      : "Assuma esta conversa para responder.";
+
+  const footerHint = !podeEnviar
+    ? mensagensBloqueadasHint
+      ? `Este atendimento foi assumido por ${atendenteNomeHint?.trim() ? atendenteNomeHint : "outro usuário"}.`
+      : "Assuma esta conversa para enviar mensagens"
+    : null;
+
+  return (
+    <>
+      {replyBarPreview && !isRecording ? (
+        <div className="wa-replyBar" role="region" aria-label="Respondendo">
+          <div className="wa-replyBar-bar" aria-hidden="true" />
+          {replyBarPreview.thumb ? (
+            <img
+              src={replyBarPreview.thumb}
+              alt=""
+              className="wa-replyBar-thumb"
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+            />
+          ) : null}
+          <div className="wa-replyBar-left">
+            <div className="wa-replyBar-title">{replyBarPreview.title}</div>
+            <div className="wa-replyBar-text">{replyBarPreview.text}</div>
+          </div>
+          <button
+            type="button"
+            className="wa-iconBtn"
+            onClick={onCancelReply}
+            title="Cancelar resposta"
+            aria-label="Cancelar resposta"
+            disabled={sending}
+          >
+            <IconClose />
+          </button>
+        </div>
+      ) : null}
+
+      <div className="wa-footer">
+        {isRecording ? (
+          <div className="wa-recording-bar">
+            <button
+              type="button"
+              className="wa-recording-cancel"
+              onClick={handleCancelRecording}
+              title="Cancelar"
+              aria-label="Cancelar gravação"
+            >
+              <IconClose />
+            </button>
+            <div className="wa-recording-timer">
+              <span className="wa-recording-dot" aria-hidden="true" />
+              <span className="wa-recording-time">
+                {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, "0")}
+              </span>
+            </div>
+            <span className="wa-recording-hint">Toque para enviar</span>
+            <button
+              type="button"
+              className="wa-recording-send"
+              onClick={handleStopRecording}
+              title="Enviar áudio"
+              aria-label="Enviar áudio"
+            >
+              <IconSend />
+            </button>
+          </div>
+        ) : (
+          <>
+            {footerHint ? (
+              <div className="wa-footer-hint" role="status">
+                {footerHint}
+              </div>
+            ) : null}
+            <div className="wa-attachWrap" ref={attachMenuRef}>
+              <button
+                type="button"
+                className={`wa-iconBtn wa-attachPlus ${attachMenuOpen ? "isOpen" : ""}`}
+                onClick={() => {
+                  setAttachMenuOpen((v) => !v);
+                  setEmojiOpen(false);
+                  setStickerOpen(false);
+                }}
+                title="Anexos e mais"
+                aria-label="Anexos e mais"
+                aria-expanded={attachMenuOpen}
+                disabled={sending || !conversaId || !podeEnviar}
+              >
+                <IconPlus />
+              </button>
+              {attachMenuOpen ? (
+                <div className="wa-attachMenu" role="menu" aria-label="Anexos">
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      fototecaInputRef.current?.click();
+                      setAttachMenuOpen(false);
+                    }}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">
+                      📄
+                    </span>
+                    <span>Fototeca/Galeria</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      fototecaInputRef.current?.click();
+                      setAttachMenuOpen(false);
+                    }}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">
+                      🖼️
+                    </span>
+                    <span>Galeria</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      try {
+                        const hasMediaDevices =
+                          typeof navigator !== "undefined" &&
+                          navigator.mediaDevices &&
+                          navigator.mediaDevices.getUserMedia;
+                        if (!hasMediaDevices) {
+                          showToast?.({
+                            type: "error",
+                            title: "Câmera indisponível",
+                            message: "Seu navegador não permite acesso à câmera neste dispositivo.",
+                          });
+                          return;
+                        }
+                      } catch {
+                        /* ignore */
+                      }
+                      cameraInputRef.current?.click();
+                      setAttachMenuOpen(false);
+                    }}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">
+                      📷
+                    </span>
+                    <span>Câmera</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      documentInputRef.current?.click();
+                      setAttachMenuOpen(false);
+                    }}
+                    disabled={sending || !conversaId || !podeEnviar}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-document" aria-hidden="true">
+                      <IconDocument />
+                    </span>
+                    <span>Documentos</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      onPixMenuClick?.();
+                      setAttachMenuOpen(false);
+                    }}
+                    disabled={pixActionBusy || sending || !conversaId || !podeEnviar}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-pix" aria-hidden="true">
+                      <IconPix />
+                    </span>
+                    <span>{pixActionBusy ? "Enviando Pix..." : "Pix"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      setAttachMenuOpen(false);
+                      onOpenPixConfig?.();
+                    }}
+                    disabled={pixConfigLoading || sending}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-clip" aria-hidden="true">
+                      ⚙️
+                    </span>
+                    <span>Configurar Pix</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      onShareContact?.();
+                      setAttachMenuOpen(false);
+                    }}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-contact" aria-hidden="true">
+                      👤
+                    </span>
+                    <span>Contato</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-attachItem"
+                    role="menuitem"
+                    onClick={() => {
+                      onShareLocation?.();
+                      setAttachMenuOpen(false);
+                    }}
+                  >
+                    <span className="wa-attachItem-icon wa-attachIcon-location" aria-hidden="true">
+                      📍
+                    </span>
+                    <span>Localização</span>
+                  </button>
+                  {autocorrectToggleInMenu ? (
+                    <button
+                      type="button"
+                      className="wa-attachItem wa-attachItem--autocorrect"
+                      role="menuitemcheckbox"
+                      aria-checked={autoCorrectEnabled ? "true" : "false"}
+                      onClick={() => {
+                        updateAutoCorrectPreference(!autoCorrectEnabled);
+                        setAttachMenuOpen(false);
+                      }}
+                    >
+                      <span className="wa-attachItem-icon wa-attachIcon-clip" aria-hidden="true">
+                        ✓
+                      </span>
+                      <span>{autoCorrectEnabled ? "Desativar correção automática" : "Ativar correção automática"}</span>
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="wa-stickerWrap">
+              <button
+                ref={stickerBtnRef}
+                type="button"
+                className={`wa-iconBtn wa-stickerBtn ${stickerOpen ? "isActive" : ""}`}
+                onClick={() => {
+                  setStickerOpen((v) => !v);
+                  setAttachMenuOpen(false);
+                  setEmojiOpen(false);
+                }}
+                title="Figurinhas"
+                aria-label="Figurinhas"
+                aria-expanded={stickerOpen}
+                disabled={sending || !conversaId || !podeEnviar}
+              >
+                <IconSticker />
+              </button>
+            </div>
+            {!autocorrectToggleInMenu ? (
+              <label
+                className={`wa-autocorrectToggle ${autoCorrectEnabled ? "isEnabled" : ""}`}
+                title="Ativar ou desativar correção ortográfica automática"
+              >
+                <input
+                  type="checkbox"
+                  checked={autoCorrectEnabled}
+                  onChange={(e) => updateAutoCorrectPreference(e.target.checked)}
+                  aria-label="Correção automática"
+                />
+                <span className="wa-autocorrectToggle-track" aria-hidden="true">
+                  <span className="wa-autocorrectToggle-thumb" />
+                </span>
+                <span className="wa-autocorrectToggle-text">Correção automática</span>
+              </label>
+            ) : null}
+            <input
+              ref={fileInputRef}
+              type="file"
+              style={{ display: "none" }}
+              accept=".pdf,.doc,.docx,image/*,audio/*,video/*"
+              onChange={onFileInputChange}
+            />
+            <input
+              ref={fototecaInputRef}
+              type="file"
+              style={{ display: "none" }}
+              accept="image/*"
+              multiple
+              onChange={onFototecaInputChange}
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              style={{ display: "none" }}
+              accept="image/*,video/*"
+              capture="environment"
+              onChange={onCameraInputChange}
+            />
+            <input
+              ref={audioInputRef}
+              type="file"
+              style={{ display: "none" }}
+              accept="audio/*,.mp3,.m4a,.ogg,.wav,.aac,.opus,.webm"
+              onChange={onFileInputChange}
+            />
+            <input
+              ref={documentInputRef}
+              type="file"
+              style={{ display: "none" }}
+              accept="*/*"
+              onChange={onFileInputChange}
+            />
+            <input
+              ref={stickerInputRef}
+              type="file"
+              style={{ display: "none" }}
+              accept="image/*"
+              onChange={onStickerInputChange}
+            />
+
+            <textarea
+              ref={inputRef}
+              value={texto}
+              onChange={handleInputChange}
+              onBlur={emitTypingStop}
+              onPaste={handlePaste}
+              placeholder={placeholderText}
+              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""}`}
+              onKeyDown={handleKeyDownInput}
+              disabled={!conversaId || !podeEnviar}
+              aria-label={inputAriaLabel}
+              rows={1}
+              enterKeyHint={composerEnterInsertsNewline ? "enter" : "send"}
+            />
+
+            {!headerCompact ? (
+              <button
+                type="button"
+                className={`wa-iconBtn ${emojiOpen ? "isActive" : ""}`}
+                onClick={() => {
+                  setEmojiOpen((v) => !v);
+                  setAttachMenuOpen(false);
+                  setStickerOpen(false);
+                }}
+                title="Emojis"
+                aria-label="Emojis"
+                disabled={sending || !conversaId || !podeEnviar}
+              >
+                <IconEmoji />
+              </button>
+            ) : null}
+
+            {headerCompact && !hasDraft ? (
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={sending || !conversaId || !podeEnviar}
+                className="wa-iconBtn wa-cameraQuickBtn"
+                title="Câmera"
+                type="button"
+                aria-label="Abrir câmera"
+              >
+                <IconCamera />
+              </button>
+            ) : null}
+
+            <div className="wa-footer-right">
+              {headerCompact ? (
+                hasDraft ? (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                    }}
+                    onClick={() => handleSendFromComposer(texto)}
+                    disabled={sending || !hasDraft || !conversaId || !podeEnviar}
+                    className="wa-sendBtn"
+                    title="Enviar"
+                    aria-label="Enviar mensagem"
+                  >
+                    {sending ? <span className="wa-spinner" aria-hidden="true" /> : <IconSend />}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartRecording}
+                    disabled={sending || !conversaId || !podeEnviar}
+                    className="wa-micBtn"
+                    title="Gravar áudio"
+                    type="button"
+                    aria-label="Gravar áudio"
+                  >
+                    <IconMic />
+                  </button>
+                )
+              ) : (
+                <>
+                  <button
+                    onClick={handleStartRecording}
+                    disabled={sending || !conversaId || !podeEnviar}
+                    className="wa-micBtn"
+                    title="Gravar áudio"
+                    type="button"
+                    aria-label="Gravar áudio"
+                  >
+                    <IconMic />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                    }}
+                    onClick={() => handleSendFromComposer(texto)}
+                    disabled={sending || !hasDraft || !conversaId || !podeEnviar}
+                    className="wa-sendBtn"
+                    title="Enviar"
+                    aria-label="Enviar mensagem"
+                  >
+                    {sending ? <span className="wa-spinner" aria-hidden="true" /> : <IconSend />}
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {!isRecording && stickerOpen
+        ? createPortal(
+            <div ref={stickerPanelRef} className="wa-stickerPanel" role="dialog" aria-label="Figurinhas">
+              <div className="wa-stickerTabs" role="tablist" aria-label="Categorias de figurinhas">
+                <button type="button" className="wa-stickerTab isActive" role="tab" aria-selected="true">
+                  Recentes
+                </button>
+              </div>
+              <div className="wa-stickerHead">
+                <input
+                  ref={stickerSearchRef}
+                  className="wa-stickerSearch"
+                  value={stickerQuery}
+                  onChange={(e) => setStickerQuery(e.target.value)}
+                  placeholder="Buscar figurinha..."
+                  aria-label="Buscar figurinha"
+                />
+              </div>
+              <div className="wa-stickerGrid" role="list">
+                <button
+                  type="button"
+                  className="wa-stickerCreate"
+                  onClick={() => stickerInputRef.current?.click()}
+                  aria-label="Criar figurinha"
+                >
+                  <span className="wa-stickerCreatePlus" aria-hidden="true">
+                    +
+                  </span>
+                  <span>Criar</span>
+                </button>
+                {filteredRecentStickers.map((item) => (
+                  <button
+                    key={String(item.id)}
+                    type="button"
+                    className="wa-stickerItem"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(item.dataUrl);
+                        const blob = await res.blob();
+                        const ext = String(item?.mimeType || "").includes("webp") ? "webp" : "png";
+                        const file = new File([blob], item?.name || `sticker-${Date.now()}.${ext}`, {
+                          type: item?.mimeType || blob.type || "image/webp",
+                        });
+                        await onSendStickerFile?.(file);
+                      } catch {
+                        showToast?.({
+                          type: "error",
+                          title: "Figurinha",
+                          message: "Não foi possível enviar esta figurinha.",
+                        });
+                      }
+                    }}
+                    role="listitem"
+                    aria-label={`Enviar figurinha ${item?.name || ""}`.trim()}
+                    title={item?.name || "Figurinha"}
+                  >
+                    <img src={item.dataUrl} alt="" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {!isRecording && emojiOpen
+        ? createPortal(
+            <div ref={emojiPanelRef} className="wa-emojiPanel" role="dialog" aria-label="Selecionar emoji">
+              <div className="wa-emojiHead">
+                <input
+                  ref={emojiSearchRef}
+                  className="wa-emojiSearch"
+                  value={emojiQuery}
+                  onChange={(e) => setEmojiQuery(e.target.value)}
+                  placeholder="Buscar emoji..."
+                  aria-label="Buscar emoji"
+                />
+                <button
+                  type="button"
+                  className="wa-iconBtn"
+                  onClick={() => {
+                    setEmojiOpen(false);
+                    setEmojiQuery("");
+                  }}
+                  title="Fechar"
+                  aria-label="Fechar"
+                >
+                  <IconClose />
+                </button>
+              </div>
+              <div className="wa-emojiGrid" role="list">
+                {__WA_EMOJIS.filter((e) => !safeString(emojiQuery) || e.includes(safeString(emojiQuery))).map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    className="wa-emojiBtn"
+                    onClick={() => insertEmoji(e)}
+                    role="listitem"
+                    aria-label={`Emoji ${e}`}
+                    title={e}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+              <div className="wa-emojiFoot">
+                <span className="wa-muted">Dica: clique para inserir no cursor.</span>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+    </>
+  );
+});
+
+export default memo(ConversaComposer, composerPropsAreEqual);

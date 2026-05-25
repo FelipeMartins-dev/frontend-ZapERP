@@ -10,7 +10,19 @@ import {
   canReabrir,
 } from "../auth/permissions";
 import api from "../api/http";
-import { getStatusAtendimentoEffective } from "../utils/conversaUtils";
+import {
+  getStatusAtendimentoEffective,
+  isAguardandoClienteManual,
+  isCobrancaFinanceiraStatus,
+} from "../utils/conversaUtils";
+import { isAtendenteSetorFinanceiro } from "../utils/financeiroSector";
+import {
+  buildChatListFiltersScopeKey,
+  getChatListFiltersDataCache,
+  loadChatListFiltersDataOnce,
+} from "../chats/chatListFiltersData";
+import AguardarPagamentoModal from "./AguardarPagamentoModal";
+import "./aguardarPagamento.css";
 
 function getApiErrorMessage(e) {
   return e?.response?.data?.error || e?.message || "Erro na operação.";
@@ -96,12 +108,24 @@ function IconAtendReopen() {
   );
 }
 
+function IconPagamentoConcluido() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20z" opacity="0.35" />
+      <path d="M8.5 12.2 11 14.7l4.8-5.5" />
+    </svg>
+  );
+}
+
 function AtendimentoActionIcon({ id }) {
   switch (id) {
     case "transferir":
       return <IconAtendTransfer />;
     case "aguardar_cliente":
+    case "aguardar_pagamento":
       return <IconAtendWait />;
+    case "pagamento_concluido":
+      return <IconPagamentoConcluido />;
     case "encerrar":
       return <IconAtendClose />;
     case "reabrir":
@@ -123,6 +147,8 @@ function renderOverflowSheetIcon(id) {
           <path d="M21 3v7h-7" />
         </svg>
       );
+    case "pagamento_concluido":
+      return <IconPagamentoConcluido />;
     case "reabrir":
       return (
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -155,9 +181,15 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
   const encerrarConversa = useConversaStore((s) => s?.encerrarConversa);
   const reabrirConversa = useConversaStore((s) => s?.reabrirConversa);
   const marcarAguardandoClienteConversa = useConversaStore((s) => s?.marcarAguardandoClienteConversa);
+  const marcarAguardandoPagamentoConversa = useConversaStore((s) => s?.marcarAguardandoPagamentoConversa);
   const retomarAtendimentoConversa = useConversaStore((s) => s?.retomarAtendimentoConversa);
   const showToast = useNotificationStore((s) => s?.showToast);
 
+  const [departamentosLista, setDepartamentosLista] = useState(() => {
+    const cached = getChatListFiltersDataCache();
+    return Array.isArray(cached?.departamentos) ? cached.departamentos : [];
+  });
+  const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [atendentes, setAtendentes] = useState([]);
   const [search, setSearch] = useState("");
@@ -186,6 +218,38 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       document.removeEventListener("touchstart", onPointer);
     };
   }, [menuOpen, closeMenu]);
+
+  useEffect(() => {
+    let alive = true;
+    const cached = getChatListFiltersDataCache();
+    if (Array.isArray(cached?.departamentos) && cached.departamentos.length > 0) {
+      setDepartamentosLista(cached.departamentos);
+      return () => {
+        alive = false;
+      };
+    }
+    const scope = buildChatListFiltersScopeKey(user);
+    const loadDept = scope
+      ? loadChatListFiltersDataOnce(scope).then(() => getChatListFiltersDataCache()?.departamentos)
+      : api.get("/dashboard/departamentos").then((r) => r.data);
+    Promise.resolve(loadDept)
+      .then((data) => {
+        if (!alive) return;
+        if (Array.isArray(data) && data.length > 0) setDepartamentosLista(data);
+      })
+      .catch(() => {
+        if (!alive) return;
+        api
+          .get("/dashboard/departamentos")
+          .then((r) => {
+            if (alive && Array.isArray(r.data)) setDepartamentosLista(r.data);
+          })
+          .catch(() => {});
+      });
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, user?.company_id]);
 
   useEffect(() => {
     if (!transferOpen) return;
@@ -238,11 +302,13 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
     status === "aberta" ||
     status === "pendente" ||
     status === "mensagem_disparada";
-  const isAguardandoClienteManual = status === "aguardando_cliente";
+  const isAguardandoClienteManualStatus = isAguardandoClienteManual(conversa);
+  const isCobrancaFinanceira = isCobrancaFinanceiraStatus(conversa);
+  const atendenteFinanceiro = isAtendenteSetorFinanceiro(user, departamentosLista);
   const isEmAtendimento =
     status === "em_atendimento" || status === "em atendimento";
   const isEmAtendimentoOuAguardandoManual =
-    isEmAtendimento || isAguardandoClienteManual;
+    isEmAtendimento || isAguardandoClienteManualStatus || isCobrancaFinanceira;
 
   const convDepId = conversa?.departamento_id ?? null;
   const userDepIds = Array.isArray(user?.departamento_ids)
@@ -279,12 +345,24 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
     (isPrivileged ? true : isMinha);
 
   const podeMarcarAguardandoCliente =
+    !atendenteFinanceiro &&
     typeof canEncerrar === "function" &&
     canEncerrar(user) &&
     typeof marcarAguardandoClienteConversa === "function" &&
     !isFechada &&
     isEmAtendimento &&
-    !isAguardandoClienteManual &&
+    !isAguardandoClienteManualStatus &&
+    hasAtendente &&
+    (isPrivileged ? true : isMinha);
+
+  const podeMarcarAguardandoPagamento =
+    atendenteFinanceiro &&
+    typeof canEncerrar === "function" &&
+    canEncerrar(user) &&
+    typeof marcarAguardandoPagamentoConversa === "function" &&
+    !isFechada &&
+    isEmAtendimento &&
+    !isCobrancaFinanceira &&
     hasAtendente &&
     (isPrivileged ? true : isMinha);
 
@@ -293,7 +371,17 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
     canEncerrar(user) &&
     typeof retomarAtendimentoConversa === "function" &&
     !isFechada &&
-    isAguardandoClienteManual &&
+    isAguardandoClienteManualStatus &&
+    !isCobrancaFinanceira &&
+    hasAtendente &&
+    (isPrivileged ? true : isMinha);
+
+  const podeConfirmarPagamento =
+    typeof canEncerrar === "function" &&
+    canEncerrar(user) &&
+    typeof retomarAtendimentoConversa === "function" &&
+    !isFechada &&
+    isCobrancaFinanceira &&
     hasAtendente &&
     (isPrivileged ? true : isMinha);
 
@@ -354,6 +442,31 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
     }
   }
 
+  async function handleConfirmarAguardarPagamento({ prazo, data }) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (typeof marcarAguardandoPagamentoConversa === "function") {
+        await marcarAguardandoPagamentoConversa(conversa.id, { prazo, data });
+        setPagamentoModalOpen(false);
+        if (showToast)
+          showToast({
+            title: "Pagamento pendente",
+            message: "A cobrança está aguardando pagamento dentro do prazo definido.",
+          });
+      }
+    } catch (e) {
+      console.error("Erro ao marcar aguardando pagamento:", e);
+      if (showToast)
+        showToast({
+          title: "Não foi possível atualizar",
+          message: getAguardandoClienteErrorMessage(e),
+        });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleMarcarAguardandoCliente() {
     if (busy) return;
     setBusy(true);
@@ -395,6 +508,30 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       if (showToast)
         showToast({
           title: "Não foi possível retomar",
+          message: getAguardandoClienteErrorMessage(e),
+        });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConfirmarPagamento() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (typeof retomarAtendimentoConversa === "function") {
+        await retomarAtendimentoConversa(conversa.id);
+        if (showToast)
+          showToast({
+            title: "Pagamento confirmado",
+            message: "O pagamento foi registrado e o atendimento foi retomado.",
+          });
+      }
+    } catch (e) {
+      console.error("Erro ao confirmar pagamento:", e);
+      if (showToast)
+        showToast({
+          title: "Não foi possível confirmar",
           message: getAguardandoClienteErrorMessage(e),
         });
     } finally {
@@ -445,6 +582,17 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       ariaLabel: "Assumir atendimento",
     });
   }
+  if (podeConfirmarPagamento) {
+    actions.push({
+      id: "pagamento_concluido",
+      className: "wa-btn-pagamento-concluido",
+      labelLong: "Pagamento concluído",
+      labelShort: "Pago",
+      onClick: handleConfirmarPagamento,
+      title: "Confirmar pagamento recebido e retomar atendimento",
+      ariaLabel: "Pagamento concluído",
+    });
+  }
   if (podeRetomarAtendimento) {
     actions.push({
       id: "retomar_atendimento",
@@ -465,6 +613,17 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       onClick: openTransfer,
       title: "Transferir atendimento",
       ariaLabel: "Transferir atendimento",
+    });
+  }
+  if (podeMarcarAguardandoPagamento) {
+    actions.push({
+      id: "aguardar_pagamento",
+      className: "wa-btn-aguardar-pagamento",
+      labelLong: "Aguardar pagamento",
+      labelShort: "Pagam.",
+      onClick: () => setPagamentoModalOpen(true),
+      title: "Marcar cobrança enviada e definir prazo de pagamento",
+      ariaLabel: "Aguardar pagamento",
     });
   }
   if (podeMarcarAguardandoCliente) {
@@ -632,11 +791,21 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
     return transferModal;
   }
 
+  const pagamentoModal = (
+    <AguardarPagamentoModal
+      open={pagamentoModalOpen}
+      busy={busy}
+      onClose={() => setPagamentoModalOpen(false)}
+      onConfirm={handleConfirmarAguardarPagamento}
+    />
+  );
+
   if (!compactToolbar) {
     return (
       <>
         <div className="wa-actions">{actions.map((a) => renderToolbarButton(a))}</div>
         {transferModal}
+        {pagamentoModal}
       </>
     );
   }
@@ -706,6 +875,7 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
         ) : null}
       </div>
       {transferModal}
+      {pagamentoModal}
     </>
   );
 }

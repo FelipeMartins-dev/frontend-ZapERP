@@ -1,4 +1,11 @@
 import { create } from "zustand"
+import {
+  chatListsStoreEquivalent,
+  chatListIdsInOrder,
+  chatRowStoreMergeUnchanged,
+  normalizeMensagemStatusKey,
+  ultimaMensagemRefsEqual,
+} from "./chatListStoreCompare"
 
 /** Chave canônica para dedupe: telefone | canonicalPhone | chat_lid */
 function canonicalKey(c) {
@@ -9,8 +16,12 @@ function canonicalKey(c) {
   return s.toLowerCase().startsWith("lid:") ? `lid:${lid}` : s || `id-${c?.id ?? ""}`
 }
 
-/** Debounce para vários eventos socket seguidos — um GET /chats alinha lista + Minha fila */
+/** Debounce + teto: vários eventos socket seguidos → no máximo um GET /chats por janela */
 let chatListResyncDebounceTimer = null
+let chatListResyncMaxWaitTimer = null
+let chatListResyncWindowStart = 0
+const CHAT_LIST_RESYNC_DEBOUNCE_MS = 450
+const CHAT_LIST_RESYNC_MAX_WAIT_MS = 1200
 
 /** Ordena conversas por ultima_atividade DESC (mais recente no topo) */
 function sortConversasByRecent(arr) {
@@ -74,11 +85,27 @@ export const useChatStore = create((set, get) => ({
     set((s) => ({ chatListScrollToTopNonce: (s.chatListScrollToTopNonce || 0) + 1 })),
 
   requestChatListResync: () => {
-    if (chatListResyncDebounceTimer) clearTimeout(chatListResyncDebounceTimer)
-    chatListResyncDebounceTimer = setTimeout(() => {
+    const now = Date.now()
+    if (!chatListResyncWindowStart) chatListResyncWindowStart = now
+
+    const flushResync = () => {
       chatListResyncDebounceTimer = null
+      chatListResyncMaxWaitTimer = null
+      chatListResyncWindowStart = 0
       set((s) => ({ chatListResyncNonce: (s.chatListResyncNonce || 0) + 1 }))
-    }, 200)
+    }
+
+    if (chatListResyncDebounceTimer) clearTimeout(chatListResyncDebounceTimer)
+    const elapsed = now - chatListResyncWindowStart
+    const debounceDelay = Math.min(
+      CHAT_LIST_RESYNC_DEBOUNCE_MS,
+      Math.max(0, CHAT_LIST_RESYNC_MAX_WAIT_MS - elapsed)
+    )
+    chatListResyncDebounceTimer = setTimeout(flushResync, debounceDelay)
+
+    if (!chatListResyncMaxWaitTimer) {
+      chatListResyncMaxWaitTimer = setTimeout(flushResync, CHAT_LIST_RESYNC_MAX_WAIT_MS)
+    }
   },
 
   /* =========================================
@@ -87,12 +114,22 @@ export const useChatStore = create((set, get) => ({
   setChats: (chats) => {
     const arr = typeof chats === "function" ? null : (chats || [])
     if (arr) {
-      set({ chats: dedupeConversas(arr) })
+      const next = dedupeConversas(arr)
+      if (chatListsStoreEquivalent(get().chats, next)) return
+      set({ chats: next })
     } else {
-      set((state) => ({ chats: dedupeConversas(chats(state.chats || []) || []) }))
+      set((state) => {
+        const next = dedupeConversas(chats(state.chats || []) || [])
+        if (chatListsStoreEquivalent(state.chats, next)) return state
+        return { chats: next }
+      })
     }
   },
-  setLoading: (loading) => set({ loading: !!loading }),
+  setLoading: (loading) => {
+    const next = !!loading
+    if (get().loading === next) return
+    set({ loading: next })
+  },
 
   /** Adiciona ou atualiza conversa na lista (evita duplicar; remove "sem conversa" do mesmo cliente).
    * Ao mesclar com item existente, preserva contato_nome e foto_perfil se o payload não trouxer valor
@@ -140,7 +177,13 @@ export const useChatStore = create((set, get) => ({
         telefone_exibivel: merged.telefone_exibivel !== undefined ? merged.telefone_exibivel : existing.telefone_exibivel,
       }
       next[newIdx] = updated
-      set({ chats: sortConversasByRecent(dedupeConversas(next)) })
+      if (chatRowStoreMergeUnchanged(existing, updated)) {
+        const sortedProbe = sortConversasByRecent(dedupeConversas(next))
+        if (chatListsStoreEquivalent(chats, sortedProbe)) return
+      }
+      const sorted = sortConversasByRecent(dedupeConversas(next))
+      if (chatListsStoreEquivalent(chats, sorted)) return
+      set({ chats: sorted })
     } else {
       const newChat = {
         ...merged,
@@ -156,14 +199,15 @@ export const useChatStore = create((set, get) => ({
      conversa_atualizada: merge defensivo — nunca sobrescrever com undefined ou string vazio
      ultima_mensagem: usa payload.ultima_mensagem para preview (sem refetch)
   ========================================= */
+  /** @returns {boolean} false se nada mudou na lista; true se aplicou patch */
   updateChat: (partial) => {
-    if (!partial?.id) return
+    if (!partial?.id) return false
 
     const chats = get().chats || []
     const idx = chats.findIndex(c => String(c.id) === String(partial.id))
 
     // NUNCA adicionar conversa nova via socket — evita vazamento entre setores
-    if (idx === -1) return
+    if (idx === -1) return false
 
     const next = [...chats]
     const cur = next[idx]
@@ -244,8 +288,21 @@ export const useChatStore = create((set, get) => ({
       merged.departamentos = null
     }
 
+    if (chatRowStoreMergeUnchanged(cur, merged)) {
+      const sortedProbe = sortConversasByRecent(next)
+      if (
+        chatListIdsInOrder(chats) === chatListIdsInOrder(sortedProbe) &&
+        chatListsStoreEquivalent(chats, sortedProbe)
+      ) {
+        return false
+      }
+    }
+
     next[idx] = merged
-    set({ chats: sortConversasByRecent(next) })
+    const sorted = sortConversasByRecent(next)
+    if (chatListsStoreEquivalent(chats, sorted)) return false
+    set({ chats: sorted })
+    return true
   },
 
   /** Atualiza nome/foto — SÓ quando vazios. Nome é imutável: nunca trocar o existente. */
@@ -311,16 +368,36 @@ export const useChatStore = create((set, get) => ({
   ========================================= */
   setUltimaMensagem: (conversa_id, msg) =>
     set((state) => {
-      const updated = state.chats.map(c =>
-        String(c.id) === String(conversa_id)
-          ? {
-              ...c,
-              ultima_mensagem: msg,
-              ultima_atividade: msg?.criado_em || c.ultima_atividade,
-            }
-          : c
-      )
-      return { chats: sortConversasByRecent(updated) }
+      const idx = state.chats.findIndex((c) => String(c.id) === String(conversa_id))
+      if (idx < 0) return state
+      const cur = state.chats[idx]
+      const prevUm = cur?.ultima_mensagem
+      if (
+        prevUm &&
+        ultimaMensagemRefsEqual(prevUm, msg) &&
+        normalizeMensagemStatusKey(prevUm) === normalizeMensagemStatusKey(msg)
+      ) {
+        return state
+      }
+      const atividade = msg?.criado_em || cur.ultima_atividade
+      const atividadeChanged = String(cur.ultima_atividade ?? "") !== String(atividade ?? "")
+      const dirOut =
+        msg?.direcao === "out" || msg?.fromMe === true || String(msg?.direcao || "").toLowerCase() === "outbound"
+      const mergedRow = {
+        ...cur,
+        ultima_mensagem: msg,
+        ultima_mensagem_preview: msg,
+        ultima_atividade: atividade,
+        ...(dirOut ? { tem_novas_mensagens_em_atendimento: false } : {}),
+      }
+      const next = [...state.chats]
+      next[idx] = mergedRow
+      if (!atividadeChanged) {
+        return { chats: next }
+      }
+      const sorted = sortConversasByRecent(next)
+      if (chatListsStoreEquivalent(state.chats, sorted)) return state
+      return { chats: sorted }
     }),
 
   /* =========================================
@@ -342,18 +419,29 @@ export const useChatStore = create((set, get) => ({
   setUltimaMensagemEBump: (conversa_id, msg) => {
     set((state) => {
       const chats = state.chats || []
-      const idx = chats.findIndex(c => String(c.id) === String(conversa_id))
+      const idx = chats.findIndex((c) => String(c.id) === String(conversa_id))
       if (idx < 0) return state
-      const updated = chats.map(c =>
+      const cur = chats[idx]
+      const mergedUm = { ...cur.ultima_mensagem, ...msg }
+      const atividade = msg?.criado_em || cur.ultima_atividade
+      const dirOut =
+        mergedUm?.direcao === "out" ||
+        mergedUm?.fromMe === true ||
+        String(mergedUm?.direcao || "").toLowerCase() === "outbound"
+      const updated = chats.map((c) =>
         String(c.id) === String(conversa_id)
           ? {
               ...c,
-              ultima_mensagem: { ...c.ultima_mensagem, ...msg },
-              ultima_atividade: msg?.criado_em || c.ultima_atividade,
+              ultima_mensagem: mergedUm,
+              ultima_mensagem_preview: mergedUm,
+              ultima_atividade: atividade,
+              ...(dirOut ? { tem_novas_mensagens_em_atendimento: false } : {}),
             }
           : c
       )
-      return { chats: sortConversasByRecent(updated) }
+      const sorted = sortConversasByRecent(updated)
+      if (chatListsStoreEquivalent(state.chats, sorted)) return state
+      return { chats: sorted }
     })
   },
 

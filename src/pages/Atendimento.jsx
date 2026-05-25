@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SkeletonChatList } from "../components/feedback/Skeleton";
+import EmptyState from "../components/feedback/EmptyState";
+import "../components/feedback/empty-state.css";
 import "../components/feedback/skeleton.css";
 import { useConversaStore } from "../conversa/conversaStore";
 import { useChatStore } from "../chats/chatsStore";
@@ -51,6 +53,28 @@ function ConversaPanelFallback() {
   );
 }
 
+/** Desktop sem conversa selecionada — evita baixar o chunk ConversaView no login. */
+function AtendimentoChatPlaceholder() {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "var(--wa-bg, var(--ds-chat-bg))",
+      }}
+      role="status"
+    >
+      <EmptyState
+        title="Selecione uma conversa"
+        description="Abra uma conversa na lista à esquerda para visualizar e responder às mensagens."
+      />
+    </div>
+  );
+}
+
 export default function Atendimento() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -71,6 +95,7 @@ export default function Atendimento() {
 
   const isRoot = location.pathname === "/atendimento";
   const openConversaId = location.state?.openConversaId;
+  const hasSelectedConversa = selectedId != null && selectedId !== "";
 
   /**
    * Empilha um nível no histórico ao abrir conversa no celular: o «voltar» do aparelho
@@ -148,9 +173,13 @@ export default function Atendimento() {
 
       <main className="atendimento-chat-area">
         {isRoot ? (
-          <Suspense fallback={<ConversaPanelFallback />}>
-            <ConversaView />
-          </Suspense>
+          hasSelectedConversa ? (
+            <Suspense fallback={<ConversaPanelFallback />}>
+              <ConversaView />
+            </Suspense>
+          ) : isAtendimentoMobileNav ? null : (
+            <AtendimentoChatPlaceholder />
+          )
         ) : (
           <Outlet />
         )}

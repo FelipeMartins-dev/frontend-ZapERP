@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
 import { can, isSupervisorOrAdmin } from "../auth/permissions";
@@ -6,31 +7,57 @@ import ProtectedRoute from "./ProtectedRoute";
 import Login from "../pages/Login";
 import MainLayout from "../layouts/MainLayout";
 import NotFound from "../pages/NotFound";
-
-import Dashboard from "../dashboard/Dashboard";
 import Atendimento from "../pages/Atendimento";
-import Configuracoes from "../pages/Configuracoes";
-import IA from "../pages/IA";
-import DashboardIA from "../pages/DashboardIA";
-import NovoContato from "../pages/NovoContato";
-import NovoGrupo from "../pages/NovoGrupo";
-import NovaComunidade from "../pages/NovaComunidade";
-import ConnectWhatsApp from "../pages/ConnectWhatsApp";
-import Permissoes from "../pages/Permissoes";
-import Mensagens from "../pages/Mensagens";
-import Atalhos from "../pages/Atalhos";
-import InternalChat from "../pages/InternalChat";
-import Supervisao from "../pages/Supervisao";
 
-import CrmLayout from "../crm/CrmLayout";
-import CrmDashboard from "../crm/pages/CrmDashboard";
-import CrmKanban from "../crm/pages/CrmKanban";
-import CrmAgenda from "../crm/pages/CrmAgenda";
-import CrmLeads from "../crm/pages/CrmLeads";
-import CrmLeadDetail from "../crm/pages/CrmLeadDetail";
-import CrmPipelines from "../crm/pages/CrmPipelines";
-import CrmStages from "../crm/pages/CrmStages";
-import CrmOrigens from "../crm/pages/CrmOrigens";
+const Dashboard = lazy(() => import("../dashboard/Dashboard"));
+const Configuracoes = lazy(() => import("../pages/Configuracoes"));
+const IA = lazy(() => import("../pages/IA"));
+const DashboardIA = lazy(() => import("../pages/DashboardIA"));
+const NovoContato = lazy(() => import("../pages/NovoContato"));
+const NovoGrupo = lazy(() => import("../pages/NovoGrupo"));
+const NovaComunidade = lazy(() => import("../pages/NovaComunidade"));
+const ConnectWhatsApp = lazy(() => import("../pages/ConnectWhatsApp"));
+const Permissoes = lazy(() => import("../pages/Permissoes"));
+const Mensagens = lazy(() => import("../pages/Mensagens"));
+const Atalhos = lazy(() => import("../pages/Atalhos"));
+const InternalChat = lazy(() => import("../pages/InternalChat"));
+const Supervisao = lazy(() => import("../pages/Supervisao"));
+
+const CrmLayout = lazy(() => import("../crm/CrmLayout"));
+const CrmDashboard = lazy(() => import("../crm/pages/CrmDashboard"));
+const CrmKanban = lazy(() => import("../crm/pages/CrmKanban"));
+const CrmAgenda = lazy(() => import("../crm/pages/CrmAgenda"));
+const CrmLeads = lazy(() => import("../crm/pages/CrmLeads"));
+const CrmLeadDetail = lazy(() => import("../crm/pages/CrmLeadDetail"));
+const CrmPipelines = lazy(() => import("../crm/pages/CrmPipelines"));
+const CrmStages = lazy(() => import("../crm/pages/CrmStages"));
+const CrmOrigens = lazy(() => import("../crm/pages/CrmOrigens"));
+
+/** Fallback leve para rotas lazy (sem alterar layout do MainLayout). */
+function RoutePageFallback() {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 120,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        color: "var(--ds-text-muted, var(--wa-text-muted, #64748b))",
+        fontSize: 14,
+      }}
+      aria-busy="true"
+      aria-live="polite"
+    >
+      Carregando…
+    </div>
+  );
+}
+
+function LazyPage({ children }) {
+  return <Suspense fallback={<RoutePageFallback />}>{children}</Suspense>;
+}
 
 export default function AppRoutes() {
   const { token, user } = useAuthStore();
@@ -59,7 +86,9 @@ export default function AppRoutes() {
             path="/dashboard"
             element={
               <ProtectedRoute canAccess={canAccessDashboard_} redirectTo="/atendimento">
-                <Dashboard />
+                <LazyPage>
+                  <Dashboard />
+                </LazyPage>
               </ProtectedRoute>
             }
           />
@@ -67,23 +96,55 @@ export default function AppRoutes() {
             path="/dashboard/ia"
             element={
               <ProtectedRoute canAccess={canAccessDashboard_} redirectTo="/atendimento">
-                <DashboardIA />
+                <LazyPage>
+                  <DashboardIA />
+                </LazyPage>
               </ProtectedRoute>
             }
           />
           <Route path="/atendimento" element={<Atendimento />} />
-          <Route path="/chat-interno" element={<InternalChat />} />
+          <Route
+            path="/chat-interno"
+            element={
+              <LazyPage>
+                <InternalChat />
+              </LazyPage>
+            }
+          />
           <Route
             path="/supervisao"
             element={
               <ProtectedRoute canAccess={canAccessSupervisao} redirectTo="/atendimento">
-                <Supervisao />
+                <LazyPage>
+                  <Supervisao />
+                </LazyPage>
               </ProtectedRoute>
             }
           />
-          <Route path="/atendimento/novo-contato" element={<NovoContato />} />
-          <Route path="/atendimento/novo-grupo" element={<NovoGrupo />} />
-          <Route path="/atendimento/nova-comunidade" element={<NovaComunidade />} />
+          <Route
+            path="/atendimento/novo-contato"
+            element={
+              <LazyPage>
+                <NovoContato />
+              </LazyPage>
+            }
+          />
+          <Route
+            path="/atendimento/novo-grupo"
+            element={
+              <LazyPage>
+                <NovoGrupo />
+              </LazyPage>
+            }
+          />
+          <Route
+            path="/atendimento/nova-comunidade"
+            element={
+              <LazyPage>
+                <NovaComunidade />
+              </LazyPage>
+            }
+          />
           <Route
             path="/chatbot"
             element={
@@ -98,7 +159,9 @@ export default function AppRoutes() {
             path="/configuracoes"
             element={
               <ProtectedRoute canAccess={canAccessConfig} redirectTo="/atendimento">
-                <Configuracoes />
+                <LazyPage>
+                  <Configuracoes />
+                </LazyPage>
               </ProtectedRoute>
             }
           />
@@ -106,7 +169,9 @@ export default function AppRoutes() {
             path="/configuracoes/whatsapp"
             element={
               <ProtectedRoute canAccess={canAccessConfig} redirectTo="/atendimento">
-                <ConnectWhatsApp />
+                <LazyPage>
+                  <ConnectWhatsApp />
+                </LazyPage>
               </ProtectedRoute>
             }
           />
@@ -124,7 +189,9 @@ export default function AppRoutes() {
             path="/ia"
             element={
               <ProtectedRoute canAccess={canAccessChatbot_} redirectTo="/atendimento">
-                <IA />
+                <LazyPage>
+                  <IA />
+                </LazyPage>
               </ProtectedRoute>
             }
           />
@@ -142,26 +209,105 @@ export default function AppRoutes() {
             path="/permissoes"
             element={
               canAccessUsers ? (
-                <Permissoes />
+                <LazyPage>
+                  <Permissoes />
+                </LazyPage>
               ) : (
                 <Navigate to="/atendimento" replace />
               )
             }
           />
           <Route path="/campanhas" element={<Navigate to="/atendimento" replace />} />
-          <Route path="/mensagens" element={<Mensagens />} />
-          <Route path="/atalhos" element={<Atalhos />} />
+          <Route
+            path="/mensagens"
+            element={
+              <LazyPage>
+                <Mensagens />
+              </LazyPage>
+            }
+          />
+          <Route
+            path="/atalhos"
+            element={
+              <LazyPage>
+                <Atalhos />
+              </LazyPage>
+            }
+          />
 
-          <Route path="/crm" element={<CrmLayout />}>
+          <Route
+            path="/crm"
+            element={
+              <LazyPage>
+                <CrmLayout />
+              </LazyPage>
+            }
+          >
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<CrmDashboard />} />
-            <Route path="kanban" element={<CrmKanban />} />
-            <Route path="agenda" element={<CrmAgenda />} />
-            <Route path="leads" element={<CrmLeads />} />
-            <Route path="leads/:id" element={<CrmLeadDetail />} />
-            <Route path="pipelines" element={<CrmPipelines />} />
-            <Route path="stages" element={<CrmStages />} />
-            <Route path="origens" element={<CrmOrigens />} />
+            <Route
+              path="dashboard"
+              element={
+                <LazyPage>
+                  <CrmDashboard />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="kanban"
+              element={
+                <LazyPage>
+                  <CrmKanban />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="agenda"
+              element={
+                <LazyPage>
+                  <CrmAgenda />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="leads"
+              element={
+                <LazyPage>
+                  <CrmLeads />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="leads/:id"
+              element={
+                <LazyPage>
+                  <CrmLeadDetail />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="pipelines"
+              element={
+                <LazyPage>
+                  <CrmPipelines />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="stages"
+              element={
+                <LazyPage>
+                  <CrmStages />
+                </LazyPage>
+              }
+            />
+            <Route
+              path="origens"
+              element={
+                <LazyPage>
+                  <CrmOrigens />
+                </LazyPage>
+              }
+            />
           </Route>
 
           <Route path="*" element={<NotFound />} />

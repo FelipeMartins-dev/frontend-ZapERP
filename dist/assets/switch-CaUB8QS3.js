@@ -1,0 +1,1 @@
+import{j as o}from"./vendor-react-BXiLgzYw.js";function n({checked:t,onChange:s,disabled:a=!1,"aria-label":i}){return o.jsx("button",{type:"button",role:"switch","aria-checked":t,"aria-label":i,disabled:a,className:`ds-switch ${t?"ds-switch--on":""}`,onClick:()=>!a&&s(!t)})}export{n as S};

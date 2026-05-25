@@ -232,6 +232,12 @@ export async function retomarAtendimentoChat(conversaId) {
   return data;
 }
 
+/** Financeiro: marca cobrança com prazo (pagamento pendente). */
+export async function marcarAguardandoPagamentoChat(conversaId, { prazo, data }) {
+  const { data: res } = await api.post(`/chats/${conversaId}/aguardando-pagamento`, { prazo, data });
+  return res;
+}
+
 export async function listarAtendimentos(conversaId) {
   const { data } = await api.get(`/chats/${conversaId}/atendimentos`);
   return data || [];

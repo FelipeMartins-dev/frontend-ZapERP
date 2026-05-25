@@ -7,14 +7,43 @@ import {
   reabrirChat,
   listarAtendimentos,
   marcarAguardandoClienteChat,
+  marcarAguardandoPagamentoChat,
   retomarAtendimentoChat,
 } from "./conversaService"
 import { getSocket, leaveConversa, joinConversaIfNeeded } from "../socket/socket"
 import { useChatStore } from "../chats/chatsStore"
+import { buildPatchAguardandoPagamentoOptimista } from "../utils/pagamentoPrazoFormat"
+import { getStatusAtendimentoEffective } from "../utils/conversaUtils"
+import { normalizeMensagemStatusKey } from "../chats/chatListStoreCompare"
 import { attachReplyMeta } from "./replyMeta"
+import {
+  cleanupOptimisticBlobFields,
+  revokeOptimisticBlobFromMessage,
+} from "./conversaOptimisticMessage"
 
 /** Primeira página + loadMore: 50 mensagens equilibra tempo de resposta e cobertura do histórico (backend limita a 200). */
 const PAGE_LIMIT = 50
+
+/** PATCH de status_mensagem: evita set quando ticks já estão no mesmo nível. */
+function mensagemStatusPatchChanges(cur, merged, partial) {
+  if (!cur || !merged || !partial) return true
+  if (normalizeMensagemStatusKey(cur) !== normalizeMensagemStatusKey(merged)) return true
+  if (
+    partial.whatsapp_id != null &&
+    String(cur?.whatsapp_id ?? "") !== String(merged?.whatsapp_id ?? "")
+  ) {
+    return true
+  }
+  const keys = Object.keys(partial)
+  if (keys.every((k) => ["status", "status_mensagem", "whatsapp_id"].includes(k))) {
+    return false
+  }
+  for (const k of keys) {
+    if (k === "status" || k === "status_mensagem" || k === "whatsapp_id") continue
+    if (merged[k] !== cur[k]) return true
+  }
+  return false
+}
 
 function mensagensBelongToConversa(mensagens, conversaId) {
   const cid = String(conversaId)
@@ -56,6 +85,61 @@ function normalizeConversaId(id) {
   return s
 }
 
+/** LRU leve: mensagens por conversa — reabrir sem esperar GET após voltar à lista. */
+const conversaMensagensCache = new Map()
+const CONVERSA_MENSAGENS_CACHE_MAX = 48
+const CONVERSA_MENSAGENS_CACHE_TTL_MS = 45 * 60 * 1000
+
+function trimConversaMensagensCache() {
+  while (conversaMensagensCache.size > CONVERSA_MENSAGENS_CACHE_MAX) {
+    const oldest = conversaMensagensCache.keys().next().value
+    if (oldest == null) break
+    conversaMensagensCache.delete(oldest)
+  }
+}
+
+function readConversaMensagensCache(conversaId) {
+  if (conversaId == null) return null
+  const key = String(conversaId)
+  const entry = conversaMensagensCache.get(key)
+  if (!entry) return null
+  if (Date.now() - (entry.savedAt || 0) > CONVERSA_MENSAGENS_CACHE_TTL_MS) {
+    conversaMensagensCache.delete(key)
+    return null
+  }
+  if (!entry.mensagens?.length) return null
+  if (!mensagensBelongToConversa(entry.mensagens, conversaId)) return null
+  return entry
+}
+
+function writeConversaMensagensCache(conversaId, snapshot) {
+  if (conversaId == null || !snapshot?.mensagens?.length) return
+  if (!mensagensBelongToConversa(snapshot.mensagens, conversaId)) return
+  conversaMensagensCache.set(String(conversaId), {
+    mensagens: snapshot.mensagens,
+    conversa: snapshot.conversa,
+    cursor: snapshot.cursor ?? null,
+    cursorId: snapshot.cursorId ?? null,
+    hasMore: snapshot.hasMore !== false,
+    tags: Array.isArray(snapshot.tags) ? snapshot.tags : [],
+    savedAt: Date.now(),
+  })
+  trimConversaMensagensCache()
+}
+
+function persistCurrentConversaToCache(state) {
+  const cid = state?.selectedId ?? state?.conversa?.id
+  if (cid == null || !(state?.mensagens?.length > 0)) return
+  writeConversaMensagensCache(cid, {
+    mensagens: state.mensagens,
+    conversa: state.conversa,
+    cursor: state.cursor,
+    cursorId: state.cursorId,
+    hasMore: state.hasMore,
+    tags: state.tags,
+  })
+}
+
 /** Cancela GET anterior e ignora respostas obsoletas ao trocar de conversa rápido (mobile). */
 let carregarConversaGeneration = 0
 let carregarConversaAbortController = null
@@ -89,10 +173,12 @@ function isMobileViewport() {
 }
 
 /** Reforço após abrir conversa — mesmo efeito do refresh manual (silencioso). */
-function scheduleSilentRefreshAfterOpen(normalizedId, generation) {
+function scheduleSilentRefreshAfterOpen(normalizedId, generation, opts = {}) {
   if (typeof window === "undefined") return
   /* Mobile: segundo GET + merge pesado logo após abrir congela a UI; socket cobre atualizações. */
   if (isMobileViewport()) return
+  /* Primeiro GET já trouxe mensagens: adia/evita 2º GET competindo com a abertura. */
+  if (opts.skipIfMessagesLoaded) return
 
   const run = () => {
     const getState = conversaStoreGetState
@@ -104,11 +190,12 @@ function scheduleSilentRefreshAfterOpen(normalizedId, generation) {
     getState().refresh({ silent: true })
   }
 
-  queueMicrotask(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(run)
-    })
-  })
+  /* Após abertura: refresh silencioso em idle — não compete com merge do GET inicial. */
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 3000 })
+    return
+  }
+  window.setTimeout(run, 1200)
 }
 
 /** Ordem de chegada monotônica — desempate final quando timestamps coincidem (burst / segundo truncado).
@@ -212,7 +299,7 @@ function canMergeDedupeEntries(prev, incoming) {
 /** Mesma bolha lógica com chaves diferentes (ex.: otimista temp-* vs socket id-*). */
 function areLikelySameMessageBubble(prev, incoming) {
   if (!prev || !incoming) return false
-  if (canMergeDedupeEntries(prev, incoming)) return true
+  if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
   const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
   const iwa = incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== "" ? String(incoming.whatsapp_id) : null
   if (pwa && iwa && pwa === iwa) return true
@@ -228,8 +315,17 @@ function areLikelySameMessageBubble(prev, incoming) {
   if (Math.abs(tsP - tsI) > recentMs) return false
   const textoP = (prev.texto || prev.conteudo || "").toString().trim()
   const textoI = (incoming.texto || incoming.conteudo || "").toString().trim()
-  if (!textoP || !textoI || textoP !== textoI) return false
-  return isTipoTextoParaReconciliarPorConteudo(prev) && isTipoTextoParaReconciliarPorConteudo(incoming)
+  if (textoP && textoI && textoP === textoI) {
+    return isTipoTextoParaReconciliarPorConteudo(prev) && isTipoTextoParaReconciliarPorConteudo(incoming)
+  }
+  const tipoP = String(prev.tipo || "").toLowerCase().trim()
+  const tipoI = String(incoming.tipo || "").toLowerCase().trim()
+  if (tipoP && tipoP === tipoI && isMediaTipo(tipoP)) {
+    const nomeP = String(prev.nome_arquivo || "").trim()
+    const nomeI = String(incoming.nome_arquivo || "").trim()
+    if (nomeP && nomeI && nomeP === nomeI) return true
+  }
+  return false
 }
 
 function findMergeableMapKey(map, copy) {
@@ -255,6 +351,9 @@ function pruneRedundantOutgoingTemps(list) {
   if (!confirmed.length) return list
   return list.filter((m) => {
     if (!m?.tempId || !isOutgoingLike(m)) return true
+    const idOk = m.id != null && String(m.id).trim() !== ""
+    const waOk = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
+    if (idOk || waOk) return true
     const ts = toMillis(m?.criado_em)
     if (!Number.isFinite(ts) || now - ts >= recentMs) return true
     return !confirmed.some((c) => areLikelySameMessageBubble(m, c))
@@ -302,9 +401,8 @@ function normalizeMsgForStore(msg) {
 }
 
 /**
- * Mensagem já confirmada (id ou whatsapp_id) não deve manter tempId — senão o FIFO de reconciliação
- * continua tratando a bolha como “pendente” e a próxima confirmação com o mesmo texto sobrescreve
- * a mensagem errada (parece que mensagens “somem”).
+ * Remove tempId em linhas novas vindas só do servidor (sem bolha otimista prévia).
+ * Merge in-place de envio do usuário usa finalizeMergedMessageRow (mantém tempId para UI estável).
  */
 function stripTempIdWhenPersisted(msg) {
   if (!msg || typeof msg !== "object") return msg
@@ -314,6 +412,21 @@ function stripTempIdWhenPersisted(msg) {
   const next = { ...msg }
   delete next.tempId
   return next
+}
+
+/** Merge in-place preservando tempId da bolha otimista (chave React + lastMsgKey estáveis). */
+function finalizeMergedMessageRow(prev, merged) {
+  let row = cleanupOptimisticBlobFields(mergeMsgPreferringTombstone(prev, merged))
+  if (prev?.tempId) return { ...row, tempId: prev.tempId }
+  return stripTempIdWhenPersisted(row)
+}
+
+/** Otimista ainda sem id/whatsapp — candidato a reconciliação por texto. */
+export function isPendingOutgoingTemp(m) {
+  if (!m?.tempId || !isOutgoingLike(m)) return false
+  const idOk = m.id != null && String(m.id).trim() !== ""
+  const waOk = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
+  return !idOk && !waOk
 }
 
 /** Mantém placeholder local “apagada para todos” se a API devolver o corpo antigo sem flag. */
@@ -432,7 +545,7 @@ function applyAnexarOneToList(list, convId, msg) {
     }
     merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
     const next = [...list]
-    next[existingIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
+    next[existingIdx] = finalizeMergedMessageRow(existing, merged)
     return next
   }
 
@@ -445,7 +558,7 @@ function applyAnexarOneToList(list, convId, msg) {
     const candidates = []
     for (let i = 0; i < list.length; i++) {
       const m = list[i]
-      if (!m?.tempId || !isOutgoingLike(m)) continue
+      if (!isPendingOutgoingTemp(m)) continue
       if (!isTipoTextoParaReconciliarPorConteudo(m)) continue
       const ts = toMillis(m?.criado_em)
       if (!Number.isFinite(ts) || now - ts >= recentMs) continue
@@ -480,7 +593,7 @@ function applyAnexarOneToList(list, convId, msg) {
       merged.criado_em = pickLaterCriadoEmIso(existing, msg)
       merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
       const next = [...list]
-      next[replaceIdx] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(existing, merged))
+      next[replaceIdx] = finalizeMergedMessageRow(existing, merged)
       return next
     }
   }
@@ -509,7 +622,7 @@ function applyAnexarOneToList(list, convId, msg) {
         }
         merged._stableInsertSeq = mergeStableSeq(m, msg, null)
         const next = [...list]
-        next[i] = stripTempIdWhenPersisted(mergeMsgPreferringTombstone(m, merged))
+        next[i] = finalizeMergedMessageRow(m, merged)
         return next
       }
     }
@@ -537,7 +650,7 @@ function applyAnexarOneToList(list, convId, msg) {
       }
       mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
       const next = [...list]
-      next[dupIdx] = stripTempIdWhenPersisted(mergedNew)
+      next[dupIdx] = finalizeMergedMessageRow(prevRow, mergedNew)
       return next
     }
   }
@@ -555,7 +668,7 @@ function applyAnexarOneToList(list, convId, msg) {
     }
     mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
     const next = [...list]
-    next[crossIdx] = stripTempIdWhenPersisted(mergedNew)
+    next[crossIdx] = finalizeMergedMessageRow(prevRow, mergedNew)
     return next
   }
 
@@ -613,6 +726,23 @@ export const useConversaStore = create((set, get) => {
       let list = [...(state.mensagens || [])]
       const before = list.length
       const convFb = state.conversa?.id ?? state.selectedId
+      /* Envio otimista único no fim: evita re-sort/prune no mesmo frame (pulo visual). */
+      if (batch.length === 1) {
+        const lone = normalizeMsgForStore({ ...batch[0] })
+        const cid = lone?.conversa_id ?? convFb
+        if (cid && isPendingOutgoingTemp(lone)) {
+          const nextList = applyAnexarOneToList(list, cid, lone)
+          const appended =
+            nextList.length === list.length + 1 &&
+            isPendingOutgoingTemp(nextList[nextList.length - 1])
+          const mergedInPlace =
+            nextList.length === list.length &&
+            nextList.some((m) => m?.tempId && String(m.tempId) === String(lone.tempId))
+          if (appended || mergedInPlace) {
+            return { mensagens: nextList }
+          }
+        }
+      }
       for (const raw of batch) {
         const m = normalizeMsgForStore(raw)
         const cid = m?.conversa_id ?? convFb
@@ -671,6 +801,7 @@ export const useConversaStore = create((set, get) => {
       cancelCarregarConversaInFlight()
       carregarConversaGeneration += 1
       const prevId = get().selectedId
+      persistCurrentConversaToCache(get())
       set({
         selectedId: null,
         loading: false,
@@ -734,6 +865,23 @@ export const useConversaStore = create((set, get) => {
     const normalizedId = normalizeConversaId(id)
     if (!normalizedId) return
 
+    const stEarly = get()
+    if (
+      canReuseClientStateForConversa(stEarly, normalizedId) &&
+      !stEarly.loading &&
+      !stEarly.loadError
+    ) {
+      joinConversaIfNeeded(normalizedId)
+      const socketEarly = getSocket?.()
+      if (socketEarly) {
+        socketEarly.emit("marcar_conversa_lida", { conversa_id: normalizedId })
+      }
+      useChatStore.getState().clearUnread(normalizedId)
+      return
+    }
+
+    const cachedEarly = readConversaMensagensCache(normalizedId)
+
     cancelCarregarConversaInFlight()
     const generation = ++carregarConversaGeneration
     const abortController = new AbortController()
@@ -741,6 +889,7 @@ export const useConversaStore = create((set, get) => {
 
     const prevId = get().selectedId
     if (prevId && String(prevId) !== String(normalizedId)) {
+      persistCurrentConversaToCache(get())
       leaveConversa(prevId)
     }
     joinConversaIfNeeded(normalizedId)
@@ -749,20 +898,31 @@ export const useConversaStore = create((set, get) => {
 
     const st0 = get()
     const reuseClient = canReuseClientStateForConversa(st0, normalizedId)
+    const hasCached =
+      !reuseClient && cachedEarly?.mensagens?.length > 0
     const conversaShell = pickConversaShellFromChatList(normalizedId)
     const conversaShellWithId = { ...conversaShell, id: normalizedId }
-    const mensagensSnapshotParaMerge = reuseClient ? [...(st0.mensagens || [])] : []
+    const mensagensSnapshotParaMerge = reuseClient
+      ? [...(st0.mensagens || [])]
+      : hasCached
+        ? [...cachedEarly.mensagens]
+        : []
 
     set({
-      loading: true,
+      loading: reuseClient || hasCached ? false : true,
       selectedId: normalizedId,
       loadError: null,
-      conversa: reuseClient ? st0.conversa : conversaShellWithId,
-      mensagens: reuseClient ? st0.mensagens : [],
-      cursor: null,
-      cursorId: null,
-      hasMore: true,
-      tags: reuseClient ? st0.tags : [],
+      conversa: reuseClient
+        ? st0.conversa
+        : hasCached && cachedEarly.conversa
+          ? { ...cachedEarly.conversa, id: normalizedId }
+          : conversaShellWithId,
+      mensagens: reuseClient ? st0.mensagens : hasCached ? cachedEarly.mensagens : [],
+      cursor: reuseClient || hasCached ? (reuseClient ? st0.cursor : cachedEarly.cursor) : null,
+      cursorId:
+        reuseClient || hasCached ? (reuseClient ? st0.cursorId : cachedEarly.cursorId) : null,
+      hasMore: reuseClient || hasCached ? (reuseClient ? st0.hasMore : cachedEarly.hasMore) : true,
+      tags: reuseClient ? st0.tags : hasCached ? cachedEarly.tags || [] : [],
       lockedBy: null,
       atendimentos: [],
       atendimentosLoading: false,
@@ -777,15 +937,6 @@ export const useConversaStore = create((set, get) => {
 
       if (generation !== carregarConversaGeneration) return
       if (String(get().selectedId) !== String(normalizedId)) return
-
-      /* Mobile: libera a UI logo após o GET (merge pesado não pode segurar loading=true). */
-      if (isMobileViewport()) {
-        set({
-          loading: false,
-          conversa: conversaShellWithId,
-          loadError: null,
-        })
-      }
 
       let conversa = data?.conversa ? data.conversa : (data ?? null)
       if (!conversa || conversa.id == null) {
@@ -860,10 +1011,12 @@ export const useConversaStore = create((set, get) => {
       /* Flush da fila realtime antes do merge — evita perder otimistas/socket só na fila.
          Mescla o que já está no cliente durante o GET com o lote da API (mesmo critério do refresh). */
       takeAndApplyAnexarBatch()
-      const clientSnapshot = filterMensagensForConversa(
-        mensagensSnapshotParaMerge.length > 0 ? mensagensSnapshotParaMerge : get().mensagens || [],
-        normalizedId
-      )
+      const currentClientMessages = get().mensagens || []
+      const clientSnapshotBase =
+        mensagensSnapshotParaMerge.length > 0
+          ? get()._mergeMensagensFromApi(mensagensSnapshotParaMerge, currentClientMessages, normalizedId)
+          : currentClientMessages
+      const clientSnapshot = filterMensagensForConversa(clientSnapshotBase, normalizedId)
       const blockedViewer = !!conversa?.mensagens_bloqueadas
       let mensagens = blockedViewer ? [] : get()._mergeMensagensFromApi(clientSnapshot, apiMensagens, normalizedId)
       mensagens = filterMensagensForConversa(attachReplyMeta(normalizedId, mensagens), normalizedId)
@@ -872,7 +1025,7 @@ export const useConversaStore = create((set, get) => {
       if (generation !== carregarConversaGeneration) return
       if (String(get().selectedId) !== String(normalizedId)) return
 
-      set({
+      const nextState = {
         conversa: conversa ? { ...conversa, id: normalizedId } : conversaShellWithId,
         mensagens,
         tags: Array.isArray(tags) ? tags : [],
@@ -881,7 +1034,9 @@ export const useConversaStore = create((set, get) => {
         cursor: nextCursor,
         cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
         hasMore: !!nextCursor,
-      })
+      }
+      set(nextState)
+      writeConversaMensagensCache(normalizedId, nextState)
 
       const socket = getSocket?.()
       if (socket) {
@@ -904,7 +1059,11 @@ export const useConversaStore = create((set, get) => {
         })
       }
 
-      scheduleSilentRefreshAfterOpen(normalizedId, generation)
+      const skipSilentRefresh =
+        !blockedViewer && Array.isArray(apiMensagens) && apiMensagens.length > 0
+      scheduleSilentRefreshAfterOpen(normalizedId, generation, {
+        skipIfMessagesLoaded: skipSilentRefresh,
+      })
     } catch (err) {
       if (isAbortError(err)) return
       if (generation !== carregarConversaGeneration) return
@@ -1177,6 +1336,16 @@ export const useConversaStore = create((set, get) => {
     scheduleAnexarFlush()
   },
 
+  /** Envio otimista do usuário: aplica na mesma tick (sem esperar microtask). */
+  anexarMensagemImediata: (msg) => {
+    if (msg == null) return
+    const probe = normalizeMsgForStore({ ...msg })
+    const conversaId = probe?.conversa_id ?? get().conversa?.id
+    if (!conversaId) return
+    pendingAnexar.push(msg)
+    takeAndApplyAnexarBatch()
+  },
+
   /** Substitui mensagem temp (optimistic) pela real quando API retorna.
    * Se temp não existir (socket chegou primeiro), faz merge via anexarMensagem. */
   reconciliarMensagem: (tempId, realMsg) => {
@@ -1193,12 +1362,13 @@ export const useConversaStore = create((set, get) => {
         const prevRow = list[idx]
         const flat = preserveLocalMediaFields(prevRow, { ...prevRow, ...mergedRec })
         if (isOutgoingLike(prevRow) && isOutgoingLike(mergedRec)) {
-          flat.criado_em = pickLaterCriadoEmIso(prevRow, mergedRec)
+          /* Mantém timestamp local da bolha — evita reordenar no reconcile HTTP/socket. */
+          flat.criado_em = prevRow.criado_em ?? flat.criado_em
         }
         let tomb = mergeMsgPreferringTombstone(prevRow, flat)
         tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
-        next[idx] = stripTempIdWhenPersisted(tomb)
-        return { mensagens: sortMensagensChronological(next) }
+        next[idx] = finalizeMergedMessageRow(prevRow, tomb)
+        return { mensagens: next }
       }
       return state
     })
@@ -1255,6 +1425,7 @@ export const useConversaStore = create((set, get) => {
 
       if (indices.size === 0) return state
       const next = [...list]
+      let changed = false
       indices.forEach((i) => {
         const cur = next[i]
         if (cur?.apagada_para_todos) {
@@ -1262,11 +1433,18 @@ export const useConversaStore = create((set, get) => {
           if (partial.status != null) allow.status = partial.status
           if (partial.status_mensagem != null) allow.status_mensagem = partial.status_mensagem
           if (Object.keys(allow).length === 0) return
-          next[i] = preserveLocalMediaFields(cur, { ...cur, ...allow })
+          const merged = preserveLocalMediaFields(cur, { ...cur, ...allow })
+          if (!mensagemStatusPatchChanges(cur, merged, allow)) return
+          next[i] = merged
+          changed = true
           return
         }
-        next[i] = preserveLocalMediaFields(cur, { ...cur, ...partial })
+        const merged = preserveLocalMediaFields(cur, { ...cur, ...partial })
+        if (!mensagemStatusPatchChanges(cur, merged, partial)) return
+        next[i] = merged
+        changed = true
       })
+      if (!changed) return state
       return { mensagens: next }
     })
   },
@@ -1314,13 +1492,38 @@ export const useConversaStore = create((set, get) => {
     })
   },
 
-  /** Remove mensagem temp (optimistic) quando envio falha */
+  /** Remove mensagem temp (optimistic) — preferir marcarMensagemTempErro para falhas de envio. */
   removerMensagemTemp: (tempId) => {
     if (!tempId) return
+    takeAndApplyAnexarBatch()
     set((state) => {
       const list = state.mensagens || []
+      const idx = list.findIndex((m) => String(m.tempId) === String(tempId))
+      if (idx < 0) return state
+      const row = list[idx]
+      revokeOptimisticBlobFromMessage(row)
       const next = list.filter((m) => String(m.tempId) !== String(tempId))
-      if (next.length === list.length) return state
+      return { mensagens: next }
+    })
+  },
+
+  /** Mantém a bolha visível com ticks de erro (reenvio = PR futura). */
+  marcarMensagemTempErro: (tempId, opts = {}) => {
+    if (!tempId) return
+    takeAndApplyAnexarBatch()
+    const errStatus = opts?.status_mensagem ?? opts?.status ?? "erro"
+    set((state) => {
+      const list = state.mensagens || []
+      const idx = list.findIndex((m) => String(m.tempId) === String(tempId))
+      if (idx < 0) return state
+      const next = [...list]
+      next[idx] = {
+        ...list[idx],
+        status: errStatus,
+        status_mensagem: errStatus,
+        envio_erro: true,
+        ...(opts?.erro_mensagem ? { erro_mensagem: String(opts.erro_mensagem) } : {}),
+      }
       return { mensagens: next }
     })
   },
@@ -1364,6 +1567,9 @@ export const useConversaStore = create((set, get) => {
       id: conversaId,
       status_atendimento: "encerrada",
       exibir_badge_aberta: false,
+      pagamento_concluido_em: null,
+      pagamento_prazo_ate: null,
+      pagamento_prazo_origem: null,
     }
     const patch = { ...optimistic, ...payload, id: conversaId }
     get().patchConversa(patch)
@@ -1391,23 +1597,145 @@ export const useConversaStore = create((set, get) => {
   },
 
   marcarAguardandoClienteConversa: async (conversaId) => {
-    const data = await marcarAguardandoClienteChat(conversaId)
-    const payload = data?.conversa ?? data ?? {}
-    const patch = { ...payload, id: conversaId }
-    get().patchConversa(patch)
-    useChatStore.getState().updateChat(patch)
-    useChatStore.getState().requestChatListResync()
-    set({ atendimentosLoadedFor: null })
+    const chatStore = useChatStore.getState()
+    const chats = chatStore.chats || []
+    const row = chats.find((c) => String(c.id) === String(conversaId))
+    const openConv = get().conversa
+    const src = row || (openConv && String(openConv.id) === String(conversaId) ? openConv : null)
+    const optimistic = {
+      id: conversaId,
+      status_atendimento: "aguardando_cliente",
+      status_atendimento_real: "aguardando_cliente",
+      aguardando_cliente_desde: new Date().toISOString(),
+      exibir_badge_aberta: false,
+      ui_status_optimistic_at: Date.now(),
+    }
+    const revertStatus = {
+      status_atendimento: src?.status_atendimento,
+      status_atendimento_real: src?.status_atendimento_real,
+      aguardando_cliente_desde: src?.aguardando_cliente_desde,
+      exibir_badge_aberta: src?.exibir_badge_aberta,
+      ui_status_optimistic_at: src?.ui_status_optimistic_at ?? null,
+    }
+
+    get().patchConversa(optimistic)
+    chatStore.updateChat(optimistic)
+
+    try {
+      const data = await marcarAguardandoClienteChat(conversaId)
+      const payload = data?.conversa ?? data ?? {}
+      const patch = { ...optimistic, ...payload, id: conversaId }
+      get().patchConversa(patch)
+      useChatStore.getState().updateChat(patch)
+      useChatStore.getState().requestChatListResync()
+      set({ atendimentosLoadedFor: null })
+    } catch (err) {
+      if (src) {
+        const revert = { id: conversaId, ...revertStatus }
+        get().patchConversa(revert)
+        useChatStore.getState().updateChat(revert)
+      }
+      throw err
+    }
+  },
+
+  marcarAguardandoPagamentoConversa: async (conversaId, prazoOpts) => {
+    const optimistic = buildPatchAguardandoPagamentoOptimista(conversaId, prazoOpts)
+    const chatStore = useChatStore.getState()
+    const chats = chatStore.chats || []
+    const row = chats.find((c) => String(c.id) === String(conversaId))
+    const openConv = get().conversa
+    const revertStatus = {
+      status_atendimento: row?.status_atendimento ?? openConv?.status_atendimento,
+      status_atendimento_real: row?.status_atendimento_real ?? openConv?.status_atendimento_real,
+      pagamento_prazo_ate: row?.pagamento_prazo_ate ?? openConv?.pagamento_prazo_ate,
+      pagamento_prazo_origem: row?.pagamento_prazo_origem ?? openConv?.pagamento_prazo_origem,
+      aguardando_cliente_desde: row?.aguardando_cliente_desde ?? openConv?.aguardando_cliente_desde,
+      pagamento_concluido_em: row?.pagamento_concluido_em ?? openConv?.pagamento_concluido_em,
+      exibir_badge_aberta: row?.exibir_badge_aberta ?? openConv?.exibir_badge_aberta,
+    }
+
+    if (optimistic) {
+      get().patchConversa(optimistic)
+      chatStore.updateChat(optimistic)
+    }
+
+    try {
+      const data = await marcarAguardandoPagamentoChat(conversaId, prazoOpts)
+      const payload = data?.conversa ?? data ?? {}
+      const patch = { ...(optimistic || {}), ...payload, id: conversaId }
+      get().patchConversa(patch)
+      useChatStore.getState().updateChat(patch)
+      useChatStore.getState().requestChatListResync()
+      set({ atendimentosLoadedFor: null })
+    } catch (err) {
+      if (optimistic) {
+        const revert = { id: conversaId, ...revertStatus }
+        get().patchConversa(revert)
+        useChatStore.getState().updateChat(revert)
+      }
+      throw err
+    }
   },
 
   retomarAtendimentoConversa: async (conversaId) => {
-    const data = await retomarAtendimentoChat(conversaId)
-    const payload = data?.conversa ?? data ?? {}
-    const patch = { ...payload, id: conversaId }
-    get().patchConversa(patch)
-    useChatStore.getState().updateChat(patch)
-    useChatStore.getState().requestChatListResync()
-    set({ atendimentosLoadedFor: null })
+    const chatStore = useChatStore.getState()
+    const chats = chatStore.chats || []
+    const row = chats.find((c) => String(c.id) === String(conversaId))
+    const openConv = get().conversa
+    const src = row || (openConv && String(openConv.id) === String(conversaId) ? openConv : null)
+    const st = getStatusAtendimentoEffective(src)
+
+    let optimistic = null
+    if (st === "pagamento_pendente" || st === "em_atraso") {
+      optimistic = {
+        id: conversaId,
+        status_atendimento: "em_atendimento",
+        status_atendimento_real: "em_atendimento",
+        pagamento_concluido_em: new Date().toISOString(),
+        pagamento_prazo_ate: null,
+        pagamento_prazo_origem: null,
+        aguardando_cliente_desde: null,
+      }
+    } else if (st === "aguardando_cliente") {
+      optimistic = {
+        id: conversaId,
+        status_atendimento: "em_atendimento",
+        status_atendimento_real: "em_atendimento",
+        aguardando_cliente_desde: null,
+      }
+    }
+
+    const revertStatus = {
+      status_atendimento: src?.status_atendimento,
+      status_atendimento_real: src?.status_atendimento_real,
+      pagamento_concluido_em: src?.pagamento_concluido_em,
+      pagamento_prazo_ate: src?.pagamento_prazo_ate,
+      pagamento_prazo_origem: src?.pagamento_prazo_origem,
+      aguardando_cliente_desde: src?.aguardando_cliente_desde,
+    }
+
+    if (optimistic) {
+      get().patchConversa(optimistic)
+      chatStore.updateChat(optimistic)
+    }
+
+    try {
+      const data = await retomarAtendimentoChat(conversaId)
+      const payload = data?.conversa ?? data ?? {}
+      const patch = { ...(optimistic || {}), ...payload, id: conversaId }
+      get().patchConversa(patch)
+      useChatStore.getState().updateChat(patch)
+      useChatStore.getState().requestChatListResync()
+      set({ atendimentosLoadedFor: null })
+    } catch (err) {
+      if (optimistic && src) {
+        const revert = { id: conversaId, ...revertStatus }
+        get().patchConversa(revert)
+        useChatStore.getState().updateChat(revert)
+      }
+      throw err
+    }
   },
 
   /* =====================================================
@@ -1472,6 +1800,9 @@ export const useConversaStore = create((set, get) => {
       if ("atendente_id" in partial) merged.atendente_id = partial.atendente_id
       if ("atendente_nome" in partial) merged.atendente_nome = partial.atendente_nome
       if ("aguardando_cliente_desde" in partial) merged.aguardando_cliente_desde = partial.aguardando_cliente_desde
+      if ("pagamento_prazo_ate" in partial) merged.pagamento_prazo_ate = partial.pagamento_prazo_ate
+      if ("pagamento_prazo_origem" in partial) merged.pagamento_prazo_origem = partial.pagamento_prazo_origem
+      if ("pagamento_concluido_em" in partial) merged.pagamento_concluido_em = partial.pagamento_concluido_em
       if ("status_atendimento_real" in partial) merged.status_atendimento_real = partial.status_atendimento_real
       if ("departamento" in partial) merged.departamento = partial.departamento
       if ("departamento_id" in partial && partial.departamento_id == null) {

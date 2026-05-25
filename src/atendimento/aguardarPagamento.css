@@ -1,0 +1,542 @@
+/* Modal premium — Aguardar pagamento (Financeiro) */
+
+.zap-pg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  animation: zap-pg-overlay-in 0.22s ease-out;
+}
+
+@keyframes zap-pg-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.zap-pg-modal {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: min(90vh, 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  background: var(--zap-pg-surface, #ffffff);
+  border: 1px solid color-mix(in srgb, #d4a017 18%, var(--ds-border, #e2e8f0));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #fff 40%, transparent),
+    0 24px 48px -12px rgba(15, 23, 42, 0.28),
+    0 8px 24px -8px rgba(180, 120, 0, 0.12);
+  animation: zap-pg-modal-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes zap-pg-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.zap-pg-modal__glow {
+  pointer-events: none;
+  position: absolute;
+  top: -80px;
+  right: -60px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(234, 179, 8, 0.22) 0%, transparent 70%);
+  filter: blur(2px);
+}
+
+.zap-pg-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 22px 0;
+}
+
+.zap-pg-header__brand {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.zap-pg-header__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: #a16207;
+  background: linear-gradient(145deg, #fef9c3 0%, #fde68a 100%);
+  border: 1px solid color-mix(in srgb, #ca8a04 35%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, #ca8a04 18%, transparent);
+}
+
+.zap-pg-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--zap-pg-text, #0f172a);
+}
+
+.zap-pg-subtitle {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--zap-pg-muted, #64748b);
+  max-width: 32ch;
+}
+
+.zap-pg-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--zap-pg-muted, #64748b);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.zap-pg-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--zap-pg-muted, #64748b) 12%, transparent);
+  color: var(--zap-pg-text, #0f172a);
+}
+
+.zap-pg-body {
+  padding: 18px 22px 8px;
+  overflow-y: auto;
+}
+
+.zap-pg-section-label {
+  margin: 0 0 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--zap-pg-muted, #64748b);
+}
+
+.zap-pg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.zap-pg-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 2px 10px;
+  align-items: start;
+  padding: 12px 12px 12px 10px;
+  text-align: left;
+  border: 1.5px solid color-mix(in srgb, var(--ds-border, #e2e8f0) 90%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--zap-pg-surface, #fff) 96%, #f8fafc);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.zap-pg-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #ca8a04 40%, var(--ds-border, #e2e8f0));
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.12);
+}
+
+.zap-pg-card.is-selected {
+  border-color: #ca8a04;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, #fefce8 85%, var(--zap-pg-surface, #fff)) 0%,
+    var(--zap-pg-surface, #fff) 100%
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #ca8a04 25%, transparent),
+    0 8px 20px -8px color-mix(in srgb, #ca8a04 28%, transparent);
+}
+
+.zap-pg-card__radio {
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--zap-pg-muted, #94a3b8) 80%, transparent);
+  transition: border-color 0.15s ease;
+}
+
+.zap-pg-card.is-selected .zap-pg-card__radio {
+  border-color: #ca8a04;
+}
+
+.zap-pg-card__radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transform: scale(0);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.zap-pg-card.is-selected .zap-pg-card__radio-dot {
+  background: #ca8a04;
+  transform: scale(1);
+}
+
+.zap-pg-card__icon {
+  grid-column: 2;
+  color: color-mix(in srgb, #a16207 70%, var(--zap-pg-muted, #64748b));
+  line-height: 0;
+}
+
+.zap-pg-card.is-selected .zap-pg-card__icon {
+  color: #a16207;
+}
+
+.zap-pg-card__text {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.zap-pg-card__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--zap-pg-text, #0f172a);
+}
+
+.zap-pg-card__hint {
+  font-size: 0.75rem;
+  color: var(--zap-pg-muted, #64748b);
+}
+
+.zap-pg-date-wrap {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, #f8fafc 80%, var(--zap-pg-surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--ds-border, #e2e8f0) 80%, transparent);
+}
+
+.zap-pg-date-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--zap-pg-text, #0f172a);
+}
+
+.zap-pg-date-input {
+  width: 100%;
+  padding: 11px 12px;
+  font-size: 0.9375rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--ds-border, #cbd5e1) 100%, transparent);
+  background: var(--zap-pg-surface, #fff);
+  color: var(--zap-pg-text, #0f172a);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.zap-pg-date-input:focus {
+  outline: none;
+  border-color: #ca8a04;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #ca8a04 22%, transparent);
+}
+
+.zap-pg-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px 22px;
+  border-top: 1px solid color-mix(in srgb, var(--ds-border, #e2e8f0) 65%, transparent);
+  background: color-mix(in srgb, #f8fafc 50%, var(--zap-pg-surface, #fff));
+}
+
+.zap-pg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.zap-pg-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.zap-pg-btn--ghost {
+  background: transparent;
+  color: var(--zap-pg-muted, #64748b);
+  border: 1px solid color-mix(in srgb, var(--ds-border, #e2e8f0) 100%, transparent);
+}
+
+.zap-pg-btn--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--zap-pg-muted, #64748b) 8%, transparent);
+  color: var(--zap-pg-text, #0f172a);
+}
+
+.zap-pg-btn--primary {
+  color: #fff;
+  background: linear-gradient(180deg, #eab308 0%, #ca8a04 48%, #a16207 100%);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 25%, transparent) inset,
+    0 6px 18px -4px color-mix(in srgb, #ca8a04 45%, transparent);
+}
+
+.zap-pg-btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 30%, transparent) inset,
+    0 10px 22px -6px color-mix(in srgb, #ca8a04 50%, transparent);
+}
+
+.zap-pg-btn__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, #fff 35%, transparent);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: zap-pg-spin 0.7s linear infinite;
+}
+
+@keyframes zap-pg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Botão na barra de atendimento */
+.wa-actions button.wa-btn-aguardar-pagamento {
+  background: linear-gradient(180deg, #eab308 0%, #ca8a04 55%, #a16207 100%);
+  color: #fff;
+  border: 1px solid color-mix(in srgb, #a16207 80%, #854d0e);
+  font-weight: 600;
+  box-shadow: 0 2px 10px -2px color-mix(in srgb, #ca8a04 40%, transparent);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+}
+
+.wa-actions button.wa-btn-aguardar-pagamento:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: 0 6px 16px -4px color-mix(in srgb, #ca8a04 45%, transparent);
+}
+
+/* Confirmar pagamento — destaque premium (sucesso + acento dourado financeiro) */
+.wa-actions button.wa-btn-pagamento-concluido {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 0 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #f0fdf4;
+  border: 1px solid color-mix(in srgb, #15803d 55%, #ca8a04);
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, #4ade80 92%, #86efac) 0%,
+    #22c55e 42%,
+    #16a34a 78%,
+    #15803d 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #14532d 35%, transparent),
+    0 2px 10px -2px color-mix(in srgb, #22c55e 48%, transparent),
+    0 0 0 1px color-mix(in srgb, #14532d 18%, transparent);
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease,
+    filter 0.14s ease,
+    background 0.14s ease;
+}
+
+.wa-actions button.wa-btn-pagamento-concluido::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 28%, transparent) 0%,
+    transparent 48%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wa-actions button.wa-btn-pagamento-concluido .wa-atendBtn-icon,
+.wa-actions button.wa-btn-pagamento-concluido .wa-atendLabel--long,
+.wa-actions button.wa-btn-pagamento-concluido .wa-atendLabel--short {
+  position: relative;
+  z-index: 1;
+}
+
+.wa-actions button.wa-btn-pagamento-concluido .wa-atendBtn-icon {
+  opacity: 0.95;
+  filter: drop-shadow(0 1px 1px color-mix(in srgb, #14532d 35%, transparent));
+}
+
+.wa-actions button.wa-btn-pagamento-concluido:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: #fff;
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, #86efac 95%, #4ade80) 0%,
+    #34d399 40%,
+    #22c55e 75%,
+    #16a34a 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 48%, transparent),
+    0 8px 20px -6px color-mix(in srgb, #22c55e 52%, transparent),
+    0 0 0 1px color-mix(in srgb, #ca8a04 22%, #15803d);
+}
+
+.wa-actions button.wa-btn-pagamento-concluido:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow:
+    inset 0 2px 4px color-mix(in srgb, #14532d 35%, transparent),
+    0 1px 4px -1px color-mix(in srgb, #22c55e 35%, transparent);
+}
+
+[data-theme="dark"] .wa-actions button.wa-btn-pagamento-concluido {
+  color: #ecfdf5;
+  border-color: color-mix(in srgb, #4ade80 38%, #ca8a04);
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, #4ade80 88%, #86efac) 0%,
+    #22c55e 38%,
+    #15803d 88%,
+    #14532d 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent),
+    0 2px 14px -3px color-mix(in srgb, #22c55e 55%, transparent),
+    0 0 18px -6px color-mix(in srgb, #4ade80 28%, transparent);
+}
+
+[data-theme="dark"] .wa-actions button.wa-btn-pagamento-concluido:hover:not(:disabled) {
+  background: linear-gradient(
+    155deg,
+    #6ee7b7 0%,
+    #4ade80 35%,
+    #22c55e 70%,
+    #16a34a 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 26%, transparent),
+    0 10px 24px -8px color-mix(in srgb, #22c55e 58%, transparent),
+    0 0 22px -4px color-mix(in srgb, #4ade80 35%, transparent);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --zap-pg-surface: #1a2332;
+  --zap-pg-text: #f1f5f9;
+  --zap-pg-muted: #94a3b8;
+}
+
+[data-theme="dark"] .zap-pg-overlay {
+  background: rgba(2, 6, 23, 0.72);
+}
+
+[data-theme="dark"] .zap-pg-modal {
+  border-color: color-mix(in srgb, #ca8a04 22%, #334155);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #fff 6%, transparent),
+    0 28px 56px -16px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="dark"] .zap-pg-header__icon {
+  background: linear-gradient(145deg, #422006 0%, #713f12 100%);
+  color: #fde68a;
+}
+
+[data-theme="dark"] .zap-pg-card {
+  background: color-mix(in srgb, #0f172a 40%, var(--zap-pg-surface));
+  border-color: color-mix(in srgb, #334155 100%, transparent);
+}
+
+[data-theme="dark"] .zap-pg-card.is-selected {
+  background: linear-gradient(160deg, color-mix(in srgb, #422006 70%, var(--zap-pg-surface)) 0%, var(--zap-pg-surface) 100%);
+}
+
+[data-theme="dark"] .zap-pg-date-wrap,
+[data-theme="dark"] .zap-pg-footer {
+  background: color-mix(in srgb, #0f172a 35%, var(--zap-pg-surface));
+}
+
+[data-theme="dark"] .zap-pg-date-input {
+  background: color-mix(in srgb, #0f172a 50%, var(--zap-pg-surface));
+  border-color: #334155;
+  color-scheme: dark;
+}
+
+@media (max-width: 420px) {
+  .zap-pg-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zap-pg-header {
+    padding: 18px 16px 0;
+  }
+
+  .zap-pg-body {
+    padding: 14px 16px 6px;
+  }
+
+  .zap-pg-footer {
+    flex-direction: column-reverse;
+    padding: 14px 16px 18px;
+  }
+
+  .zap-pg-footer .zap-pg-btn {
+    width: 100%;
+  }
+}

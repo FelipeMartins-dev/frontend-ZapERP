@@ -32,6 +32,30 @@ export function isAguardandoClienteManual(conversa) {
   return getStatusAtendimentoEffective(conversa) === 'aguardando_cliente'
 }
 
+/** Financeiro: cobrança enviada, prazo em andamento. */
+export function isPagamentoPendente(conversa) {
+  return getStatusAtendimentoEffective(conversa) === 'pagamento_pendente'
+}
+
+/** Financeiro: prazo de pagamento vencido. */
+export function isEmAtrasoPagamento(conversa) {
+  return getStatusAtendimentoEffective(conversa) === 'em_atraso'
+}
+
+export function isCobrancaFinanceiraStatus(conversa) {
+  const s = getStatusAtendimentoEffective(conversa)
+  return s === 'pagamento_pendente' || s === 'em_atraso'
+}
+
+/** Badge discreto após confirmar pagamento (em atendimento ou aguardando cliente; some ao encerrar). */
+export function exibirBadgePagamentoConcluido(conversa) {
+  if (!conversa) return false
+  const s = getStatusAtendimentoEffective(conversa)
+  if (s !== 'em_atendimento' && s !== 'aguardando_cliente') return false
+  const em = conversa.pagamento_concluido_em
+  return em != null && String(em).trim() !== ''
+}
+
 /** Detecta texto bruto de vCard em mensagens WhatsApp (às vezes sem `tipo: contact`). */
 export function isVCardText(text) {
   if (!text || typeof text !== 'string') return false

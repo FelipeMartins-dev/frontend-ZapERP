@@ -1,5 +1,9 @@
 import { io } from "socket.io-client"
 import { useChatStore } from "../chats/chatsStore"
+import {
+  normalizeMensagemStatusKey,
+  ultimaMensagemRefsEqual,
+} from "../chats/chatListStoreCompare"
 import { useConversaStore } from "../conversa/conversaStore"
 import { useNotificationStore } from "../notifications/notificationStore"
 import { shouldNotifyIncomingMessage } from "../notifications/chatNotificationService"
@@ -9,6 +13,11 @@ import { shouldDeferLocalNotificationToWebPush } from "../push/pushPlatform"
 import { getApiBaseUrl } from "../api/baseUrl"
 import { fetchChatById } from "../chats/chatService"
 import { SOCKET_EVENTS } from "./events"
+import {
+  enqueueStatusMensagemEvent,
+  flushStatusMensagemBatch,
+  resetStatusMensagemBatch,
+} from "./statusMensagemBatch"
 import { getStatusAtendimentoEffective } from "../utils/conversaUtils"
 
 const TYPING_EXPIRY_MS = 5000
@@ -335,6 +344,27 @@ function payloadImpactaListaLateral(payload) {
   return false
 }
 
+/** GET /chats ainda necessário mesmo se o merge local não alterou o card (ex.: Minha fila). */
+function payloadForcaResyncLista(payload) {
+  const lr = /** @type {any} */ (payload)?.lista_realtime
+  return !!(lr && lr.minha_fila === true)
+}
+
+/**
+ * Pede GET /chats quando fila/setor/atendente exige alinhar lista + Minha fila.
+ * @returns {boolean} true se requestChatListResync foi chamado
+ */
+function requestChatListResyncIfLateralImpact(payload, listRowChanged) {
+  if (
+    payloadImpactaListaLateral(payload) &&
+    (listRowChanged !== false || payloadForcaResyncLista(payload))
+  ) {
+    useChatStore.getState().requestChatListResync()
+    return true
+  }
+  return false
+}
+
 function getMessagesScrollMetrics() {
   if (typeof document === "undefined") return null
   const container = document.querySelector(".wa-messages")
@@ -440,6 +470,62 @@ export function joinConversaIfNeeded(id) {
   socket.emit("join_conversa", id)
 }
 
+/** Aplica um evento status_mensagem normalizado (conversa aberta + lista). */
+function applyStatusMensagemEvent(evt) {
+  const { mensagem_id, conversa_id, status: s, whatsapp_id } = evt
+
+  const convStore = useConversaStore.getState()
+  const partial = { status_mensagem: s, status: s }
+  if (whatsapp_id) partial.whatsapp_id = whatsapp_id
+
+  const selectedId = convStore.selectedId
+  const isConversaAberta = selectedId != null
+  const conversaIdMatch = !conversa_id || String(conversa_id) === String(selectedId)
+  if (isConversaAberta && conversaIdMatch) {
+    convStore.patchMensagem(mensagem_id, partial, {
+      conversa_id: conversa_id ?? convStore.conversa?.id ?? selectedId,
+      whatsapp_id,
+    })
+  }
+
+  if (conversa_id) {
+    const chatStore = useChatStore.getState()
+    const chats = chatStore.chats || []
+    const idx = chats.findIndex((c) => String(c.id) === String(conversa_id))
+    if (idx >= 0) {
+      const cur = chats[idx]
+      const u = cur?.ultima_mensagem
+      const msgs = cur?.mensagens || cur?.messages || []
+      const lastFromArray = Array.isArray(msgs) && msgs.length > 0 ? msgs[msgs.length - 1] : null
+      const matchById = (m) => mensagem_id && String(m?.id) === String(mensagem_id)
+      const matchByWa = (m) => whatsapp_id && String(m?.whatsapp_id) === String(whatsapp_id)
+      const match = (m) => m && (matchById(m) || matchByWa(m))
+
+      let targetMsg = null
+      if (u && match(u)) targetMsg = u
+      else if (lastFromArray && match(lastFromArray)) targetMsg = lastFromArray
+      else if (u && String(u?.direcao || "").toLowerCase() === "out") {
+        const recentMs = 60_000
+        const ts = new Date(u?.criado_em || 0).getTime()
+        if (Date.now() - ts < recentMs) targetMsg = u
+      }
+
+      if (targetMsg) {
+        const nextUm = { ...targetMsg, status_mensagem: s, status: s }
+        if (whatsapp_id) nextUm.whatsapp_id = whatsapp_id
+        if (
+          !(
+            ultimaMensagemRefsEqual(targetMsg, nextUm) &&
+            normalizeMensagemStatusKey(targetMsg) === normalizeMensagemStatusKey(nextUm)
+          )
+        ) {
+          chatStore.setUltimaMensagem(conversa_id, nextUm)
+        }
+      }
+    }
+  }
+}
+
 export function initSocket(token) {
   if (socket) return socket
 
@@ -454,6 +540,8 @@ export function initSocket(token) {
     socket.on("connect", () => console.log("🟢 Socket conectado:", socket.id))
     socket.on("disconnect", () => console.log("🔴 Socket desconectado"))
   }
+
+  resetStatusMensagemBatch()
 
   // Listeners idempotentes: remove antes de registrar (evita duplicar ao re-init)
   const off = (ev) => { try { socket?.off(ev) } catch (_) {} }
@@ -731,71 +819,10 @@ export function initSocket(token) {
   /* ===========================
      ✅ STATUS DA MENSAGEM (Z-API) — fallback por whatsapp_id
      Sincroniza ticks em tempo real: conversa aberta + lista de chats
+     Rajadas: fila 75ms + dedupe por mensagem (ver statusMensagemBatch.js)
   =========================== */
   socket.on("status_mensagem", (payload) => {
-    // Suporte a payload aninhado (ex: { data: { ... } }) e chaves alternativas (Z-API, etc.)
-    const p = payload?.data || payload || {}
-    const mensagem_id = p.mensagem_id ?? p.message_id ?? p.msg_id ?? p.id ?? payload?.mensagem_id ?? payload?.message_id
-    const conversa_id = p.conversa_id ?? p.chat_id ?? p.chatId ?? payload?.conversa_id ?? payload?.chat_id
-    const status = p.status ?? payload?.status
-    const whatsapp_id = p.whatsapp_id ?? p.wamid ?? p.wa_id ?? p.whatsappMessageId ?? payload?.whatsapp_id ?? payload?.wamid
-    if (!mensagem_id && !whatsapp_id && !status) return
-    if (shouldIgnoreByCompany(payload)) return
-    // Normalizar: pending/sent/delivered/read/played (WhatsApp Web)
-    const raw = status != null ? String(status).toLowerCase().trim() : ""
-    const s =
-      raw === "enviada" || raw === "enviado" ? "sent"
-        : raw === "entregue" || raw === "received" ? "delivered"
-        : raw === "lida" || raw === "seen" || raw === "visualizada" || raw === "read_by_me" ? "read"
-        : raw === "played" || raw === "reproduzida" ? "played"
-        : raw || null
-
-    const convStore = useConversaStore.getState()
-    const partial = { status_mensagem: s, status: s }
-    if (whatsapp_id) partial.whatsapp_id = whatsapp_id
-
-    // Patch na conversa aberta: só quando for a mesma conversa (ou conversa_id ausente)
-    const selectedId = convStore.selectedId
-    const isConversaAberta = selectedId != null
-    const conversaIdMatch = !conversa_id || String(conversa_id) === String(selectedId)
-    if (isConversaAberta && conversaIdMatch) {
-      convStore.patchMensagem(mensagem_id, partial, {
-        conversa_id: conversa_id ?? convStore.conversa?.id ?? selectedId,
-        whatsapp_id,
-      })
-    }
-
-    // Sincronizar setas na lista de conversas (preview da última mensagem)
-    // Match por mensagem_id, whatsapp_id ou fallback: última mensagem "out" recente (optimistic)
-    if (conversa_id) {
-      const chatStore = useChatStore.getState()
-      const chats = chatStore.chats || []
-      const idx = chats.findIndex((c) => String(c.id) === String(conversa_id))
-      if (idx >= 0) {
-        const cur = chats[idx]
-        const u = cur?.ultima_mensagem
-        const msgs = cur?.mensagens || cur?.messages || []
-        const lastFromArray = Array.isArray(msgs) && msgs.length > 0 ? msgs[msgs.length - 1] : null
-        const matchById = (m) => mensagem_id && String(m?.id) === String(mensagem_id)
-        const matchByWa = (m) => whatsapp_id && String(m?.whatsapp_id) === String(whatsapp_id)
-        const match = (m) => m && (matchById(m) || matchByWa(m))
-
-        let targetMsg = null
-        if (u && match(u)) targetMsg = u
-        else if (lastFromArray && match(lastFromArray)) targetMsg = lastFromArray
-        else if (u && String(u?.direcao || "").toLowerCase() === "out") {
-          // Fallback: última msg out (ticks só aplicam a mensagens enviadas por nós)
-          // Útil quando status chega antes do whatsapp_id ser atribuído (optimistic)
-          const recentMs = 60_000
-          const ts = new Date(u?.criado_em || 0).getTime()
-          if (Date.now() - ts < recentMs) targetMsg = u
-        }
-
-        if (targetMsg) {
-          chatStore.setUltimaMensagem(conversa_id, { ...targetMsg, status_mensagem: s, status: s })
-        }
-      }
-    }
+    enqueueStatusMensagemEvent(payload, applyStatusMensagemEvent, shouldIgnoreByCompany)
   })
 
   /* ===========================
@@ -868,6 +895,7 @@ export function initSocket(token) {
     const chatStore = useChatStore.getState()
     const chats = chatStore.chats || []
     const idx = chats.findIndex((c) => String(c.id) === String(id))
+    let listRowChanged = idx < 0
     if (idx >= 0) {
       const cur = chats[idx]
       const next = { ...cur }
@@ -919,7 +947,7 @@ export function initSocket(token) {
       if (reaberturaAusenciaCliente) {
         next.ui_hint_reaberto_ausencia_cliente = Date.now()
       }
-      chatStore.updateChat({ id, ...next })
+      listRowChanged = chatStore.updateChat({ id, ...next })
     }
     const convStore = useConversaStore.getState()
     if (String(convStore.selectedId) === String(id)) {
@@ -936,22 +964,24 @@ export function initSocket(token) {
         mot === 'ausencia_cliente' &&
         (nextSt === 'aberta' || nextSt === 'em_atendimento')
       if (!skipResyncReaberturaAusencia) {
-        chatStore.requestChatListResync()
+        requestChatListResyncIfLateralImpact(payload, listRowChanged)
       }
     }
   }
 
+  /** @returns {Promise<boolean>} true se pediu resync da lista (GET /chats via ChatList) */
   async function patchEverywhere(rawPayload) {
     const payload = unwrapSocketChatPayload(rawPayload)
     const rawId = payload?.id ?? payload?.conversa_id
-    if (rawId == null || rawId === "") return
+    if (rawId == null || rawId === "") return false
     const p = { ...payload, id: rawId }
     logSocketConversaDebug("patch_everywhere", p)
     const chatStore = useChatStore.getState()
     const chats = chatStore.chats || []
     const idx = chats.findIndex((c) => String(c.id) === String(p.id))
+    let listRowChanged = idx < 0
     if (idx >= 0) {
-      chatStore.updateChat(p)
+      listRowChanged = chatStore.updateChat(p)
     } else {
       try {
         const data = await fetchChatById(p.id)
@@ -963,9 +993,7 @@ export function initSocket(token) {
     if (String(convStore.selectedId) === String(p.id)) {
       convStore.patchConversa(p)
     }
-    if (payloadImpactaListaLateral(p)) {
-      chatStore.requestChatListResync()
-    }
+    return requestChatListResyncIfLateralImpact(p, listRowChanged)
   }
 
   socket.on("conversa_atualizada", handleConversaAtualizada)
@@ -1012,14 +1040,16 @@ export function initSocket(token) {
     logSocketConversaDebug("conversa_reaberta", payload)
     patchEverywhere(payload)
   })
-  socket.on(SOCKET_EVENTS.CONVERSA_ATRIBUIDA, (payload) => {
+  socket.on(SOCKET_EVENTS.CONVERSA_ATRIBUIDA, async (payload) => {
     const p0 = unwrapSocketChatPayload(payload)
     if (shouldIgnoreByCompany(p0)) return
     const convId = p0?.id ?? p0?.conversa_id
     if (convId != null && convId !== "") {
-      patchEverywhere({ ...p0, id: convId })
-      /* Garante Minha fila mesmo se o merge não trouxer atendente_id/status no mesmo pacote */
-      useChatStore.getState().requestChatListResync()
+      const resyncJaPedido = await patchEverywhere({ ...p0, id: convId })
+      /* Fallback: merge local noop mas fila/setor/minha_fila ainda exigem GET /chats */
+      if (!resyncJaPedido && payloadImpactaListaLateral(p0)) {
+        useChatStore.getState().requestChatListResync()
+      }
     }
     updateDocumentTitleFromChats()
 
@@ -1106,25 +1136,41 @@ export function initSocket(token) {
     if (atualizarDebounce[key]) clearTimeout(atualizarDebounce[key])
     atualizarDebounce[key] = setTimeout(async () => {
       delete atualizarDebounce[key]
+      const chatStore = useChatStore.getState()
+      let needsListResync = false
       try {
         const data = await fetchChatById(id)
-        if (!data) return
+        if (!data) {
+          needsListResync = true
+          return
+        }
         const chat = data?.conversa ? data.conversa : data
-        if (!chat?.id) return
-        useChatStore.getState().addChat(chat)
+        if (!chat?.id) {
+          needsListResync = true
+          return
+        }
+        const wasInList = (chatStore.chats || []).some((c) => String(c.id) === String(id))
+        chatStore.addChat(chat)
         const selectedId = useConversaStore.getState().selectedId
-        if (String(id) !== String(selectedId)) return
-        const meta = { id: chat.id }
-        mergeSetorEAtendenteNoAlvo(meta, chat)
-        if ("status_atendimento" in chat) meta.status_atendimento = chat.status_atendimento
-        if ("status_atendimento_real" in chat) meta.status_atendimento_real = chat.status_atendimento_real
-        if ("aguardando_cliente_desde" in chat) meta.aguardando_cliente_desde = chat.aguardando_cliente_desde
-        if ("exibir_badge_aberta" in chat) meta.exibir_badge_aberta = chat.exibir_badge_aberta
-        useConversaStore.getState().patchConversa(meta)
+        if (String(id) === String(selectedId)) {
+          const meta = { id: chat.id }
+          mergeSetorEAtendenteNoAlvo(meta, chat)
+          if ("status_atendimento" in chat) meta.status_atendimento = chat.status_atendimento
+          if ("status_atendimento_real" in chat) meta.status_atendimento_real = chat.status_atendimento_real
+          if ("aguardando_cliente_desde" in chat) meta.aguardando_cliente_desde = chat.aguardando_cliente_desde
+          if ("exibir_badge_aberta" in chat) meta.exibir_badge_aberta = chat.exibir_badge_aberta
+          useConversaStore.getState().patchConversa(meta)
+        }
+        /* fetchChatById + addChat bastam quando o sinal não impacta fila; senão alinha Minha fila */
+        needsListResync =
+          !wasInList ||
+          payloadImpactaListaLateral(rawPayload) ||
+          payloadForcaResyncLista(rawPayload)
       } catch (_) {
-        /* refetch da lista mesmo em erro — alinha Minha fila / filtros */
-      } finally {
-        useChatStore.getState().requestChatListResync()
+        needsListResync = true
+      }
+      if (needsListResync) {
+        chatStore.requestChatListResync()
       }
     }, 400)
   })
@@ -1166,12 +1212,16 @@ export function getSocket() {
 }
 
 export function disconnectSocket() {
+  flushStatusMensagemBatch(applyStatusMensagemEvent)
+
   try {
     if (typingExpiryTimer) {
       clearTimeout(typingExpiryTimer)
       typingExpiryTimer = null
     }
   } catch (_) {}
+
+  resetStatusMensagemBatch()
 
   try {
     socket?.removeAllListeners?.()

@@ -48,12 +48,13 @@ export interface CrmLeadListItem {
   empresa?: string | null;
   telefone?: string | null;
   email?: string | null;
-  valor_estimado?: number | null;
+  valor_estimado?: number | string | null;
   probabilidade?: number | null;
   prioridade?: LeadPrioridade | null;
   status?: LeadStatus | string;
   data_proximo_contato?: string | null;
   ultima_interacao_em?: string | null;
+  atualizado_em?: string | null;
   stage_id?: number | null;
   pipeline_id?: number | null;
   conversa_id?: number | null;
@@ -90,7 +91,7 @@ export interface CrmKanbanCard {
   empresa?: string | null;
   telefone?: string | null;
   email?: string | null;
-  valor_estimado?: number | null;
+  valor_estimado?: number | string | null;
   probabilidade?: number | null;
   prioridade?: LeadPrioridade | null;
   status?: LeadStatus | string;

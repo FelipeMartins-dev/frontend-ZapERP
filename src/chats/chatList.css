@@ -368,7 +368,7 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-header-sub {
   font-size: clamp(11px, 0.85vw, 12px);
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--cl-text-muted);
   white-space: nowrap;
@@ -714,7 +714,7 @@ a { color: inherit; text-decoration: none; }
   max-width: min(154px, calc(100% - 24px));
   margin-inline: auto;
   font-size: 10.5px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--cl-text);
   background: linear-gradient(180deg, rgba(0, 168, 132, 0.12), rgba(0, 168, 132, 0.06));
@@ -746,7 +746,7 @@ a { color: inherit; text-decoration: none; }
   font-size: 9px;
   background: rgba(255, 255, 255, 0.26);
   color: inherit;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .chat-list-chip--primary:not(.is-active) .chat-list-chip-count {
@@ -3845,6 +3845,35 @@ a { color: inherit; text-decoration: none; }
     gap: 4px 6px;
   }
 
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-statusRow--pagamento-sub,
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-statusRow--pagamento-sub {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 3px;
+    width: max-content;
+    max-width: calc(100% - 34px);
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-statusRow-sub,
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-statusRow-sub {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-statusRow--pagamento-sub {
+    grid-area: badge;
+    justify-self: end;
+  }
+
+  .chat-list-row-top:has(.chat-list-status-tech--staff):has(.chat-list-statusRow--pagamento-sub) .chat-list-time,
+  .chat-list-row-top:has(.chat-list-statusRow--pagamento-sub) .chat-list-time {
+    grid-area: time;
+    justify-self: end;
+    align-self: start;
+    width: auto;
+  }
+
   .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech--staff {
     flex-direction: row;
     flex-wrap: nowrap;
@@ -4336,4 +4365,255 @@ a { color: inherit; text-decoration: none; }
     animation: none !important;
     opacity: 1 !important;
   }
+}
+
+/* —— Financeiro: cobrança (etiquetas discretas na lista) —— */
+.chat-list-status-tech--pagamento-pendente,
+.chat-list-status-tech--em-atraso {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 7px 2px 5px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.chat-list-status-tech--pagamento-pendente {
+  color: #854d0e;
+  background: color-mix(in srgb, #fef9c3 72%, transparent);
+  border: 1px solid color-mix(in srgb, #ca8a04 28%, transparent);
+}
+
+.chat-list-status-tech--em-atraso {
+  color: #991b1b;
+  background: color-mix(in srgb, #fee2e2 70%, transparent);
+  border: 1px solid color-mix(in srgb, #dc2626 22%, transparent);
+}
+
+.chat-list-status-tech-pagamento-dot,
+.chat-list-status-tech-atraso-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chat-list-status-tech-pagamento-dot {
+  background: #ca8a04;
+}
+
+.chat-list-status-tech-atraso-dot {
+  background: #dc2626;
+}
+
+.chat-list-status-tech-pagamento-label,
+.chat-list-status-tech-atraso-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 9.5rem;
+}
+
+.chat-list-status-tech-prazo-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.chat-list-status-tech-prazo-valor {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  opacity: 0.95;
+}
+
+.chat-list-chip--pagamento-pendente.is-active {
+  border-color: color-mix(in srgb, #ca8a04 55%, var(--ds-border, #e2e8f0));
+  background: color-mix(in srgb, #fef9c3 35%, var(--ds-surface, #fff));
+}
+
+.chat-list-chip--em-atraso.is-active {
+  border-color: color-mix(in srgb, #dc2626 45%, var(--ds-border, #e2e8f0));
+  background: color-mix(in srgb, #fee2e2 40%, var(--ds-surface, #fff));
+}
+
+[data-theme="dark"] .chat-list-status-tech--pagamento-pendente {
+  color: #fde68a;
+  background: color-mix(in srgb, #422006 65%, transparent);
+  border-color: color-mix(in srgb, #ca8a04 35%, transparent);
+}
+
+[data-theme="dark"] .chat-list-status-tech--em-atraso {
+  color: #fecaca;
+  background: color-mix(in srgb, #450a0a 55%, transparent);
+  border-color: color-mix(in srgb, #dc2626 35%, transparent);
+}
+
+/* Financeiro: pagamento confirmado — pilha abaixo da etiqueta principal (largura = maior pill) */
+.chat-list-statusRow--pagamento-sub {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 3px;
+  width: max-content;
+  max-width: 100%;
+  min-width: min-content;
+  align-self: flex-end;
+}
+
+.chat-list-statusRow-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  width: max-content;
+  max-width: 100%;
+  min-width: min-content;
+}
+
+.chat-list-statusRow-sub {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  line-height: 1.15;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Meta igual aos demais cards: hora no topo à direita; só a pilha de etiquetas centraliza */
+.chat-list-row-meta:has(.chat-list-statusRow--pagamento-sub) {
+  max-width: min(62%, 220px);
+  align-items: flex-end;
+}
+
+.chat-list-row-meta:has(.chat-list-statusRow--pagamento-sub) .chat-list-time {
+  align-self: flex-end;
+  width: auto;
+  justify-content: flex-end;
+}
+
+.chat-list-status-tech--pagamento-concluido-sub {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 100%;
+  min-width: min-content;
+  flex-shrink: 0;
+  min-height: 17px;
+  padding: 2px 8px 3px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #ca8a04 42%, #fde047);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, #fffbeb 92%, #fef9c3) 0%,
+    color-mix(in srgb, #fef3c7 78%, #fde68a) 48%,
+    color-mix(in srgb, #fde68a 55%, #fef9c3) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent),
+    0 1px 3px -1px color-mix(in srgb, #ca8a04 28%, transparent),
+    0 0 0 1px color-mix(in srgb, #fff 35%, transparent);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 1;
+  color: #92400e;
+  text-align: center;
+}
+
+.chat-list-status-tech-pagamento-ok-label {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+[data-theme="dark"] .chat-list-status-tech--pagamento-concluido-sub {
+  color: #fef08a;
+  border-color: color-mix(in srgb, #eab308 48%, #fde047);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, #422006 70%, #713f12) 0%,
+    color-mix(in srgb, #78350f 62%, #854d0e) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent),
+    0 1px 5px -1px color-mix(in srgb, #000 45%, transparent),
+    0 0 10px -2px color-mix(in srgb, #eab308 35%, transparent);
+}
+
+/* Financeiro: pilha cobrança — pagamento pendente / em atraso abaixo da etiqueta principal */
+.chat-list-status-tech--pagamento-pendente-sub,
+.chat-list-status-tech--em-atraso-sub {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 100%;
+  min-width: min-content;
+  flex-shrink: 0;
+  min-height: 17px;
+  padding: 2px 7px 3px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  gap: 4px;
+}
+
+.chat-list-status-tech--pagamento-pendente-sub {
+  color: #854d0e;
+  background: color-mix(in srgb, #fef9c3 88%, #fde68a);
+  border: 1px solid color-mix(in srgb, #ca8a04 35%, #fde047);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 65%, transparent),
+    0 1px 2px -1px color-mix(in srgb, #ca8a04 22%, transparent);
+}
+
+.chat-list-status-tech--em-atraso-sub {
+  color: #991b1b;
+  background: color-mix(in srgb, #fee2e2 88%, #fecaca);
+  border: 1px solid color-mix(in srgb, #dc2626 30%, #fca5a5);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent),
+    0 1px 2px -1px color-mix(in srgb, #dc2626 18%, transparent);
+}
+
+[data-theme="dark"] .chat-list-status-tech--pagamento-pendente-sub {
+  color: #fde68a;
+  background: color-mix(in srgb, #422006 65%, #713f12);
+  border-color: color-mix(in srgb, #ca8a04 40%, transparent);
+}
+
+[data-theme="dark"] .chat-list-status-tech--em-atraso-sub {
+  color: #fecaca;
+  background: color-mix(in srgb, #450a0a 55%, transparent);
+  border-color: color-mix(in srgb, #dc2626 35%, transparent);
+}
+
+.chat-list-statusRow--cobranca-dupla .chat-list-statusRow-primary {
+  justify-content: flex-end;
 }

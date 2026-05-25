@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
 import { useNotificationStore } from "../notifications/notificationStore";
 import { listInternalConversations } from "../api/internalChatService";
+import { scheduleAfterInitialPaint } from "../chats/scheduleAfterInitialPaint";
 import {
   extractConversationIdFromPayload,
   extractMessageFromPayload,
@@ -45,16 +46,19 @@ export default function InternalChatGlobalSocketBridge() {
   useEffect(() => {
     if (!userId) {
       useInternalChatNotifyStore.getState().reset();
-      return;
+      return undefined;
     }
     let cancelled = false;
-    listInternalConversations(user?.id)
-      .then((convs) => {
-        if (!cancelled) useInternalChatNotifyStore.getState().hydrateFromConversations(convs);
-      })
-      .catch(() => {});
+    const cancelSchedule = scheduleAfterInitialPaint(() => {
+      listInternalConversations(user?.id)
+        .then((convs) => {
+          if (!cancelled) useInternalChatNotifyStore.getState().hydrateFromConversations(convs);
+        })
+        .catch(() => {});
+    }, 900);
     return () => {
       cancelled = true;
+      cancelSchedule();
     };
   }, [userId, user?.id]);
 

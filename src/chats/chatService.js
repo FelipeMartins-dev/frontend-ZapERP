@@ -40,6 +40,12 @@ export async function fetchChats(params = {}) {
   if (params.aguardando_cliente === true || params.aguardando_cliente === 1 || params.aguardando_cliente === "1") {
     q.set("aguardando_cliente", "1");
   }
+  if (params.pagamento_pendente === true || params.pagamento_pendente === 1 || params.pagamento_pendente === "1") {
+    q.set("pagamento_pendente", "1");
+  }
+  if (params.em_atraso === true || params.em_atraso === 1 || params.em_atraso === "1") {
+    q.set("em_atraso", "1");
+  }
   const tp = params.tempo_parado != null ? String(params.tempo_parado).trim().toLowerCase() : "";
   if (tp) q.set("tempo_parado", tp);
   const query = q.toString();
