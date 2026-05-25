@@ -4,6 +4,14 @@ import api from "../api/http";
 export const salvarObservacao = (id, observacao) =>
   api.put(`/chats/${id}/observacao`, { observacao });
 
+/** Atualiza nome exibido na conversa (cache) e no cadastro do cliente vinculado, sem criar duplicata. */
+export async function atualizarNomeContatoConversa(conversaId, nome) {
+  const id = conversaId != null ? String(conversaId) : "";
+  if (!id) throw new Error("conversaId inválido");
+  const { data } = await api.put(`/chats/${id}/nome-contato`, { nome: String(nome || "").trim() });
+  return data;
+}
+
 // Vincula um cliente existente a uma conversa (tenta variações comuns de rota).
 export async function vincularClienteConversa(conversaId, cliente_id) {
   const id = conversaId != null ? String(conversaId) : "";

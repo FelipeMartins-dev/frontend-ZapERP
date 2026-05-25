@@ -7829,12 +7829,25 @@ main.main-content--crm .wa-mediaPreview-composer {
 .wa-sideCliente-heroName{
   font-size: 14px;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   color: var(--wa-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+
+.wa-sideCliente-heroNameInput {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-bg-raised);
+  color: var(--wa-text);
 }
 .wa-sideCliente-heroSub{
   margin-top: 4px;

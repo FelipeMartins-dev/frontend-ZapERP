@@ -335,6 +335,42 @@ export function isVideoFile(file) {
   return /\.(mp4|mov|webm|mkv|avi|3gp|m4v)$/i.test(name);
 }
 
+/** Alinhado ao backend `EXTENSOES_BLOQUEADAS_WHATSAPP` — WhatsApp costuma recusar. */
+export const EXTENSOES_BLOQUEADAS_WHATSAPP = new Set([
+  "exe",
+  "msi",
+  "apk",
+  "bat",
+  "cmd",
+  "com",
+  "scr",
+  "ps1",
+  "vbs",
+  "reg",
+  "dll",
+  "jar",
+]);
+
+export function extensaoArquivoFromFile(file) {
+  const name = String(file?.name || "").trim();
+  const m = name.match(/\.([a-z0-9]{2,8})$/i);
+  return m ? m[1].toLowerCase() : "";
+}
+
+export function isArquivoBloqueadoWhatsApp(file) {
+  const ext = extensaoArquivoFromFile(file);
+  return ext.length > 0 && EXTENSOES_BLOQUEADAS_WHATSAPP.has(ext);
+}
+
+export function mensagemArquivoBloqueadoWhatsApp(file) {
+  const ext = extensaoArquivoFromFile(file);
+  const label = ext ? `.${ext}` : "deste tipo";
+  return (
+    `Arquivos ${label} não podem ser enviados pelo WhatsApp (alto risco de bloqueio). ` +
+    "Se precisar compartilhar, use um .zip com PDF, planilha ou documento permitido."
+  );
+}
+
 export function getMediaUrl(url, urlAbsoluta) {
   if (urlAbsoluta) return urlAbsoluta;
   if (!url) return "";

@@ -68,6 +68,8 @@ import {
   isImageFile,
   isAudioFile,
   isVideoFile,
+  isArquivoBloqueadoWhatsApp,
+  mensagemArquivoBloqueadoWhatsApp,
   getMediaUrl,
   fileToPreviewURL,
   getAudioFilename,
@@ -855,6 +857,14 @@ function ConversaViewBody() {
 
   const openMediaSendPreview = useCallback((file) => {
     if (!file) return;
+    if (isArquivoBloqueadoWhatsApp(file)) {
+      showToast({
+        type: "error",
+        title: "Arquivo não permitido",
+        message: mensagemArquivoBloqueadoWhatsApp(file),
+      });
+      return;
+    }
     setPendingFile(file);
     setPendingCaption("");
     if (isImageFile(file) || isVideoFile(file)) {
@@ -869,7 +879,7 @@ function ConversaViewBody() {
     } else {
       setPendingPreview(null);
     }
-  }, []);
+  }, [showToast]);
 
   const onHeaderAvatarClick = useCallback(() => {
     if (showAvatarImg && avatarUrl) {
@@ -1067,6 +1077,15 @@ function ConversaViewBody() {
   const handleEnviarArquivo = useCallback(
     async (file, opts = {}) => {
       if (!file || !conversaId) return;
+      if (isArquivoBloqueadoWhatsApp(file)) {
+        showToast({
+          type: "error",
+          title: "Arquivo não permitido",
+          message: mensagemArquivoBloqueadoWhatsApp(file),
+        });
+        clearPending();
+        return;
+      }
       if (!podeEnviar) {
         showToast({
           type: "warning",
@@ -1108,14 +1127,6 @@ function ConversaViewBody() {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
           headers: { "Content-Type": false },
         });
-
-        if (data?.aviso_whatsapp) {
-          showToast({
-            type: "warning",
-            title: "Arquivo em processamento",
-            message: String(data.aviso_whatsapp),
-          });
-        }
 
         const realMsg = normalizeArquivoApiToMessage(data, conversaId);
         if (realMsg?.id != null || realMsg?.whatsapp_id) {

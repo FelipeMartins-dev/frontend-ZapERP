@@ -1,6 +1,8 @@
 import "./conversa.css";
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { salvarObservacao, vincularClienteConversa } from "./conversaService";
+import { salvarObservacao, vincularClienteConversa, atualizarNomeContatoConversa } from "./conversaService";
+import { useConversaStore } from "./conversaStore";
+import { useChatStore } from "../chats/chatsStore";
 import { useAuthStore } from "../auth/authStore";
 import { useNotificationStore } from "../notifications/notificationStore";
 import { getDisplayName } from "../chats/chatList";
@@ -146,9 +148,13 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
     nextTime: "",
     nextNote: "",
   });
+  const [nomeContatoBase, setNomeContatoBase] = useState("");
+  const [savingNomeContato, setSavingNomeContato] = useState(false);
 
   const hydrateFromCliente = useCallback((c) => {
-    const nome = c?.nome != null ? String(c.nome) : "";
+    const fromCliente = c?.nome != null ? String(c.nome).trim() : "";
+    const fromConversa = String(getDisplayName(conversa) || "").trim();
+    const nome = fromCliente || (fromConversa && fromConversa !== "Contato" ? fromConversa : "");
     const email = c?.email != null ? String(c.email) : "";
     const empresa = c?.empresa != null ? String(c.empresa) : "";
     const obsRaw = c?.observacoes != null ? String(c.observacoes) : "";
@@ -173,7 +179,8 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
       nextTime: meta.time || "",
       nextNote: meta.note || "",
     });
-  }, []);
+    setNomeContatoBase(nome);
+  }, [conversa]);
 
   const loadCliente = useCallback(async () => {
     if (!open || isGroup) return;
@@ -247,6 +254,25 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
     if (telDigits) return `+${telDigits}`;
     return "";
   }, [telefone, telDigits]);
+
+  const syncNomeContatoFromConversa = useCallback(() => {
+    const dn = String(getDisplayName(conversa) || "").trim();
+    const fallbackPhone = String(telefone || "").trim();
+    const isPhoneLabel =
+      !dn ||
+      dn === "Contato" ||
+      (fallbackPhone && (dn === fallbackPhone || dn === telefoneCadastro));
+    const initial = isPhoneLabel ? "" : dn;
+    setCliNome(initial);
+    setNomeContatoBase(initial);
+  }, [conversa, telefone, telefoneCadastro]);
+
+  useEffect(() => {
+    if (!open || isGroup) return;
+    if (clienteId && clienteLoading) return;
+    if (!clienteId) syncNomeContatoFromConversa();
+  }, [open, isGroup, clienteId, clienteLoading, syncNomeContatoFromConversa]);
+
   const empresaDisplay = useMemo(() => {
     const v =
       String(cliEmpresa || "").trim() ||
@@ -376,6 +402,21 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
     showToast?.({ type: "info", title: "Limpo", message: "Próximo contato removido (não esqueça de salvar)." });
   }, [showToast]);
 
+  const applyNomeContatoPatch = useCallback(
+    (nomeTrim) => {
+      if (!conversa?.id || !nomeTrim) return;
+      const patch = {
+        id: conversa.id,
+        contato_nome: nomeTrim,
+        nome_contato_cache: nomeTrim,
+        cliente_nome: nomeTrim,
+      };
+      useConversaStore.getState().patchConversa(patch);
+      useChatStore.getState().updateChat(patch);
+    },
+    [conversa?.id]
+  );
+
   const handleCriarEVincularCliente = useCallback(async () => {
     if (!canEdit) {
       showToast?.({ type: "error", title: "Somente leitura", message: "Assuma a conversa para cadastrar o cliente." });
@@ -453,8 +494,19 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
         criado_em: new Date().toISOString(),
       });
 
+      const nomeTrim = String(payload.nome || "").trim();
+      if (nomeTrim) {
+        try {
+          const dataNome = await atualizarNomeContatoConversa(conversa.id, nomeTrim);
+          const nomeOk = String(dataNome?.conversa?.contato_nome || nomeTrim).trim();
+          applyNomeContatoPatch(nomeOk);
+          setNomeContatoBase(nomeOk);
+          setCliNome(nomeOk);
+        } catch (_) {
+          applyNomeContatoPatch(nomeTrim);
+        }
+      }
       showToast?.({ type: "success", title: "Cadastro criado", message: "Cliente cadastrado e vinculado à conversa." });
-      // força sync: recarrega conversa para vir com cliente_id/cliente_nome
       onObservacaoSaved?.();
       return true;
     } catch (e) {
@@ -486,12 +538,70 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
     user?.nome,
     user?.email,
     onObservacaoSaved,
+    applyNomeContatoPatch,
   ]);
+
+  const handleSalvarNomeContato = useCallback(async () => {
+    if (!conversa?.id || savingNomeContato) return false;
+    if (!canEdit) {
+      showToast?.({
+        type: "error",
+        title: "Somente leitura",
+        message: "Assuma a conversa para editar o nome.",
+      });
+      return false;
+    }
+    const nomeTrim = String(cliNome || "").trim();
+    if (!nomeTrim) {
+      showToast?.({ type: "error", title: "Nome obrigatório", message: "Informe o nome do contato." });
+      return false;
+    }
+    setSavingNomeContato(true);
+    try {
+      const data = await atualizarNomeContatoConversa(conversa.id, nomeTrim);
+      const nomeOk = String(data?.conversa?.nome_contato_cache || data?.conversa?.contato_nome || nomeTrim).trim();
+      setCliNome(nomeOk);
+      setNomeContatoBase(nomeOk);
+      applyNomeContatoPatch(nomeOk);
+      if (clienteId && data?.cliente) {
+        setCliente(data.cliente);
+        hydrateFromCliente(data.cliente);
+      } else {
+        setClienteBase((prev) => ({ ...prev, nome: nomeOk }));
+      }
+      showToast?.({ type: "success", title: "Nome atualizado", message: "O nome do contato foi salvo." });
+      return true;
+    } catch (e) {
+      console.error("Erro ao salvar nome do contato:", e);
+      showToast?.({
+        type: "error",
+        title: "Falha ao salvar nome",
+        message: e?.response?.data?.error || e?.response?.data?.erro || e?.message || "Tente novamente.",
+      });
+      return false;
+    } finally {
+      setSavingNomeContato(false);
+    }
+  }, [
+    conversa?.id,
+    savingNomeContato,
+    canEdit,
+    cliNome,
+    clienteId,
+    showToast,
+    applyNomeContatoPatch,
+    hydrateFromCliente,
+  ]);
+
+  const hasNomeContatoChanges = useMemo(() => {
+    return String(cliNome || "").trim() !== String(nomeContatoBase || "").trim();
+  }, [cliNome, nomeContatoBase]);
 
   const hasClienteChanges = useMemo(() => {
     const norm = (v) => String(v || "");
+    const nomeChanged = norm(cliNome).trim() !== norm(clienteBase.nome).trim();
     return (
-      norm(cliNome).trim() !== norm(clienteBase.nome).trim() ||
+      (!hasNomeContatoChanges && nomeChanged) ||
       norm(cliEmail).trim() !== norm(clienteBase.email).trim() ||
       norm(cliEmpresa).trim() !== norm(clienteBase.empresa).trim() ||
       norm(cliObsText).trim() !== norm(clienteBase.observacoes).trim() ||
@@ -499,7 +609,7 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
       norm(nextTime) !== norm(clienteBase.nextTime) ||
       norm(nextNote).trim() !== norm(clienteBase.nextNote).trim()
     );
-  }, [cliNome, cliEmail, cliEmpresa, cliObsText, nextDate, nextTime, nextNote, clienteBase]);
+  }, [cliNome, cliEmail, cliEmpresa, cliObsText, nextDate, nextTime, nextNote, clienteBase, hasNomeContatoChanges]);
 
   const handleSalvarCliente = useCallback(async () => {
     if (!clienteId || savingCliente) return false;
@@ -550,6 +660,12 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
       const updated = await cfg.atualizarCliente(clienteId, payload);
       setCliente(updated || { ...(cliente || {}), ...payload, id: clienteId });
       hydrateFromCliente(updated || { ...(cliente || {}), ...payload, id: clienteId });
+      const nomeTrim = String(cliNome || "").trim();
+      if (nomeTrim) {
+        await atualizarNomeContatoConversa(conversa.id, nomeTrim);
+        applyNomeContatoPatch(nomeTrim);
+        setNomeContatoBase(nomeTrim);
+      }
       showToast?.({ type: "success", title: "Cliente salvo", message: "Dados do cliente atualizados com sucesso." });
       const after = {
         nome: String(cliNome || "").trim() || "",
@@ -603,14 +719,16 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
     user?.id,
     user?.nome,
     user?.email,
+    conversa?.id,
+    applyNomeContatoPatch,
   ]);
 
   const hasObsChanges = useMemo(
     () => String(observacao || "") !== String(obsBase || ""),
     [observacao, obsBase]
   );
-  const savingAny = Boolean(savingObs || savingCliente || creatingCliente);
-  const hasAnyChanges = Boolean(hasObsChanges || hasClienteChanges);
+  const savingAny = Boolean(savingObs || savingCliente || creatingCliente || savingNomeContato);
+  const hasAnyChanges = Boolean(hasObsChanges || hasClienteChanges || hasNomeContatoChanges);
 
   const handleSalvarTudo = useCallback(async () => {
     if (!canEdit) {
@@ -625,20 +743,22 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
 
     let did = false;
 
-    // 1) observação do atendimento
+    if (hasNomeContatoChanges) {
+      did = true;
+      await handleSalvarNomeContato();
+    }
+
     if (hasObsChanges) {
       did = true;
       await handleSalvarObs();
     }
 
-    // 2) cadastro do cliente (atualiza ou cria+vincula)
     if (clienteId) {
       if (hasClienteChanges) {
         did = true;
         await handleSalvarCliente();
       }
-    } else {
-      // sem cadastro: permite criar/vincular daqui
+    } else if (hasClienteChanges) {
       did = true;
       await handleCriarEVincularCliente();
     }
@@ -651,8 +771,10 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
     savingAny,
     hasObsChanges,
     hasClienteChanges,
+    hasNomeContatoChanges,
     clienteId,
     handleSalvarObs,
+    handleSalvarNomeContato,
     handleSalvarCliente,
     handleCriarEVincularCliente,
     showToast,
@@ -734,7 +856,22 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
           </div>
           <div className="wa-sideCliente-heroMain">
             <div className="wa-sideCliente-heroTop">
-              <div className="wa-sideCliente-heroName" title={clienteNome}>{clienteNome}</div>
+              {canEdit ? (
+                <input
+                  type="text"
+                  className="wa-sideCliente-input wa-sideCliente-heroNameInput"
+                  value={cliNome}
+                  onChange={(e) => setCliNome(e.target.value)}
+                  placeholder="Nome do contato"
+                  disabled={savingAny}
+                  aria-label="Nome do contato"
+                  maxLength={120}
+                />
+              ) : (
+                <div className="wa-sideCliente-heroName" title={clienteNome}>
+                  {clienteNome}
+                </div>
+              )}
               <span className={`wa-sideCliente-pill wa-sideCliente-pill--${statusTone}`}>{statusLabel}</span>
             </div>
             <div className="wa-sideCliente-heroSub">
@@ -999,4 +1136,3 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
     </div>
   );
 }
-
