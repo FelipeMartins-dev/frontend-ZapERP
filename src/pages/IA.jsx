@@ -6,6 +6,7 @@ import { canAcessarConfiguracoes } from "../auth/permissions";
 import { useNotificationStore } from "../notifications/notificationStore";
 import api from "../api/http";
 import * as iaApi from "../api/iaService";
+import { getClientes } from "../api/configService";
 import Breadcrumb from "../components/layout/Breadcrumb";
 import { SkeletonGrid } from "../components/feedback/Skeleton";
 import Switch from "../components/ui/Switch";
@@ -62,6 +63,8 @@ const DEFAULT_CONFIG = {
   },
   admin_atendimento_alerta: {
     ativo: false,
+    cliente_id: null,
+    cliente_nome: "",
     telefone_admin: "",
     horario_envio: "09:00",
     timezone: "",
@@ -92,6 +95,8 @@ function mergeAdminAtendimentoAlertaFromApi(raw) {
     ...DEFAULT_CONFIG.admin_atendimento_alerta,
     ...s,
     ativo,
+    cliente_id: Number.isInteger(Number(s.cliente_id)) && Number(s.cliente_id) > 0 ? Number(s.cliente_id) : null,
+    cliente_nome: String(s.cliente_nome || "").trim().slice(0, 120),
     telefone_admin: String(s.telefone_admin || "").trim().slice(0, 40),
     horario_envio: normalizeHorarioAdminAlerta(s.horario_envio),
     timezone: String(s.timezone || "").trim().slice(0, 80),
@@ -734,6 +739,12 @@ function formatTimeForInput(t) {
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
+function formatAdminAlertContactOption(cliente) {
+  const nome = String(cliente?.nome || cliente?.pushname || "").trim() || `Cliente ${cliente?.id || ""}`.trim();
+  const telefone = String(cliente?.telefone || cliente?.wa_id || "").trim();
+  return telefone ? `${nome} - ${telefone}` : nome;
+}
+
 function SecaoChatbotTriagem({
   config,
   adminAtendimentoAlerta,
@@ -746,9 +757,37 @@ function SecaoChatbotTriagem({
 }) {
   const [v, setV] = useState(config);
   const [adminAl, setAdminAl] = useState(adminAtendimentoAlerta);
+  const [adminContatoBusca, setAdminContatoBusca] = useState("");
+  const [adminContatoOptions, setAdminContatoOptions] = useState([]);
+  const [adminContatoLoading, setAdminContatoLoading] = useState(false);
   const [novaDataFechada, setNovaDataFechada] = useState("");
   useEffect(() => setV(config), [config]);
   useEffect(() => setAdminAl(adminAtendimentoAlerta), [adminAtendimentoAlerta]);
+
+  useEffect(() => {
+    if (!adminAl?.ativo) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setAdminContatoLoading(true);
+      try {
+        const clientes = await getClientes({
+          palavra: adminContatoBusca.trim() || undefined,
+          limit: 20,
+          page: 1,
+        });
+        if (!cancelled) setAdminContatoOptions(Array.isArray(clientes) ? clientes : []);
+      } catch (e) {
+        console.error("Erro ao carregar contatos do alerta admin:", e);
+        if (!cancelled) setAdminContatoOptions([]);
+      } finally {
+        if (!cancelled) setAdminContatoLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [adminAl?.ativo, adminContatoBusca]);
 
   const showToast = useNotificationStore((s) => s.showToast);
 
@@ -874,6 +913,16 @@ function SecaoChatbotTriagem({
   const previewFinal = (v.mensagemFinalizacao || "")
     .replace(/\{\{protocolo\}\}/gi, "12345")
     .replace(/\{\{nome_atendente\}\}/gi, "Maria");
+  const selectedAdminContatoId = adminAl.cliente_id ? String(adminAl.cliente_id) : "";
+  const selectedAdminContatoFallback =
+    selectedAdminContatoId && !adminContatoOptions.some((c) => String(c.id) === selectedAdminContatoId)
+      ? [{
+          id: Number(adminAl.cliente_id),
+          nome: adminAl.cliente_nome || "Contato selecionado",
+          telefone: adminAl.telefone_admin || "",
+        }]
+      : [];
+  const adminContatoSelectOptions = [...selectedAdminContatoFallback, ...adminContatoOptions];
 
   return (
     <div className="chatbot-section">
@@ -1314,15 +1363,49 @@ function SecaoChatbotTriagem({
               }}
             >
               <div className="ia-field">
-                <label>WhatsApp do administrador (com DDD)</label>
-                <input
-                  type="tel"
-                  className="ia-input"
-                  autoComplete="tel"
-                  value={adminAl.telefone_admin || ""}
-                  onChange={(e) => setAdminAl((c) => ({ ...c, telefone_admin: e.target.value }))}
-                  placeholder="5511999998888"
-                />
+                <label>Contato que receberá o alerta</label>
+                <div className="chatbot-time-row" style={{ alignItems: "flex-end", gap: 12 }}>
+                  <input
+                    type="search"
+                    className="ia-input"
+                    value={adminContatoBusca}
+                    onChange={(e) => setAdminContatoBusca(e.target.value)}
+                    placeholder="Buscar por nome ou telefone"
+                    autoComplete="off"
+                    style={{ minWidth: 220 }}
+                  />
+                  <select
+                    className="ia-select"
+                    value={selectedAdminContatoId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const contato = adminContatoSelectOptions.find((c) => String(c.id) === id);
+                      setAdminAl((c) => ({
+                        ...c,
+                        cliente_id: id ? Number(id) : null,
+                        cliente_nome: contato ? String(contato.nome || contato.pushname || "").trim().slice(0, 120) : "",
+                        telefone_admin: contato ? String(contato.telefone || contato.wa_id || "").trim().slice(0, 40) : "",
+                      }));
+                    }}
+                    style={{ minWidth: 280 }}
+                  >
+                    <option value="">{adminContatoLoading ? "Carregando contatos..." : "Selecione um contato"}</option>
+                    {adminContatoSelectOptions.map((cliente) => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {formatAdminAlertContactOption(cliente)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {adminAl.telefone_admin ? (
+                  <p className="chatbot-hint" style={{ marginTop: 6 }}>
+                    Envio para {adminAl.cliente_nome || "contato selecionado"} ({adminAl.telefone_admin}).
+                  </p>
+                ) : (
+                  <p className="chatbot-hint" style={{ marginTop: 6 }}>
+                    O contato precisa ter telefone ou WhatsApp cadastrado.
+                  </p>
+                )}
               </div>
               <div className="chatbot-time-row">
                 <div className="ia-field">
@@ -1374,14 +1457,22 @@ function SecaoChatbotTriagem({
                 <button
                   type="button"
                   className="ia-btn ia-btn--outline"
-                  onClick={() =>
+                  onClick={() => {
+                    const clienteId = Number(adminAl.cliente_id);
+                    const telefoneAdmin = String(adminAl.telefone_admin || "").trim().slice(0, 40);
+                    if (adminAl.ativo && !clienteId && !telefoneAdmin) {
+                      showToast({ type: "error", title: "Alerta do administrador", message: "Selecione o contato que receberá o alerta." });
+                      return;
+                    }
                     onSaveAdminAlert({
                       ...adminAl,
+                      cliente_id: Number.isInteger(clienteId) && clienteId > 0 ? clienteId : null,
+                      cliente_nome: String(adminAl.cliente_nome || "").trim().slice(0, 120),
                       horario_envio: normalizeHorarioAdminAlerta(adminAl.horario_envio),
-                      telefone_admin: String(adminAl.telefone_admin || "").trim().slice(0, 40),
+                      telefone_admin: telefoneAdmin,
                       timezone: String(adminAl.timezone || "").trim().slice(0, 80),
-                    })
-                  }
+                    });
+                  }}
                   disabled={saving}
                 >
                   {saving ? "Salvando…" : "Salvar alerta do administrador"}
