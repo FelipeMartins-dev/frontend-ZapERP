@@ -31,19 +31,34 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+function requestHadBearerToken(config) {
+  const h = config?.headers
+  if (!h) return false
+  const auth = h.Authorization ?? h.authorization
+  return typeof auth === "string" && /^Bearer\s+\S+/i.test(auth)
+}
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     const status = err?.response?.status
     if (status === 401) {
-      localStorage.removeItem("zap_erp_auth")
-      try {
-        disconnectSocket?.()
-      } catch (_) {
-        /* ignore */
-      }
-      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-        window.location.href = "/login"
+      const url = String(err?.config?.url || "")
+      const isLoginRequest = url.includes("/usuarios/login")
+      const skipLogout = err?.config?.skipAuthLogout === true || isLoginRequest
+      const hadAuth = requestHadBearerToken(err?.config)
+
+      if (!skipLogout && hadAuth) {
+        localStorage.removeItem("zap_erp_auth")
+        try {
+          disconnectSocket?.()
+        } catch (_) {
+          /* ignore */
+        }
+        const path = typeof window !== "undefined" ? window.location.pathname : ""
+        if (path && !path.includes("/login")) {
+          window.location.href = "/login"
+        }
       }
       return Promise.reject(err)
     }

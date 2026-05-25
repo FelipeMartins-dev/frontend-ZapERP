@@ -27,8 +27,8 @@ export async function registrarAuditoria(payload) {
 }
 
 // Usuário logado (perfil)
-export async function getUsuarioMe() {
-  const { data } = await api.get('/usuarios/me')
+export async function getUsuarioMe(config = {}) {
+  const { data } = await api.get('/usuarios/me', { skipAuthLogout: true, ...config })
   return data
 }
 

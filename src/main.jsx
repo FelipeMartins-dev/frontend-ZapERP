@@ -10,7 +10,6 @@ import "./styles/theme.css";
 import "./styles/app.css";
 
 useAuthStore.getState().restore();
-useAuthStore.getState().syncUsuarioMe?.().catch(() => {});
 
 initNativeFcmBridge();
 

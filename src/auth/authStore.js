@@ -73,26 +73,47 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // ======================
-  // LOGOUT
-  // ======================
-  logout: () => {
+  /** Remove sessão local sem redirecionar (ex.: token expirado no restore). */
+  clearSession: (opts = {}) => {
+    const { redirect = false } = opts
     unsubscribeWebPush().catch(() => {})
     localStorage.removeItem("zap_erp_auth")
-    try {
-      localStorage.removeItem("zap_erp_last_email")
-    } catch (_) {}
-
-    // encerra a conexão para evitar “sessão fantasma” após logout
     disconnectSocket()
     try {
       useChatStore.getState().limpar()
       useConversaStore.getState().limpar()
       usePermissoesStore.getState().clearPermissoes()
     } catch (_) {}
-
     set({ user: null, token: null })
-    window.location.href = "/login"
+    if (redirect && typeof window !== "undefined") {
+      window.location.href = "/login"
+    }
+  },
+
+  // ======================
+  // LOGOUT
+  // ======================
+  logout: () => {
+    try {
+      localStorage.removeItem("zap_erp_last_email")
+    } catch (_) {}
+    get().clearSession({ redirect: true })
+  },
+
+  /** Valida token salvo com GET /usuarios/me — evita loop de 401 após F5. */
+  validateSession: async () => {
+    const { token } = get()
+    if (!token) return false
+    try {
+      await getUsuarioMe()
+      return true
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        get().clearSession({ redirect: false })
+        return false
+      }
+      return true
+    }
   },
 
   /** Atualiza flags do utilizador a partir de GET /usuarios/me (ex.: crm_habilitado). */
@@ -152,10 +173,18 @@ export const useAuthStore = create((set, get) => ({
 
       initSocket(parsed.token)
 
-      // Carrega permissões do usuário (menus e proteção de rotas)
-      usePermissoesStore.getState().fetchPermissoes().catch(() => {})
+      queueMicrotask(() => {
+        get()
+          .validateSession()
+          .then((ok) => {
+            if (!ok) return
+            usePermissoesStore.getState().fetchPermissoes().catch(() => {})
+            get().syncUsuarioMe?.().catch(() => {})
+          })
+          .catch(() => {})
+      })
     } catch {
-      localStorage.removeItem("zap_erp_auth")
+      get().clearSession({ redirect: false })
     }
   },
 }))

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthStore } from "../auth/authStore"
+import { getApiBaseUrl } from "../api/baseUrl"
 
 function readLastEmail() {
   try {
@@ -43,7 +44,14 @@ export default function Login() {
       if (status === 429) {
         setErro("Muitas tentativas. Aguarde 1 minuto e tente novamente.")
       } else if (err?.message === "Network Error" || err?.code === "ECONNABORTED") {
-        setErro("Sem conexão. Verifique sua internet e tente novamente.")
+        const api = getApiBaseUrl()
+        setErro(
+          import.meta.env.DEV
+            ? `Sem conexão com a API (${api}). Confira se o backend está no ar e se VITE_API_URL no .env.local aponta para o mesmo servidor.`
+            : "Sem conexão. Verifique sua internet e tente novamente."
+        )
+      } else if (status === 401) {
+        setErro(msg || "E-mail ou senha incorretos.")
       } else {
         setErro(msg)
       }
@@ -112,6 +120,12 @@ export default function Login() {
             {erro}
           </p>
         )}
+
+        {import.meta.env.DEV ? (
+          <p className="login-api-hint" style={{ marginTop: 12, fontSize: 12, opacity: 0.75 }}>
+            API: {getApiBaseUrl()}
+          </p>
+        ) : null}
       </form>
     </div>
   )
