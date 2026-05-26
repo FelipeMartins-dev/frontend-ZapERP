@@ -1,6 +1,10 @@
 import { useMemo, useRef } from "react";
 import { computeBaseCounts, getAguardandoFuncionarioVisualState } from "../chatListCounts";
 import { chatListsStoreEquivalent } from "../chatListStoreCompare";
+import {
+  isConversaAguardandoCliente,
+  isConversaAguardandoFuncionario,
+} from "../chatListRowAtendimento";
 
 /**
  * Contadores dos chips/KPIs da lista (base em `chats` + badges vindos de GET dedicados).
@@ -32,13 +36,30 @@ export function useChatListCounts({
   const countFinalizadas = baseCounts.finalizadas;
   const countFinalizadasAuto = baseCounts.finalizadasAuto;
   /** Chip: sempre vem do GET dedicado `aguardando_cliente=1` (escopo backend), não do length da lista atual. */
-  const countAguardandoCliente = aguardandoClienteBadgeCount;
-  const countAguardandoFuncionario =
+  const pendentesFuncionarioSet = useMemo(
+    () => new Set((pendentesFuncionarioIds || []).map((x) => String(x))),
+    [pendentesFuncionarioIds]
+  );
+  const localAguardandoCliente = useMemo(
+    () => (Array.isArray(chats) ? chats.filter((c) => isConversaAguardandoCliente(c)).length : 0),
+    [chats]
+  );
+  const localAguardandoFuncionario = useMemo(
+    () =>
+      Array.isArray(chats)
+        ? chats.filter((c) => isConversaAguardandoFuncionario(c, pendentesFuncionarioSet)).length
+        : 0,
+    [chats, pendentesFuncionarioSet]
+  );
+  const countAguardandoCliente = Math.max(Number(aguardandoClienteBadgeCount) || 0, localAguardandoCliente);
+  const countAguardandoFuncionario = Math.max(
     Number(
       supervisaoResumo?.aguardando_funcionario ??
         supervisaoResumo?.aguardandoFuncionario ??
         (pendentesFuncionarioIds || []).length
-    ) || 0;
+    ) || 0,
+    localAguardandoFuncionario
+  );
   const aguardandoFuncionarioVisualState = getAguardandoFuncionarioVisualState(
     countAguardandoFuncionario
   );

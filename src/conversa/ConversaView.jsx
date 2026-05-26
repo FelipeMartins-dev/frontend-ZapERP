@@ -182,6 +182,7 @@ function ConversaViewBody() {
     carregarAtendimentos,
     clearTyping,
     assumirConversa,
+    setTags,
   } = useConversaStore(
     (s) => ({
       refresh: s.refresh,
@@ -197,6 +198,7 @@ function ConversaViewBody() {
       carregarAtendimentos: s.carregarAtendimentos,
       clearTyping: s.clearTyping,
       assumirConversa: s.assumirConversa,
+      setTags: s.setTags,
     }),
     shallow
   );
@@ -495,20 +497,25 @@ function ConversaViewBody() {
   const [avatarImgError, setAvatarImgError] = useState(false);
   const showAvatarImg = Boolean(avatarUrl && !avatarImgError);
 
-  const badge = useMemo(
-    () =>
-      statusBadge(
-        getStatusAtendimentoEffective(conversa),
-        conversa?.exibir_badge_aberta,
-        conversa?.finalizacao_motivo
-      ),
-    [
-      conversa?.status_atendimento,
-      conversa?.status_atendimento_real,
+  const badge = useMemo(() => {
+    const status = getStatusAtendimentoEffective(conversa);
+    const statusVisual =
+      status === "em_atendimento" && conversa?.atendente_id != null && conversa?.aguardando_cliente_desde != null
+        ? "aguardando_cliente"
+        : status;
+    return statusBadge(
+      statusVisual,
       conversa?.exibir_badge_aberta,
-      conversa?.finalizacao_motivo,
-    ]
-  );
+      conversa?.finalizacao_motivo
+    );
+  }, [
+    conversa?.status_atendimento,
+    conversa?.status_atendimento_real,
+    conversa?.atendente_id,
+    conversa?.aguardando_cliente_desde,
+    conversa?.exibir_badge_aberta,
+    conversa?.finalizacao_motivo,
+  ]);
 
   const showPagamentoConcluidoBadge = useMemo(
     () => exibirBadgePagamentoConcluido(conversa),
@@ -698,8 +705,8 @@ function ConversaViewBody() {
 
     const patch = {
       id: conversaId,
-      status_atendimento: "aguardando_cliente",
-      status_atendimento_real: "aguardando_cliente",
+      status_atendimento: "em_atendimento",
+      status_atendimento_real: "em_atendimento",
       aguardando_cliente_desde: new Date().toISOString(),
       exibir_badge_aberta: false,
       tem_novas_mensagens_em_atendimento: false,
@@ -2200,15 +2207,27 @@ function ConversaViewBody() {
     async (tag) => {
       if (!conversaId || !tag?.id) return;
       const alreadySelected = selectedTagIds.includes(tag.id);
+      const previousTags = Array.isArray(tags) ? tags : [];
+      const nextTags = alreadySelected
+        ? previousTags.filter((t) => String(t.id) !== String(tag.id))
+        : [...previousTags, tag];
       try {
         setTagMutatingId(tag.id);
+        setTags(nextTags);
+        const chatStore = useChatStore.getState();
+        if (alreadySelected) {
+          chatStore.removerTag(conversaId, tag.id);
+        } else {
+          chatStore.adicionarTag(conversaId, tag);
+        }
         if (alreadySelected) {
           await removerTagConversa(conversaId, tag.id);
         } else {
           await adicionarTagConversa(conversaId, tag.id);
         }
-        await refresh({ silent: true });
       } catch (err) {
+        setTags(previousTags);
+        useChatStore.getState().updateChat({ id: conversaId, tags: previousTags });
         console.error("Erro ao atualizar tag da conversa:", err);
         showToast({
           type: "error",
@@ -2219,7 +2238,7 @@ function ConversaViewBody() {
         setTagMutatingId(null);
       }
     },
-    [conversaId, selectedTagIds, refresh, showToast]
+    [conversaId, selectedTagIds, setTags, showToast, tags]
   );
 
   // Tags: só carregamos ao abrir o painel (evita toast "falha ao carregar" em background)

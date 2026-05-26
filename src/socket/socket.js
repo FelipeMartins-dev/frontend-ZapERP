@@ -88,8 +88,16 @@ function applyRetomadaSeAguardandoPorMensagemRecebida(conversaId, msg) {
   const aberto = convStore.selectedId && String(convStore.selectedId) === String(conversaId)
   const openConv = aberto ? convStore.conversa : null
 
-  const rowAguarda = row && getStatusAtendimentoEffective(row) === "aguardando_cliente"
-  const openAguarda = openConv && getStatusAtendimentoEffective(openConv) === "aguardando_cliente"
+  const rowStatus = row ? getStatusAtendimentoEffective(row) : ""
+  const openStatus = openConv ? getStatusAtendimentoEffective(openConv) : ""
+  const rowAguarda =
+    row &&
+    (rowStatus === "aguardando_cliente" ||
+      (rowStatus === "em_atendimento" && row?.aguardando_cliente_desde != null))
+  const openAguarda =
+    openConv &&
+    (openStatus === "aguardando_cliente" ||
+      (openStatus === "em_atendimento" && openConv?.aguardando_cliente_desde != null))
   if (!rowAguarda && !openAguarda) return
 
   const patch = {
@@ -613,7 +621,11 @@ export function initSocket(token) {
 
     const convStore = useConversaStore.getState()
     if (String(convStore.selectedId) === String(conversa_id)) {
-      convStore.setTags([...(convStore.tags || []), tag])
+      const currentTags = convStore.tags || []
+      const nextTags = currentTags.some((t) => String(t.id) === String(tag?.id))
+        ? currentTags
+        : [...currentTags, tag]
+      convStore.setTags(nextTags)
     }
   })
 
@@ -624,7 +636,7 @@ export function initSocket(token) {
 
     const convStore = useConversaStore.getState()
     if (String(convStore.selectedId) === String(conversa_id)) {
-      convStore.setTags((convStore.tags || []).filter(t => t.id !== tag_id))
+      convStore.setTags((convStore.tags || []).filter(t => String(t.id) !== String(tag_id)))
     }
   })
 
@@ -1172,7 +1184,7 @@ export function initSocket(token) {
       if (needsListResync) {
         chatStore.requestChatListResync()
       }
-    }, 400)
+    }, 180)
   })
 
   /* Nome e foto do contato atualizados pela API UltraMsg (tempo real) — name (nome salvo no celular) tem prioridade sobre pushname */

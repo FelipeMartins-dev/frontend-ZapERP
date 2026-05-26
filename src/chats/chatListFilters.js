@@ -5,7 +5,7 @@ import {
   isGroupConversation,
 } from "../utils/conversaUtils";
 import { getDisplayName, getPhone } from "./chatListDisplay";
-import { getLastMessage } from "./chatListRowAtendimento";
+import { getLastMessage, isConversaAguardandoFuncionario } from "./chatListRowAtendimento";
 import { chatListsStoreEquivalent } from "./chatListStoreCompare";
 
 export function digitsOnly(v) {
@@ -189,7 +189,7 @@ export function computeChatsFiltrados({
         (c) => getStatusAtendimentoEffective(c) === "em_atraso" && c?.atendente_id != null
       );
     } else if (tab === "aguardando_funcionario") {
-      list = list.filter((c) => pendentesFuncionarioSet.has(String(c?.id ?? "")));
+      list = list.filter((c) => isConversaAguardandoFuncionario(c, pendentesFuncionarioSet));
     }
   }
 

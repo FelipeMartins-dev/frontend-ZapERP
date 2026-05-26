@@ -20,8 +20,8 @@ function canonicalKey(c) {
 let chatListResyncDebounceTimer = null
 let chatListResyncMaxWaitTimer = null
 let chatListResyncWindowStart = 0
-const CHAT_LIST_RESYNC_DEBOUNCE_MS = 450
-const CHAT_LIST_RESYNC_MAX_WAIT_MS = 1200
+const CHAT_LIST_RESYNC_DEBOUNCE_MS = 180
+const CHAT_LIST_RESYNC_MAX_WAIT_MS = 700
 
 /** Ordena conversas por ultima_atividade DESC (mais recente no topo) */
 function sortConversasByRecent(arr) {
@@ -346,7 +346,12 @@ export const useChatStore = create((set, get) => ({
     set((state) => ({
       chats: state.chats.map(c =>
         String(c.id) === String(conversa_id)
-          ? { ...c, tags: [...(c.tags || []), tag] }
+          ? {
+              ...c,
+              tags: (c.tags || []).some((t) => String(t.id) === String(tag?.id))
+                ? (c.tags || [])
+                : [...(c.tags || []), tag]
+            }
           : c
       )
     })),

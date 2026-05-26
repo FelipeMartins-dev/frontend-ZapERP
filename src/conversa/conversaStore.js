@@ -1548,6 +1548,20 @@ export const useConversaStore = create((set, get) => {
   ===================================================== */
   assumirConversa: async (conversaId) => {
     const preserve = get()._messagesScrollPreserve
+    const chatStore = useChatStore.getState()
+    const row = (chatStore.chats || []).find((c) => String(c.id) === String(conversaId))
+    const openConv = get().conversa
+    const src = row || (openConv && String(openConv.id) === String(conversaId) ? openConv : null)
+    const me = getCurrentUserFromStorage()
+    const optimistic = {
+      id: conversaId,
+      status_atendimento: "em_atendimento",
+      status_atendimento_real: "em_atendimento",
+      exibir_badge_aberta: false,
+      mensagens_bloqueadas: false,
+      atendente_nome: me?.nome ?? null,
+      ...(me?.id != null ? { atendente_id: me.id } : {}),
+    }
     preserve?.begin?.()
     const schedulePreserveEnd = () => {
       const run = (phase) => {
@@ -1566,24 +1580,31 @@ export const useConversaStore = create((set, get) => {
         run("release")
       }
     }
+    get().patchConversa(optimistic)
+    chatStore.updateChat(optimistic)
     try {
       const data = await assumirChat(conversaId)
       const payload = data?.conversa ?? data ?? {}
-      const me = getCurrentUserFromStorage()
-      const optimistic = {
-        id: conversaId,
-        status_atendimento: "em_atendimento",
-        status_atendimento_real: "em_atendimento",
-        exibir_badge_aberta: false,
-        mensagens_bloqueadas: false,
-        atendente_nome: me?.nome ?? null,
-        ...(me?.id != null ? { atendente_id: me.id } : {}),
-      }
       const patch = { ...optimistic, ...payload, id: conversaId }
       get().patchConversa(patch)
       useChatStore.getState().updateChat(patch)
       useChatStore.getState().requestChatListResync()
       set({ atendimentosLoadedFor: null })
+    } catch (err) {
+      if (src) {
+        const revert = {
+          id: conversaId,
+          status_atendimento: src.status_atendimento,
+          status_atendimento_real: src.status_atendimento_real,
+          exibir_badge_aberta: src.exibir_badge_aberta,
+          mensagens_bloqueadas: src.mensagens_bloqueadas,
+          atendente_nome: src.atendente_nome,
+          atendente_id: src.atendente_id,
+        }
+        get().patchConversa(revert)
+        useChatStore.getState().updateChat(revert)
+      }
+      throw err
     } finally {
       schedulePreserveEnd()
     }
@@ -1597,39 +1618,101 @@ export const useConversaStore = create((set, get) => {
   },
 
   encerrarConversa: async (conversaId) => {
-    const data = await encerrarChat(conversaId)
-    const payload = data?.conversa ?? data ?? {}
+    const chatStore = useChatStore.getState()
+    const row = (chatStore.chats || []).find((c) => String(c.id) === String(conversaId))
+    const openConv = get().conversa
+    const src = row || (openConv && String(openConv.id) === String(conversaId) ? openConv : null)
     const optimistic = {
       id: conversaId,
       status_atendimento: "encerrada",
+      status_atendimento_real: "fechada",
       exibir_badge_aberta: false,
       pagamento_concluido_em: null,
       pagamento_prazo_ate: null,
       pagamento_prazo_origem: null,
+      aguardando_cliente_desde: null,
     }
-    const patch = { ...optimistic, ...payload, id: conversaId }
-    get().patchConversa(patch)
-    useChatStore.getState().updateChat(patch)
-    useChatStore.getState().requestChatListResync()
-    set({ atendimentosLoadedFor: null })
+    get().patchConversa(optimistic)
+    chatStore.updateChat(optimistic)
+    try {
+      const data = await encerrarChat(conversaId)
+      const payload = data?.conversa ?? data ?? {}
+      const patch = { ...optimistic, ...payload, id: conversaId }
+      get().patchConversa(patch)
+      useChatStore.getState().updateChat(patch)
+      useChatStore.getState().requestChatListResync()
+      set({ atendimentosLoadedFor: null })
+    } catch (err) {
+      if (src) {
+        const revert = {
+          id: conversaId,
+          status_atendimento: src.status_atendimento,
+          status_atendimento_real: src.status_atendimento_real,
+          exibir_badge_aberta: src.exibir_badge_aberta,
+          mensagens_bloqueadas: src.mensagens_bloqueadas,
+          atendente_nome: src.atendente_nome,
+          atendente_id: src.atendente_id,
+          aguardando_cliente_desde: src.aguardando_cliente_desde,
+          pagamento_concluido_em: src.pagamento_concluido_em,
+          pagamento_prazo_ate: src.pagamento_prazo_ate,
+          pagamento_prazo_origem: src.pagamento_prazo_origem,
+        }
+        get().patchConversa(revert)
+        useChatStore.getState().updateChat(revert)
+      }
+      throw err
+    }
   },
 
   reabrirConversa: async (conversaId) => {
-    const data = await reabrirChat(conversaId)
-    const payload = data?.conversa ?? data ?? {}
+    const chatStore = useChatStore.getState()
+    const row = (chatStore.chats || []).find((c) => String(c.id) === String(conversaId))
+    const openConv = get().conversa
+    const src = row || (openConv && String(openConv.id) === String(conversaId) ? openConv : null)
+    const me = getCurrentUserFromStorage()
     const optimistic = {
       id: conversaId,
-      status_atendimento: "fila",
-      exibir_badge_aberta: true,
+      status_atendimento: "em_atendimento",
+      status_atendimento_real: "em_atendimento",
+      exibir_badge_aberta: false,
       mensagens_bloqueadas: false,
-      atendente_nome: null,
-      atendente_id: null,
+      atendente_nome: me?.nome ?? null,
+      ...(me?.id != null ? { atendente_id: me.id } : {}),
+      aguardando_cliente_desde: null,
+      pagamento_concluido_em: null,
+      pagamento_prazo_ate: null,
+      pagamento_prazo_origem: null,
     }
-    const patch = { ...optimistic, ...payload, id: conversaId }
-    get().patchConversa(patch)
-    useChatStore.getState().updateChat(patch)
-    useChatStore.getState().requestChatListResync()
-    set({ atendimentosLoadedFor: null })
+    get().patchConversa(optimistic)
+    chatStore.updateChat(optimistic)
+    try {
+      const data = await reabrirChat(conversaId)
+      const payload = data?.conversa ?? data ?? {}
+      const patch = { ...optimistic, ...payload, id: conversaId }
+      get().patchConversa(patch)
+      useChatStore.getState().updateChat(patch)
+      useChatStore.getState().requestChatListResync()
+      set({ atendimentosLoadedFor: null })
+    } catch (err) {
+      if (src) {
+        const revert = {
+          id: conversaId,
+          status_atendimento: src.status_atendimento,
+          status_atendimento_real: src.status_atendimento_real,
+          exibir_badge_aberta: src.exibir_badge_aberta,
+          mensagens_bloqueadas: src.mensagens_bloqueadas,
+          atendente_nome: src.atendente_nome,
+          atendente_id: src.atendente_id,
+          aguardando_cliente_desde: src.aguardando_cliente_desde,
+          pagamento_concluido_em: src.pagamento_concluido_em,
+          pagamento_prazo_ate: src.pagamento_prazo_ate,
+          pagamento_prazo_origem: src.pagamento_prazo_origem,
+        }
+        get().patchConversa(revert)
+        useChatStore.getState().updateChat(revert)
+      }
+      throw err
+    }
   },
 
   marcarAguardandoClienteConversa: async (conversaId) => {
