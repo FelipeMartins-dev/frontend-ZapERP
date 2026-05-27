@@ -375,8 +375,46 @@ export function getMediaUrl(url, urlAbsoluta) {
   if (urlAbsoluta) return urlAbsoluta;
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("blob:")) return url;
   const base = getApiBaseUrl();
   return base.replace(/\/$/, "") + (url.startsWith("/") ? url : "/" + url);
+}
+
+function getAuthTokenFromStorage() {
+  try {
+    const raw = localStorage.getItem("zap_erp_auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.token ? String(parsed.token).trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** URLs externas (ex.: S3 UltraMsg) precisam do proxy autenticado para <video> reproduzir no CRM. */
+export function needsProxiedMediaPlayback(absUrl) {
+  const abs = String(absUrl || "").trim();
+  if (!abs || abs.startsWith("blob:")) return false;
+  if (!/^https?:\/\//i.test(abs)) return false;
+  try {
+    const u = new URL(abs);
+    const baseRaw = getApiBaseUrl().replace(/\/$/, "");
+    const api = new URL(baseRaw.startsWith("http") ? baseRaw : `https://${baseRaw}`);
+    if (u.origin === api.origin && u.pathname.startsWith("/uploads/")) return false;
+    return true;
+  } catch {
+    return /^https?:\/\//i.test(abs);
+  }
+}
+
+export function getMediaPlaybackUrl(url, urlAbsoluta) {
+  const abs = getMediaUrl(url, urlAbsoluta);
+  if (!abs) return "";
+  if (!needsProxiedMediaPlayback(abs)) return abs;
+  const token = getAuthTokenFromStorage();
+  const q = new URLSearchParams({ url: abs });
+  if (token) q.set("access_token", token);
+  return `${getApiBaseUrl().replace(/\/$/, "")}/media/proxy?${q.toString()}`;
 }
 
 export function credentialedFetchMode() {

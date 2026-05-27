@@ -225,12 +225,10 @@ function ConversaViewBody() {
     /** Grupos: qualquer usuário pode enviar sem assumir atendimento (modelo WhatsApp). */
     if (isGroupConversation(conversa)) return true;
     if (conversa?.mensagens_bloqueadas) return false;
-    const perfil = String(user?.perfil || user?.role || "").toLowerCase();
-    if (perfil === "admin") return true;
     const atendenteId = conversa?.atendente_id ?? null;
     if (atendenteId == null || atendenteId === "") return false;
     return String(atendenteId) === String(user.id);
-  }, [user?.id, user?.perfil, user?.role, conversa, conversa?.atendente_id, conversa?.id, conversa?.mensagens_bloqueadas]);
+  }, [user?.id, conversa, conversa?.atendente_id, conversa?.id, conversa?.mensagens_bloqueadas]);
 
   const [showTimeline, setShowTimeline] = useState(false);
   const [sending, setSending] = useState(false);
@@ -558,7 +556,7 @@ function ConversaViewBody() {
   }, [avatarUrl]);
 
   const selectedTagIds = useMemo(
-    () => (Array.isArray(tags) ? tags.map((t) => t.id) : []),
+    () => (Array.isArray(tags) ? tags.map((t) => String(t?.id)) : []),
     [tags]
   );
 
@@ -1697,7 +1695,10 @@ function ConversaViewBody() {
         return;
       }
       // regra: "para todos" somente para mensagens enviadas por mim
-      if (!myUserId || msg?.autor_usuario_id == null || String(msg.autor_usuario_id) !== String(myUserId)) {
+      const souAutor =
+        (msg?.autor_usuario_id != null && String(msg.autor_usuario_id) === String(myUserId)) ||
+        (msg?.autor_usuario_id == null && isOutgoingMessage(msg));
+      if (!myUserId || !souAutor) {
         showToast({
           type: "info",
           title: "Somente suas mensagens",
@@ -1719,8 +1720,15 @@ function ConversaViewBody() {
       );
       if (!ok) return;
       try {
-        await excluirMensagem(conversaId, mid);
+        const res = await excluirMensagem(conversaId, mid);
         marcarMensagemApagadaParaTodos(mid, { euQueApaguei: true });
+        if (res?.texto) {
+          useConversaStore.getState().patchMensagem(mid, {
+            texto: res.texto,
+            apagada_para_todos: true,
+            reply_meta: null,
+          });
+        }
         showToast({
           type: "success",
           title: "Apagada para todos",
@@ -1728,7 +1736,12 @@ function ConversaViewBody() {
         });
       } catch (e) {
         console.error("Erro ao excluir mensagem:", e);
-        showToast({ type: "error", title: "Falha ao apagar", message: "Não foi possível apagar a mensagem." });
+        const apiMsg = e?.response?.data?.error;
+        showToast({
+          type: "error",
+          title: "Falha ao apagar",
+          message: apiMsg || "Não foi possível apagar a mensagem.",
+        });
       }
     },
     [conversaId, myUserId, showToast, marcarMensagemApagadaParaTodos]
@@ -2206,7 +2219,7 @@ function ConversaViewBody() {
   const handleToggleTag = useCallback(
     async (tag) => {
       if (!conversaId || !tag?.id) return;
-      const alreadySelected = selectedTagIds.includes(tag.id);
+      const alreadySelected = selectedTagIds.includes(String(tag.id));
       const previousTags = Array.isArray(tags) ? tags : [];
       const nextTags = alreadySelected
         ? previousTags.filter((t) => String(t.id) !== String(tag.id))
@@ -2226,6 +2239,9 @@ function ConversaViewBody() {
           await adicionarTagConversa(conversaId, tag.id);
         }
       } catch (err) {
+        if (!alreadySelected && err?.response?.status === 409) {
+          return;
+        }
         setTags(previousTags);
         useChatStore.getState().updateChat({ id: conversaId, tags: previousTags });
         console.error("Erro ao atualizar tag da conversa:", err);
@@ -2489,7 +2505,7 @@ function ConversaViewBody() {
               ) : (
                 <div className="wa-tagsList">
                   {allTags.map((tag) => {
-                    const selected = selectedTagIds.includes(tag.id);
+                    const selected = selectedTagIds.includes(String(tag.id));
                     const busy = tagMutatingId === tag.id;
                     return (
                       <button

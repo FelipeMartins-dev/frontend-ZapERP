@@ -33,7 +33,7 @@ export default function Login() {
 
     try {
       await login(email.trim(), senha)
-      navigate("/", { replace: true })
+      navigate("/atendimento", { replace: true })
     } catch (err) {
       const status = err?.response?.status
       const msg =

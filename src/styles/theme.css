@@ -14,10 +14,10 @@
   --ds-bg-base: #f0f2f5;
   --ds-bg-raised: #ffffff;
   --ds-bg-overlay: #ffffff;
-  --ds-bg-sunken: #e9edef;
+  --ds-bg-sunken: #e8edf2;
   --ds-surface-1: #ffffff;
   --ds-surface-2: #f7f8fa;
-  --ds-surface-3: #efeae2;
+  --ds-surface-3: #edf2f7;
 
   /* ---- Texto (hierarquia) ---- */
   --ds-text-primary: #111827;
@@ -89,16 +89,19 @@
   /* ---- Componentes específicos (WhatsApp Web — cores fiéis) ---- */
   --ds-chat-header: #f0f2f5;
 
-  /* ---- Chat background premium (LIGHT) — visual refinado, tons quentes sofisticados ---- */
-  --ds-chat-bg: linear-gradient(165deg, #faf9f7 0%, #f5f2ee 18%, #efece6 38%, #ebe7e0 55%, #f2efe9 75%, #f8f6f2 100%);
-  --ds-bg-base: #ebe8e4;
-  --wa-pattern-opacity: 0.09;
-  --wa-pattern-size: 300px 300px;
-  --wa-glow-opacity: 0.2;
-  --wa-glow-1: radial-gradient(ellipse 120% 80% at 10% 15%, rgba(0, 168, 132, 0.06), transparent 60%);
-  --wa-glow-2: radial-gradient(ellipse 90% 60% at 92% 85%, rgba(184, 159, 132, 0.08), transparent 55%);
-  --wa-glow-3: radial-gradient(ellipse 100% 70% at 50% 50%, rgba(255, 255, 255, 0.4), transparent 70%);
-  --wa-pattern-blend: multiply;
+  /* ---- Chat background premium (LIGHT) — visual refinado, neutro e corporativo ---- */
+  --ds-chat-bg:
+    linear-gradient(135deg, rgba(0, 168, 132, 0.045) 0%, transparent 34%),
+    linear-gradient(225deg, rgba(37, 99, 235, 0.055) 0%, transparent 38%),
+    linear-gradient(180deg, #fbfcfd 0%, #f5f8fb 30%, #edf3f8 64%, #f8fafc 100%);
+  --ds-bg-base: #eef3f7;
+  --wa-pattern-opacity: 0.06;
+  --wa-pattern-size: 340px 340px;
+  --wa-glow-opacity: 0.78;
+  --wa-glow-1: linear-gradient(120deg, rgba(0, 168, 132, 0.08) 0%, rgba(0, 168, 132, 0.025) 22%, transparent 48%);
+  --wa-glow-2: linear-gradient(245deg, rgba(37, 99, 235, 0.07) 0%, rgba(37, 99, 235, 0.018) 26%, transparent 52%);
+  --wa-glow-3: linear-gradient(180deg, rgba(255, 255, 255, 0.46) 0%, transparent 36%, rgba(15, 23, 42, 0.035) 100%);
+  --wa-pattern-blend: soft-light;
   --ds-bubble-in: #ffffff;
   --ds-bubble-out: #dcf8c6;
   --ds-input-bg: #ffffff;
@@ -168,14 +171,17 @@
   --ds-shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.5);
 
   /* ---- Chat específico (DARK) — premium, profundidade, acentos sutis ---- */
-  --ds-chat-bg: linear-gradient(165deg, #0a1218 0%, #0d1820 25%, #0f1c24 50%, #0b161d 75%, #090f14 100%);
+  --ds-chat-bg:
+    linear-gradient(135deg, rgba(0, 168, 132, 0.085) 0%, transparent 34%),
+    linear-gradient(225deg, rgba(59, 130, 246, 0.07) 0%, transparent 40%),
+    linear-gradient(180deg, #071017 0%, #0a151d 30%, #0d1b24 62%, #081118 100%);
   --ds-chat-header: #202c33;
-  --wa-pattern-opacity: 0.075;
-  --wa-pattern-size: 300px 300px;
-  --wa-glow-opacity: 0.25;
-  --wa-glow-1: radial-gradient(ellipse 100% 70% at 15% 20%, rgba(0, 168, 132, 0.08), transparent 55%);
-  --wa-glow-2: radial-gradient(ellipse 80% 50% at 88% 80%, rgba(59, 130, 246, 0.05), transparent 50%);
-  --wa-glow-3: radial-gradient(ellipse 90% 60% at 50% 50%, rgba(255, 255, 255, 0.03), transparent 60%);
+  --wa-pattern-opacity: 0.055;
+  --wa-pattern-size: 340px 340px;
+  --wa-glow-opacity: 0.72;
+  --wa-glow-1: linear-gradient(120deg, rgba(0, 168, 132, 0.14) 0%, rgba(0, 168, 132, 0.04) 24%, transparent 50%);
+  --wa-glow-2: linear-gradient(245deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.035) 28%, transparent 56%);
+  --wa-glow-3: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, transparent 34%, rgba(0, 0, 0, 0.2) 100%);
   --wa-pattern-blend: soft-light;
   --ds-bubble-in: #202c33;
   --ds-bubble-out: #005c4b;

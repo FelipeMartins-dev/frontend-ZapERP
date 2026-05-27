@@ -1190,10 +1190,8 @@
 ========================================================= */
 
 @keyframes wa-glow-drift {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(15px, -10px); }
-  50% { transform: translate(-20px, 12px); }
-  75% { transform: translate(10px, 20px); }
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: var(--wa-glow-opacity); }
+  50% { transform: translate3d(0, -10px, 0); opacity: calc(var(--wa-glow-opacity) * 0.82); }
 }
 
 .wa-messages {
@@ -1310,11 +1308,11 @@
   z-index: 0;
   background-image: var(--wa-glow-1), var(--wa-glow-2), var(--wa-glow-3);
   background-repeat: no-repeat;
-  background-position: 20% 15%, 85% 85%, 50% 50%;
-  background-size: 120% 80%, 100% 60%, 80% 50%;
+  background-position: 0 0, 100% 0, 0 0;
+  background-size: 100% 100%, 100% 100%, 100% 100%;
   opacity: var(--wa-glow-opacity);
   pointer-events: none;
-  animation: wa-glow-drift 45s ease-in-out infinite;
+  animation: wa-glow-drift 36s ease-in-out infinite;
 }
 
 .wa-messages > * {

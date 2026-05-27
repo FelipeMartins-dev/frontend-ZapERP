@@ -9,6 +9,7 @@ import {
   isOutgoingMessage,
   isFilenameOnlyText,
   getMediaUrl,
+  getMediaPlaybackUrl,
   formatHora,
   formatMmSs,
   formatFileSize,
@@ -671,6 +672,8 @@ const Bubble = memo(function Bubble({
   const out = isOutgoingMessage(msg);
   const isApagadaParaTodos = !!msg?.apagada_para_todos;
   const mediaUrl = getMediaUrl(msg?.url, msg?.url_absoluta);
+  const videoPlaybackUrl =
+    msg?.tipo === "video" && mediaUrl ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) : mediaUrl;
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
     if (msg?.apagada_para_todos) return false;
@@ -1172,10 +1175,15 @@ const Bubble = memo(function Bubble({
                         skipNextMediaTapRef.current = false;
                         return;
                       }
-                      onOpenMedia?.(mediaUrl, "video");
+                      onOpenMedia?.(videoPlaybackUrl || mediaUrl, "video");
                     }}
                   >
-                    <video src={mediaUrl} playsInline className="wa-bubble-videoEl" />
+                    <video
+                      src={videoPlaybackUrl || mediaUrl}
+                      playsInline
+                      preload="metadata"
+                      className="wa-bubble-videoEl"
+                    />
                   </button>
                   {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}
                 </div>
