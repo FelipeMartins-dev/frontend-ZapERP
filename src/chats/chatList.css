@@ -114,13 +114,10 @@
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.open.chat-list-status--hud-open {
-  background: rgba(6, 78, 59, 0.82);
-  color: #bbf7d0 !important;
-  border-color: rgba(52, 211, 153, 0.44);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(0, 0, 0, 0.26),
-    0 8px 20px rgba(0, 168, 132, 0.12);
+  background: #052e16;
+  color: #fff !important;
+  border-color: rgba(0, 255, 136, 0.72);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 14px rgba(0, 255, 136, 0.22);
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.in.chat-list-status--hud-in {
@@ -1155,15 +1152,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card.is-active {
-  background:
-    linear-gradient(135deg, rgba(0, 168, 132, 0.22) 0%, rgba(32, 44, 51, 0.96) 54%),
-    rgba(32, 44, 51, 0.94);
-  border-color: rgba(0, 168, 132, 0.34);
+  border-color: rgba(0, 168, 132, 0.45);
   border-left-width: 3px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(0, 168, 132, 0.12),
-    0 12px 28px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 640px) {
@@ -2400,15 +2390,15 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   overflow: hidden;
   justify-content: flex-start;
-  font-family: inherit;
-  font-size: 10.5px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0;
-  color: #dcfce7;
-  background: linear-gradient(180deg, rgba(6, 95, 70, 0.92), rgba(5, 46, 22, 0.88));
-  border: 1px solid rgba(52, 211, 153, 0.36);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  padding: 5px 14px;
+  letter-spacing: -0.04em;
+  color: #fff;
+  background: #052e16;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 136, 0.06);
+  padding: 5px 15px;
   min-height: 22px;
 }
 
