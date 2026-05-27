@@ -29,6 +29,18 @@
   --wa-status-green: var(--ds-accent);
   --wa-status-blue: #53bdeb;
   --wa-status-orange: #e7a33e;
+  --wa-glass-surface: color-mix(in srgb, var(--wa-header-bg) 88%, #ffffff 12%);
+  --wa-glass-strong: color-mix(in srgb, var(--wa-panel) 92%, #ffffff 8%);
+  --wa-header-shadow: 0 12px 30px -28px rgba(15, 23, 42, 0.36);
+  --wa-composer-shadow: 0 -14px 32px -30px rgba(15, 23, 42, 0.46);
+  --wa-bubble-border-in: rgba(15, 23, 42, 0.08);
+  --wa-bubble-border-out: rgba(0, 92, 75, 0.14);
+  --wa-action-blue: #2563eb;
+  --wa-action-blue-soft: rgba(37, 99, 235, 0.12);
+  --wa-action-amber: #b45309;
+  --wa-action-amber-soft: rgba(217, 119, 6, 0.13);
+  --wa-action-red: #dc2626;
+  --wa-action-red-soft: rgba(220, 38, 38, 0.1);
 
   --wa-audio-accent: rgba(0,168,132,.92);
   --wa-audio-surface-in: rgba(255,255,255,.58);
@@ -44,6 +56,18 @@
 
 [data-theme="dark"] {
   --wa-shadow-bubble: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --wa-glass-surface: color-mix(in srgb, var(--wa-header-bg) 86%, #0b141a 14%);
+  --wa-glass-strong: color-mix(in srgb, var(--wa-panel) 86%, #24323a 14%);
+  --wa-header-shadow: 0 16px 34px -24px rgba(0, 0, 0, 0.72);
+  --wa-composer-shadow: 0 -16px 34px -26px rgba(0, 0, 0, 0.78);
+  --wa-bubble-border-in: rgba(255, 255, 255, 0.09);
+  --wa-bubble-border-out: rgba(255, 255, 255, 0.07);
+  --wa-action-blue: #60a5fa;
+  --wa-action-blue-soft: rgba(96, 165, 250, 0.16);
+  --wa-action-amber: #fbbf24;
+  --wa-action-amber-soft: rgba(251, 191, 36, 0.16);
+  --wa-action-red: #f87171;
+  --wa-action-red-soft: rgba(248, 113, 113, 0.14);
   --wa-audio-accent: rgba(34,197,94,.92);
   --wa-audio-surface-in: rgba(32,44,51,.92);
   --wa-audio-surface-out: rgba(0,92,75,.88);
@@ -114,8 +138,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--wa-header-bg);
-  border-bottom: 1px solid var(--wa-panel-border);
+  background:
+    linear-gradient(180deg, var(--wa-glass-surface) 0%, var(--wa-header-bg) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  box-shadow: var(--wa-header-shadow);
+  backdrop-filter: blur(14px);
   flex-shrink: 0;
   flex: 0 0 auto;
   gap: 12px;
@@ -189,6 +216,10 @@
   font-weight: 600;
   font-size: 15px;
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 80%, transparent);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    0 0 0 3px color-mix(in srgb, var(--wa-panel) 68%, transparent);
 }
 
 .wa-avatar-img {
@@ -239,14 +270,14 @@
 
 .wa-header-name {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--wa-text);
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 320px;
-  letter-spacing: .2px;
+  letter-spacing: 0;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -321,17 +352,19 @@
 
 .wa-header-setorBtn {
   font-size: 12px;
-  padding: 2px 8px;
-  border-radius: var(--ds-radius-sm);
-  border: none;
-  background: var(--ds-hover);
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 80%, transparent);
+  background: color-mix(in srgb, var(--wa-panel) 82%, transparent);
   color: var(--wa-text-muted);
   cursor: pointer;
-  transition: background var(--ds-transition), color var(--ds-transition);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent);
+  transition: background var(--ds-transition), color var(--ds-transition), border-color var(--ds-transition);
 }
 
 .wa-header-setorBtn:hover {
-  background: var(--ds-hover-strong);
+  background: color-mix(in srgb, var(--wa-green) 9%, var(--wa-panel));
+  border-color: color-mix(in srgb, var(--wa-green) 28%, var(--wa-panel-border));
   color: var(--wa-text);
 }
 
@@ -438,10 +471,11 @@
   justify-content: center;
   white-space: nowrap;
 
-  background: rgba(0, 168, 132, 0.1);
+  background: color-mix(in srgb, var(--wa-green) 12%, var(--wa-panel));
   color: var(--wa-green);
 
-  border: 1px solid rgba(0, 168, 132, 0.22);
+  border: 1px solid color-mix(in srgb, var(--wa-green) 24%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent);
 }
 
 /* Pill do cabeçalho: nunca encolher no flex (evita meia-lua / círculo cortado) */
@@ -677,19 +711,22 @@
   min-width: 38px;
   padding: 0;
   border: none;
-  border-radius: 50%;
-  background: var(--ds-hover);
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 78%, transparent);
+  background: color-mix(in srgb, var(--wa-panel) 78%, transparent);
   color: var(--wa-text-muted);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background var(--ds-transition), color var(--ds-transition), transform 0.15s ease;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent);
+  transition: background var(--ds-transition), color var(--ds-transition), transform 0.15s ease, border-color var(--ds-transition);
 }
 
 .wa-header-btn:hover {
-  background: var(--ds-hover-strong);
+  background: color-mix(in srgb, var(--wa-green) 8%, var(--wa-panel));
+  border-color: color-mix(in srgb, var(--wa-green) 22%, var(--wa-panel-border));
   color: var(--wa-text);
-  transform: scale(1.03);
+  transform: translateY(-1px);
 }
 
 .wa-header-btn.isActive {
@@ -722,7 +759,7 @@
 .wa-actions{
   display:flex;
   align-items:center;
-  gap:6px;
+  gap:7px;
 }
 
 /* Texto completo no desktop; versão curta só em mobile (≤640px) */
@@ -737,13 +774,14 @@
    BASE BOTÃO
 ------------------------- */
 .wa-actions button{
-  height:32px;
-  padding:0 12px;
+  height:34px;
+  padding:0 13px;
 
-  border-radius:7px;
+  border-radius:8px;
 
   font-size:13px;
   font-weight:600;
+  letter-spacing: 0;
 
   border:1px solid transparent;
 
@@ -753,21 +791,24 @@
 
   cursor:pointer;
 
-  background: transparent;
+  background: color-mix(in srgb, var(--wa-panel) 72%, transparent);
   color: var(--wa-text);
-  border-color: color-mix(in srgb, currentColor 22%, transparent);
+  border-color: color-mix(in srgb, var(--wa-panel-border) 82%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent);
 
   transition:
     background .18s ease,
     color .18s ease,
     transform .12s ease,
+    border-color .18s ease,
     box-shadow .18s ease;
 }
 
 /* micro animação tecnológica */
 .wa-actions button:hover:not(:disabled){
   transform:translateY(-1px);
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: color-mix(in srgb, currentColor 7%, var(--wa-panel));
+  border-color: color-mix(in srgb, currentColor 18%, var(--wa-panel-border));
 }
 
 /* clique */
@@ -788,90 +829,101 @@
   background: var(--ds-accent);
   color: #fff;
   border-color: var(--ds-accent);
-  transition: background 0.12s ease, box-shadow 0.12s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 5px 16px -12px color-mix(in srgb, var(--ds-accent) 70%, transparent);
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 
 .wa-actions .wa-btn-primary:hover:not(:disabled){
   background: var(--ds-accent-hover);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--ds-accent) 26%, transparent);
+  border-color: var(--ds-accent-hover);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 8px 18px -12px color-mix(in srgb, var(--ds-accent) 80%, transparent);
 }
 
 /* -------------------------
    ASSUMIR DESTAQUE (quando conversa não assumida) — leve
 ------------------------- */
 .wa-actions .wa-btn-assumir-destaque{
-  background:rgba(0,168,132,.22);
+  background: color-mix(in srgb, var(--wa-green) 14%, var(--wa-panel));
   color:var(--wa-green);
-  border:1.5px solid rgba(0,168,132,.45);
-  box-shadow:0 2px 8px rgba(0,168,132,.18);
+  border:1px solid color-mix(in srgb, var(--wa-green) 36%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent),
+    0 6px 16px -14px color-mix(in srgb, var(--wa-green) 70%, transparent);
   animation:wa-assumir-pulse 3s ease-in-out infinite;
 }
 .wa-actions .wa-btn-assumir-destaque:hover:not(:disabled){
-  background:rgba(0,168,132,.28);
-  box-shadow:0 4px 12px rgba(0,168,132,.22);
+  background: color-mix(in srgb, var(--wa-green) 18%, var(--wa-panel));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent),
+    0 8px 18px -13px color-mix(in srgb, var(--wa-green) 78%, transparent);
 }
 
 @keyframes wa-assumir-pulse{
-  0%,100%{ box-shadow:0 2px 8px rgba(0,168,132,.18); }
-  50%{ box-shadow:0 2px 10px rgba(0,168,132,.28); }
+  0%,100%{ box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent), 0 6px 16px -14px color-mix(in srgb, var(--wa-green) 70%, transparent); }
+  50%{ box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 18%, transparent), 0 8px 20px -12px color-mix(in srgb, var(--wa-green) 82%, transparent); }
 }
 
 /* -------------------------
    ENCERRAR / PERIGO (vermelho moderno)
 ------------------------- */
 .wa-actions .wa-btn-danger{
-  background: var(--ds-error);
-  color: #fff;
-  border-color: var(--ds-error);
-  transition: background 0.12s ease, box-shadow 0.12s ease;
+  background: var(--wa-action-red-soft);
+  color: var(--wa-action-red);
+  border-color: color-mix(in srgb, var(--wa-action-red) 26%, transparent);
+  transition: background 0.12s ease, box-shadow 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .wa-actions .wa-btn-danger:hover:not(:disabled){
-  background: color-mix(in srgb, var(--ds-error) 88%, black);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--ds-error) 30%, transparent);
+  background: var(--wa-action-red);
+  color: #fff;
+  border-color: var(--wa-action-red);
+  box-shadow: 0 8px 18px -13px color-mix(in srgb, var(--wa-action-red) 78%, transparent);
 }
 
 /* -------------------------
    TRANSFERIR (azul — ação de encaminhar)
 ------------------------- */
 .wa-actions .wa-btn-transferir{
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
+  background: var(--wa-action-blue-soft);
+  color: var(--wa-action-blue);
+  border-color: color-mix(in srgb, var(--wa-action-blue) 24%, transparent);
   transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 .wa-actions .wa-btn-transferir:hover:not(:disabled){
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.38);
+  background: color-mix(in srgb, var(--wa-action-blue) 18%, var(--wa-panel));
+  border-color: color-mix(in srgb, var(--wa-action-blue) 38%, transparent);
+  box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--wa-action-blue) 70%, transparent);
 }
 
 /* -------------------------
    AGUARDAR CLIENTE (âmbar/laranja — pausa aguardando resposta)
 ------------------------- */
 .wa-actions .wa-btn-aguardar-cliente{
-  background: #ea580c;
-  color: #fff;
-  border-color: #ea580c;
-  box-shadow: none;
+  background: var(--wa-action-amber-soft);
+  color: var(--wa-action-amber);
+  border-color: color-mix(in srgb, var(--wa-action-amber) 26%, transparent);
   transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .wa-actions .wa-btn-aguardar-cliente:hover:not(:disabled){
-  background: #c2410c;
-  border-color: #c2410c;
-  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+  background: color-mix(in srgb, var(--wa-action-amber) 18%, var(--wa-panel));
+  border-color: color-mix(in srgb, var(--wa-action-amber) 38%, transparent);
+  box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--wa-action-amber) 70%, transparent);
 }
 .wa-actions .wa-btn-aguardar-cliente:active:not(:disabled){
   transform: translateY(0);
 }
 [data-theme="dark"] .wa-actions .wa-btn-aguardar-cliente{
-  background: #ea580c;
-  color: #fff;
-  border-color: #ea580c;
+  background: var(--wa-action-amber-soft);
+  color: var(--wa-action-amber);
+  border-color: color-mix(in srgb, var(--wa-action-amber) 30%, transparent);
 }
 [data-theme="dark"] .wa-actions .wa-btn-aguardar-cliente:hover:not(:disabled){
-  background: #f97316;
-  border-color: #f97316;
+  background: color-mix(in srgb, var(--wa-action-amber) 20%, var(--wa-panel));
+  border-color: color-mix(in srgb, var(--wa-action-amber) 44%, transparent);
 }
 
 /* Ícone + texto nas ações de atendimento */
@@ -889,13 +941,13 @@
    SECUNDÁRIO / REABRIR (neutro)
 ------------------------- */
 .wa-actions .wa-btn-secondary{
-  background: transparent;
+  background: color-mix(in srgb, var(--wa-panel) 72%, transparent);
   color:var(--wa-text);
-  border-color: color-mix(in srgb, currentColor 24%, transparent);
+  border-color: color-mix(in srgb, var(--wa-panel-border) 88%, transparent);
   transition: background 0.12s ease;
 }
 .wa-actions .wa-btn-secondary:hover:not(:disabled){
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: color-mix(in srgb, currentColor 7%, var(--wa-panel));
 }
 /* Ícones estilo SaaS minimalista */
 
@@ -944,10 +996,11 @@
   right: 16px;
   width: 260px;
   max-width: 90vw;
-  background: var(--wa-panel);
-  border-radius: 12px;
-  border: 1px solid var(--wa-panel-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  background: var(--wa-glass-strong);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 82%, transparent);
+  box-shadow: 0 18px 46px -24px rgba(15, 23, 42, 0.44);
+  backdrop-filter: blur(16px);
   /* Acima do cabecalho mobile fixo (35), abaixo de modais fullscreen */
   z-index: 60;
   display: flex;
@@ -965,7 +1018,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--wa-panel-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-panel-border) 78%, transparent);
+  background: color-mix(in srgb, var(--wa-header-bg) 72%, transparent);
 }
 
 .wa-tagsPanel-title {
@@ -991,8 +1045,8 @@
 .wa-tagChip {
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid var(--wa-panel-border);
-  background: var(--wa-header-bg);
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  background: color-mix(in srgb, var(--wa-panel) 76%, transparent);
   color: var(--wa-text-muted);
   font-size: 12px;
   cursor: pointer;
@@ -1003,8 +1057,8 @@
 }
 
 .wa-tagChip:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: rgba(0, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--wa-green) 8%, var(--wa-panel));
+  border-color: color-mix(in srgb, var(--wa-green) 24%, var(--wa-panel-border));
   color: var(--wa-text);
 }
 
@@ -1098,9 +1152,10 @@
   width: 320px;
   max-width: 90vw;
   height: calc(100% - 60px);
-  background: var(--wa-panel);
-  border-left: 1px solid var(--wa-panel-border);
-  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.04);
+  background: var(--wa-glass-strong);
+  border-left: 1px solid color-mix(in srgb, var(--wa-panel-border) 82%, transparent);
+  box-shadow: -18px 0 42px -30px rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(14px);
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -1110,7 +1165,8 @@
 
 .wa-timeline-head {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--wa-panel-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-panel-border) 78%, transparent);
+  background: color-mix(in srgb, var(--wa-header-bg) 72%, transparent);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1198,7 +1254,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px 18px 14px;
+  padding: 14px 22px 18px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -1359,13 +1415,13 @@
 
 .wa-messages-emptyCard {
   padding: 20px 28px;
-  border-radius: 12px;
-  background: var(--wa-panel);
+  border-radius: 8px;
+  background: var(--wa-glass-strong);
   color: var(--wa-text-muted);
   font-size: 14px;
   text-align: center;
-  border: none;
-  box-shadow: var(--wa-shadow-subtle);
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 80%, transparent);
+  box-shadow: 0 12px 28px -22px rgba(15, 23, 42, 0.34);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1571,11 +1627,13 @@
   min-width: auto;
   max-width: min(78%, 560px);
 
-  padding: 6px 42px 8px 10px;
+  padding: 7px 42px 8px 11px;
 
-  border-radius: 7.5px;
+  border-radius: 8px;
 
-  box-shadow: 0 1px 1px rgba(0,0,0,0.06);
+  box-shadow:
+    0 1px 1px rgba(15, 23, 42, 0.04),
+    0 6px 16px -15px rgba(15, 23, 42, 0.28);
 
   line-height: 1.4;
   font-size: 14px;
@@ -1585,11 +1643,13 @@
 
   box-sizing: border-box;
 
-  transition: box-shadow 0.15s ease, transform 0.15s ease, outline 0.15s ease;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, outline 0.15s ease, border-color 0.15s ease;
 }
 
 .wa-bubble:hover{
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.08),
+    0 10px 22px -18px rgba(15, 23, 42, 0.32);
   transform: translateY(-0.5px);
   z-index:2;
 }
@@ -1600,14 +1660,14 @@
 
 .wa-bubble-in{
   background: var(--wa-bubble-in);
-  border: 1px solid rgba(11, 20, 26, 0.11);
+  border: 1px solid var(--wa-bubble-border-in);
   border-top-left-radius: 4px;
   color: var(--wa-text);
 }
 
 .wa-bubble-out{
   background: var(--wa-bubble-out);
-  border: 1px solid rgba(11, 20, 26, 0.09);
+  border: 1px solid var(--wa-bubble-border-out);
   border-top-right-radius: 4px;
   color: var(--wa-text);
 }
@@ -1714,7 +1774,7 @@
 .wa-bubble-text{
 
   font-size:14px;
-  line-height:1.35;
+  line-height:1.38;
 
   padding-right:0;
 
@@ -5911,11 +5971,13 @@
   padding: 5px 12px;
   border-radius: 8px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 650;
   color: var(--ds-text-muted);
-  background: var(--ds-bg-sunken);
-  border: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  background: color-mix(in srgb, var(--wa-panel) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 78%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent),
+    0 6px 18px -15px rgba(15, 23, 42, 0.36);
   animation: wa-dayPillFade 0.3s ease-out;
 }
 
@@ -6875,13 +6937,16 @@ main.main-content--crm .wa-mediaPreview-composer {
 ========================================================= */
 
 .wa-footer {
-  padding: 10px 14px 12px;
+  padding: 11px 16px 13px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  background: var(--wa-header-bg);
-  border-top: 1px solid var(--wa-panel-border);
+  background:
+    linear-gradient(180deg, var(--wa-header-bg) 0%, var(--wa-glass-surface) 100%);
+  border-top: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  box-shadow: var(--wa-composer-shadow);
+  backdrop-filter: blur(14px);
   flex-shrink: 0;
   min-width: 0;
   /* precisa ser visível para o menu de anexos (+) não ser cortado */
@@ -6972,10 +7037,14 @@ main.main-content--crm .wa-mediaPreview-composer {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  background: color-mix(in srgb, var(--wa-panel) 58%, transparent);
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 72%, transparent);
 }
 
 .wa-footer .wa-iconBtn:hover:not(:disabled) {
   color: var(--wa-text);
+  background: color-mix(in srgb, var(--wa-green) 8%, var(--wa-panel));
+  border-color: color-mix(in srgb, var(--wa-green) 24%, var(--wa-panel-border));
 }
 
 /* Links (URLs): azul apenas quando for link; texto normal herda cor do balão */
@@ -7007,8 +7076,8 @@ main.main-content--crm .wa-mediaPreview-composer {
   transition: background 0.15s ease, color 0.15s ease, transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .wa-attachPlus.isOpen {
-  background: rgba(0, 0, 0, 0.08);
-  color: var(--wa-text);
+  background: color-mix(in srgb, var(--wa-green) 10%, var(--wa-panel));
+  color: var(--wa-green);
   transform: rotate(45deg);
 }
 
@@ -7018,9 +7087,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   left: 0;
   min-width: 220px;
   padding: 8px 0;
-  background: var(--wa-attach-menu-bg, #233138);
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  background: var(--wa-attach-menu-bg, var(--wa-glass-strong));
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 80%, transparent);
+  border-radius: 8px;
+  box-shadow: 0 18px 46px -22px rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(16px);
   z-index: 1200;
   display: flex;
   flex-direction: column;
@@ -7028,6 +7099,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   list-style: none;
   margin: 0;
   animation: wa-attachSlideUp 0.2s ease-out;
+  --wa-attach-menu-text: var(--wa-text);
 }
 
 @keyframes wa-attachSlideUp {
@@ -7037,7 +7109,8 @@ main.main-content--crm .wa-mediaPreview-composer {
 
 [data-theme="dark"] .wa-attachMenu,
 .wa-shell[data-theme="dark"] .wa-attachMenu {
-  --wa-attach-menu-bg: #2a3942;
+  --wa-attach-menu-bg: color-mix(in srgb, #2a3942 88%, #111b21 12%);
+  --wa-attach-menu-text: #e9edef;
 }
 
 .wa-attachItem {
@@ -7057,7 +7130,7 @@ main.main-content--crm .wa-mediaPreview-composer {
 }
 
 .wa-attachItem:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--wa-green) 8%, transparent);
 }
 
 .wa-attachItem-icon {
@@ -7189,8 +7262,8 @@ main.main-content--crm .wa-mediaPreview-composer {
   max-height: 160px;
   height: auto;
   padding: 10px 16px;
-  border-radius: 24px;
-  border: none;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 72%, transparent);
   background: var(--wa-input-bg);
   color: var(--wa-text);
   font-size: 15px;
@@ -7203,7 +7276,9 @@ main.main-content--crm .wa-mediaPreview-composer {
   overflow-wrap: anywhere;
   word-break: break-word;
   transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent),
+    0 1px 0 rgba(0, 0, 0, 0.02);
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -7213,7 +7288,10 @@ main.main-content--crm .wa-mediaPreview-composer {
 }
 
 .wa-input:focus {
-  box-shadow: 0 0 0 1px var(--ds-accent-soft);
+  border-color: color-mix(in srgb, var(--wa-green-send) 34%, var(--wa-panel-border));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--wa-green-send) 12%, transparent);
 }
 
 .wa-input--autocorrect-flash {
@@ -7245,7 +7323,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.12s ease, filter 0.12s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 8px 18px -13px color-mix(in srgb, var(--wa-green-send) 72%, transparent);
+  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
 }
 
 .wa-sendBtn:hover:not(:disabled) {
@@ -7716,9 +7797,10 @@ main.main-content--crm .wa-mediaPreview-composer {
   width: 320px;
   max-width: 90vw;
   height: calc(100% - 60px);
-  background: var(--wa-panel);
-  border-left: 1px solid var(--wa-panel-border);
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.08);
+  background: var(--wa-glass-strong);
+  border-left: 1px solid color-mix(in srgb, var(--wa-panel-border) 82%, transparent);
+  box-shadow: -18px 0 42px -30px rgba(15, 23, 42, 0.54);
+  backdrop-filter: blur(14px);
   z-index: 22;
   display: flex;
   flex-direction: column;
@@ -7727,12 +7809,12 @@ main.main-content--crm .wa-mediaPreview-composer {
 
 .wa-sideCliente-head {
   padding: 14px 14px;
-  border-bottom: 1px solid var(--wa-panel-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-panel-border) 78%, transparent);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.46));
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--wa-header-bg) 74%, transparent);
+  backdrop-filter: blur(14px);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -7749,7 +7831,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   font-size: 14px;
   font-weight: 750;
   color: var(--wa-text);
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .wa-sideCliente-sub {
@@ -7774,13 +7856,13 @@ main.main-content--crm .wa-mediaPreview-composer {
   display:flex;
   gap: 12px;
   padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--wa-panel-border);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
   background:
     radial-gradient(120% 120% at 15% 10%, rgba(37,99,235,.10), transparent 55%),
     radial-gradient(120% 120% at 80% 80%, rgba(6,182,212,.08), transparent 58%),
-    linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,.52));
-  box-shadow: var(--wa-shadow-subtle);
+    linear-gradient(180deg, color-mix(in srgb, var(--wa-panel) 88%, #ffffff 12%), color-mix(in srgb, var(--wa-panel) 74%, transparent));
+  box-shadow: 0 12px 26px -22px rgba(15, 23, 42, 0.38);
   align-items: center;
 }
 
@@ -7927,10 +8009,10 @@ main.main-content--crm .wa-mediaPreview-composer {
 
 .wa-sideCliente-details{
   margin-top: 12px;
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 14px;
-  background: rgba(255,255,255,.62);
-  box-shadow: var(--wa-shadow-subtle);
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--wa-panel) 76%, transparent);
+  box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.34);
   padding: 8px 10px 10px;
 }
 .wa-sideCliente-details > summary{
@@ -7958,11 +8040,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   bottom: 0;
   margin-top: 14px;
   padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,.08);
-  background: rgba(255,255,255,.86);
-  box-shadow: 0 -6px 18px rgba(0,0,0,.06);
-  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  background: color-mix(in srgb, var(--wa-panel) 88%, transparent);
+  box-shadow: 0 -12px 28px -24px rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(14px);
   display:flex;
   align-items:center;
   justify-content: space-between;
@@ -8042,10 +8124,10 @@ main.main-content--crm .wa-mediaPreview-composer {
 
 .wa-sideCliente-section {
   padding: 12px 12px;
-  border: 1px solid var(--wa-panel-border);
-  border-radius: 14px;
-  background: rgba(255,255,255,.62);
-  box-shadow: var(--wa-shadow-subtle);
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--wa-panel) 78%, transparent);
+  box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.34);
 }
 
 .wa-sideCliente-section:last-of-type {
@@ -8057,7 +8139,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   font-weight: 800;
   color: var(--wa-text);
   margin-bottom: 8px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .wa-sideCliente-row {
@@ -8124,16 +8206,16 @@ main.main-content--crm .wa-mediaPreview-composer {
   width:100%;
   height: 38px;
   padding: 0 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,.10);
-  background:#fff;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 88%, transparent);
+  background: var(--wa-input-bg);
   color: var(--wa-text);
   font-size: 13px;
   outline: none;
 }
 .wa-sideCliente-input:focus{
-  border-color: rgba(0, 168, 132, 0.35);
-  box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.14);
+  border-color: color-mix(in srgb, var(--wa-green) 34%, var(--wa-panel-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wa-green) 12%, transparent);
 }
 .wa-sideCliente-input:disabled{
   opacity:.65;
@@ -8241,13 +8323,13 @@ main.main-content--crm .wa-mediaPreview-composer {
    SIDEBAR CLIENTE — Modo escuro (cores visíveis)
 ========================================================= */
 [data-theme="dark"] .wa-sideCliente {
-  background: var(--ds-surface-1);
+  background: var(--wa-glass-strong);
   border-left-color: var(--ds-border);
-  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+  box-shadow: -18px 0 42px -30px rgba(0, 0, 0, 0.82);
 }
 
 [data-theme="dark"] .wa-sideCliente-head {
-  background: linear-gradient(180deg, var(--ds-surface-2), var(--ds-surface-1));
+  background: color-mix(in srgb, var(--ds-surface-2) 78%, transparent);
   border-bottom-color: var(--ds-border);
 }
 
@@ -8260,7 +8342,10 @@ main.main-content--crm .wa-mediaPreview-composer {
 }
 
 [data-theme="dark"] .wa-sideCliente-hero {
-  background: linear-gradient(180deg, var(--ds-surface-2), var(--ds-surface-3));
+  background:
+    radial-gradient(120% 120% at 15% 10%, rgba(96,165,250,.12), transparent 55%),
+    radial-gradient(120% 120% at 80% 80%, rgba(45,212,191,.08), transparent 58%),
+    linear-gradient(180deg, var(--ds-surface-2), var(--ds-surface-3));
   border-color: var(--ds-border);
 }
 
@@ -8296,7 +8381,7 @@ main.main-content--crm .wa-mediaPreview-composer {
 }
 
 [data-theme="dark"] .wa-sideCliente-section {
-  background: var(--ds-surface-2) !important;
+  background: color-mix(in srgb, var(--ds-surface-2) 86%, transparent) !important;
   border-color: var(--ds-border) !important;
 }
 
@@ -9282,7 +9367,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-weight: 700 !important;
     border-radius: 8px !important;
     line-height: 1.15 !important;
-    letter-spacing: 0.02em;
+    letter-spacing: 0;
   }
 
   .wa-atendToolbar--compact .wa-atendBtn-icon svg {
