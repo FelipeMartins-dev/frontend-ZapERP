@@ -1347,9 +1347,8 @@ function SecaoChatbotTriagem({
             <h3 className="chatbot-card-title">8. Alerta do administrador</h3>
             <p className="chatbot-card-subtitle chatbot-card-subtitle--muted">
               Resumo automático por WhatsApp no horário definido (fuso da seção 4 ou campo abaixo). Desativado por
-              padrão. O backend verifica o horário periodicamente enquanto estiver em execução (pode desligar com{" "}
-              <code className="chatbot-inline-code">ADMIN_ATENDIMENTO_ALERTA_SCHEDULER_ENABLED=0</code>). Opcionalmente
-              use também <code className="chatbot-inline-code">POST /jobs/admin-atendimento-alerta</code> com header{" "}
+              padrão. O backend verifica o horário periodicamente enquanto estiver em execução. Opcionalmente use também{" "}
+              <code className="chatbot-inline-code">POST /jobs/admin-atendimento-alerta</code> com header{" "}
               <code className="chatbot-inline-code">X-Cron-Secret</code>.
             </p>
             <div className="ds-switch-row" style={{ marginBottom: 12 }}>

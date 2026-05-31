@@ -1,0 +1,265 @@
+.minhas-pendencias-card {
+  margin: 0 12px 6px;
+  padding: 5px 8px 6px;
+  border-radius: var(--cl-radius-sm, 8px);
+  background: transparent;
+  border: 1px solid var(--cl-border-subtle, rgba(0, 0, 0, 0.04));
+  box-shadow: none;
+}
+
+.minhas-pendencias-card.is-all-zero {
+  border-color: transparent;
+}
+
+.minhas-pendencias-card__header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.minhas-pendencias-card__icon {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.88;
+}
+
+.minhas-pendencias-card.is-all-zero .minhas-pendencias-card__icon {
+  opacity: 0.65;
+}
+
+.minhas-pendencias-card__title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--cl-text-secondary, #374151);
+}
+
+[data-theme="dark"] .minhas-pendencias-card__title {
+  color: var(--cl-text, #e5e7eb);
+}
+
+.minhas-pendencias-card.is-all-zero .minhas-pendencias-card__title {
+  color: var(--cl-text-secondary, #4b5563);
+}
+
+.minhas-pendencias-card__loading-dot {
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--cl-text-muted, #64748b);
+  opacity: 0.4;
+  animation: minhas-pendencias-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes minhas-pendencias-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.minhas-pendencias-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+}
+
+.minhas-pendencias-card__item {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.minhas-pendencias-card__item:not(:last-child)::after {
+  content: "·";
+  margin: 0 4px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--cl-text-muted, #64748b);
+  opacity: 0.35;
+  pointer-events: none;
+  user-select: none;
+}
+
+.minhas-pendencias-card__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--cl-text-muted, #64748b);
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+  max-width: 100%;
+}
+
+.minhas-pendencias-card__btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="dark"] .minhas-pendencias-card__btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Zerados: discretos, sem destaque */
+.minhas-pendencias-card__btn.is-zero {
+  opacity: 0.45;
+  color: var(--cl-text-muted, #94a3b8);
+}
+
+.minhas-pendencias-card__btn.is-zero .minhas-pendencias-card__dot {
+  opacity: 0.3;
+}
+
+.minhas-pendencias-card__btn.is-zero:hover {
+  opacity: 0.58;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.minhas-pendencias-card__btn.is-zero.is-active {
+  opacity: 0.72;
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: var(--cl-text-secondary, #64748b);
+}
+
+[data-theme="dark"] .minhas-pendencias-card__btn.is-zero.is-active {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Com valor: destaque elegante por cor */
+.minhas-pendencias-card__btn.is-has-value {
+  opacity: 1;
+  font-weight: var(--cl-font-weight-semibold, 600);
+}
+
+.minhas-pendencias-card__btn.is-has-value.is-blue {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.07);
+  border-color: rgba(59, 130, 246, 0.18);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.04);
+}
+
+.minhas-pendencias-card__btn.is-has-value.is-amber {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.04);
+}
+
+.minhas-pendencias-card__btn.is-has-value.is-red {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.07);
+  border-color: rgba(239, 68, 68, 0.18);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.04);
+}
+
+.minhas-pendencias-card__btn.is-has-value.is-active.is-blue {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.32);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.08);
+}
+
+.minhas-pendencias-card__btn.is-has-value.is-active.is-amber {
+  background: rgba(245, 158, 11, 0.13);
+  border-color: rgba(245, 158, 11, 0.34);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.08);
+}
+
+.minhas-pendencias-card__btn.is-has-value.is-active.is-red {
+  background: rgba(239, 68, 68, 0.11);
+  border-color: rgba(239, 68, 68, 0.32);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.08);
+}
+
+.minhas-pendencias-card__dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+.minhas-pendencias-card__btn.is-has-value .minhas-pendencias-card__dot,
+.minhas-pendencias-card__btn.is-active .minhas-pendencias-card__dot {
+  opacity: 1;
+  width: 6px;
+  height: 6px;
+}
+
+.minhas-pendencias-card__dot.is-blue {
+  background: #3b82f6;
+}
+
+.minhas-pendencias-card__dot.is-amber {
+  background: #f59e0b;
+}
+
+.minhas-pendencias-card__dot.is-red {
+  background: #ef4444;
+}
+
+.minhas-pendencias-card__label {
+  font-size: 10px;
+  font-weight: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.minhas-pendencias-card__count {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: inherit;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.minhas-pendencias-card__btn.is-has-value .minhas-pendencias-card__label,
+.minhas-pendencias-card__btn.is-has-value .minhas-pendencias-card__count {
+  font-weight: var(--cl-font-weight-semibold, 600);
+}
+
+.minhas-pendencias-card__btn.is-zero .minhas-pendencias-card__label,
+.minhas-pendencias-card__btn.is-zero .minhas-pendencias-card__count {
+  font-weight: var(--cl-font-weight-medium, 500);
+}
+
+@media (max-width: 360px) {
+  .minhas-pendencias-card {
+    margin-inline: 8px;
+    padding-inline: 6px;
+  }
+
+  .minhas-pendencias-card__title {
+    font-size: 9px;
+  }
+
+  .minhas-pendencias-card__label {
+    font-size: 9px;
+  }
+
+  .minhas-pendencias-card__count {
+    font-size: 9px;
+  }
+
+  .minhas-pendencias-card__item:not(:last-child)::after {
+    margin-inline: 2px;
+  }
+}

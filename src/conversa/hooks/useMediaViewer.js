@@ -7,6 +7,7 @@ import {
 import {
   fetchMediaBinaryAuthenticated,
   getMediaUrl,
+  getMediaPlaybackUrl,
   mediaViewerSupportsPrint,
 } from "../utils/conversaViewHelpers";
 
@@ -143,7 +144,7 @@ export function useMediaViewer({ showToast }) {
       return null;
     });
 
-    const abs = getMediaUrl(mediaViewer.url, false);
+    const abs = getMediaPlaybackUrl(mediaViewer.url, false) || getMediaUrl(mediaViewer.url, false);
     (async () => {
       try {
         const blob = await fetchMediaBinaryAuthenticated(abs);

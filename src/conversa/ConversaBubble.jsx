@@ -674,6 +674,10 @@ const Bubble = memo(function Bubble({
   const mediaUrl = getMediaUrl(msg?.url, msg?.url_absoluta);
   const videoPlaybackUrl =
     msg?.tipo === "video" && mediaUrl ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) : mediaUrl;
+  const audioPlaybackUrl =
+    (msg?.tipo === "audio" || msg?.tipo === "voice") && mediaUrl
+      ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta)
+      : mediaUrl;
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
     if (msg?.apagada_para_todos) return false;
@@ -1262,10 +1266,10 @@ const Bubble = memo(function Bubble({
                     skipNextMediaTapRef.current = false;
                     return;
                   }
-                  onOpenMedia?.(mediaUrl, "video");
+                  onOpenMedia?.(videoPlaybackUrl || mediaUrl, "video");
                 }}
               >
-                <video src={mediaUrl} playsInline className="wa-bubble-videoEl" />
+                <video src={videoPlaybackUrl || mediaUrl} playsInline className="wa-bubble-videoEl" />
               </button>
               {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}
             </div>
@@ -1273,8 +1277,8 @@ const Bubble = memo(function Bubble({
             <div className="wa-bubble-audioStack">
               <div className="wa-bubble-audioWrap">
                 <AudioWavePlayer
-                  src={mediaUrl}
-                  msgKey={msg?.whatsapp_id || msg?.id || mediaUrl}
+                  src={audioPlaybackUrl || mediaUrl}
+                  msgKey={msg?.whatsapp_id || msg?.id || audioPlaybackUrl || mediaUrl}
                   avatarUrl={!out ? peerAvatarUrl : null}
                   avatarLabel={!out ? peerName : null}
                   sentAtLabel={formatHora(msg?.criado_em)}

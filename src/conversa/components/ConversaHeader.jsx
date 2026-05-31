@@ -2,7 +2,7 @@ import { memo } from "react";
 import AtendimentoActions from "../../atendimento/AtendimentoActions";
 import SendToCrmChatButton, { IconFunnelSend } from "../SendToCrmChatButton";
 import { safeString } from "../utils/conversaViewHelpers";
-import { IconClock, IconMore, IconTag, IconContact } from "../conversaViewIcons";
+import { IconClock, IconMore, IconTag, IconContact, IconSearch } from "../conversaViewIcons";
 
 /**
  * Cabeçalho da conversa (avatar, meta, ações). Lógica e estados permanecem no ConversaView.
@@ -39,6 +39,7 @@ function ConversaHeader({
   showProdutosPanel,
   onOpenProdutosPanel,
   onOpenClienteSide,
+  onOpenMessageSearch,
 }) {
   return (
     <div
@@ -221,6 +222,18 @@ function ConversaHeader({
       <div className="wa-header-right">
         <div className="wa-header-innerRow">
           <div className="wa-header-iconsLine">
+            {conversaId ? (
+              <button
+                type="button"
+                className="wa-header-btn wa-header-searchBtn"
+                onClick={onOpenMessageSearch}
+                title="Pesquisar mensagens"
+                aria-label="Pesquisar mensagens nesta conversa"
+              >
+                <IconSearch />
+              </button>
+            ) : null}
+
             {!headerCompact && !isGroup && podeGerenciarTags ? (
               <button
                 type="button"
@@ -277,6 +290,21 @@ function ConversaHeader({
                     headerCompact
                       ? (close) => (
                           <>
+                            {conversaId ? (
+                              <button
+                                type="button"
+                                className="wa-atendToolbar-sheetBtn"
+                                onClick={() => {
+                                  onOpenMessageSearch();
+                                  close();
+                                }}
+                              >
+                                <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+                                  <IconSearch />
+                                </span>
+                                <span className="wa-atendToolbar-sheetLabel">Pesquisar mensagens</span>
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="wa-atendToolbar-sheetBtn"

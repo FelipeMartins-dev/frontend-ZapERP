@@ -78,6 +78,15 @@ export function IconClose(props) {
 }
 
 /** Encaminhar (barra de seleção estilo WhatsApp). */
+export function IconSearch(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="1.7" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
 export function IconForward(props) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>

@@ -70,6 +70,22 @@ export async function fetchConversa(conversaId) {
   return getChatById(conversaId);
 }
 
+export async function buscarMensagensNaConversa(conversaId, opts = {}) {
+  const id = conversaId != null ? String(conversaId) : "";
+  if (!id) throw new Error("conversaId invalido");
+
+  const params = new URLSearchParams();
+  params.set("q", String(opts?.q || "").trim());
+  if (opts?.cursor) params.set("cursor", String(opts.cursor));
+  if (opts?.cursorId != null && opts.cursorId !== "") params.set("cursor_id", String(opts.cursorId));
+  if (opts?.limit) params.set("limit", String(opts.limit));
+
+  const config = {};
+  if (opts?.signal) config.signal = opts.signal;
+  const { data } = await api.get(`/chats/${id}/messages/search?${params.toString()}`, config);
+  return data;
+}
+
 export async function enviarMensagem(conversaId, texto, reply_meta) {
   const body = { texto };
   if (reply_meta && typeof reply_meta === "object") body.reply_meta = reply_meta;

@@ -20,6 +20,7 @@ import {
   toIsoDate,
   toNumber,
 } from "../supervisao/supervisaoUtils";
+import { isGroupConversation } from "../utils/conversaUtils";
 import "./supervisao.css";
 
 const INITIAL_FILTERS = {
@@ -59,7 +60,8 @@ export default function Supervisao() {
         getRelatorioDiarioSupervisao(dataRelatorio),
       ]);
       setResumo(resumoData || {});
-      setClientesPendentesRaw(Array.isArray(pendentesData) ? pendentesData : []);
+      const pendentesLista = Array.isArray(pendentesData) ? pendentesData : [];
+      setClientesPendentesRaw(pendentesLista.filter((item) => !isGroupConversation(item)));
       setRelatorioDiario(relatorioData || {});
     } catch (err) {
       setError(err?.response?.data?.error || "Não foi possível carregar a central de supervisão.");

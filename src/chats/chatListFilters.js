@@ -134,6 +134,7 @@ export function computeChatsFiltrados({
   pagamentosPendentesOnly,
   emAtrasoOnly,
   pendentesFuncionarioSet,
+  conversaIdsPendenciaAtiva,
 }) {
   /**
    * Filtro admin por funcionário (GET só com atendente_id): ignora chips de aba e minha_fila — prioridade única no fetch e aqui.
@@ -287,6 +288,11 @@ export function computeChatsFiltrados({
     });
   }
 
+  // Camada adicional: filtro de pendência (backend) — intersecta com filtros já aplicados
+  if (conversaIdsPendenciaAtiva != null) {
+    list = list.filter((c) => conversaIdsPendenciaAtiva.has(String(c?.id)));
+  }
+
   // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem
   list.sort((a, b) => {
     const aPinned = a?.fixada === true ? 1 : 0;
@@ -372,6 +378,7 @@ function canReuseFilteredChatList(cache, params) {
   if (!cache?.list) return false;
   if (!areChatListUiFilterDepsEqual(cache.ui, buildChatListUiFilterDeps(params))) return false;
   if (!setsHaveSameIds(cache.pendentesFuncionarioSet, params.pendentesFuncionarioSet)) return false;
+  if (!setsHaveSameIds(cache.conversaIdsPendenciaAtiva, params.conversaIdsPendenciaAtiva)) return false;
 
   const adminPorFuncionario =
     params.adminAtendenteFilterId != null && String(params.adminAtendenteFilterId).trim() !== "";
@@ -404,6 +411,7 @@ export function computeChatsFiltradosCached(cacheRef, params) {
     chats: params.chats,
     minhaFilaList: params.minhaFilaList,
     pendentesFuncionarioSet: params.pendentesFuncionarioSet,
+    conversaIdsPendenciaAtiva: params.conversaIdsPendenciaAtiva,
   };
   return list;
 }

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { getMediaUrl, mediaViewerSupportsPrint } from "../utils/conversaViewHelpers";
+import { getMediaPlaybackUrl, mediaViewerSupportsPrint } from "../utils/conversaViewHelpers";
 import { IconClose, IconPrint } from "../conversaViewIcons";
 
 /**
@@ -95,7 +95,7 @@ export default function MediaViewerOverlay({
               );
             }
             if (isPdf) {
-              const absUrl = getMediaUrl(mediaViewer.url, false);
+              const absUrl = getMediaPlaybackUrl(mediaViewer.url, false) || mediaViewer.url;
               if (mediaPdfLoading) {
                 return (
                   <div className="wa-mediaViewer-iframe wa-mediaViewer-pdfState" role="status" aria-busy="true">

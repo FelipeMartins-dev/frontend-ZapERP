@@ -78,6 +78,7 @@ function ChatListBody({
   onReloadList,
   listRefreshing = false,
   middleSlot = null,
+  conversaIdsPendenciaAtiva = null,
 }) {
   const chats = useChatStore((s) => s.chats || [], chatListsStoreEquivalent);
   const chatsLength = chats?.length ?? 0;
@@ -110,6 +111,7 @@ function ChatListBody({
     pagamentosPendentesOnly,
     emAtrasoOnly,
     pendentesFuncionarioSet,
+    conversaIdsPendenciaAtiva,
   });
 
   const {

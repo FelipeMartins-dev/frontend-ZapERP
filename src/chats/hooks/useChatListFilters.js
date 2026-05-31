@@ -23,6 +23,7 @@ export function useChatListFilters({
   pagamentosPendentesOnly,
   emAtrasoOnly,
   pendentesFuncionarioSet,
+  conversaIdsPendenciaAtiva,
 }) {
   const filterCacheRef = useRef(null);
 
@@ -84,8 +85,9 @@ export function useChatListFilters({
         pagamentosPendentesOnly: uiFilterDeps.pagamentosPendentesOnly,
         emAtrasoOnly: uiFilterDeps.emAtrasoOnly,
         pendentesFuncionarioSet,
+        conversaIdsPendenciaAtiva,
       }),
-    [chats, minhaFilaList, uiFilterDeps, user, pendentesFuncionarioSet]
+    [chats, minhaFilaList, uiFilterDeps, user, pendentesFuncionarioSet, conversaIdsPendenciaAtiva]
   );
 
   return { chatsFiltrados };

@@ -104,6 +104,7 @@ import { useShareLocation } from "./hooks/useShareLocation";
 import ConversaSelectionBar from "./components/ConversaSelectionBar";
 import PendingMediaPreview from "./components/PendingMediaPreview";
 import ConversaHeader from "./components/ConversaHeader";
+import ConversaMessageSearchPanel from "./components/ConversaMessageSearchPanel";
 
 import { useChatStore } from "../chats/chatsStore";
 import {
@@ -231,6 +232,7 @@ function ConversaViewBody() {
   }, [user?.id, conversa, conversa?.atendente_id, conversa?.id, conversa?.mensagens_bloqueadas]);
 
   const [showTimeline, setShowTimeline] = useState(false);
+  const [messageSearchOpen, setMessageSearchOpen] = useState(false);
   const [sending, setSending] = useState(false);
 
   const [toast, setToast] = useState(null);
@@ -337,6 +339,10 @@ function ConversaViewBody() {
   /** Enquanto `carregarConversa` limpa `conversa`, `selectedId` mantém o chat — necessário para scroll até à última mensagem não falhar a meio do load. */
   const scrollThreadId =
     selectedId != null && selectedId !== "" ? selectedId : conversaId;
+
+  useEffect(() => {
+    setMessageSearchOpen(false);
+  }, [conversaId]);
 
   /* Mobile: cabeçalho fixo (viewport) + padding no shell; teclado via visualViewport e foco no input */
   useLayoutEffect(() => {
@@ -1766,17 +1772,69 @@ function ConversaViewBody() {
     }
   }, [conversaId, selectedSet, exitSelectMode, showToast]);
 
+  const flashMessageById = useCallback((msgId) => {
+    if (!msgId) return;
+    const escaped =
+      typeof CSS !== "undefined" && CSS.escape
+        ? CSS.escape(String(msgId))
+        : String(msgId).replace(/"/g, '\\"');
+    const el = document.querySelector(`[data-msg-id="${escaped}"]`);
+    if (!el) return;
+    el.classList.remove("highlight-reply");
+    void el.offsetWidth;
+    el.classList.add("highlight-reply");
+    window.setTimeout(() => el.classList.remove("highlight-reply"), 1700);
+  }, []);
+
   const scrollToMsg = useCallback((msgId) => {
     if (!msgId) return;
     const list = mensagensComSeparadoresRef.current;
     const idx = list.findIndex((it) => it && it.__type === "msg" && String(it.id) === String(msgId));
     if (idx >= 0 && virtualThreadRef.current?.scrollToIndex) {
       virtualThreadRef.current.scrollToIndex(idx, { align: "center", behavior: "smooth" });
+      window.setTimeout(() => flashMessageById(msgId), 260);
       return;
     }
-    const el = document.querySelector(`[data-msg-id="${String(msgId)}"]`);
+    const escaped =
+      typeof CSS !== "undefined" && CSS.escape
+        ? CSS.escape(String(msgId))
+        : String(msgId).replace(/"/g, '\\"');
+    const el = document.querySelector(`[data-msg-id="${escaped}"]`);
     el?.scrollIntoView?.({ behavior: "smooth", block: "center" });
-  }, []);
+    window.setTimeout(() => flashMessageById(msgId), 260);
+  }, [flashMessageById]);
+
+  const handleSelectMessageSearchResult = useCallback(
+    async (msg) => {
+      const msgId = msg?.id;
+      if (!msgId || !conversaId) return;
+
+      let loaded = (useConversaStore.getState().mensagens || []).some((m) => String(m?.id) === String(msgId));
+      let attempts = 0;
+      while (!loaded && attempts < 80) {
+        const st = useConversaStore.getState();
+        if (String(st.selectedId ?? "") !== String(conversaId)) return;
+        if (!st.hasMore || st.loadingMore) break;
+        attempts += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await st.loadMore();
+        loaded = (useConversaStore.getState().mensagens || []).some((m) => String(m?.id) === String(msgId));
+      }
+
+      if (headerCompact) setMessageSearchOpen(false);
+      if (loaded) {
+        window.setTimeout(() => scrollToMsg(msgId), headerCompact ? 120 : 0);
+        return;
+      }
+
+      showToast({
+        type: "info",
+        title: "Mensagem encontrada",
+        message: "O resultado existe no histórico, mas não foi possível posicionar a conversa automaticamente.",
+      });
+    },
+    [conversaId, headerCompact, scrollToMsg, showToast]
+  );
 
   const jumpToReply = useCallback((replyToId) => {
     const rid = safeString(replyToId);
@@ -2415,6 +2473,14 @@ function ConversaViewBody() {
           showProdutosPanel={showProdutosPanel}
           onOpenProdutosPanel={handleOpenProdutosPanel}
           onOpenClienteSide={handleOpenClienteSide}
+          onOpenMessageSearch={() => setMessageSearchOpen(true)}
+        />
+
+        <ConversaMessageSearchPanel
+          open={messageSearchOpen}
+          conversaId={conversaId}
+          onClose={() => setMessageSearchOpen(false)}
+          onSelectResult={handleSelectMessageSearchResult}
         />
 
         {!isGroup && podeTransferirSetor && showTransferirSetor && (

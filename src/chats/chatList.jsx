@@ -57,6 +57,8 @@ import {
 import ChatListBody from "./ChatListBody";
 import ChatListHeaderBar from "./ChatListHeaderBar";
 import ChatListAdvancedFiltersPanel from "./ChatListAdvancedFiltersPanel";
+import MinhasPendenciasCard from "./MinhasPendenciasCard";
+import { useMinhasPendencias } from "./hooks/useMinhasPendencias";
 import { getClientesPendentesSupervisao, getResumoSupervisao } from "../api/supervisaoService";
 import { clearConversation, deleteConversation } from "./conversationActionsService";
 
@@ -124,6 +126,17 @@ export default function ChatList() {
   );
 
   const filterScopeKey = useMemo(() => buildChatListFiltersScopeKey(user), [user]);
+  const {
+    minhasPendencias,
+    pendenciaAtiva,
+    loadingPendencias,
+    loadingPendenciaCategoria,
+    conversaIdsPendenciaAtiva,
+    onPendenciaClick,
+    refresh: refreshMinhasPendencias,
+  } = useMinhasPendencias(filterScopeKey);
+  const refreshMinhasPendenciasRef = useRef(refreshMinhasPendencias);
+  refreshMinhasPendenciasRef.current = refreshMinhasPendencias;
   const [listRefreshing, setListRefreshing] = useState(false);
   const sessionBootRef = useRef(null);
   const auxScopeKeyRef = useRef(null);
@@ -147,7 +160,7 @@ export default function ChatList() {
   const loadRequestIdRef = useRef(0);
   /** Evita GET /chats paralelos quando vários resyncs disparam load() na mesma janela */
   const loadInFlightRef = useRef(false);
-  const loadQueuedRef = useRef(false);
+  const loadQueuedRef = useRef(null);
   /** Evita resync do socket logo após load() principal (login/F5). */
   const lastLoadFinishedAtRef = useRef(0);
   const loadSecondaryScheduleCancelRef = useRef(null);
@@ -613,7 +626,7 @@ export default function ChatList() {
 
   async function load(opts = {}) {
     if (loadInFlightRef.current) {
-      loadQueuedRef.current = true;
+      loadQueuedRef.current = { background: opts.background === true };
       return;
     }
     loadInFlightRef.current = true;
@@ -819,6 +832,7 @@ export default function ChatList() {
               auxOpts
             ),
           () => runAuxBadgeFetch(scope, "supervisao", () => refreshSupervisaoData(), auxOpts),
+          () => void refreshMinhasPendenciasRef.current?.(),
         ];
         badgeTasks.forEach((task, index) => {
           window.setTimeout(() => {
@@ -845,8 +859,11 @@ export default function ChatList() {
       }
       loadInFlightRef.current = false;
       if (loadQueuedRef.current) {
-        loadQueuedRef.current = false;
-        queueMicrotask(() => loadRef.current?.());
+        const queuedOpts = loadQueuedRef.current;
+        loadQueuedRef.current = null;
+        if (!queuedOpts.background) {
+          queueMicrotask(() => loadRef.current?.(queuedOpts));
+        }
       }
     }
   }
@@ -1424,6 +1441,29 @@ export default function ChatList() {
     ]
   );
 
+  const toolbarMiddleSlot = useMemo(
+    () => (
+      <>
+        <MinhasPendenciasCard
+          minhasPendencias={minhasPendencias}
+          pendenciaAtiva={pendenciaAtiva}
+          loadingPendencias={loadingPendencias}
+          loadingPendenciaCategoria={loadingPendenciaCategoria}
+          onPendenciaClick={onPendenciaClick}
+        />
+        {advancedFiltersSlot}
+      </>
+    ),
+    [
+      minhasPendencias,
+      pendenciaAtiva,
+      loadingPendencias,
+      loadingPendenciaCategoria,
+      onPendenciaClick,
+      advancedFiltersSlot,
+    ]
+  );
+
   return (
     <div className="chat-list-root">
       {zapiStatusLoaded && zapiConnected === false && (
@@ -1504,7 +1544,8 @@ export default function ChatList() {
         onRequestConfirmDelete={onRequestConfirmDelete}
         onReloadList={onReloadList}
         listRefreshing={listRefreshing}
-        middleSlot={advancedFiltersSlot}
+        middleSlot={toolbarMiddleSlot}
+        conversaIdsPendenciaAtiva={conversaIdsPendenciaAtiva}
       />
 
       <ConfirmDialog
