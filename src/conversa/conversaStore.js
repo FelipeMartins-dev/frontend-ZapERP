@@ -230,7 +230,39 @@ function toMillis(value) {
 /** Reconciliação por texto só para bolhas de chat — evita fundir "(áudio)"/mídia na mensagem de texto errada. */
 function isTipoTextoParaReconciliarPorConteudo(msg) {
   const t = String(msg?.tipo ?? "").toLowerCase().trim()
-  return t === "" || t === "texto" || t === "chat"
+  return t === "" || t === "texto" || t === "text" || t === "chat"
+}
+
+function stripWhatsappBoldNamePrefix(texto, msg) {
+  const raw = String(texto || "").trim()
+  if (!raw || !raw.includes("\n")) return raw
+  const lines = raw.split("\n")
+  const first = String(lines[0] || "").trim()
+  const rest = lines.slice(1).join("\n").trim()
+  if (!first || !rest) return raw
+  const plainFirst = first.replace(/^\*+|\*+$/g, "").trim()
+  if (!plainFirst || plainFirst.length > 80) return raw
+
+  const expectedNames = [
+    msg?.remetente_nome,
+    msg?.usuario_nome,
+    msg?.autor_nome,
+    msg?.atendente_nome,
+    msg?.nome_atendente,
+    msg?.senderName,
+  ]
+    .map((v) => String(v || "").trim().toLowerCase())
+    .filter(Boolean)
+
+  if (expectedNames.includes(plainFirst.toLowerCase())) return rest
+
+  // Eco fromMe pode chegar sem metadado do atendente, mas com a primeira linha em negrito.
+  if (/^\*[^*\n]{1,80}\*$/.test(first)) return rest
+  return raw
+}
+
+function normalizeOutboundTextForCompare(msg) {
+  return stripWhatsappBoldNamePrefix(msg?.texto ?? msg?.conteudo ?? "", msg)
 }
 
 function isOutgoingLike(msg) {
@@ -315,7 +347,13 @@ function areLikelySameMessageBubble(prev, incoming) {
   if (Math.abs(tsP - tsI) > recentMs) return false
   const textoP = (prev.texto || prev.conteudo || "").toString().trim()
   const textoI = (incoming.texto || incoming.conteudo || "").toString().trim()
-  if (textoP && textoI && textoP === textoI) {
+  const textoCompareP = textoP ? normalizeOutboundTextForCompare(prev) : ""
+  const textoCompareI = textoI ? normalizeOutboundTextForCompare(incoming) : ""
+  if (
+    textoCompareP &&
+    textoCompareI &&
+    textoCompareP.toLowerCase() === textoCompareI.toLowerCase()
+  ) {
     return isTipoTextoParaReconciliarPorConteudo(prev) && isTipoTextoParaReconciliarPorConteudo(incoming)
   }
   const tipoP = String(prev.tipo || "").toLowerCase().trim()
