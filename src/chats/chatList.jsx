@@ -683,7 +683,14 @@ export default function ChatList() {
           data_fim: dataFim || undefined,
           incluir_todos_clientes: "1",
         };
-        if (aguardandoQuery) {
+        if (tab === "minha_fila") {
+          params.minha_fila = "1";
+          delete params.status_atendimento;
+          if (finalAutoQuery) {
+            params.status_atendimento = "fechada";
+            params.finalizacao_motivo = "ausencia_cliente";
+          }
+        } else if (aguardandoQuery) {
           params.aguardando_cliente = "1";
           delete params.status_atendimento;
           // Escopo por sessão; atendente_id só quando gestor usa "Por funcionário".
@@ -739,6 +746,11 @@ export default function ChatList() {
           ? new Date(getTs(a)) - new Date(getTs(b))
           : new Date(getTs(b)) - new Date(getTs(a))
       );
+      if (!adminPorFuncionario && tabRef.current === "minha_fila") {
+        const count = countDistinctConversas(list);
+        setMinhaFilaCount((prev) => (prev === count ? prev : count));
+        setMinhaFilaList(list);
+      }
       // Merge defensivo: nunca sobrescrever contato_nome/foto_perfil com undefined ou string vazia. Preserva chats locais não retornados pela API.
       setChats((prev) => {
         if (requestId !== loadRequestIdRef.current) return prev;
@@ -804,7 +816,7 @@ export default function ChatList() {
       const runSecondaryRefreshes = () => {
         if (rid !== loadRequestIdRef.current) return;
         const scope = filterScopeKey;
-        const auxOpts = { force: true };
+        const auxOpts = {};
         const badgeTasks = [
           ...(minhaFilaAuxPrimed
             ? []
@@ -842,9 +854,18 @@ export default function ChatList() {
         });
       };
       if (minhaFilaAuxPrimed) {
-        void runAuxBadgeFetch(filterScopeKey, "minhaFila", () => refreshMinhaFila(), { force: true });
+        persistChatListSidebarToSession(filterScopeKey, useChatStore.getState().chats || [], {
+          minhaFila: list,
+          minhaFilaCount: countDistinctConversas(list),
+          emAtendimentoBadgeCount,
+          aguardandoClienteBadgeCount,
+          mensagensDisparadasCount,
+        });
       }
-      loadSecondaryScheduleCancelRef.current = scheduleAfterInitialPaint(runSecondaryRefreshes, 120);
+      loadSecondaryScheduleCancelRef.current = scheduleAfterInitialPaint(
+        runSecondaryRefreshes,
+        minhaFilaAuxPrimed ? 1200 : 120
+      );
     } catch (e) {
       if (requestId !== loadRequestIdRef.current) return;
       console.error("Erro ao carregar conversas:", e);

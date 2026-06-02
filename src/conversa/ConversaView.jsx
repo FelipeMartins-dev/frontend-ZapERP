@@ -1981,6 +1981,12 @@ function ConversaViewBody() {
       setAddToGroupLoading(false);
       return;
     }
+    const gruposEmMemoria = (Array.isArray(chats) ? chats : []).filter((c) => isGroupConversation(c));
+    if (gruposEmMemoria.length > 0) {
+      setAddToGroupGrupos(gruposEmMemoria);
+      setAddToGroupLoading(false);
+      return;
+    }
     setAddToGroupLoading(true);
     fetchChats({ incluir_todos_clientes: true })
       .then((list) => {
@@ -1989,7 +1995,7 @@ function ConversaViewBody() {
       })
       .catch(() => setAddToGroupGrupos([]))
       .finally(() => setAddToGroupLoading(false));
-  }, [addToGroupModal?.open]);
+  }, [addToGroupModal?.open, chats]);
 
   useEffect(() => {
     clearPending();

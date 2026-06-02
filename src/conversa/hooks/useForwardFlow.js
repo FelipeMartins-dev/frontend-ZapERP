@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChatStore } from "../../chats/chatsStore";
 import { scheduleAfterInitialPaint } from "../../chats/scheduleAfterInitialPaint";
-import { fetchChats, abrirConversaCliente } from "../../chats/chatService";
+import { abrirConversaCliente } from "../../chats/chatService";
 import {
   getForwardColaboradoresCache,
   loadForwardColaboradoresOnce,
@@ -122,18 +122,19 @@ export function useForwardFlow({ conversa, conversaId, chats, user, showToast, e
     const cancelColabSchedule = scheduleAfterInitialPaint(() => {
       if (cancelled) return;
       loadForwardColaboradoresOnce(async () => {
-        const parsed = await fetchChats({
-          incluir_todos_clientes: true,
-          incluir_colaboradores_encaminhar: true,
-        });
-        if (parsed && typeof parsed === "object" && Array.isArray(parsed.conversas)) {
-          useChatStore.getState().setChats(parsed.conversas);
-          const cols = Array.isArray(parsed.colaboradores_encaminhar) ? parsed.colaboradores_encaminhar : [];
-          setForwardColaboradoresCache(cols);
-          return cols;
-        }
-        setForwardColaboradoresCache([]);
-        return [];
+        const usuarios = await cfg.getUsuarios();
+        const cols = (Array.isArray(usuarios) ? usuarios : [])
+          .filter((u) => u?.ativo !== false)
+          .map((u) => ({
+            usuario_id: Number(u.id ?? u.usuario_id ?? u.user_id),
+            id: Number(u.id ?? u.usuario_id ?? u.user_id),
+            nome: u.nome ?? u.name ?? null,
+            email: u.email ?? null,
+            perfil: u.perfil ?? u.role ?? null,
+          }))
+          .filter((u) => Number.isFinite(u.usuario_id) && u.usuario_id > 0);
+        setForwardColaboradoresCache(cols);
+        return cols;
       })
         .then((cols) => {
           if (cancelled) return;

@@ -56,7 +56,8 @@ export async function getChatById(conversaId, opts = {}) {
   const params = new URLSearchParams();
   if (opts?.cursor) params.set("cursor", String(opts.cursor));
   if (opts?.cursorId != null && opts?.cursorId !== "") params.set("cursor_id", String(opts.cursorId));
-  if (opts?.limit) params.set("limit", String(opts.limit));
+  const limit = Number(opts?.limit);
+  if (Number.isFinite(limit) && limit > 0 && limit !== 50) params.set("limit", String(limit));
 
   const qs = params.toString();
   const config = {};

@@ -676,6 +676,46 @@ function applyAnexarOneToList(list, convId, msg) {
   return [...list, stripTempIdWhenPersisted(appended)]
 }
 
+function mergeDedupeRows(prev, incoming, ord) {
+  const cand = prev ? { ...prev, ...incoming } : incoming
+  let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
+  if (prev && isOutgoingLike(prev) && isOutgoingLike(incoming)) {
+    merged.criado_em = pickLaterCriadoEmIso(prev, incoming)
+  }
+  merged._stableInsertSeq = mergeStableSeq(prev || null, incoming, ord)
+  return prev ? finalizeMergedMessageRow(prev, merged) : stripTempIdWhenPersisted(merged)
+}
+
+function putMensagemInDedupeMap(map, raw, conversaId, ord) {
+  if (!raw) return
+  const copy = normalizeMsgForStore({ ...raw, conversa_id: conversaId })
+  const k = mapDedupeKey(copy, conversaId)
+  const prev = map.get(k)
+
+  if (prev && !canMergeDedupeEntries(prev, copy)) {
+    const altKey = findMergeableMapKey(map, copy)
+    if (altKey) {
+      map.set(altKey, mergeDedupeRows(map.get(altKey), copy, ord))
+      return
+    }
+    let altK = `${k}::__split_${ord}`
+    let n = 0
+    while (map.has(altK) && n < 500) altK = `${k}::__split_${ord}_${++n}`
+    map.set(altK, mergeMsgPreferringTombstone(null, { ...copy, _stableInsertSeq: mergeStableSeq(null, copy, ord) }))
+    return
+  }
+
+  if (!prev) {
+    const altKey = findMergeableMapKey(map, copy)
+    if (altKey) {
+      map.set(altKey, mergeDedupeRows(map.get(altKey), copy, ord))
+      return
+    }
+  }
+
+  map.set(k, mergeDedupeRows(prev || null, copy, ord))
+}
+
 function getCurrentUserFromStorage() {
   try {
     const raw = typeof localStorage !== "undefined" ? localStorage.getItem("zap_erp_auth") : null
@@ -1111,36 +1151,7 @@ export const useConversaStore = create((set, get) => {
     const put = (raw) => {
       if (!raw) return
       const ord = ++batchOrd
-      const copy = normalizeMsgForStore({ ...raw, conversa_id: conversaId })
-      const k = mapDedupeKey(copy, conversaId)
-      const prev = map.get(k)
-      if (prev && !canMergeDedupeEntries(prev, copy)) {
-        const altKey = findMergeableMapKey(map, copy)
-        if (altKey) {
-          const prevAlt = map.get(altKey)
-          const cand = prevAlt ? { ...prevAlt, ...copy } : copy
-          let merged = preserveLocalMediaFields(prevAlt, mergeMsgPreferringTombstone(prevAlt, cand))
-          if (prevAlt && isOutgoingLike(prevAlt) && isOutgoingLike(copy)) {
-            merged.criado_em = pickLaterCriadoEmIso(prevAlt, copy)
-          }
-          merged._stableInsertSeq = mergeStableSeq(prevAlt || null, copy, ord)
-          map.set(altKey, stripTempIdWhenPersisted(merged))
-          return
-        }
-        let altK = `${k}::__split_${ord}`
-        let n = 0
-        while (map.has(altK) && n < 500) altK = `${k}::__split_${ord}_${++n}`
-        const split = { ...copy, _stableInsertSeq: mergeStableSeq(null, copy, ord) }
-        map.set(altK, mergeMsgPreferringTombstone(null, split))
-        return
-      }
-      const cand = prev ? { ...prev, ...copy } : copy
-      let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
-      if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
-        merged.criado_em = pickLaterCriadoEmIso(prev, copy)
-      }
-      merged._stableInsertSeq = mergeStableSeq(prev || null, copy, ord)
-      map.set(k, merged)
+      putMensagemInDedupeMap(map, raw, conversaId, ord)
     }
     existing.forEach(put)
     fromApi.forEach(put)
@@ -1285,36 +1296,7 @@ export const useConversaStore = create((set, get) => {
         const put = (raw) => {
           if (!raw) return
           const ord = ++batchOrd
-          const copy = normalizeMsgForStore({ ...raw, conversa_id: selectedId })
-          const k = mapDedupeKey(copy, selectedId)
-          const prev = map.get(k)
-          if (prev && !canMergeDedupeEntries(prev, copy)) {
-            const altKey = findMergeableMapKey(map, copy)
-            if (altKey) {
-              const prevAlt = map.get(altKey)
-              const cand = prevAlt ? { ...prevAlt, ...copy } : copy
-              let merged = preserveLocalMediaFields(prevAlt, mergeMsgPreferringTombstone(prevAlt, cand))
-              if (prevAlt && isOutgoingLike(prevAlt) && isOutgoingLike(copy)) {
-                merged.criado_em = pickLaterCriadoEmIso(prevAlt, copy)
-              }
-              merged._stableInsertSeq = mergeStableSeq(prevAlt || null, copy, ord)
-              map.set(altKey, stripTempIdWhenPersisted(merged))
-              return
-            }
-            let altK = `${k}::__split_${ord}`
-            let n = 0
-            while (map.has(altK) && n < 500) altK = `${k}::__split_${ord}_${++n}`
-            const split = { ...copy, _stableInsertSeq: mergeStableSeq(null, copy, ord) }
-            map.set(altK, mergeMsgPreferringTombstone(null, split))
-            return
-          }
-          const cand = prev ? { ...prev, ...copy } : copy
-          let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
-          if (prev && isOutgoingLike(prev) && isOutgoingLike(copy)) {
-            merged.criado_em = pickLaterCriadoEmIso(prev, copy)
-          }
-          merged._stableInsertSeq = mergeStableSeq(prev || null, copy, ord)
-          map.set(k, merged)
+          putMensagemInDedupeMap(map, raw, selectedId, ord)
         }
         ;(mais || []).forEach(put)
         atual.forEach(put)
