@@ -1,4 +1,4 @@
-/* Filtro admin por funcionário — pill + painel flutuante (tema escuro premium) */
+/* Filtro admin por funcionário — botão discreto + painel flutuante */
 
 .admin-atendente-filter {
   position: relative;
@@ -8,35 +8,54 @@
 }
 
 .admin-atendente-filter__trigger {
-  height: 26px;
-  min-height: 26px;
-  padding: 0 8px 0 10px;
-  border-radius: 16px;
-  font-size: var(--cl-font-size-sm);
-  font-weight: 500;
-  background: #202c33;
-  color: var(--cl-text, #e9edef);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  max-width: min(220px, 42vw);
+  gap: 7px;
+  padding: 6px 12px 6px 9px;
+  border-radius: 8px;
+  border: 0.5px solid var(--cl-border, rgba(0, 0, 0, 0.08));
+  background: transparent;
+  white-space: nowrap;
   cursor: pointer;
-  transition:
-    background 0.15s ease-out,
-    box-shadow 0.15s ease-out,
-    border-color 0.15s ease-out;
+  max-width: min(220px, 42vw);
+  color: var(--cl-text-secondary, var(--ds-text-secondary));
+  box-shadow: none;
+  transition: background 0.15s ease;
 }
 
 .admin-atendente-filter__trigger:hover {
-  background: #26353d;
-  border-color: rgba(255, 255, 255, 0.09);
+  background: var(--cl-beige-50, var(--ds-surface-2, #f8fafc));
+  border-color: var(--cl-border, rgba(0, 0, 0, 0.1));
 }
 
 .admin-atendente-filter__trigger:focus-visible {
   outline: 2px solid var(--ds-accent, #00a884);
   outline-offset: 2px;
+}
+
+.admin-atendente-filter__avatar {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e1f5ee;
+  color: #0f6e56;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.admin-atendente-filter__avatar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #0f6e56;
 }
 
 .admin-atendente-filter__trigger-label {
@@ -46,40 +65,45 @@
   flex: 1;
   min-width: 0;
   text-align: left;
-  letter-spacing: var(--cl-letter-tight, -0.02em);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cl-text-secondary, var(--ds-text-secondary));
+  letter-spacing: normal;
 }
 
 .admin-atendente-filter__clear {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgba(233, 237, 239, 0.65);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cl-text-muted, var(--ds-text-tertiary));
+  cursor: pointer;
   transition: background 0.12s ease-out, color 0.12s ease-out;
 }
 
 .admin-atendente-filter__clear:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--cl-text, #e9edef);
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--cl-text-secondary, var(--ds-text-secondary));
 }
 
-.admin-atendente-filter__chev-wrap {
+.admin-atendente-filter__chevron {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-}
-
-.admin-atendente-filter__chev {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--cl-text-muted, var(--ds-text-tertiary));
   transition: transform 0.18s ease-out;
 }
 
-.admin-atendente-filter__chev.is-open {
+.admin-atendente-filter__chevron.is-open {
   transform: rotate(180deg);
 }
 
@@ -177,34 +201,62 @@
   white-space: nowrap;
 }
 
-[data-theme="light"] .admin-atendente-filter__trigger {
-  background: var(--cl-surface-elevated, #fff);
-  color: var(--cl-text);
-  border: 1px solid var(--cl-border);
-  box-shadow: var(--cl-shadow-subtle, 0 1px 2px rgba(0, 0, 0, 0.06));
+[data-theme="dark"] .admin-atendente-filter__trigger {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .admin-atendente-filter__trigger:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="dark"] .admin-atendente-filter__avatar {
+  background: rgba(0, 168, 132, 0.18);
+  color: #5fe3c0;
+}
+
+[data-theme="dark"] .admin-atendente-filter__avatar-icon {
+  color: #5fe3c0;
+}
+
+[data-theme="dark"] .admin-atendente-filter__clear:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .admin-atendente-filter__panel {
+  background: var(--cl-surface-elevated, var(--ds-surface-2, #202c33));
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 [data-theme="light"] .admin-atendente-filter__panel {
   background: var(--cl-surface, #fff);
   border: 1px solid var(--cl-border);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.12),
+    0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .admin-atendente-filter__panel-head {
+  color: var(--cl-text-muted);
+  border-bottom-color: var(--cl-border-subtle);
+}
+
+[data-theme="light"] .admin-atendente-filter__option {
+  color: var(--cl-text);
+}
+
+[data-theme="light"] .admin-atendente-filter__option:hover,
+[data-theme="light"] .admin-atendente-filter__option:focus-visible {
+  background: var(--cl-beige-50, #f8fafc);
 }
 
 @media (max-width: 640px) {
   .admin-atendente-filter__trigger {
-    height: 28px;
-    min-height: 28px;
-    padding: 0 9px 0 10px;
+    padding: 5px 10px 5px 8px;
+    gap: 6px;
+  }
+
+  .admin-atendente-filter__trigger-label {
     font-size: 11px;
-    border-radius: 14px;
-  }
-
-  .admin-atendente-filter__clear {
-    width: 22px;
-    height: 22px;
-  }
-
-  .admin-atendente-filter__chev-wrap {
-    width: 18px;
-    height: 18px;
   }
 }

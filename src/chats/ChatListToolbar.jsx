@@ -57,6 +57,7 @@ function ChatListToolbar({
   onTabEmAtraso,
   onTabAguardandoFuncionario,
   middleSlot = null,
+  filtersPanelSlot = null,
 }) {
   const hintLoading = loading && !hasStoreChats;
   const hintText = hintLoading
@@ -76,109 +77,30 @@ function ChatListToolbar({
                 : `${filteredCount} de ${total}`;
 
   return (
-    <>
-      <div className="chat-list-search-wrap">
-        <div className="chat-list-search-box">
-          <Icon size={14}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M10.5 18a7.5 7.5 0 1 1 7.5-7.5A7.5 7.5 0 0 1 10.5 18Zm9 3-5.2-5.2"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </Icon>
+    <div className="chat-list-toolbar">
+      <div className="chat-list-search-wrap chat-list-toolbar-row--search">
+        <div className="chat-list-search-row">
+          <div className="chat-list-search-box">
+            <Icon size={14}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M10.5 18a7.5 7.5 0 1 1 7.5-7.5A7.5 7.5 0 0 1 10.5 18Zm9 3-5.2-5.2"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </Icon>
 
-          <ChatListSearchBox
-            ref={searchRef}
-            clearNonce={searchClearNonce}
-            onDebounced={onSearchDebounced}
-            placeholder="Buscar por nome ou telefone"
-            className="chat-list-search-input"
-          />
-        </div>
-        <div className="chat-list-search-hint">
-          <span>{hintText}</span>
-        </div>
-      </div>
-
-      <div className="chat-list-chips-wrap">
-        <div className="chat-list-chips chat-list-chips--primary" role="group" aria-label="Filtro principal">
-          <Chip variant="primary" active={tab === "minha_fila"} onClick={onTabMinhaFila}>
-            <span>Minha fila</span>
-            <span className="chat-list-chip-count">{minhaFilaCount}</span>
-          </Chip>
-        </div>
-        <div className="chat-list-chips chat-list-chips--secondary" role="group" aria-label="Outros filtros de conversa">
-          <Chip active={tab === "todas"} onClick={onTabTodas}>
-            <span>Todas</span>
-            <span className="chat-list-chip-count">{total}</span>
-          </Chip>
-          <Chip active={tab === "hoje"} onClick={onTabHoje}>
-            <span>Hoje</span>
-            <span className="chat-list-chip-count">{countHoje}</span>
-          </Chip>
-          <Chip active={tab === "abertas"} onClick={onTabAbertas}>
-            <span>Abertas</span>
-            <span className="chat-list-chip-count">{countAbertas}</span>
-          </Chip>
-          {separarMensagensDisparadasLigado ? (
-            <Chip active={tab === "mensagens_disparadas"} onClick={onTabMensagensDisparadas}>
-              <span>Mensagens Disparadas</span>
-              <span className="chat-list-chip-count">{mensagensDisparadasCount}</span>
-            </Chip>
-          ) : null}
-          <Chip active={tab === "em_atendimento"} onClick={onTabEmAtendimento}>
-            <span>Em atendimento</span>
-            <span className="chat-list-chip-count">{countEmAtendimento}</span>
-          </Chip>
-          <Chip active={tab === "finalizadas"} onClick={onTabFinalizadas}>
-            <span>Finalizadas</span>
-            <span className="chat-list-chip-count">{countFinalizadas}</span>
-          </Chip>
-          <Chip active={tab === "finalizadas_auto"} onClick={onTabFinalizadasAuto}>
-            <span>Por ausência</span>
-            <span className="chat-list-chip-count">{countFinalizadasAuto}</span>
-          </Chip>
-          <Chip active={tab === "aguardando_cliente"} onClick={onTabAguardandoCliente}>
-            <span>Aguardando cliente</span>
-            <span className="chat-list-chip-count">{countAguardandoCliente}</span>
-          </Chip>
-          {isFinanceiroUser ? (
-            <>
-              <Chip
-                active={tab === "pagamentos_pendentes"}
-                onClick={onTabPagamentosPendentes}
-                className="chat-list-chip--pagamento-pendente"
-              >
-                <span>Pagamentos pendentes</span>
-                <span className="chat-list-chip-count">{countPagamentosPendentes}</span>
-              </Chip>
-              <Chip
-                active={tab === "em_atraso"}
-                onClick={onTabEmAtraso}
-                className="chat-list-chip--em-atraso"
-              >
-                <span>Em atraso</span>
-                <span className="chat-list-chip-count">{countEmAtraso}</span>
-              </Chip>
-            </>
-          ) : null}
-          {isSupervisorOrAdmin(user) && (
-            <Chip
-              active={tab === "aguardando_funcionario"}
-              onClick={onTabAguardandoFuncionario}
-              className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
-            >
-              <span>Aguardando funcionario</span>
-              <span className="chat-list-chip-count zap-counter-target">{countAguardandoFuncionario}</span>
-              {aguardandoFuncionarioVisualState === "critical" ? (
-                <span className="chat-list-chip-critical-dot" aria-hidden="true" />
-              ) : null}
-            </Chip>
-          )}
-          {isAppAdmin(user) && (
+            <ChatListSearchBox
+              ref={searchRef}
+              clearNonce={searchClearNonce}
+              onDebounced={onSearchDebounced}
+              placeholder="Buscar por nome ou telefone"
+              className="chat-list-search-input"
+            />
+          </div>
+          {isAppAdmin(user) ? (
             <AdminAtendenteFilter
               usuarios={atendentes}
               selectedUserId={adminAtendenteFilterId}
@@ -188,12 +110,89 @@ function ChatListToolbar({
               onSelectUser={onAdminSelectUser}
               onClear={onAdminClear}
             />
-          )}
+          ) : null}
         </div>
       </div>
 
-      {middleSlot}
-    </>
+      <div className="chat-list-chips-wrap chat-list-chips-wrap--compact">
+        <div className="chat-list-chips-scroll" role="presentation">
+          <div
+            className="chat-list-chips chat-list-chips--scroll"
+            role="group"
+            aria-label="Filtros de conversa"
+          >
+            <Chip variant="primary" active={tab === "minha_fila"} onClick={onTabMinhaFila}>
+              Minha fila
+            </Chip>
+            <Chip active={tab === "todas"} onClick={onTabTodas}>
+              Todas
+            </Chip>
+            <Chip active={tab === "hoje"} onClick={onTabHoje}>
+              Hoje
+            </Chip>
+            <Chip active={tab === "abertas"} onClick={onTabAbertas}>
+              Abertas
+            </Chip>
+            {separarMensagensDisparadasLigado ? (
+              <Chip active={tab === "mensagens_disparadas"} onClick={onTabMensagensDisparadas}>
+                Mensagens Disparadas
+              </Chip>
+            ) : null}
+            <Chip active={tab === "em_atendimento"} onClick={onTabEmAtendimento}>
+              Em atendimento
+            </Chip>
+            <Chip active={tab === "finalizadas"} onClick={onTabFinalizadas}>
+              Finalizadas
+            </Chip>
+            <Chip active={tab === "finalizadas_auto"} onClick={onTabFinalizadasAuto}>
+              Por ausência
+            </Chip>
+            <Chip active={tab === "aguardando_cliente"} onClick={onTabAguardandoCliente}>
+              Aguardando cliente
+            </Chip>
+            {isFinanceiroUser ? (
+              <>
+                <Chip
+                  active={tab === "pagamentos_pendentes"}
+                  onClick={onTabPagamentosPendentes}
+                  className="chat-list-chip--pagamento-pendente"
+                >
+                  Pagamentos pendentes
+                </Chip>
+                <Chip
+                  active={tab === "em_atraso"}
+                  onClick={onTabEmAtraso}
+                  className="chat-list-chip--em-atraso"
+                >
+                  Em atraso
+                </Chip>
+              </>
+            ) : null}
+            {isSupervisorOrAdmin(user) ? (
+              <Chip
+                active={tab === "aguardando_funcionario"}
+                onClick={onTabAguardandoFuncionario}
+                className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
+              >
+                Aguardando funcionario
+                {aguardandoFuncionarioVisualState === "critical" ? (
+                  <span className="chat-list-chip-critical-dot" aria-hidden="true" />
+                ) : null}
+              </Chip>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="chat-list-toolbar-row--meta">
+        {middleSlot ? <div className="chat-list-toolbar-meta-left">{middleSlot}</div> : null}
+        <div className="chat-list-search-hint chat-list-toolbar-meta-count" aria-live="polite">
+          <span>{hintText}</span>
+        </div>
+      </div>
+
+      {filtersPanelSlot}
+    </div>
   );
 }
 
@@ -207,17 +206,10 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.separarMensagensDisparadasLigado !== next.separarMensagensDisparadasLigado) return false;
   if (prev.minhaFilaCount !== next.minhaFilaCount) return false;
   if (prev.total !== next.total) return false;
-  if (prev.countHoje !== next.countHoje) return false;
-  if (prev.countAbertas !== next.countAbertas) return false;
-  if (prev.countEmAtendimento !== next.countEmAtendimento) return false;
-  if (prev.countFinalizadas !== next.countFinalizadas) return false;
-  if (prev.countFinalizadasAuto !== next.countFinalizadasAuto) return false;
   if (prev.countAguardandoCliente !== next.countAguardandoCliente) return false;
   if (prev.isFinanceiroUser !== next.isFinanceiroUser) return false;
   if (prev.countPagamentosPendentes !== next.countPagamentosPendentes) return false;
   if (prev.countEmAtraso !== next.countEmAtraso) return false;
-  if (prev.countAguardandoFuncionario !== next.countAguardandoFuncionario) return false;
-  if (prev.mensagensDisparadasCount !== next.mensagensDisparadasCount) return false;
   if (prev.aguardandoFuncionarioVisualState !== next.aguardandoFuncionarioVisualState) return false;
   if (prev.searchClearNonce !== next.searchClearNonce) return false;
   if (prev.adminAtendenteFilterId !== next.adminAtendenteFilterId) return false;
@@ -227,6 +219,7 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.user?.perfil !== next.user?.perfil) return false;
   if (prev.atendentes !== next.atendentes) return false;
   if (prev.middleSlot !== next.middleSlot) return false;
+  if (prev.filtersPanelSlot !== next.filtersPanelSlot) return false;
   if (prev.searchRef !== next.searchRef) return false;
   if (prev.onSearchDebounced !== next.onSearchDebounced) return false;
   if (prev.onTabMinhaFila !== next.onTabMinhaFila) return false;

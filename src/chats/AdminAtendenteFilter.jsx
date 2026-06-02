@@ -2,13 +2,39 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import "./admin-atendente-filter.css";
 
-function ChevronDown({ className }) {
+function employeeInitials(user) {
+  const nome = String(user?.nome ?? user?.name ?? user?.email ?? "").trim();
+  const parts = nome.split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] || "";
+  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
+  return (a + b).toUpperCase();
+}
+
+function UserIcon() {
   return (
-    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg
+      className="admin-atendente-filter__avatar-icon"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className }) {
+  return (
+    <svg className={className} width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M6 9l6 6 6-6"
         stroke="currentColor"
-        strokeWidth="1.75"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -168,8 +194,11 @@ export default function AdminAtendenteFilter({
         }
         onClick={handleTrigger}
       >
+        <span className="admin-atendente-filter__avatar" aria-hidden>
+          {selected ? employeeInitials(selected) : <UserIcon />}
+        </span>
         <span className="admin-atendente-filter__trigger-label">{label}</span>
-        {selectedUserId != null && (
+        {selectedUserId != null ? (
           <span
             className="admin-atendente-filter__clear"
             role="button"
@@ -178,14 +207,12 @@ export default function AdminAtendenteFilter({
             aria-label="Limpar filtro por funcionário"
             onClick={handleClear}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </span>
-        )}
-        <span className="admin-atendente-filter__chev-wrap" aria-hidden>
-          <ChevronDown className={`admin-atendente-filter__chev ${open ? "is-open" : ""}`} />
-        </span>
+        ) : null}
+        <ChevronIcon className={`admin-atendente-filter__chevron ${open ? "is-open" : ""}`} />
       </button>
       {typeof document !== "undefined" ? createPortal(panel, document.body) : null}
     </div>

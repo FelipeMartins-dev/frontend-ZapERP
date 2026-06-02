@@ -78,6 +78,7 @@ function ChatListBody({
   onReloadList,
   listRefreshing = false,
   middleSlot = null,
+  filtersPanelSlot = null,
   conversaIdsPendenciaAtiva = null,
 }) {
   const chats = useChatStore((s) => s.chats || [], chatListsStoreEquivalent);
@@ -370,6 +371,7 @@ function ChatListBody({
         onTabEmAtraso={onTabEmAtraso}
         onTabAguardandoFuncionario={onTabAguardandoFuncionario}
         middleSlot={middleSlot}
+        filtersPanelSlot={filtersPanelSlot}
       />
 
       <ChatListRowsPane

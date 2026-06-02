@@ -1679,14 +1679,83 @@
   max-width: 320px;
 }
 
+.wa-messages-emptyCard--closed {
+  width: min(420px, calc(100vw - 40px));
+  max-width: 420px;
+  padding: 22px 24px;
+  gap: 14px;
+}
+
 .wa-messages-emptyCard--blocked strong {
   color: var(--wa-text);
   font-weight: 600;
+  line-height: 1.35;
 }
 
 .wa-messages-blocked-icon {
-  font-size: 32px;
-  opacity: 0.8;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wa-green);
+  background: color-mix(in srgb, var(--wa-green) 10%, transparent);
+  border: 0.5px solid var(--wa-green);
+}
+
+.wa-closedAttendance-meta {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 0.5px solid color-mix(in srgb, var(--wa-panel-border) 82%, transparent);
+  border-bottom: 0.5px solid color-mix(in srgb, var(--wa-panel-border) 82%, transparent);
+}
+
+.wa-closedAttendance-metaItem {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wa-closedAttendance-metaLabel {
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--wa-text-muted);
+}
+
+.wa-closedAttendance-metaValue {
+  font-size: 12.5px;
+  line-height: 1.25;
+  font-weight: 500;
+  color: var(--wa-green);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-closedAttendance-reopenBtn {
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (max-width: 520px) {
+  .wa-messages-emptyCard--closed {
+    width: min(360px, calc(100vw - 32px));
+    padding: 20px 18px;
+  }
+
+  .wa-closedAttendance-meta {
+    gap: 8px;
+  }
 }
 
 /* =========================================================
@@ -7532,6 +7601,23 @@ main.main-content--crm .wa-mediaPreview-composer {
   color: var(--wa-text-light);
 }
 
+.wa-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.wa-input--closedAttendance,
+.wa-input--closedAttendance:disabled {
+  color: var(--wa-text-muted);
+  background: color-mix(in srgb, var(--wa-input-bg) 78%, var(--wa-panel-border) 22%);
+  border-color: color-mix(in srgb, var(--wa-panel-border) 88%, transparent);
+  box-shadow: none;
+}
+
+.wa-input--closedAttendance::placeholder {
+  color: var(--wa-text-muted);
+}
+
 .wa-input:focus {
   border-color: color-mix(in srgb, var(--wa-green-send) 34%, var(--wa-panel-border));
   box-shadow:
@@ -9227,14 +9313,6 @@ main.main-content--crm .wa-mediaPreview-composer {
     display: none !important;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-iconsLine:has(.wa-header-searchBtn) {
-    display: flex !important;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-    min-width: 0;
-  }
-
   .wa-header.wa-header--atendMobile .wa-header-innerRow {
     width: auto;
     justify-content: flex-end;
@@ -9341,10 +9419,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 1 1 auto;
     min-width: 0;
     max-width: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
     word-break: normal;
+    overflow-wrap: anywhere;
     line-height: 1.2;
     font-size: 11px;
     -webkit-line-clamp: unset;
@@ -9355,21 +9434,22 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 1 0 100%;
     max-width: 100%;
     width: auto;
-    font-size: 8.5px;
+    font-size: 10px;
     font-weight: 600;
     padding: 2px 6px;
-    min-height: 17px;
-    white-space: nowrap;
+    min-height: 18px;
+    white-space: normal;
     display: inline-flex;
     align-items: center;
     justify-content: flex-start;
     line-height: 1.15;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
     -webkit-line-clamp: unset;
     line-clamp: unset;
     box-sizing: border-box;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 
   .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep {

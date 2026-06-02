@@ -222,7 +222,7 @@ function ConversaHeader({
       <div className="wa-header-right">
         <div className="wa-header-innerRow">
           <div className="wa-header-iconsLine">
-            {conversaId ? (
+            {conversaId && (!headerCompact || isGroup) ? (
               <button
                 type="button"
                 className="wa-header-btn wa-header-searchBtn"

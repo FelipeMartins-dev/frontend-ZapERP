@@ -3313,7 +3313,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 980px) {
   .chat-list-header-title { font-size: var(--cl-font-size-lg); }
-  .chat-list-search-hint { display: none; }
+  .chat-list-search-hint:not(.chat-list-toolbar-meta-count) { display: none; }
 
   /* Lista + chat lado a lado: limita coluna de hora/status para não “comer” o nome */
   .chat-list-row-meta {

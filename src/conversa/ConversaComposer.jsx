@@ -81,6 +81,7 @@ function composerPropsAreEqual(prev, next) {
   if (prev.pixConfigLoading !== next.pixConfigLoading) return false;
   if (prev.appendTextQueue !== next.appendTextQueue) return false;
   if (prev.mensagensBloqueadasHint !== next.mensagensBloqueadasHint) return false;
+  if (prev.atendimentoEncerradoHint !== next.atendimentoEncerradoHint) return false;
   if (prev.atendenteNomeHint !== next.atendenteNomeHint) return false;
   const pr = prev.replyBarPreview;
   const nr = next.replyBarPreview;
@@ -102,6 +103,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     sending,
     podeEnviar,
     mensagensBloqueadasHint,
+    atendimentoEncerradoHint,
     atendenteNomeHint,
     headerCompact,
     composerEnterInsertsNewline,
@@ -857,23 +859,39 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const placeholderText = podeEnviar
     ? "Digite uma mensagem"
-    : mensagensBloqueadasHint
-      ? "Este atendimento foi assumido por outro usuário."
-      : "Assuma esta conversa para responder";
+    : atendimentoEncerradoHint
+      ? "Reabra o atendimento para enviar mensagens"
+      : mensagensBloqueadasHint
+        ? "Este atendimento foi assumido por outro usuário."
+        : "Assuma esta conversa para responder";
 
   const inputAriaLabel = podeEnviar
     ? composerEnterInsertsNewline
       ? "Digite sua resposta. Retorno ou Enter para nova linha; use o botão enviar para mandar a mensagem. Esc para fechar painéis."
       : "Digite sua resposta. Enter para enviar, Shift+Enter para nova linha, Esc para fechar painéis."
-    : mensagensBloqueadasHint
-      ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens."
-      : "Assuma esta conversa para responder.";
+    : atendimentoEncerradoHint
+      ? "Reabra o atendimento para enviar mensagens."
+      : mensagensBloqueadasHint
+        ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens."
+        : "Assuma esta conversa para responder.";
 
   const footerHint = !podeEnviar
-    ? mensagensBloqueadasHint
-      ? `Este atendimento foi assumido por ${atendenteNomeHint?.trim() ? atendenteNomeHint : "outro usuário"}.`
-      : "Assuma esta conversa para enviar mensagens"
+    ? atendimentoEncerradoHint
+      ? "Reabra o atendimento para enviar mensagens"
+      : mensagensBloqueadasHint
+        ? `Este atendimento foi assumido por ${atendenteNomeHint?.trim() ? atendenteNomeHint : "outro usuário"}.`
+        : "Assuma esta conversa para enviar mensagens"
     : null;
+
+  const composerPlaceholderText = atendimentoEncerradoHint
+    ? "Reabra o atendimento para enviar mensagens"
+    : placeholderText;
+  const composerInputAriaLabel = atendimentoEncerradoHint
+    ? "Reabra o atendimento para enviar mensagens."
+    : inputAriaLabel;
+  const composerFooterHint = atendimentoEncerradoHint
+    ? "Reabra o atendimento para enviar mensagens"
+    : footerHint;
 
   return (
     <>
@@ -938,9 +956,9 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           </div>
         ) : (
           <>
-            {footerHint ? (
+            {composerFooterHint ? (
               <div className="wa-footer-hint" role="status">
-                {footerHint}
+                {composerFooterHint}
               </div>
             ) : null}
             <div className="wa-attachWrap" ref={attachMenuRef}>
@@ -1198,11 +1216,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               onChange={handleInputChange}
               onBlur={emitTypingStop}
               onPaste={handlePaste}
-              placeholder={placeholderText}
-              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""}`}
+              placeholder={composerPlaceholderText}
+              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""} ${atendimentoEncerradoHint ? "wa-input--closedAttendance" : ""}`}
               onKeyDown={handleKeyDownInput}
               disabled={!conversaId || !podeEnviar}
-              aria-label={inputAriaLabel}
+              aria-label={composerInputAriaLabel}
               rows={1}
               enterKeyHint={composerEnterInsertsNewline ? "enter" : "send"}
             />

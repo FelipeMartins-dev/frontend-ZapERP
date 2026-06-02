@@ -23,8 +23,17 @@ export function isGroupConversation(conversa) {
  */
 export function getStatusAtendimentoEffective(conversa) {
   if (!conversa || typeof conversa !== 'object') return ''
-  const raw = conversa.status_atendimento_real ?? conversa.status_atendimento
+  const raw = conversa.status_atendimento_real ?? conversa.status_real ?? conversa.status_atendimento
   return raw != null ? String(raw).toLowerCase().trim().replace(/\s+/g, '_') : ''
+}
+
+export function isClosedAttendanceStatus(status) {
+  const s = status != null ? String(status).toLowerCase().trim().replace(/\s+/g, '_') : ''
+  return s === 'fechada' || s === 'encerrada' || s === 'finalizada' || s === 'finalizado'
+}
+
+export function isClosedAttendance(conversa) {
+  return isClosedAttendanceStatus(getStatusAtendimentoEffective(conversa))
 }
 
 /** Modo manual: não inferir por `aguardando_cliente_desde` (job automático em em_atendimento). */

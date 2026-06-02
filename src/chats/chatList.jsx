@@ -1462,18 +1462,15 @@ export default function ChatList() {
     ]
   );
 
-  const toolbarMiddleSlot = useMemo(
+  const toolbarMetaLeftSlot = useMemo(
     () => (
-      <>
-        <MinhasPendenciasCard
-          minhasPendencias={minhasPendencias}
-          pendenciaAtiva={pendenciaAtiva}
-          loadingPendencias={loadingPendencias}
-          loadingPendenciaCategoria={loadingPendenciaCategoria}
-          onPendenciaClick={onPendenciaClick}
-        />
-        {advancedFiltersSlot}
-      </>
+      <MinhasPendenciasCard
+        minhasPendencias={minhasPendencias}
+        pendenciaAtiva={pendenciaAtiva}
+        loadingPendencias={loadingPendencias}
+        loadingPendenciaCategoria={loadingPendenciaCategoria}
+        onPendenciaClick={onPendenciaClick}
+      />
     ),
     [
       minhasPendencias,
@@ -1481,7 +1478,6 @@ export default function ChatList() {
       loadingPendencias,
       loadingPendenciaCategoria,
       onPendenciaClick,
-      advancedFiltersSlot,
     ]
   );
 
@@ -1565,7 +1561,8 @@ export default function ChatList() {
         onRequestConfirmDelete={onRequestConfirmDelete}
         onReloadList={onReloadList}
         listRefreshing={listRefreshing}
-        middleSlot={toolbarMiddleSlot}
+        middleSlot={toolbarMetaLeftSlot}
+        filtersPanelSlot={advancedFiltersSlot}
         conversaIdsPendenciaAtiva={conversaIdsPendenciaAtiva}
       />
 

@@ -12,6 +12,7 @@ import {
 import {
   isGroupConversation,
   getStatusAtendimentoEffective,
+  isClosedAttendance,
   exibirBadgePagamentoConcluido,
   resolveContactMetaFromMessage,
 } from "../utils/conversaUtils";
@@ -19,7 +20,7 @@ import "./conversa.css";
 import "../styles/zap-animations.css";
 import api from "../api/http";
 import { useAuthStore } from "../auth/authStore";
-import { canAssumir, canTag, canTransferirSetorConversa } from "../auth/permissions";
+import { canAssumir, canReabrir, canTag, canTransferirSetorConversa } from "../auth/permissions";
 const ProdutoConsultaPanel = lazy(() => import("./ProdutoConsultaPanel"));
 const SidebarCliente = lazy(() => import("./SidebarCliente"));
 const ForwardModal = lazy(() => import("./components/ForwardModal"));
@@ -183,6 +184,7 @@ function ConversaViewBody() {
     carregarAtendimentos,
     clearTyping,
     assumirConversa,
+    reabrirConversa,
     setTags,
   } = useConversaStore(
     (s) => ({
@@ -199,6 +201,7 @@ function ConversaViewBody() {
       carregarAtendimentos: s.carregarAtendimentos,
       clearTyping: s.clearTyping,
       assumirConversa: s.assumirConversa,
+      reabrirConversa: s.reabrirConversa,
       setTags: s.setTags,
     }),
     shallow
@@ -225,6 +228,7 @@ function ConversaViewBody() {
     if (!user?.id || !conversa?.id) return false;
     /** Grupos: qualquer usuário pode enviar sem assumir atendimento (modelo WhatsApp). */
     if (isGroupConversation(conversa)) return true;
+    if (isClosedAttendance(conversa)) return false;
     if (conversa?.mensagens_bloqueadas) return false;
     const atendenteId = conversa?.atendente_id ?? null;
     if (atendenteId == null || atendenteId === "") return false;
@@ -2125,6 +2129,14 @@ function ConversaViewBody() {
   }, [conversa, user, isGroup]);
 
   const [assumeEmptyBusy, setAssumeEmptyBusy] = useState(false);
+  const [reopenClosedBusy, setReopenClosedBusy] = useState(false);
+
+  const showReopenClosedCta = useMemo(() => {
+    if (isGroup) return false;
+    if (!conversa?.id || !conversa?.mensagens_bloqueadas) return false;
+    if (!canReabrir(user)) return false;
+    return isClosedAttendance(conversa);
+  }, [conversa, user, isGroup]);
 
   const handleAssumeEmpty = useCallback(async () => {
     if (!conversaId || assumeEmptyBusy) return;
@@ -2149,6 +2161,28 @@ function ConversaViewBody() {
       setAssumeEmptyBusy(false);
     }
   }, [conversaId, assumeEmptyBusy, assumirConversa, refresh, showToast]);
+
+  const handleReopenClosed = useCallback(async () => {
+    if (!conversaId || reopenClosedBusy) return;
+    setReopenClosedBusy(true);
+    try {
+      await reabrirConversa(conversaId);
+      await refresh({ silent: true });
+      showToast({
+        type: "success",
+        title: "Atendimento reaberto",
+        message: "Você já está em atendimento nesta conversa.",
+      });
+    } catch (e) {
+      showToast({
+        type: "error",
+        title: "Erro ao reabrir",
+        message: e?.response?.data?.error || e?.message || "Tente novamente.",
+      });
+    } finally {
+      setReopenClosedBusy(false);
+    }
+  }, [conversaId, reopenClosedBusy, reabrirConversa, refresh, showToast]);
 
   const setorAtual =
     conversa?.departamento_id != null
@@ -2390,6 +2424,7 @@ function ConversaViewBody() {
   }, [conversaId, callSending, callDuration, showToast]);
 
   const mensagensBloqueadasHint = Boolean(conversa?.mensagens_bloqueadas);
+  const atendimentoEncerradoHint = !isGroup && isClosedAttendance(conversa);
   const atendenteNomeHint = conversa?.atendente_nome ?? "";
 
   /* Só tela cheia sem shell; com header da lista o thread mostra “Carregando mensagens…” inline. */
@@ -2694,6 +2729,9 @@ function ConversaViewBody() {
             showAssumeEmptyCta={showAssumeEmptyCta}
             assumeEmptyBusy={assumeEmptyBusy}
             onAssumeEmpty={handleAssumeEmpty}
+            showReopenClosedCta={showReopenClosedCta}
+            reopenClosedBusy={reopenClosedBusy}
+            onReopenClosed={handleReopenClosed}
             onLoadOlderMessagesClick={handleLoadOlderMessagesClick}
             onVirtualContentResize={headerCompact ? undefined : snapIfStickBottom}
             BubbleComponent={Bubble}
@@ -2947,6 +2985,7 @@ function ConversaViewBody() {
           sending={sending}
           podeEnviar={podeEnviar}
           mensagensBloqueadasHint={mensagensBloqueadasHint}
+          atendimentoEncerradoHint={atendimentoEncerradoHint}
           atendenteNomeHint={atendenteNomeHint}
           headerCompact={headerCompact}
           composerEnterInsertsNewline={composerEnterInsertsNewline}
