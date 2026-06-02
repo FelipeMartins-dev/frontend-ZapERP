@@ -9167,12 +9167,27 @@ main.main-content--crm .wa-mediaPreview-composer {
 ========================================================= */
 
 @media (max-width: 640px) {
+  .wa-shell.wa-mobile-input-focused {
+    height: var(--wa-visual-height, 100%);
+    max-height: var(--wa-visual-height, 100%);
+  }
+
   .wa-shell.wa-mobile-input-focused .wa-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--wa-keyboard-inset, 0px);
+    z-index: 36;
     padding-bottom: 6px !important;
+    box-sizing: border-box;
   }
 
   main.main-content--crm .wa-shell.wa-mobile-input-focused .wa-footer {
     padding-bottom: 6px !important;
+  }
+
+  .wa-shell.wa-mobile-input-focused .wa-messages {
+    padding-bottom: calc(12px + var(--wa-mobile-composer-h, 72px));
   }
 
   .main-content:has(.wa-shell.wa-mobile-input-focused),

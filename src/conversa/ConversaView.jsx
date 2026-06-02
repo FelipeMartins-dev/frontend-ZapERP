@@ -363,16 +363,22 @@ function ConversaViewBody() {
       shell.classList.toggle("wa-mobile-input-focused", mq.matches && isFocused);
     };
 
+    const footer = shell.querySelector(".wa-footer");
+
     const syncHeaderLayout = () => {
       if (!mq.matches) {
         shell.style.removeProperty("--wa-mobile-header-h");
         shell.style.removeProperty("--wa-vv-top");
         shell.style.removeProperty("--wa-keyboard-inset");
         shell.style.removeProperty("--wa-visual-height");
+        shell.style.removeProperty("--wa-mobile-composer-h");
         shell.classList.remove("wa-mobile-input-focused");
         return;
       }
       shell.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
+      if (footer?.offsetHeight) {
+        shell.style.setProperty("--wa-mobile-composer-h", `${footer.offsetHeight}px`);
+      }
       const vvNow = window.visualViewport;
       if (vvNow) {
         shell.style.setProperty("--wa-vv-top", `${vvNow.offsetTop}px`);
@@ -391,6 +397,7 @@ function ConversaViewBody() {
 
     const ro = new ResizeObserver(syncHeaderLayout);
     ro.observe(header);
+    if (footer) ro.observe(footer);
 
     const onMqChange = () => syncHeaderLayout();
     if (mq.addEventListener) mq.addEventListener("change", onMqChange);
@@ -426,6 +433,7 @@ function ConversaViewBody() {
       shell.style.removeProperty("--wa-vv-top");
       shell.style.removeProperty("--wa-keyboard-inset");
       shell.style.removeProperty("--wa-visual-height");
+      shell.style.removeProperty("--wa-mobile-composer-h");
     };
   }, [conversaId]);
 
