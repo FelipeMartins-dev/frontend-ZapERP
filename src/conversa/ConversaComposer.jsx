@@ -28,6 +28,8 @@ const WA_INPUT_MAX_HEIGHT_PX = 160;
 const STICKER_RECENTS_LIMIT = 36;
 const AUTO_CORRECT_CONTEXT_WINDOW = 12;
 const AUTO_CORRECT_CONTEXT_MATCH = 6;
+/** Menu de anexos em portal (bottom-sheet) só no mobile; no desktop fica no wrapper do +. */
+const ATTACH_MENU_PORTAL_MQ = "(max-width: 640px)";
 
 const __WA_EMOJIS = [
   "😀","😁","😂","🤣","😊","😍","😘","😅","😎","🙂","🤝","🙏","👏","🔥","✅","❌","⚠️","⭐","🎉","💡","📎","📌","📞","🎧",
@@ -144,6 +146,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const [stickerQuery, setStickerQuery] = useState("");
   const [recentStickers, setRecentStickers] = useState([]);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [attachMenuPortal, setAttachMenuPortal] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(ATTACH_MENU_PORTAL_MQ).matches;
+  });
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
 
@@ -424,6 +430,15 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     requestAnimationFrame(() => emojiSearchRef.current?.focus?.());
     return () => document.removeEventListener("mousedown", onDoc);
   }, [emojiOpen]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mq = window.matchMedia(ATTACH_MENU_PORTAL_MQ);
+    const sync = () => setAttachMenuPortal(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     if (!attachMenuOpen) return;
@@ -899,6 +914,172 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     ? "Reabra o atendimento para enviar mensagens"
     : footerHint;
 
+  const attachMenuItems = (
+    <>
+      <div className="wa-attachMenu-head">
+        <button
+          type="button"
+          className="wa-attachMenu-close wa-iconBtn"
+          aria-label="Fechar opções"
+          title="Fechar"
+          onClick={() => setAttachMenuOpen(false)}
+        >
+          <IconClose />
+        </button>
+      </div>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          fototecaInputRef.current?.click();
+          setAttachMenuOpen(false);
+        }}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">
+          📄
+        </span>
+        <span>Fototeca/Galeria</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          fototecaInputRef.current?.click();
+          setAttachMenuOpen(false);
+        }}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">
+          🖼️
+        </span>
+        <span>Galeria</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          try {
+            const hasMediaDevices =
+              typeof navigator !== "undefined" &&
+              navigator.mediaDevices &&
+              navigator.mediaDevices.getUserMedia;
+            if (!hasMediaDevices) {
+              showToast?.({
+                type: "error",
+                title: "Câmera indisponível",
+                message: "Seu navegador não permite acesso à câmera neste dispositivo.",
+              });
+              return;
+            }
+          } catch {
+            /* ignore */
+          }
+          cameraInputRef.current?.click();
+          setAttachMenuOpen(false);
+        }}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">
+          📷
+        </span>
+        <span>Câmera</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          documentInputRef.current?.click();
+          setAttachMenuOpen(false);
+        }}
+        disabled={sending || !conversaId || !podeEnviar}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-document" aria-hidden="true">
+          <IconDocument />
+        </span>
+        <span>Documentos</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          onPixMenuClick?.();
+          setAttachMenuOpen(false);
+        }}
+        disabled={pixActionBusy || sending || !conversaId || !podeEnviar}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-pix" aria-hidden="true">
+          <IconPix />
+        </span>
+        <span>{pixActionBusy ? "Enviando Pix..." : "Pix"}</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          setAttachMenuOpen(false);
+          onOpenPixConfig?.();
+        }}
+        disabled={pixConfigLoading || sending}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-clip" aria-hidden="true">
+          ⚙️
+        </span>
+        <span>Configurar Pix</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          onShareContact?.();
+          setAttachMenuOpen(false);
+        }}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-contact" aria-hidden="true">
+          👤
+        </span>
+        <span>Contato</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
+          onShareLocation?.();
+          setAttachMenuOpen(false);
+        }}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-location" aria-hidden="true">
+          📍
+        </span>
+        <span>Localização</span>
+      </button>
+      {autocorrectToggleInMenu ? (
+        <button
+          type="button"
+          className="wa-attachItem wa-attachItem--autocorrect"
+          role="menuitemcheckbox"
+          aria-checked={autoCorrectEnabled ? "true" : "false"}
+          onClick={() => {
+            updateAutoCorrectPreference(!autoCorrectEnabled);
+            setAttachMenuOpen(false);
+          }}
+        >
+          <span className="wa-attachItem-icon wa-attachIcon-clip" aria-hidden="true">
+            ✓
+          </span>
+          <span>
+            {autoCorrectEnabled ? "Desativar correção automática" : "Ativar correção automática"}
+          </span>
+        </button>
+      ) : null}
+    </>
+  );
+
   return (
     <>
       {replyBarPreview && !isRecording ? (
@@ -983,183 +1164,36 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               >
                 <IconPlus />
               </button>
-              {attachMenuOpen && typeof document !== "undefined"
-                ? createPortal(
-                    <>
-                      <button
-                        type="button"
-                        className="wa-attachBackdrop wa-attachBackdrop--portal"
-                        aria-label="Fechar opções de anexo"
-                        onClick={() => setAttachMenuOpen(false)}
-                      />
-                      <div
-                        ref={attachMenuPanelRef}
-                        className="wa-attachMenu wa-attachMenu--portal"
-                        role="menu"
-                        aria-label="Anexos"
-                      >
-                  <div className="wa-attachMenu-head">
-                    <button
-                      type="button"
-                      className="wa-attachMenu-close wa-iconBtn"
-                      aria-label="Fechar opções"
-                      title="Fechar"
-                      onClick={() => setAttachMenuOpen(false)}
+              {attachMenuOpen
+                ? attachMenuPortal && typeof document !== "undefined"
+                  ? createPortal(
+                      <>
+                        <button
+                          type="button"
+                          className="wa-attachBackdrop wa-attachBackdrop--portal"
+                          aria-label="Fechar opções de anexo"
+                          onClick={() => setAttachMenuOpen(false)}
+                        />
+                        <div
+                          ref={attachMenuPanelRef}
+                          className="wa-attachMenu wa-attachMenu--portal"
+                          role="menu"
+                          aria-label="Anexos"
+                        >
+                          {attachMenuItems}
+                        </div>
+                      </>,
+                      document.body
+                    )
+                  : (
+                    <div
+                      ref={attachMenuPanelRef}
+                      className="wa-attachMenu"
+                      role="menu"
+                      aria-label="Anexos"
                     >
-                      <IconClose />
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      fototecaInputRef.current?.click();
-                      setAttachMenuOpen(false);
-                    }}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">
-                      📄
-                    </span>
-                    <span>Fototeca/Galeria</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      fototecaInputRef.current?.click();
-                      setAttachMenuOpen(false);
-                    }}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">
-                      🖼️
-                    </span>
-                    <span>Galeria</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      try {
-                        const hasMediaDevices =
-                          typeof navigator !== "undefined" &&
-                          navigator.mediaDevices &&
-                          navigator.mediaDevices.getUserMedia;
-                        if (!hasMediaDevices) {
-                          showToast?.({
-                            type: "error",
-                            title: "Câmera indisponível",
-                            message: "Seu navegador não permite acesso à câmera neste dispositivo.",
-                          });
-                          return;
-                        }
-                      } catch {
-                        /* ignore */
-                      }
-                      cameraInputRef.current?.click();
-                      setAttachMenuOpen(false);
-                    }}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">
-                      📷
-                    </span>
-                    <span>Câmera</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      documentInputRef.current?.click();
-                      setAttachMenuOpen(false);
-                    }}
-                    disabled={sending || !conversaId || !podeEnviar}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-document" aria-hidden="true">
-                      <IconDocument />
-                    </span>
-                    <span>Documentos</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      onPixMenuClick?.();
-                      setAttachMenuOpen(false);
-                    }}
-                    disabled={pixActionBusy || sending || !conversaId || !podeEnviar}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-pix" aria-hidden="true">
-                      <IconPix />
-                    </span>
-                    <span>{pixActionBusy ? "Enviando Pix..." : "Pix"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      setAttachMenuOpen(false);
-                      onOpenPixConfig?.();
-                    }}
-                    disabled={pixConfigLoading || sending}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-clip" aria-hidden="true">
-                      ⚙️
-                    </span>
-                    <span>Configurar Pix</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      onShareContact?.();
-                      setAttachMenuOpen(false);
-                    }}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-contact" aria-hidden="true">
-                      👤
-                    </span>
-                    <span>Contato</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="wa-attachItem"
-                    role="menuitem"
-                    onClick={() => {
-                      onShareLocation?.();
-                      setAttachMenuOpen(false);
-                    }}
-                  >
-                    <span className="wa-attachItem-icon wa-attachIcon-location" aria-hidden="true">
-                      📍
-                    </span>
-                    <span>Localização</span>
-                  </button>
-                  {autocorrectToggleInMenu ? (
-                    <button
-                      type="button"
-                      className="wa-attachItem wa-attachItem--autocorrect"
-                      role="menuitemcheckbox"
-                      aria-checked={autoCorrectEnabled ? "true" : "false"}
-                      onClick={() => {
-                        updateAutoCorrectPreference(!autoCorrectEnabled);
-                        setAttachMenuOpen(false);
-                      }}
-                    >
-                      <span className="wa-attachItem-icon wa-attachIcon-clip" aria-hidden="true">
-                        ✓
-                      </span>
-                      <span>{autoCorrectEnabled ? "Desativar correção automática" : "Ativar correção automática"}</span>
-                    </button>
-                  ) : null}
-                      </div>
-                    </>,
-                    document.body
+                      {attachMenuItems}
+                    </div>
                   )
                 : null}
             </div>
