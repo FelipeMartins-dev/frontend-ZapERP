@@ -325,6 +325,7 @@ function areLikelySameMessageBubble(prev, incoming) {
     const nomeI = String(incoming.nome_arquivo || "").trim()
     if (nomeP && nomeI && nomeP === nomeI) return true
   }
+  if (isOutgoingMediaReconcilePair(prev, incoming)) return true
   if (isOutgoingAudioReconcilePair(prev, incoming)) return true
   return false
 }
@@ -361,8 +362,51 @@ function pruneRedundantOutgoingTemps(list) {
   })
 }
 
+function pruneRedundantOutgoingMediaEchoes(list) {
+  if (!Array.isArray(list) || list.length < 2) return list
+  const media = list
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => isOutgoingLike(m) && mediaFamilyFromMsg(m))
+  if (media.length < 2) return list
+
+  const confirmed = media.filter(({ m }) => {
+    const waOk = m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
+    return waOk && !m?.tempId
+  })
+  if (!confirmed.length) return list
+
+  const remove = new Set()
+  const recentMs = 20_000
+  for (const { m, i } of media) {
+    if (m?.tempId) continue
+    if (m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") continue
+    const localCrmMedia = m?.autor_usuario_id != null || isLocalUploadMediaMessage(m)
+    if (!localCrmMedia) continue
+    const family = mediaFamilyFromMsg(m)
+    const ts = toMillis(m?.criado_em)
+    if (!Number.isFinite(ts)) continue
+    const matches = confirmed.filter(({ m: c }) => {
+      if (mediaFamilyFromMsg(c) !== family) return false
+      const tc = toMillis(c?.criado_em)
+      if (!Number.isFinite(tc) || Math.abs(tc - ts) > recentMs) return false
+      return true
+    })
+    const localMatches = media.filter(({ m: other }) => {
+      if (other?.tempId) return false
+      if (other?.whatsapp_id != null && String(other.whatsapp_id).trim() !== "") return false
+      if (!(other?.autor_usuario_id != null || isLocalUploadMediaMessage(other))) return false
+      if (mediaFamilyFromMsg(other) !== family) return false
+      const to = toMillis(other?.criado_em)
+      return Number.isFinite(to) && Math.abs(to - ts) <= recentMs
+    })
+    if (matches.length === 1 && localMatches.length === 1) remove.add(i)
+  }
+  if (!remove.size) return list
+  return list.filter((_, i) => !remove.has(i))
+}
+
 function finalizeMensagensList(list) {
-  return sortMensagensChronological(pruneRedundantOutgoingTemps(list))
+  return sortMensagensChronological(pruneRedundantOutgoingMediaEchoes(pruneRedundantOutgoingTemps(list)))
 }
 
 /** Chave estável para React (evita colisão e remount errado). */
@@ -455,7 +499,59 @@ function hasPersistedMessageIdentity(m) {
   return idOk || waOk
 }
 
-/** Otimista de áudio + confirmação (socket/HTTP) — nomes/tipos podem divergir (audio vs voice). */
+/** Familia de midia usada para reconciliar optimistic + socket/API sem misturar tipos diferentes. */
+function mediaFamilyFromMsg(m) {
+  const tipo = String(m?.tipo || "").toLowerCase().trim()
+  if (isAudioFamilyTipo(tipo)) return "audio"
+  if (tipo === "imagem" || tipo === "image" || tipo === "sticker") return "imagem"
+  if (tipo === "video" || tipo === "vídeo") return "video"
+  if (tipo === "arquivo" || tipo === "documento" || tipo === "document" || tipo === "file") return "arquivo"
+  return ""
+}
+
+function mediaFileBaseName(m) {
+  const raw = String(m?.nome_arquivo || m?.filename || "").trim()
+  if (!raw) return ""
+  const clean = raw.split(/[?#]/)[0].split(/[\\/]/).pop() || raw
+  return clean
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+}
+
+function mediaUrlTail(m) {
+  const raw = String(m?.url || m?.url_absoluta || "").trim()
+  if (!raw || raw.startsWith("blob:")) return ""
+  return raw.split(/[?#]/)[0].split("/").pop()?.toLowerCase() || ""
+}
+
+function isLocalUploadMediaMessage(m) {
+  const raw = String(m?.url || m?.url_absoluta || "").trim()
+  return raw.startsWith("/uploads/")
+}
+
+function sameMediaStrongHint(prev, incoming) {
+  const prevName = mediaFileBaseName(prev)
+  const incomingName = mediaFileBaseName(incoming)
+  if (prevName && incomingName && prevName === incomingName) return true
+  const prevUrl = mediaUrlTail(prev)
+  const incomingUrl = mediaUrlTail(incoming)
+  if (prevUrl && incomingUrl && prevUrl === incomingUrl) return true
+  const prevSize = prev?.tamanho ?? prev?.tamanho_bytes ?? null
+  const incomingSize = incoming?.tamanho ?? incoming?.tamanho_bytes ?? null
+  if (
+    prevSize != null &&
+    incomingSize != null &&
+    Number.isFinite(Number(prevSize)) &&
+    Number(prevSize) === Number(incomingSize)
+  ) {
+    return true
+  }
+  return false
+}
+
+/** Otimista de audio + confirmacao (socket/HTTP): nomes/tipos podem divergir (audio vs voice). */
 function isOutgoingAudioReconcilePair(prev, incoming) {
   if (!prev || !incoming) return false
   if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
@@ -470,6 +566,28 @@ function isOutgoingAudioReconcilePair(prev, incoming) {
   const prevPersist = hasPersistedMessageIdentity(prev)
   const incPersist = hasPersistedMessageIdentity(incoming)
   return (prevPending && incPersist) || (incPending && prevPersist)
+}
+
+function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
+  if (!prev || !incoming) return false
+  if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
+  const prevFamily = mediaFamilyFromMsg(prev)
+  const incomingFamily = mediaFamilyFromMsg(incoming)
+  if (!prevFamily || !incomingFamily || prevFamily !== incomingFamily) return false
+  const prevPending = isPendingOutgoingTemp(prev)
+  const incPending = isPendingOutgoingTemp(incoming)
+  const prevPersist = hasPersistedMessageIdentity(prev)
+  const incPersist = hasPersistedMessageIdentity(incoming)
+  if (!((prevPending && incPersist) || (incPending && prevPersist))) return false
+
+  const recentMs = opts.allowLoose ? 15_000 : 120_000
+  const tsP = toMillis(prev?.criado_em)
+  const tsI = toMillis(incoming?.criado_em)
+  if (!Number.isFinite(tsP) || !Number.isFinite(tsI)) return false
+  if (Math.abs(tsP - tsI) > recentMs) return false
+
+  if (sameMediaStrongHint(prev, incoming)) return true
+  return opts.allowLoose === true
 }
 
 function dedupeRowsByPersistedIdentity(list, keepIdx) {
@@ -600,11 +718,9 @@ function applyAnexarOneToList(list, convId, msg) {
   const recentMs = 90_000
   const now = Date.now()
 
-  if (isFromMe && isAudioFamilyTipo(msg.tipo) && hasPersistedMessageIdentity(msg)) {
-    for (let i = list.length - 1; i >= 0; i--) {
+  if (isFromMe && mediaFamilyFromMsg(msg) && hasPersistedMessageIdentity(msg)) {
+    const mergePendingMediaAt = (i) => {
       const m = list[i]
-      if (!isPendingOutgoingTemp(m) || !isAudioFamilyTipo(m.tipo)) continue
-      if (!isOutgoingAudioReconcilePair(m, msg)) continue
       const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
       if (msg.id) merged.id = msg.id
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
@@ -615,6 +731,24 @@ function applyAnexarOneToList(list, convId, msg) {
       const next = [...list]
       next[i] = finalizeMergedMessageRow(m, merged)
       return dedupeRowsByPersistedIdentity(next, i)
+    }
+
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i]
+      if (!isPendingOutgoingTemp(m) || !mediaFamilyFromMsg(m)) continue
+      if (!isOutgoingMediaReconcilePair(m, msg) && !isOutgoingAudioReconcilePair(m, msg)) continue
+      return mergePendingMediaAt(i)
+    }
+
+    const looseCandidates = []
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i]
+      if (!isPendingOutgoingTemp(m) || !mediaFamilyFromMsg(m)) continue
+      if (!isOutgoingMediaReconcilePair(m, msg, { allowLoose: true })) continue
+      looseCandidates.push(i)
+    }
+    if (looseCandidates.length === 1) {
+      return mergePendingMediaAt(looseCandidates[0])
     }
   }
 
