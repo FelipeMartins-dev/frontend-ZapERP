@@ -326,111 +326,7 @@ function areLikelySameMessageBubble(prev, incoming) {
     if (nomeP && nomeI && nomeP === nomeI) return true
   }
   if (isOutgoingAudioReconcilePair(prev, incoming)) return true
-  if (isOutgoingAudioBlobVsPersistPair(prev, incoming)) return true
   return false
-}
-
-/** Otimista (blob) + confirmação HTTP/socket (URL/id) — mesmo envio sem exigir nome_arquivo igual. */
-function isOutgoingAudioBlobVsPersistPair(prev, incoming) {
-  if (!prev || !incoming) return false
-  if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
-  if (!isAudioFamilyTipo(prev.tipo) || !isAudioFamilyTipo(incoming.tipo)) return false
-  const recentMs = 90_000
-  const tsP = toMillis(prev?.criado_em)
-  const tsI = toMillis(incoming?.criado_em)
-  if (!Number.isFinite(tsP) || !Number.isFinite(tsI)) return false
-  if (Math.abs(tsP - tsI) > recentMs) return false
-  const hasBlob = (m) => {
-    const u = m?._optimisticBlobUrl || m?.url || m?.url_absoluta || ""
-    return String(u).startsWith("blob:")
-  }
-  const blobSide = hasBlob(prev) || hasBlob(incoming)
-  const persistSide = hasPersistedMessageIdentity(prev) || hasPersistedMessageIdentity(incoming)
-  if (!blobSide || !persistSide) return false
-  const sizeP = Number(prev?.tamanho ?? prev?.file_size ?? 0)
-  const sizeI = Number(incoming?.tamanho ?? incoming?.file_size ?? 0)
-  if (sizeP > 0 && sizeI > 0 && sizeP !== sizeI) return false
-  return true
-}
-
-function scoreOutgoingMessageForDedupe(m) {
-  let s = 0
-  if (m?.tempId) s += 8
-  if (hasRenderableUrl(m) && !String(m?.url || m?.url_absoluta || "").startsWith("blob:")) s += 4
-  if (m?.audio_duracao_sec != null || m?.audioDuracaoSec != null) s += 2
-  if (hasPersistedMessageIdentity(m)) s += 1
-  return s
-}
-
-/** Remove duplicatas com mesmo id/whatsapp_id (ex.: otimista reconciliada + evento socket). */
-function dedupeOutgoingPersistedIdentityInList(list) {
-  if (!Array.isArray(list) || list.length < 2) return list
-  const drop = new Set()
-  const groupBy = (keyFn) => {
-    const groups = new Map()
-    list.forEach((m, i) => {
-      if (!isOutgoingLike(m)) return
-      const key = keyFn(m)
-      if (!key) return
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key).push(i)
-    })
-    for (const indices of groups.values()) {
-      if (indices.length < 2) continue
-      let best = indices[0]
-      let bestScore = scoreOutgoingMessageForDedupe(list[best])
-      for (let k = 1; k < indices.length; k++) {
-        const idx = indices[k]
-        const sc = scoreOutgoingMessageForDedupe(list[idx])
-        if (sc > bestScore) {
-          best = idx
-          bestScore = sc
-        }
-      }
-      for (const i of indices) {
-        if (i !== best) drop.add(i)
-      }
-    }
-  }
-  groupBy((m) => {
-    const id = m?.id != null && String(m.id).trim() !== "" ? String(m.id) : null
-    return id ? `id:${id}` : null
-  })
-  groupBy((m) => {
-    const wa =
-      m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
-        ? String(m.whatsapp_id)
-        : null
-    return wa ? `wa:${wa}` : null
-  })
-  if (!drop.size) return list
-  return list.filter((_, i) => !drop.has(i))
-}
-
-/** Áudios outbound duplicados na mesma janela (blob + servidor ou dois temps). */
-function pruneDuplicateOutgoingAudio(list) {
-  if (!Array.isArray(list) || list.length < 2) return list
-  const drop = new Set()
-  for (let i = 0; i < list.length; i++) {
-    if (drop.has(i)) continue
-    const a = list[i]
-    if (!isOutgoingLike(a) || !isAudioFamilyTipo(a.tipo)) continue
-    for (let j = i + 1; j < list.length; j++) {
-      if (drop.has(j)) continue
-      const b = list[j]
-      if (!isOutgoingLike(b) || !isAudioFamilyTipo(b.tipo)) continue
-      if (!areLikelySameMessageBubble(a, b)) continue
-      const sa = scoreOutgoingMessageForDedupe(a)
-      const sb = scoreOutgoingMessageForDedupe(b)
-      if (sa >= sb) drop.add(j)
-      else {
-        drop.add(i)
-        break
-      }
-    }
-  }
-  if (!drop.size) return list
-  return list.filter((_, i) => !drop.has(i))
 }
 
 function findMergeableMapKey(map, copy) {
@@ -448,39 +344,25 @@ function pruneRedundantOutgoingTemps(list) {
   const recentMs = 90_000
   const now = Date.now()
   const confirmed = list.filter((m) => {
-    if (!isOutgoingLike(m)) return false
+    if (!isOutgoingLike(m) || m?.tempId) return false
     const idOk = m.id != null && String(m.id).trim() !== ""
     const waOk = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
     return idOk || waOk
   })
   if (!confirmed.length) return list
   return list.filter((m) => {
-    if (!isOutgoingLike(m)) return true
+    if (!m?.tempId || !isOutgoingLike(m)) return true
     const idOk = m.id != null && String(m.id).trim() !== ""
     const waOk = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
-    if (m?.tempId && !idOk && !waOk) {
-      const ts = toMillis(m?.criado_em)
-      if (!Number.isFinite(ts) || now - ts >= recentMs) return true
-      return !confirmed.some((c) => areLikelySameMessageBubble(m, c))
-    }
-    if (!idOk && !waOk) return true
-    const dup = confirmed.find(
-      (c) =>
-        c !== m &&
-        ((idOk && c.id != null && String(c.id) === String(m.id)) ||
-          (waOk && c.whatsapp_id != null && String(c.whatsapp_id) === String(m.whatsapp_id))) &&
-        areLikelySameMessageBubble(m, c)
-    )
-    if (!dup) return true
-    return scoreOutgoingMessageForDedupe(m) >= scoreOutgoingMessageForDedupe(dup)
+    if (idOk || waOk) return true
+    const ts = toMillis(m?.criado_em)
+    if (!Number.isFinite(ts) || now - ts >= recentMs) return true
+    return !confirmed.some((c) => areLikelySameMessageBubble(m, c))
   })
 }
 
 function finalizeMensagensList(list) {
-  let next = pruneRedundantOutgoingTemps(list)
-  next = dedupeOutgoingPersistedIdentityInList(next)
-  next = pruneDuplicateOutgoingAudio(next)
-  return sortMensagensChronological(next)
+  return sortMensagensChronological(pruneRedundantOutgoingTemps(list))
 }
 
 /** Chave estável para React (evita colisão e remount errado). */
@@ -721,8 +603,8 @@ function applyAnexarOneToList(list, convId, msg) {
   if (isFromMe && isAudioFamilyTipo(msg.tipo) && hasPersistedMessageIdentity(msg)) {
     for (let i = list.length - 1; i >= 0; i--) {
       const m = list[i]
-      if (!isOutgoingLike(m) || !isAudioFamilyTipo(m.tipo)) continue
-      if (!areLikelySameMessageBubble(m, msg)) continue
+      if (!isPendingOutgoingTemp(m) || !isAudioFamilyTipo(m.tipo)) continue
+      if (!isOutgoingAudioReconcilePair(m, msg)) continue
       const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
       if (msg.id) merged.id = msg.id
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
@@ -1545,24 +1427,7 @@ export const useConversaStore = create((set, get) => {
         let tomb = mergeMsgPreferringTombstone(prevRow, flat)
         tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
         next[idx] = finalizeMergedMessageRow(prevRow, tomb)
-        return { mensagens: finalizeMensagensList(dedupeRowsByPersistedIdentity(next, idx)) }
-      }
-      if (!replaced && isAudioFamilyTipo(realMsg?.tipo)) {
-        const probe = normalizeMsgForStore({ ...realMsg, conversa_id: state.conversa?.id })
-        for (let i = list.length - 1; i >= 0; i--) {
-          const m = list[i]
-          if (!isOutgoingLike(m) || !isAudioFamilyTipo(m.tipo)) continue
-          if (!areLikelySameMessageBubble(m, probe)) continue
-          replaced = true
-          const next = [...list]
-          const prevRow = list[i]
-          const flat = preserveLocalMediaFields(prevRow, { ...prevRow, ...probe })
-          flat.criado_em = prevRow.criado_em ?? flat.criado_em
-          let tomb = mergeMsgPreferringTombstone(prevRow, flat)
-          tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
-          next[i] = finalizeMergedMessageRow(prevRow, tomb)
-          return { mensagens: finalizeMensagensList(dedupeRowsByPersistedIdentity(next, i)) }
-        }
+        return { mensagens: dedupeRowsByPersistedIdentity(next, idx) }
       }
       return state
     })
