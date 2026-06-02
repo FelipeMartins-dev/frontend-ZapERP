@@ -24,6 +24,25 @@ import {
   reconcileForwardOptimisticTemps,
 } from "../conversaOptimisticMessage";
 
+function isForwardGroupDestination(meta) {
+  if (!meta) return false;
+  const tipo = safeString(meta?.tipo).toLowerCase();
+  const telefone = safeString(meta?.telefone ?? meta?.remoteJid ?? meta?.chat_id);
+  return tipo === "grupo" || telefone.includes("@g.us");
+}
+
+function getForwardDestinationAssigneeId(meta) {
+  if (!meta) return null;
+  return meta?.atendente_id ?? meta?.atendenteId ?? meta?.responsavel_id ?? meta?.responsavelId ?? null;
+}
+
+function shouldAssumeForwardDestination(meta, user) {
+  if (isForwardGroupDestination(meta)) return false;
+  const assigneeId = getForwardDestinationAssigneeId(meta);
+  if (assigneeId != null && user?.id != null && String(assigneeId) === String(user.id)) return false;
+  return true;
+}
+
 function buildForwardText(m) {
   if (!m) return "";
   const t = safeString(m?.texto);
@@ -387,17 +406,20 @@ export function useForwardFlow({ conversa, conversaId, chats, user, showToast, e
   const processForwardToDest = useCallback(
     async (destConversaId, msgs, tempIds, { quietBatchItemToasts = false } = {}) => {
       const convStore = useConversaStore.getState();
+      const destMeta = resolveDestConversaMeta(destConversaId);
+      let assumeError = null;
+      if (shouldAssumeForwardDestination(destMeta, user)) {
+        try {
+          await assumirChat(destConversaId);
+        } catch (ae) {
+          throw new Error(formatForwardHttpError(ae));
+        }
+      }
       const stats = await execEncaminharFor(destConversaId, msgs, { quietBatchItemToasts });
       reconcileForwardOptimisticTemps(tempIds, stats, convStore.reconciliarMensagem);
-      let assumeError = null;
-      try {
-        await assumirChat(destConversaId);
-      } catch (ae) {
-        assumeError = formatForwardHttpError(ae);
-      }
       return { stats, assumeError };
     },
-    [execEncaminharFor]
+    [execEncaminharFor, resolveDestConversaMeta, user]
   );
 
   const runForwardInBackground = useCallback(
