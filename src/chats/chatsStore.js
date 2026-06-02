@@ -80,6 +80,8 @@ export const useChatStore = create((set, get) => ({
    * ChatList escuta e chama `load()` (que também atualiza Minha fila via refreshMinhaFila).
    */
   chatListResyncNonce: 0,
+  chatListOptimisticMutation: null,
+  chatListOptimisticMutationNonce: 0,
 
   requestChatListScrollToTop: () =>
     set((s) => ({ chatListScrollToTopNonce: (s.chatListScrollToTopNonce || 0) + 1 })),
@@ -106,6 +108,14 @@ export const useChatStore = create((set, get) => ({
     if (!chatListResyncMaxWaitTimer) {
       chatListResyncMaxWaitTimer = setTimeout(flushResync, CHAT_LIST_RESYNC_MAX_WAIT_MS)
     }
+  },
+
+  emitChatListOptimisticMutation: (mutation) => {
+    if (!mutation?.id) return
+    set((s) => ({
+      chatListOptimisticMutation: mutation,
+      chatListOptimisticMutationNonce: (s.chatListOptimisticMutationNonce || 0) + 1,
+    }))
   },
 
   /* =========================================
@@ -514,5 +524,7 @@ export const useChatStore = create((set, get) => ({
       chats: [],
       loading: false,
       chatListResyncNonce: 0,
+      chatListOptimisticMutation: null,
+      chatListOptimisticMutationNonce: 0,
     })
 }))

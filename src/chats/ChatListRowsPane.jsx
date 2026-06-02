@@ -42,6 +42,12 @@ function ChatListRowsPane({
           <SkeletonChatList />
         ) : !adminPorFuncionarioAtivo && tab === "minha_fila" && minhaFilaList === null ? (
           <SkeletonChatList />
+        ) : zapFilterSkeleton ? (
+          <div className="zap-skeleton-list" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={`zap-skel-${i}`} className="zap-skeleton-card" />
+            ))}
+          </div>
         ) : filteredLen === 0 ? (
           <div className="chat-list-empty-wrap">
             <EmptyState
@@ -50,12 +56,6 @@ function ChatListRowsPane({
               actionLabel="Criar novo contato"
               action={onNovoContato}
             />
-          </div>
-        ) : zapFilterSkeleton ? (
-          <div className="zap-skeleton-list" aria-hidden="true">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div key={`zap-skel-${i}`} className="zap-skeleton-card" />
-            ))}
           </div>
         ) : (
           <ChatListRows

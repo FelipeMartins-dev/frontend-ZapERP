@@ -215,6 +215,8 @@ function ConversaViewBody() {
   const headerCompact = useMatchMedia("(max-width: 640px)");
   /** Tablet atendimento: mesmo padrão do mobile — correção no menu (+), barra em uma linha */
   const atendimentoTabletComposer = useMatchMedia("(min-width: 740px) and (max-width: 1024px)");
+  /** Cabeçalho compacto (toolbar ⋯ + ações inline) — mobile e tablet; desktop largo mantém fileira completa */
+  const headerAtendCompact = headerCompact || atendimentoTabletComposer;
   /** Bolhas: long press + folha de opções; barra de seleção premium (sem alterar desktop largo). */
   const compactMessageUx = headerCompact || atendimentoTabletComposer;
   const autocorrectToggleInMenu = headerCompact || atendimentoTabletComposer;
@@ -2133,7 +2135,7 @@ function ConversaViewBody() {
 
   const showReopenClosedCta = useMemo(() => {
     if (isGroup) return false;
-    if (!conversa?.id || !conversa?.mensagens_bloqueadas) return false;
+    if (!conversa?.id) return false;
     if (!canReabrir(user)) return false;
     return isClosedAttendance(conversa);
   }, [conversa, user, isGroup]);
@@ -2487,6 +2489,7 @@ function ConversaViewBody() {
           onBack={handleBackToList}
           isGroup={isGroup}
           headerCompact={headerCompact}
+          headerAtendCompact={headerAtendCompact}
           headerCrmAtivoLayout={headerCrmAtivoLayout}
           nome={nome}
           avatar={avatar}

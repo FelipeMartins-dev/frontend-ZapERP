@@ -118,7 +118,7 @@ export default function Supervisao() {
     () => [
       {
         key: "aguardando",
-        label: "Aguardando funcionário",
+        label: "Aguardando atendente",
         accent: "primary",
         value: toNumber(
           resumo?.aguardando_funcionario ??
@@ -246,7 +246,7 @@ export default function Supervisao() {
         <div className="supervisao-modal-backdrop" onClick={() => setFuncionarioAtivo(null)}>
           <div className="supervisao-modal" onClick={(e) => e.stopPropagation()}>
             <header>
-              <h3>Movimentação do funcionário</h3>
+              <h3>Movimentação do atendente</h3>
               <p>{safeDisplayText(funcionarioAtivo?.nome ?? funcionarioAtivo?.name, "")}</p>
             </header>
             {loadingMovimentacao ? (

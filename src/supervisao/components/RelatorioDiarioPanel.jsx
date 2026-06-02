@@ -66,7 +66,12 @@ export default function RelatorioDiarioPanel({ relatorio, onAbrirConversa }) {
                 <li key={String(item?.conversa_id ?? item?.id ?? idx)}>
                   <div>
                     <strong>{safeDisplayText(item?.cliente_nome ?? item?.cliente?.nome, "Cliente")}</strong>
-                    <span>{toNumber(item?.minutos_aguardando ?? item?.tempo_aguardando_minutos ?? 0)} min aguardando</span>
+                    <span>
+                      {formatTempoMinutos(
+                        item?.minutos_aguardando ?? item?.tempo_aguardando_minutos ?? 0
+                      )}{" "}
+                      aguardando
+                    </span>
                   </div>
                   <button type="button" onClick={() => onAbrirConversa(item?.conversa_id ?? item?.conversaId)}>
                     Abrir conversa

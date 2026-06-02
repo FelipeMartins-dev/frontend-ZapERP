@@ -629,6 +629,18 @@
   position: relative;
 }
 
+.wa-header-moreWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.wa-header-moreDropdown {
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  z-index: 50;
+}
+
 .wa-atendToolbar-backdrop {
   position: fixed;
   inset: 0;
@@ -653,6 +665,19 @@
   border: 1px solid var(--wa-panel-border);
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.16);
   z-index: 50;
+}
+
+/* Tablet/mobile: menu ⋯ renderizado em portal (evita ficar atrás do thread por overflow/isolation) */
+.wa-atendToolbar-backdrop--portal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+}
+
+.wa-atendToolbar-dropdown--portal {
+  position: fixed;
+  left: auto;
+  z-index: 121;
 }
 
 .wa-atendToolbar-menuExtras {
@@ -2460,6 +2485,226 @@
   .wa-row-in .wa-swipeReplyTrack,
   .wa-row-out .wa-swipeReplyTrack {
     max-width: min(90%, 520px);
+  }
+
+  /* Cabeçalho compacto (.wa-header--atendMobile via JS) — mesma lógica do mobile, sem voltar/fixed */
+  .wa-header.wa-header--atendMobile {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px 10px;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-back {
+    display: none !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-left {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    gap: 10px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-info,
+  .wa-header.wa-header--atendMobile .wa-header-titleBlock,
+  .wa-header.wa-header--atendMobile .wa-header-metaBlock {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-name {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-right {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: min(58%, 420px);
+    align-self: center;
+    overflow: visible;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-iconsLine {
+    display: none !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-innerRow {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-actionsRow {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 4px;
+    max-width: 100%;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-primaryRow {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-prepend {
+    display: none !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-primary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-transferir,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-danger,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-secondary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-aguardar-cliente {
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+    line-height: 1.15 !important;
+    flex-shrink: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendLabel--long {
+    display: none;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendLabel--short {
+    display: inline;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    flex-shrink: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 12px), transparent calc(100% - 2px));
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip::-webkit-scrollbar {
+    display: none;
+    height: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-setorBtn .wa-setorBtn-label--full {
+    display: none;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-setorBtn .wa-setorBtn-label--short {
+    display: inline;
+  }
+
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    row-gap: 4px;
+    overflow-x: visible;
+    mask-image: none;
+  }
+
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta {
+    flex: 1 0 100%;
+    max-width: 100%;
+  }
+
+  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) .wa-status-pill--meta + .wa-header-metaSep {
+    display: none;
+  }
+
+  /* Painéis flutuantes (tags, setor) — bottom sheet no tablet estreito */
+  .wa-shell > .wa-tagsPanel.wa-tagsPanel--setor,
+  .wa-shell > .wa-tagsPanel.wa-tagsPanel--tags {
+    position: fixed;
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    top: auto;
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: min(52vh, 440px);
+    border-radius: 16px;
+    z-index: 60;
+    box-shadow: 0 -8px 48px rgba(0, 0, 0, 0.22);
+  }
+
+  .wa-floatingSheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 58;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    background: rgba(14, 17, 20, 0.4);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wa-shell > .wa-sideCliente {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: min(88vh, 720px);
+    border-left: none;
+    border-top: 1px solid color-mix(in oklab, var(--wa-panel-border) 88%, transparent);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.14);
+    z-index: 57;
+    animation: wa-sheetSlideUp 0.22s ease-out;
+  }
+
+  .wa-msgSearchPanel {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .wa-timeline {
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
   }
 }
 

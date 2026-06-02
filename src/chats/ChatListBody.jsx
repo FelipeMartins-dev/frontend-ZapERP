@@ -136,12 +136,6 @@ function ChatListBody({
   const filteredCount = chatsFiltrados.length;
 
   useEffect(() => {
-    if (!zapFilterSkeleton) return undefined;
-    const t = window.setTimeout(() => setZapFilterSkeleton(false), 220);
-    return () => window.clearTimeout(t);
-  }, [zapFilterSkeleton, filteredCount, setZapFilterSkeleton]);
-
-  useEffect(() => {
     if (isMobileLayout && chatsLength >= CHAT_LIST_VIRTUAL_THRESHOLD) {
       return undefined;
     }

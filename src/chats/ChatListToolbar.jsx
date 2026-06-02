@@ -174,7 +174,7 @@ function ChatListToolbar({
                 onClick={onTabAguardandoFuncionario}
                 className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
               >
-                Aguardando funcionario
+                Aguardando atendente
                 {aguardandoFuncionarioVisualState === "critical" ? (
                   <span className="chat-list-chip-critical-dot" aria-hidden="true" />
                 ) : null}

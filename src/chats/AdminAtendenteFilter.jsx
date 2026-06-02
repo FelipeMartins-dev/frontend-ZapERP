@@ -74,8 +74,8 @@ export default function AdminAtendenteFilter({
   );
 
   const label = selected
-    ? String(selected.nome ?? selected.name ?? selected.email ?? "Funcionário").trim()
-    : "Por funcionário";
+    ? String(selected.nome ?? selected.name ?? selected.email ?? "Atendente").trim()
+    : "Por atendente";
 
   const reposition = useCallback(() => {
     const el = triggerRef.current;
@@ -147,7 +147,7 @@ export default function AdminAtendenteFilter({
       <div
         className="admin-atendente-filter__panel"
         role="listbox"
-        aria-label="Funcionários da empresa"
+        aria-label="Atendentes da empresa"
       >
         <div className="admin-atendente-filter__panel-head">Ver conversas por responsável</div>
         <div className="admin-atendente-filter__list">
@@ -189,8 +189,8 @@ export default function AdminAtendenteFilter({
         aria-expanded={open}
         aria-label={
           selected
-            ? `Filtrando conversas por ${label}. Limpar filtro ou escolher outro funcionário.`
-            : "Filtrar conversas por funcionário"
+            ? `Filtrando conversas por ${label}. Limpar filtro ou escolher outro atendente.`
+            : "Filtrar conversas por atendente"
         }
         onClick={handleTrigger}
       >
@@ -203,8 +203,8 @@ export default function AdminAtendenteFilter({
             className="admin-atendente-filter__clear"
             role="button"
             tabIndex={-1}
-            title="Limpar filtro por funcionário"
-            aria-label="Limpar filtro por funcionário"
+            title="Limpar filtro por atendente"
+            aria-label="Limpar filtro por atendente"
             onClick={handleClear}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>

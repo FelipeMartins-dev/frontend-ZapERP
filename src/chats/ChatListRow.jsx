@@ -27,6 +27,10 @@ import {
   isEmAtendimentoUltimaDoCliente,
 } from "./chatListRowAtendimento";
 import { chatRowPropsAreEqual } from "./chatListRowCompare";
+import {
+  formatEsperaDuracaoFromMinutes,
+  formatEsperaDuracaoTooltip,
+} from "../utils/formatEsperaDuracao";
 
 export const CHAT_ROW_TOUCH_MOVE_PX = 12;
 
@@ -49,18 +53,7 @@ const EsperaMinutosInline = memo(function EsperaMinutosInline({
   const nowMs = typeof minuteTick === "number" && Number.isFinite(minuteTick) ? minuteTick : Date.now();
   const rawMin = Math.floor((nowMs - d.getTime()) / 60000);
   const mins = Number.isFinite(rawMin) ? Math.max(0, rawMin) : 0;
-  const label =
-    format === "hud"
-      ? mins < 1
-        ? "• <1m"
-        : `• ${mins}m`
-      : mins < 1
-        ? wordUnit
-          ? "< 1 min"
-          : "<1m"
-        : wordUnit
-          ? `${mins}\u00a0min`
-          : `${mins}m`;
+  const label = formatEsperaDuracaoFromMinutes(mins, { format, wordUnit });
   const cn = ["chat-list-time-espera-min", "zap-wait-time", className].filter(Boolean).join(" ");
   const waitLevel = mins < 5 ? "low" : mins <= 15 ? "mid" : "high";
 
@@ -68,7 +61,7 @@ const EsperaMinutosInline = memo(function EsperaMinutosInline({
     <span
       className={cn}
       data-wait-level={waitLevel}
-      title={`${mins} min — desde ${d.toLocaleString("pt-BR")}`}
+      title={formatEsperaDuracaoTooltip(mins, d)}
     >
       {label}
     </span>
@@ -727,7 +720,7 @@ function AguardandoFuncionarioPill({ esperaMinutosAnchorIso = "", minuteTick, ti
   return (
     <span className="chat-list-status-tech chat-list-status-tech--staff" title={hint}>
       <span className="chat-list-status-tech-staff-main zap-badge-aguardando-funcionario">
-        <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
+        <span className="chat-list-status-tech-staff-label">Aguardando atendente</span>
       </span>
       {String(esperaMinutosAnchorIso || "").trim() ? (
         <EsperaMinutosInline
@@ -741,7 +734,7 @@ function AguardandoFuncionarioPill({ esperaMinutosAnchorIso = "", minuteTick, ti
   );
 }
 
-/** Etiqueta principal em cobrança conforme última mensagem (in → funcionário, out → cliente). */
+/** Etiqueta principal em cobrança conforme última mensagem (in → atendente, out → cliente). */
 function CobrancaPrimaryPorUltimaMensagem({
   chat,
   aguardandoFuncionario,
@@ -774,7 +767,7 @@ function CobrancaPrimaryPorUltimaMensagem({
   );
 }
 
-/** Pilha: aguardando cliente/funcionário + pagamento pendente ou em atraso. */
+/** Pilha: aguardando cliente/atendente + pagamento pendente ou em atraso. */
 function CobrancaFinanceiroStatusStack({
   chat,
   statusKey,
@@ -868,7 +861,7 @@ function StatusPill({
     (s === "em_atendimento" || s === "pagamento_pendente" || s === "em_atraso") &&
     !aguardandoClienteAutomatico;
   const pagamentoConcluidoVisivel = exibirBadgePagamentoConcluido(chat);
-  /** Sem “Em atendimento” quando já há etiqueta de aguardando cliente ou funcionário — libera espaço ao nome. */
+  /** Sem “Em atendimento” quando já há etiqueta de aguardando cliente ou atendente — libera espaço ao nome. */
   const suprimirPilulaEmAtendimento =
     s === "em_atendimento" && (aguardandoClienteAutomatico || aguardandoFuncionarioVisivel);
   const reabertoHint =
@@ -966,7 +959,7 @@ function StatusPill({
             title="Última mensagem do cliente — equipe deve responder"
           >
             <span className="chat-list-status-tech-staff-main zap-badge-aguardando-funcionario">
-              <span className="chat-list-status-tech-staff-label">Aguardando funcionário</span>
+              <span className="chat-list-status-tech-staff-label">Aguardando atendente</span>
             </span>
             {String(esperaMinutosAnchorIso || "").trim() ? (
               <EsperaMinutosInline
@@ -1054,7 +1047,7 @@ function ChatRow({
     (statusEff === "em_atendimento" || cobrancaFinanceiraRow) &&
     !aguardandoClienteAutomaticoRow;
   const aguardandoClienteCobrancaRow = isConversaAguardandoClienteEmCobranca(chat);
-  /** Minutos ao lado do relógio só quando não estão na badge “Aguardando funcionário”. */
+  /** Minutos ao lado do relógio só quando não estão na badge “Aguardando atendente”. */
   const mostrarEsperaMinutosAoLadoDoRelogio =
     Boolean(esperaMinutosAnchor) && !aguardandoFuncionarioVisivelRow;
   const staffPremiumRowClass = aguardandoFuncionarioVisivelRow ? " chat-list-row--await-staff-premium" : "";

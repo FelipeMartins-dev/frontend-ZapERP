@@ -19,7 +19,7 @@ export default function RankingEquipePanel({ equipe, onAbrirMovimentacao }) {
       ) : (
         <div className="supervisao-team-grid">
           {equipe.map((funcionario, index) => {
-            const nome = safeDisplayText(funcionario?.nome ?? funcionario?.name, "Funcionário");
+            const nome = safeDisplayText(funcionario?.nome ?? funcionario?.name, "Atendente");
             const inicial = nome.trim().charAt(0).toUpperCase() || "?";
             const conversasEmAtendimento = pickConversasEmAtendimento(funcionario);
             const semResposta = toNumber(

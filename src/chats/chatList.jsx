@@ -232,16 +232,7 @@ export default function ChatList() {
   const [tab, setTab] = useState("minha_fila");
   const [zapFilterSkeleton, setZapFilterSkeleton] = useState(false);
   const tabRef = useRef(tab);
-  const prevTabForSkeletonRef = useRef(tab);
   tabRef.current = tab;
-
-  useEffect(() => {
-    if (prevTabForSkeletonRef.current !== tab) {
-      prevTabForSkeletonRef.current = tab;
-      const hasRows = (useChatStore.getState().chats?.length ?? 0) > 0;
-      if (!hasRows) setZapFilterSkeleton(true);
-    }
-  }, [tab]);
 
   useEffect(() => {
     if (tab === "nao_lidas") setTab("todas");
@@ -273,6 +264,10 @@ export default function ChatList() {
 
   /** GET /chats?minha_fila=1 — fila do atendente (abertas + em atendimento comigo); sem status_atendimento na query. */
   const [minhaFilaList, setMinhaFilaList] = useState(null);
+  const minhaFilaListRef = useRef(null);
+  const optimisticRemovedMinhaFilaRef = useRef(new Map());
+  const filterRequestKeyRef = useRef("");
+  minhaFilaListRef.current = minhaFilaList;
   const [minhaFilaCount, setMinhaFilaCount] = useState(0);
   /** Contador do chip “Em atendimento”: sempre GET /chats?status_atendimento=em_atendimento (escopo backend). */
   const [emAtendimentoBadgeCount, setEmAtendimentoBadgeCount] = useState(0);
@@ -282,6 +277,39 @@ export default function ChatList() {
   const [emAtrasoBadgeCount, setEmAtrasoBadgeCount] = useState(0);
   /** Contador do chip “Mensagens Disparadas”: GET /chats?status_atendimento=mensagem_disparada (escopo backend). */
   const [mensagensDisparadasCount, setMensagensDisparadasCount] = useState(0);
+
+  const filterRequestKey = [
+    tab,
+    tagFilter,
+    departamentoFilter,
+    statusFilter,
+    atendenteFilter,
+    dataInicio,
+    dataFim,
+    mineOnly ? "mine" : "all",
+    order,
+    adminAtendenteFilterId ?? "",
+    onlyFinalizadasAusencia ? "auto" : "",
+    aguardandoClienteOnly ? "aguardando" : "",
+    pagamentosPendentesOnly ? "pag-pendente" : "",
+    emAtrasoOnly ? "em-atraso" : "",
+    tempoParadoFilter,
+    separarMensagensDisparadasLigado ? "sep-disparadas" : "",
+    filterScopeKey,
+  ].join("|");
+
+  useEffect(() => {
+    if (!filterRequestKeyRef.current) {
+      filterRequestKeyRef.current = filterRequestKey;
+      return;
+    }
+    if (filterRequestKeyRef.current === filterRequestKey) return;
+    filterRequestKeyRef.current = filterRequestKey;
+    setZapFilterSkeleton(true);
+    if (tab === "minha_fila") {
+      setMinhaFilaList(null);
+    }
+  }, [filterRequestKey, tab]);
 
   /** Hidratação antes da pintura: lista + Minha fila + filtros auxiliares (F5). */
   useLayoutEffect(() => {
@@ -626,8 +654,12 @@ export default function ChatList() {
 
   async function load(opts = {}) {
     if (loadInFlightRef.current) {
-      loadQueuedRef.current = { background: opts.background === true };
-      return;
+      const foreground = opts.background !== true;
+      if (!foreground) {
+        loadQueuedRef.current = { background: true };
+        return;
+      }
+      setZapFilterSkeleton(true);
     }
     loadInFlightRef.current = true;
     const requestId = ++loadRequestIdRef.current;
@@ -876,14 +908,15 @@ export default function ChatList() {
       if (requestId === loadRequestIdRef.current) {
         setLoading(false);
         setListRefreshing((prev) => (prev ? false : prev));
+        setZapFilterSkeleton(false);
         lastLoadFinishedAtRef.current = Date.now();
-      }
-      loadInFlightRef.current = false;
-      if (loadQueuedRef.current) {
-        const queuedOpts = loadQueuedRef.current;
-        loadQueuedRef.current = null;
-        if (!queuedOpts.background) {
-          queueMicrotask(() => loadRef.current?.(queuedOpts));
+        loadInFlightRef.current = false;
+        if (loadQueuedRef.current) {
+          const queuedOpts = loadQueuedRef.current;
+          loadQueuedRef.current = null;
+          if (!queuedOpts.background) {
+            queueMicrotask(() => loadRef.current?.(queuedOpts));
+          }
         }
       }
     }
@@ -904,8 +937,11 @@ export default function ChatList() {
     adminAtendenteFilterId,
     onlyFinalizadasAusencia,
     aguardandoClienteOnly,
+    pagamentosPendentesOnly,
+    emAtrasoOnly,
     tempoParadoFilter,
     separarMensagensDisparadasLigado,
+    isFinanceiroUser,
     filterScopeKey,
   ]);
 
@@ -987,6 +1023,56 @@ export default function ChatList() {
     if (hasVisibleChats && Date.now() - lastLoadFinishedAtRef.current < 2500) return;
     loadRef.current?.({ background: true });
   }, [chatListResyncNonce]);
+
+  const chatListOptimisticMutationNonce = useChatStore((s) => s.chatListOptimisticMutationNonce);
+  useEffect(() => {
+    if (!chatListOptimisticMutationNonce) return;
+    const mutation = useChatStore.getState().chatListOptimisticMutation;
+    if (!mutation?.id) return;
+    const id = String(mutation.id);
+    const patch = mutation.patch && typeof mutation.patch === "object" ? mutation.patch : null;
+
+    if (patch) {
+      setChats((prev) =>
+        (Array.isArray(prev) ? prev : []).map((c) =>
+          String(c?.id) === id
+            ? {
+                ...c,
+                ...patch,
+                tags: Array.isArray(patch.tags) ? patch.tags : c.tags,
+              }
+            : c
+        )
+      );
+    }
+
+    if (mutation.removeFromMinhaFila) {
+      const current = Array.isArray(minhaFilaListRef.current) ? minhaFilaListRef.current : null;
+      if (current) {
+        const removed = current.find((c) => String(c?.id) === id);
+        const next = current.filter((c) => String(c?.id) !== id);
+        if (removed && next.length !== current.length) {
+          optimisticRemovedMinhaFilaRef.current.set(id, removed);
+          setMinhaFilaList(next);
+          const nextCount = countDistinctConversas(next);
+          setMinhaFilaCount((prev) => (prev === nextCount ? prev : nextCount));
+        }
+      }
+    }
+
+    if (mutation.restoreMinhaFila) {
+      const current = Array.isArray(minhaFilaListRef.current) ? minhaFilaListRef.current : [];
+      if (!current.some((c) => String(c?.id) === id)) {
+        const restored = mutation.row || optimisticRemovedMinhaFilaRef.current.get(id);
+        if (restored) {
+          const next = [restored, ...current];
+          setMinhaFilaList(next);
+          const nextCount = countDistinctConversas(next);
+          setMinhaFilaCount((prev) => (prev === nextCount ? prev : nextCount));
+        }
+      }
+    }
+  }, [chatListOptimisticMutationNonce, setChats]);
 
   useEffect(() => {
     function onSyncContatos() {

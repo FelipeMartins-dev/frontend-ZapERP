@@ -20,11 +20,9 @@ export function toArray(data, fallbackKeys = []) {
 }
 
 export function formatTempoMinutos(mins) {
-  const total = toNumber(mins, 0);
+  const total = Math.max(0, Math.floor(toNumber(mins, 0)));
   if (total < 60) return `${total} min`;
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return `${h}h ${m}min`;
+  return `${Math.floor(total / 60)} h`;
 }
 
 /** Tempo médio vindo da API (minutos, pode ser decimal). Null/NaN → traço. */
@@ -37,8 +35,7 @@ export function formatTempoMedioRespostaMinutos(mins) {
     return `${rounded} min`;
   }
   const h = Math.floor(n / 60);
-  const m = Math.round((n % 60) * 10) / 10;
-  return `${h}h ${m}min`;
+  return `${h} h`;
 }
 
 /** Quantidade de conversas com status `em_atendimento` para o funcionário (API supervisão). */

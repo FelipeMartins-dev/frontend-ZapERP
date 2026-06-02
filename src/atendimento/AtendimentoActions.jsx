@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuthStore } from "../auth/authStore";
 import { useConversaStore } from "../conversa/conversaStore";
@@ -196,8 +196,33 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapRef = useRef(null);
+  const overflowTriggerRef = useRef(null);
+  const overflowMenuRef = useRef(null);
+  const [overflowMenuPos, setOverflowMenuPos] = useState(null);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  useLayoutEffect(() => {
+    if (!menuOpen || !overflowTriggerRef.current) {
+      setOverflowMenuPos(null);
+      return undefined;
+    }
+    const updatePos = () => {
+      const r = overflowTriggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setOverflowMenuPos({
+        top: Math.round(r.bottom + 6),
+        right: Math.max(8, Math.round(window.innerWidth - r.right)),
+      });
+    };
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -205,8 +230,9 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
       if (e.key === "Escape") closeMenu();
     };
     const onPointer = (e) => {
-      const el = menuWrapRef.current;
-      if (!el || el.contains(e.target)) return;
+      const t = e.target;
+      if (overflowTriggerRef.current?.contains(t)) return;
+      if (overflowMenuRef.current?.contains(t)) return;
       closeMenu();
     };
     document.addEventListener("keydown", onKey);
@@ -822,6 +848,7 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
         {showCompactOverflowMenu ? (
           <div className="wa-atendToolbar-overflowWrap">
             <button
+              ref={overflowTriggerRef}
               type="button"
               className="wa-header-btn wa-header-btn--micro wa-atendToolbar-overflowTrigger"
               aria-expanded={menuOpen}
@@ -833,44 +860,56 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
               <IconDotsHorizontal />
             </button>
 
-            {menuOpen ? (
-              <>
-                <div
-                  className="wa-atendToolbar-backdrop"
-                  aria-hidden="true"
-                  onClick={closeMenu}
-                />
-                <div className="wa-atendToolbar-dropdown" role="menu" aria-label="Mais opções">
-                  <div className="wa-atendToolbar-menuExtras">
-                    {overflowExtra}
-                    {compactOverflowActions.map((a) => {
-                      const sheetIcon = renderOverflowSheetIcon(a.id);
-                      return (
-                        <button
-                          key={a.id}
-                          type="button"
-                          className="wa-atendToolbar-sheetBtn"
-                          onClick={() => {
-                            a.onClick?.();
-                            closeMenu();
-                          }}
-                          disabled={busy}
-                          title={a.title}
-                          aria-label={a.ariaLabel}
-                        >
-                          {sheetIcon ? (
-                            <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                              {sheetIcon}
-                            </span>
-                          ) : null}
-                          <span className="wa-atendToolbar-sheetLabel">{a.labelLong}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            ) : null}
+            {menuOpen && overflowMenuPos && typeof document !== "undefined"
+              ? createPortal(
+                  <>
+                    <div
+                      className="wa-atendToolbar-backdrop wa-atendToolbar-backdrop--portal"
+                      aria-hidden="true"
+                      onClick={closeMenu}
+                    />
+                    <div
+                      ref={overflowMenuRef}
+                      className="wa-atendToolbar-dropdown wa-atendToolbar-dropdown--portal"
+                      role="menu"
+                      aria-label="Mais opções"
+                      style={{
+                        top: overflowMenuPos.top,
+                        right: overflowMenuPos.right,
+                      }}
+                    >
+                      <div className="wa-atendToolbar-menuExtras">
+                        {overflowExtra}
+                        {compactOverflowActions.map((a) => {
+                          const sheetIcon = renderOverflowSheetIcon(a.id);
+                          return (
+                            <button
+                              key={a.id}
+                              type="button"
+                              className="wa-atendToolbar-sheetBtn"
+                              onClick={() => {
+                                a.onClick?.();
+                                closeMenu();
+                              }}
+                              disabled={busy}
+                              title={a.title}
+                              aria-label={a.ariaLabel}
+                            >
+                              {sheetIcon ? (
+                                <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+                                  {sheetIcon}
+                                </span>
+                              ) : null}
+                              <span className="wa-atendToolbar-sheetLabel">{a.labelLong}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>,
+                  document.body
+                )
+              : null}
           </div>
         ) : null}
       </div>

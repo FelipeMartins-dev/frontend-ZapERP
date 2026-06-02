@@ -1,8 +1,24 @@
-import { memo } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import AtendimentoActions from "../../atendimento/AtendimentoActions";
 import SendToCrmChatButton, { IconFunnelSend } from "../SendToCrmChatButton";
 import { safeString } from "../utils/conversaViewHelpers";
 import { IconClock, IconMore, IconTag, IconContact, IconSearch } from "../conversaViewIcons";
+
+function HeaderOverflowSheetBtn({ icon, label, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      className="wa-atendToolbar-sheetBtn"
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="wa-atendToolbar-sheetLabel">{label}</span>
+    </button>
+  );
+}
 
 /**
  * Cabeçalho da conversa (avatar, meta, ações). Lógica e estados permanecem no ConversaView.
@@ -12,6 +28,7 @@ function ConversaHeader({
   onBack,
   isGroup,
   headerCompact,
+  headerAtendCompact = false,
   headerCrmAtivoLayout,
   nome,
   avatar,
@@ -41,10 +58,124 @@ function ConversaHeader({
   onOpenClienteSide,
   onOpenMessageSearch,
 }) {
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuWrapRef = useRef(null);
+
+  const closeMoreMenu = useCallback(() => setMoreMenuOpen(false), []);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return undefined;
+    const onDocDown = (e) => {
+      if (moreMenuWrapRef.current?.contains(e.target)) return;
+      setMoreMenuOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setMoreMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreMenuOpen]);
+
+  const renderTagsHistoryProductsItems = useCallback(
+    (close) => (
+      <>
+        <HeaderOverflowSheetBtn
+          icon={<IconClock />}
+          label="Histórico de movimentações"
+          onClick={() => {
+            onToggleTimeline();
+            close();
+          }}
+        />
+        {!isGroup && podeGerenciarTags ? (
+          <HeaderOverflowSheetBtn
+            icon={<IconTag />}
+            label="Tags do cliente"
+            disabled={!conversaId}
+            onClick={() => {
+              onToggleTagPanel();
+              close();
+            }}
+          />
+        ) : null}
+        {!isGroup && conversaId && canConsultarProdutos ? (
+          <HeaderOverflowSheetBtn
+            icon={<span aria-hidden="true">📦</span>}
+            label="Consultar produtos"
+            onClick={() => {
+              onOpenProdutosPanel();
+              close();
+            }}
+          />
+        ) : null}
+      </>
+    ),
+    [
+      canConsultarProdutos,
+      conversaId,
+      isGroup,
+      onOpenProdutosPanel,
+      onToggleTagPanel,
+      onToggleTimeline,
+      podeGerenciarTags,
+    ]
+  );
+
+  const renderCompactOverflowTop = useCallback(
+    (close) => (
+      <>
+        {conversaId ? (
+          <HeaderOverflowSheetBtn
+            icon={<IconSearch />}
+            label="Pesquisar mensagens"
+            onClick={() => {
+              onOpenMessageSearch();
+              close();
+            }}
+          />
+        ) : null}
+        {renderTagsHistoryProductsItems(close)}
+        {!isGroup && conversaId && mostrarEnviarCrm ? (
+          <HeaderOverflowSheetBtn
+            icon={<IconFunnelSend />}
+            label="Enviar ao CRM"
+            onClick={() => {
+              try {
+                sendCrmRef.current?.open?.();
+              } catch (_) {}
+              close();
+            }}
+          />
+        ) : null}
+        <HeaderOverflowSheetBtn
+          icon={<IconContact />}
+          label="Dados do contato"
+          onClick={() => {
+            onOpenClienteSide();
+            close();
+          }}
+        />
+      </>
+    ),
+    [
+      conversaId,
+      isGroup,
+      mostrarEnviarCrm,
+      onOpenClienteSide,
+      onOpenMessageSearch,
+      renderTagsHistoryProductsItems,
+      sendCrmRef,
+    ]
+  );
+
   return (
     <div
       ref={headerRef}
-      className={`wa-header ${isGroup ? "wa-header--group" : ""} ${headerCompact && !isGroup ? "wa-header--atendMobile" : ""} ${headerCompact && !isGroup && headerCrmAtivoLayout ? "wa-header--crmAtivo" : ""}`}
+      className={`wa-header ${isGroup ? "wa-header--group" : ""} ${headerAtendCompact && !isGroup ? "wa-header--atendMobile" : ""} ${headerAtendCompact && !isGroup && headerCrmAtivoLayout ? "wa-header--crmAtivo" : ""}`}
     >
       <button
         type="button"
@@ -222,7 +353,7 @@ function ConversaHeader({
       <div className="wa-header-right">
         <div className="wa-header-innerRow">
           <div className="wa-header-iconsLine">
-            {conversaId && (!headerCompact || isGroup) ? (
+            {conversaId && (!headerAtendCompact || isGroup) ? (
               <button
                 type="button"
                 className="wa-header-btn wa-header-searchBtn"
@@ -234,50 +365,14 @@ function ConversaHeader({
               </button>
             ) : null}
 
-            {!headerCompact && !isGroup && podeGerenciarTags ? (
-              <button
-                type="button"
-                className={`wa-header-btn wa-tagsBtn ${tagsOpen ? "isActive" : ""}`}
-                onClick={onToggleTagPanel}
-                disabled={!conversaId}
-                title="Tags do cliente"
-                aria-label="Tags do cliente"
-              >
-                <IconTag />
-              </button>
-            ) : null}
-
-            {(!headerCompact || isGroup) ? (
-              <button
-                onClick={onToggleTimeline}
-                title="Histórico de atendimentos (Ctrl/Cmd + H)"
-                className={`wa-header-btn wa-header-historyBtn ${showTimeline ? "isActive" : ""}`}
-                type="button"
-                aria-label="Histórico"
-              >
-                <IconClock />
-              </button>
-            ) : null}
-
             {!isGroup && conversaId && mostrarEnviarCrm ? (
               <SendToCrmChatButton
                 ref={sendCrmRef}
                 conversaId={conversaId}
-                hideToolbarButton={headerCompact}
+                hideToolbarButton={headerAtendCompact}
                 isGroup={isGroup}
                 crmEnabled={mostrarEnviarCrm}
               />
-            ) : null}
-            {!headerCompact && !isGroup && conversaId && canConsultarProdutos ? (
-              <button
-                type="button"
-                className={`wa-header-btn wa-productsQuickBtn ${showProdutosPanel ? "isActive" : ""}`}
-                onClick={onOpenProdutosPanel}
-                title="Consultar produtos"
-                aria-label="Consultar produtos"
-              >
-                <span aria-hidden="true">📦</span>
-              </button>
             ) : null}
           </div>
 
@@ -285,119 +380,49 @@ function ConversaHeader({
             <div className="wa-header-actionsRow">
               <div className="wa-actions">
                 <AtendimentoActions
-                  compactToolbar={headerCompact}
-                  overflowTop={
-                    headerCompact
-                      ? (close) => (
-                          <>
-                            {conversaId ? (
-                              <button
-                                type="button"
-                                className="wa-atendToolbar-sheetBtn"
-                                onClick={() => {
-                                  onOpenMessageSearch();
-                                  close();
-                                }}
-                              >
-                                <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                  <IconSearch />
-                                </span>
-                                <span className="wa-atendToolbar-sheetLabel">Pesquisar mensagens</span>
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              className="wa-atendToolbar-sheetBtn"
-                              onClick={() => {
-                                onToggleTimeline();
-                                close();
-                              }}
-                            >
-                              <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                <IconClock />
-                              </span>
-                              <span className="wa-atendToolbar-sheetLabel">Histórico de atendimentos</span>
-                            </button>
-                            {podeGerenciarTags ? (
-                              <button
-                                type="button"
-                                className="wa-atendToolbar-sheetBtn"
-                                onClick={() => {
-                                  onToggleTagPanel();
-                                  close();
-                                }}
-                                disabled={!conversaId}
-                              >
-                                <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                  <IconTag />
-                                </span>
-                                <span className="wa-atendToolbar-sheetLabel">Tags do cliente</span>
-                              </button>
-                            ) : null}
-                            {!isGroup && conversaId && mostrarEnviarCrm ? (
-                              <button
-                                type="button"
-                                className="wa-atendToolbar-sheetBtn"
-                                onClick={() => {
-                                  try {
-                                    sendCrmRef.current?.open?.();
-                                  } catch (_) {}
-                                  close();
-                                }}
-                              >
-                                <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                  <IconFunnelSend />
-                                </span>
-                                <span className="wa-atendToolbar-sheetLabel">Enviar ao CRM</span>
-                              </button>
-                            ) : null}
-                            {!isGroup && conversaId && canConsultarProdutos ? (
-                              <button
-                                type="button"
-                                className="wa-atendToolbar-sheetBtn"
-                                onClick={() => {
-                                  onOpenProdutosPanel();
-                                  close();
-                                }}
-                              >
-                                <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                  📦
-                                </span>
-                                <span className="wa-atendToolbar-sheetLabel">Consultar produtos</span>
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              className="wa-atendToolbar-sheetBtn"
-                              onClick={() => {
-                                onOpenClienteSide();
-                                close();
-                              }}
-                            >
-                              <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                <IconContact />
-                              </span>
-                              <span className="wa-atendToolbar-sheetLabel">Dados do contato</span>
-                            </button>
-                          </>
-                        )
-                      : undefined
-                  }
+                  compactToolbar={headerAtendCompact}
+                  overflowTop={headerAtendCompact ? renderCompactOverflowTop : undefined}
                 />
               </div>
             </div>
           ) : null}
 
-          {headerCompact && !isGroup ? null : (
-            <button
-              title="Mais opções"
-              className="wa-header-btn wa-header-moreBtn"
-              type="button"
-              onClick={onOpenClienteSide}
-              aria-label="Dados do contato e mais opções"
-            >
-              <IconMore />
-            </button>
+          {headerAtendCompact && !isGroup ? null : (
+            <div className="wa-header-moreWrap" ref={moreMenuWrapRef}>
+              <button
+                title="Mais opções"
+                className={`wa-header-btn wa-header-moreBtn ${moreMenuOpen || tagsOpen || showTimeline || showProdutosPanel ? "isActive" : ""}`}
+                type="button"
+                aria-expanded={moreMenuOpen}
+                aria-haspopup="menu"
+                aria-label="Mais opções"
+                onClick={() => setMoreMenuOpen((v) => !v)}
+              >
+                <IconMore />
+              </button>
+              {moreMenuOpen ? (
+                <>
+                  <div
+                    className="wa-atendToolbar-backdrop"
+                    aria-hidden="true"
+                    onClick={closeMoreMenu}
+                  />
+                  <div className="wa-atendToolbar-dropdown wa-header-moreDropdown" role="menu" aria-label="Mais opções">
+                    <div className="wa-atendToolbar-menuExtras">
+                      {renderTagsHistoryProductsItems(closeMoreMenu)}
+                      <HeaderOverflowSheetBtn
+                        icon={<IconContact />}
+                        label="Dados do contato"
+                        onClick={() => {
+                          onOpenClienteSide();
+                          closeMoreMenu();
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
           )}
         </div>
       </div>

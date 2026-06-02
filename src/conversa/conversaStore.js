@@ -1604,11 +1604,20 @@ export const useConversaStore = create((set, get) => {
     const row = (chatStore.chats || []).find((c) => String(c.id) === String(conversaId))
     const openConv = get().conversa
     const src = row || (openConv && String(openConv.id) === String(conversaId) ? openConv : null)
+    const currentTags = Array.isArray(src?.tags)
+      ? src.tags
+      : Array.isArray(get().tags)
+        ? get().tags
+        : undefined
     const optimistic = {
       id: conversaId,
-      status_atendimento: "encerrada",
+      status_atendimento: "fechada",
       status_atendimento_real: "fechada",
       exibir_badge_aberta: false,
+      finalizacao_motivo: null,
+      finalizada_automaticamente: false,
+      finalizada_automaticamente_em: null,
+      ...(currentTags ? { tags: currentTags } : {}),
       pagamento_concluido_em: null,
       pagamento_prazo_ate: null,
       pagamento_prazo_origem: null,
@@ -1616,6 +1625,12 @@ export const useConversaStore = create((set, get) => {
     }
     get().patchConversa(optimistic)
     chatStore.updateChat(optimistic)
+    chatStore.emitChatListOptimisticMutation?.({
+      type: "encerrar_conversa",
+      id: conversaId,
+      removeFromMinhaFila: true,
+      patch: optimistic,
+    })
     try {
       const data = await encerrarChat(conversaId)
       const payload = data?.conversa ?? data ?? {}
@@ -1641,6 +1656,13 @@ export const useConversaStore = create((set, get) => {
         }
         get().patchConversa(revert)
         useChatStore.getState().updateChat(revert)
+        useChatStore.getState().emitChatListOptimisticMutation?.({
+          type: "encerrar_conversa_revert",
+          id: conversaId,
+          restoreMinhaFila: true,
+          row: row ? { ...row, ...revert } : null,
+          patch: revert,
+        })
       }
       throw err
     }
