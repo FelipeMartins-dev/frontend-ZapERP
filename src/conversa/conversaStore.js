@@ -325,6 +325,7 @@ function areLikelySameMessageBubble(prev, incoming) {
     const nomeI = String(incoming.nome_arquivo || "").trim()
     if (nomeP && nomeI && nomeP === nomeI) return true
   }
+  if (isOutgoingAudioReconcilePair(prev, incoming)) return true
   return false
 }
 
@@ -438,9 +439,54 @@ function mergeMsgPreferringTombstone(prev, mergedCandidate) {
 }
 
 const MEDIA_TIPOS = new Set(["imagem", "sticker", "audio", "voice", "video", "arquivo", "ptt", "documento"])
+const AUDIO_FAMILY_TIPOS = new Set(["audio", "voice", "ptt"])
 
 function isMediaTipo(tipo) {
   return MEDIA_TIPOS.has(String(tipo || "").toLowerCase().trim())
+}
+
+function isAudioFamilyTipo(tipo) {
+  return AUDIO_FAMILY_TIPOS.has(String(tipo || "").toLowerCase().trim())
+}
+
+function hasPersistedMessageIdentity(m) {
+  const idOk = m?.id != null && String(m.id).trim() !== ""
+  const waOk = m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
+  return idOk || waOk
+}
+
+/** Otimista de áudio + confirmação (socket/HTTP) — nomes/tipos podem divergir (audio vs voice). */
+function isOutgoingAudioReconcilePair(prev, incoming) {
+  if (!prev || !incoming) return false
+  if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
+  if (!isAudioFamilyTipo(prev.tipo) || !isAudioFamilyTipo(incoming.tipo)) return false
+  const recentMs = 90_000
+  const tsP = toMillis(prev?.criado_em)
+  const tsI = toMillis(incoming?.criado_em)
+  if (!Number.isFinite(tsP) || !Number.isFinite(tsI)) return false
+  if (Math.abs(tsP - tsI) > recentMs) return false
+  const prevPending = isPendingOutgoingTemp(prev)
+  const incPending = isPendingOutgoingTemp(incoming)
+  const prevPersist = hasPersistedMessageIdentity(prev)
+  const incPersist = hasPersistedMessageIdentity(incoming)
+  return (prevPending && incPersist) || (incPending && prevPersist)
+}
+
+function dedupeRowsByPersistedIdentity(list, keepIdx) {
+  const row = list[keepIdx]
+  if (!row) return list
+  const id = row.id != null && String(row.id).trim() !== "" ? String(row.id) : null
+  const wa =
+    row.whatsapp_id != null && String(row.whatsapp_id).trim() !== ""
+      ? String(row.whatsapp_id)
+      : null
+  if (!id && !wa) return list
+  return list.filter((m, i) => {
+    if (i === keepIdx) return true
+    if (id && m?.id != null && String(m.id) === id) return false
+    if (wa && m?.whatsapp_id != null && String(m.whatsapp_id) === wa) return false
+    return true
+  })
 }
 
 function hasRenderableUrl(m) {
@@ -553,6 +599,24 @@ function applyAnexarOneToList(list, convId, msg) {
   const textoIn = (msg.texto || msg.conteudo || "").toString().trim()
   const recentMs = 90_000
   const now = Date.now()
+
+  if (isFromMe && isAudioFamilyTipo(msg.tipo) && hasPersistedMessageIdentity(msg)) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i]
+      if (!isPendingOutgoingTemp(m) || !isAudioFamilyTipo(m.tipo)) continue
+      if (!isOutgoingAudioReconcilePair(m, msg)) continue
+      const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
+      if (msg.id) merged.id = msg.id
+      if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
+      if (msg.status != null) merged.status = msg.status
+      if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
+      merged.criado_em = pickLaterCriadoEmIso(m, msg)
+      merged._stableInsertSeq = mergeStableSeq(m, msg, null)
+      const next = [...list]
+      next[i] = finalizeMergedMessageRow(m, merged)
+      return dedupeRowsByPersistedIdentity(next, i)
+    }
+  }
 
   if (isFromMe && textoIn && isTipoTextoParaReconciliarPorConteudo(msg)) {
     const candidates = []
@@ -1363,7 +1427,7 @@ export const useConversaStore = create((set, get) => {
         let tomb = mergeMsgPreferringTombstone(prevRow, flat)
         tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
         next[idx] = finalizeMergedMessageRow(prevRow, tomb)
-        return { mensagens: next }
+        return { mensagens: dedupeRowsByPersistedIdentity(next, idx) }
       }
       return state
     })

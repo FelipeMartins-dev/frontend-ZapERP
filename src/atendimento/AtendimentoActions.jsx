@@ -169,8 +169,14 @@ const MOBILE_TOOLBAR_PINNED_BASE = ["assumir", "transferir", "encerrar"];
  * @param {boolean} [props.compactToolbar] — mobile: ações de atendimento em fileira; menu "…" só para extras (overflowTop)
  * @param {(close: () => void) => import("react").ReactNode} [props.overflowTop] — itens extras no topo do menu (tags, histórico…)
  * @param {import("react").ReactNode} [props.prepend] — ex.: ícone de histórico à esquerda (só mobile / ConversaView)
+ * @param {boolean} [props.splitCompactHeader] — mobile 2 linhas: ⋯ na linha 1, botões inline na linha 2 (grid do header)
  */
-export default function AtendimentoActions({ compactToolbar = false, overflowTop, prepend }) {
+export default function AtendimentoActions({
+  compactToolbar = false,
+  overflowTop,
+  prepend,
+  splitCompactHeader = false,
+}) {
   const userFromSelector = useAuthStore((s) => s?.user);
   const stateAuth = useAuthStore((s) => s);
   const user = userFromSelector ?? stateAuth?.user ?? null;
@@ -836,82 +842,105 @@ export default function AtendimentoActions({ compactToolbar = false, overflowTop
     );
   }
 
+  const overflowMenuButton = showCompactOverflowMenu ? (
+    <div
+      className={`wa-atendToolbar-overflowWrap${splitCompactHeader ? " wa-atendToolbar-overflowWrap--headerRow1" : ""}`}
+      ref={splitCompactHeader ? menuWrapRef : undefined}
+    >
+      <button
+        ref={overflowTriggerRef}
+        type="button"
+        className="wa-header-btn wa-header-btn--micro wa-atendToolbar-overflowTrigger"
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        aria-label="Mais opções"
+        title="Mais opções"
+        onClick={() => setMenuOpen((v) => !v)}
+      >
+        <IconDotsHorizontal />
+      </button>
+
+      {menuOpen && overflowMenuPos && typeof document !== "undefined"
+        ? createPortal(
+            <>
+              <div
+                className="wa-atendToolbar-backdrop wa-atendToolbar-backdrop--portal"
+                aria-hidden="true"
+                onClick={closeMenu}
+              />
+              <div
+                ref={overflowMenuRef}
+                className="wa-atendToolbar-dropdown wa-atendToolbar-dropdown--portal"
+                role="menu"
+                aria-label="Mais opções"
+                style={{
+                  top: overflowMenuPos.top,
+                  right: overflowMenuPos.right,
+                }}
+              >
+                <div className="wa-atendToolbar-menuExtras">
+                  {overflowExtra}
+                  {compactOverflowActions.map((a) => {
+                    const sheetIcon = renderOverflowSheetIcon(a.id);
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        className="wa-atendToolbar-sheetBtn"
+                        onClick={() => {
+                          a.onClick?.();
+                          closeMenu();
+                        }}
+                        disabled={busy}
+                        title={a.title}
+                        aria-label={a.ariaLabel}
+                      >
+                        {sheetIcon ? (
+                          <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
+                            {sheetIcon}
+                          </span>
+                        ) : null}
+                        <span className="wa-atendToolbar-sheetLabel">{a.labelLong}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>,
+            document.body
+          )
+        : null}
+    </div>
+  ) : null;
+
+  const primaryRow = (
+    <div
+      className={`wa-atendToolbar-primaryRow${splitCompactHeader ? " wa-atendToolbar-primaryRow--headerRow2" : ""}`}
+    >
+      {compactInlineActions.map((a) => renderToolbarButton(a))}
+    </div>
+  );
+
+  if (splitCompactHeader) {
+    return (
+      <>
+        <div className="wa-atendToolbar wa-atendToolbar--compact wa-atendToolbar--splitHeader">
+          {prepend ? <div className="wa-atendToolbar-prepend">{prepend}</div> : null}
+          {overflowMenuButton}
+          {primaryRow}
+        </div>
+        {transferModal}
+        {pagamentoModal}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="wa-atendToolbar wa-atendToolbar--compact" ref={menuWrapRef}>
         {prepend ? <div className="wa-atendToolbar-prepend">{prepend}</div> : null}
-
-        <div className="wa-atendToolbar-primaryRow">
-          {compactInlineActions.map((a) => renderToolbarButton(a))}
-        </div>
-
-        {showCompactOverflowMenu ? (
-          <div className="wa-atendToolbar-overflowWrap">
-            <button
-              ref={overflowTriggerRef}
-              type="button"
-              className="wa-header-btn wa-header-btn--micro wa-atendToolbar-overflowTrigger"
-              aria-expanded={menuOpen}
-              aria-haspopup="menu"
-              aria-label="Mais opções"
-              title="Mais opções"
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              <IconDotsHorizontal />
-            </button>
-
-            {menuOpen && overflowMenuPos && typeof document !== "undefined"
-              ? createPortal(
-                  <>
-                    <div
-                      className="wa-atendToolbar-backdrop wa-atendToolbar-backdrop--portal"
-                      aria-hidden="true"
-                      onClick={closeMenu}
-                    />
-                    <div
-                      ref={overflowMenuRef}
-                      className="wa-atendToolbar-dropdown wa-atendToolbar-dropdown--portal"
-                      role="menu"
-                      aria-label="Mais opções"
-                      style={{
-                        top: overflowMenuPos.top,
-                        right: overflowMenuPos.right,
-                      }}
-                    >
-                      <div className="wa-atendToolbar-menuExtras">
-                        {overflowExtra}
-                        {compactOverflowActions.map((a) => {
-                          const sheetIcon = renderOverflowSheetIcon(a.id);
-                          return (
-                            <button
-                              key={a.id}
-                              type="button"
-                              className="wa-atendToolbar-sheetBtn"
-                              onClick={() => {
-                                a.onClick?.();
-                                closeMenu();
-                              }}
-                              disabled={busy}
-                              title={a.title}
-                              aria-label={a.ariaLabel}
-                            >
-                              {sheetIcon ? (
-                                <span className="wa-atendToolbar-sheetIcon" aria-hidden="true">
-                                  {sheetIcon}
-                                </span>
-                              ) : null}
-                              <span className="wa-atendToolbar-sheetLabel">{a.labelLong}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>,
-                  document.body
-                )
-              : null}
-          </div>
-        ) : null}
+        {primaryRow}
+        {overflowMenuButton}
       </div>
       {transferModal}
       {pagamentoModal}

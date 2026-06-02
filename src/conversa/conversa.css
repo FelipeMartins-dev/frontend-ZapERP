@@ -7658,6 +7658,56 @@ main.main-content--crm .wa-mediaPreview-composer {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.wa-attachBackdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1199;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: rgba(17, 27, 33, 0.42);
+  animation: wa-msgMenuBackdropIn 0.2s ease-out;
+  touch-action: none;
+}
+
+/* Portal no body: acima do thread/header; sem backdrop-filter (evita embacar o próprio menu) */
+.wa-attachBackdrop--portal {
+  display: block;
+  z-index: 1200;
+}
+
+.wa-attachMenu--portal {
+  z-index: 1201;
+}
+
+[data-theme="dark"] .wa-attachBackdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.wa-attachMenu-head {
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: 2px 8px 4px;
+}
+
+.wa-attachMenu-close {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  color: var(--wa-text-muted);
+}
+
+.wa-attachMenu-close:hover {
+  color: var(--wa-text);
+  background: color-mix(in srgb, var(--wa-green) 8%, transparent);
+}
+
 [data-theme="dark"] .wa-attachMenu,
 .wa-shell[data-theme="dark"] .wa-attachMenu {
   --wa-attach-menu-bg: color-mix(in srgb, #2a3942 88%, #111b21 12%);
@@ -9113,7 +9163,7 @@ main.main-content--crm .wa-mediaPreview-composer {
 /* =========================================================
    RESPONSIVIDADE MOBILE — estilo WhatsApp Mobile
    Cabeçalho position:fixed + --wa-mobile-header-h (JS). Só .wa-messages rola.
-   Avatar compacto (32px); 1:1 com .wa-header--atendMobile: uma linha — nome+meta compactos | Transf./Enc./⋯
+   Avatar compacto (32px); .wa-header--atendMobile: 2 linhas — identidade+⋯ | setor+Transf./Enc.
 ========================================================= */
 
 @media (max-width: 640px) {
@@ -9384,6 +9434,15 @@ main.main-content--crm .wa-mediaPreview-composer {
     min-width: 0;
   }
 
+  .wa-header.wa-header--atendMobile .wa-header-name {
+    white-space: nowrap;
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
   .wa-header-nameRow {
     flex-wrap: nowrap;
     gap: 6px;
@@ -9391,7 +9450,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     align-items: center;
   }
 
-  /* Só em em_atendimento / aguardando_cliente (.wa-header--crmAtivo): duas linhas — status em cima, setor + “Trocar” abaixo */
+  /* Grupos e desktop estreito: meta em faixa; atendimento 1:1 usa .wa-header-mobileRow2 */
   .wa-header.wa-header--crmAtivo .wa-header-metaStrip:has(.wa-status-pill--meta):has(.wa-header-setorBtn) {
     flex-wrap: wrap;
     align-items: flex-start;
@@ -9507,12 +9566,13 @@ main.main-content--crm .wa-mediaPreview-composer {
     gap: 6px;
   }
 
-  /* Atendimento 1:1 — cabeçalho mais baixo: nome 1 linha, meta em faixa horizontal */
+  /* Atendimento 1:1 — duas linhas (identidade | setor + ações); detalhes em @media (max-width: 768px) */
   .wa-header.wa-header--atendMobile {
     grid-template-columns: 44px minmax(0, 1fr) auto;
-    grid-template-rows: auto;
+    grid-template-rows: auto auto;
     align-items: center;
     column-gap: 6px;
+    row-gap: 6px;
     padding: 6px 10px 6px;
     padding-top: max(6px, env(safe-area-inset-top, 0px));
   }
@@ -9543,63 +9603,110 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-header-right {
-    grid-column: 3;
-    grid-row: 1;
-    width: auto;
-    max-width: none;
-    justify-self: end;
-    align-self: center;
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
+    display: contents;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-iconsLine {
     display: none !important;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-innerRow {
-    width: auto;
-    justify-content: flex-end;
-    flex-wrap: nowrap;
-    gap: 4px;
-  }
-
-  .wa-header.wa-header--atendMobile .wa-header-actionsRow {
-    width: auto;
-    flex: 0 0 auto;
-    min-width: 0;
-  }
-
-  .wa-header.wa-header--atendMobile .wa-actions {
-    width: auto;
-  }
-
+  .wa-header.wa-header--atendMobile .wa-header-innerRow,
+  .wa-header.wa-header--atendMobile .wa-header-actionsRow,
+  .wa-header.wa-header--atendMobile .wa-actions,
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact {
+    display: contents;
+  }
+
+  /* Linha 2: setor (col 2) + botões (col 3); ⋯ na linha 1 col 3 via display:contents */
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2 {
+    display: contents;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-sector {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    justify-self: start;
+    align-self: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--wa-panel-border) 28%, transparent);
+    border: 1px solid color-mix(in oklab, var(--wa-panel-border) 55%, transparent);
+    box-sizing: border-box;
+  }
+
+  [data-theme="dark"] .wa-header.wa-header--atendMobile .wa-header-mobileRow2-sector {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-sector .wa-header-metaItem {
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-sector:has(.wa-header-setorBtn) .wa-header-metaItem.wa-muted {
+    display: none;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-sector .wa-header-setorBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     width: auto;
-    max-width: none;
+    margin-left: 0;
+    vertical-align: middle;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-actions,
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-actions .wa-actions,
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-actions .wa-atendToolbar--splitHeader {
+    display: contents;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowWrap--headerRow1 {
+    grid-column: 3;
+    grid-row: 1;
+    position: relative;
+    justify-self: end;
+    align-self: center;
+    flex-shrink: 0;
+    z-index: 6;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-primaryRow--headerRow2 {
+    grid-column: 3;
+    grid-row: 2;
+    display: flex;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-end;
+    justify-self: end;
+    align-self: center;
     gap: 4px;
-  }
-
-  .wa-header.wa-header--atendMobile .wa-atendToolbar-primaryRow {
-    justify-content: flex-end;
-    align-items: center;
+    flex-shrink: 0;
     width: auto;
-    flex: 0 1 auto;
     min-width: 0;
     padding: 0;
-    gap: 4px;
+    margin: 0;
   }
 
-  .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowWrap {
-    position: relative;
-    flex-shrink: 0;
-    top: auto;
-    right: auto;
-    z-index: 6;
+  .wa-header.wa-header--atendMobile .wa-header-right {
+    display: none;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar-prepend {
@@ -9623,6 +9730,8 @@ main.main-content--crm .wa-mediaPreview-composer {
     font-size: 14px;
     line-height: 1.22;
     font-weight: 700;
+    flex: 1;
+    min-width: 0;
     white-space: nowrap;
     display: block;
     overflow: hidden;
@@ -9632,132 +9741,44 @@ main.main-content--crm .wa-mediaPreview-composer {
     hyphens: none;
     -webkit-line-clamp: unset;
     line-clamp: unset;
-    min-width: 0;
     max-width: 100%;
   }
 
-  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    align-content: flex-start;
-    gap: 4px 6px;
-    row-gap: 3px;
-    margin-top: 0;
-    padding: 2px 0;
-    min-height: 26px;
-    box-sizing: border-box;
-    overflow-x: visible;
-    overflow-y: visible;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    max-width: 100%;
-    min-width: 0;
-  }
-
-  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip::-webkit-scrollbar {
-    display: none;
-    height: 0;
-  }
-
-  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-header-metaItem:not(.wa-status-pill--meta) {
-    display: block;
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: none;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    word-break: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
-    font-size: 11px;
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
-  }
-
-  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta {
-    flex: 1 0 100%;
-    max-width: 100%;
-    width: auto;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 6px;
-    min-height: 18px;
-    white-space: normal;
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    line-height: 1.15;
-    overflow: visible;
-    text-overflow: clip;
-    overflow-wrap: anywhere;
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
-    box-sizing: border-box;
-    letter-spacing: 0;
-  }
-
-  .wa-header.wa-header--atendMobile.wa-header--crmAtivo .wa-header-metaStrip .wa-status-pill--meta + .wa-header-metaSep {
-    display: none;
-  }
-
-  /* Aberta / Finalizada (sem .wa-header--crmAtivo): meta em linha única + pill no tamanho anterior */
-  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip {
+  .wa-header.wa-header--atendMobile .wa-header-metaStrip {
     flex-wrap: nowrap;
     align-items: center;
-    flex-direction: row;
     gap: 5px;
-    row-gap: 0;
     margin-top: 0;
-    padding: 3px 0;
-    min-height: 30px;
-    box-sizing: border-box;
-    overflow-x: auto;
-    overflow-y: visible;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    padding: 0;
+    min-height: 0;
     max-width: 100%;
     min-width: 0;
+    overflow: hidden;
+    overflow-x: hidden;
+    mask-image: none;
   }
 
-  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip::-webkit-scrollbar {
-    display: none;
-    height: 0;
-  }
-
-  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip .wa-header-metaItem:not(.wa-status-pill--meta) {
-    display: block;
+  .wa-header.wa-header--atendMobile .wa-header-statusStack {
     flex: 1 1 auto;
     min-width: 0;
-    max-width: min(200px, 42vw);
-    white-space: nowrap;
+    max-width: 100%;
     overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: normal;
-    line-height: 1.2;
-    font-size: 11px;
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
   }
 
-  .wa-header.wa-header--atendMobile:not(.wa-header--crmAtivo) .wa-header-metaStrip .wa-status-pill--meta {
-    flex: 0 1 auto;
+  .wa-header.wa-header--atendMobile .wa-status-pill--meta,
+  .wa-header.wa-header--atendMobile .wa-status-pill--pagamento-concluido-sub {
+    flex: 1 1 auto;
+    min-width: 0;
     max-width: 100%;
-    width: max-content;
-    font-size: 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
     font-weight: 600;
     padding: 2px 7px;
     min-height: 18px;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
     line-height: 1.15;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
     box-sizing: border-box;
-    letter-spacing: -0.02em;
   }
 
   .wa-header.wa-header--atendMobile .wa-header-setorBtn {
@@ -9780,14 +9801,14 @@ main.main-content--crm .wa-mediaPreview-composer {
     min-width: 0;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-setorRow {
+  .wa-header.wa-header--atendMobile .wa-header-setorRow:not(.wa-header-mobileRow2-sector) {
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     max-width: 100%;
   }
 
-  .wa-header.wa-header--atendMobile .wa-header-setorRow .wa-header-metaItem {
+  .wa-header.wa-header--atendMobile .wa-header-setorRow:not(.wa-header-mobileRow2-sector) .wa-header-metaItem {
     max-width: min(100%, calc(100vw - 120px));
   }
 
@@ -10183,23 +10204,50 @@ main.main-content--crm .wa-mediaPreview-composer {
     height: 44px;
   }
 
+  .wa-attachBackdrop--portal {
+    display: block;
+  }
+
   /* Menu de anexos vira bottom-sheet no mobile */
-  .wa-attachMenu {
+  .wa-attachMenu,
+  .wa-attachMenu--portal {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     min-width: unset;
+    max-height: min(72vh, 520px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border-radius: 16px 16px 0 0;
-    padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0));
+    padding: 4px 0 calc(10px + env(safe-area-inset-bottom, 0));
     margin: 0;
     box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3);
     animation: wa-attachSlideUp 0.25s ease-out;
+    z-index: 1200;
+  }
+
+  .wa-attachMenu-head {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--wa-attach-menu-bg, var(--wa-glass-strong));
+    padding: 4px 10px 6px;
   }
 
   .wa-attachItem {
-    padding: 14px 20px;
-    min-height: 48px;
+    padding: 10px 16px;
+    min-height: 44px;
+    font-size: 14px;
+    gap: 12px;
+  }
+
+  .wa-attachItem-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
   }
 
   .wa-autocorrectToggle {
@@ -10278,6 +10326,18 @@ main.main-content--crm .wa-mediaPreview-composer {
     word-break: break-word;
     overflow-wrap: anywhere;
     min-width: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    word-break: normal;
+    overflow-wrap: normal;
+    text-overflow: ellipsis;
   }
 
   .wa-header-info {

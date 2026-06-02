@@ -153,6 +153,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const stickerSearchRef = useRef(null);
   const stickerBtnRef = useRef(null);
   const attachMenuRef = useRef(null);
+  const attachMenuPanelRef = useRef(null);
   const fileInputRef = useRef(null);
   const fototecaInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -427,12 +428,17 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   useEffect(() => {
     if (!attachMenuOpen) return;
     const onDoc = (e) => {
-      const menu = attachMenuRef.current;
-      if (menu && menu.contains(e.target)) return;
+      const wrap = attachMenuRef.current;
+      const panel = attachMenuPanelRef.current;
+      if ((wrap && wrap.contains(e.target)) || (panel && panel.contains(e.target))) return;
       setAttachMenuOpen(false);
     };
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("touchstart", onDoc, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("touchstart", onDoc);
+    };
   }, [attachMenuOpen]);
 
   useEffect(() => {
@@ -977,8 +983,32 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               >
                 <IconPlus />
               </button>
-              {attachMenuOpen ? (
-                <div className="wa-attachMenu" role="menu" aria-label="Anexos">
+              {attachMenuOpen && typeof document !== "undefined"
+                ? createPortal(
+                    <>
+                      <button
+                        type="button"
+                        className="wa-attachBackdrop wa-attachBackdrop--portal"
+                        aria-label="Fechar opções de anexo"
+                        onClick={() => setAttachMenuOpen(false)}
+                      />
+                      <div
+                        ref={attachMenuPanelRef}
+                        className="wa-attachMenu wa-attachMenu--portal"
+                        role="menu"
+                        aria-label="Anexos"
+                      >
+                  <div className="wa-attachMenu-head">
+                    <button
+                      type="button"
+                      className="wa-attachMenu-close wa-iconBtn"
+                      aria-label="Fechar opções"
+                      title="Fechar"
+                      onClick={() => setAttachMenuOpen(false)}
+                    >
+                      <IconClose />
+                    </button>
+                  </div>
                   <button
                     type="button"
                     className="wa-attachItem"
@@ -1127,8 +1157,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                       <span>{autoCorrectEnabled ? "Desativar correção automática" : "Ativar correção automática"}</span>
                     </button>
                   ) : null}
-                </div>
-              ) : null}
+                      </div>
+                    </>,
+                    document.body
+                  )
+                : null}
             </div>
             <div className="wa-stickerWrap">
               <button

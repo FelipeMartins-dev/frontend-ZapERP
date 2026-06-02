@@ -125,6 +125,46 @@ function ConversaHeader({
     ]
   );
 
+  const renderSetorControls = () => {
+    if (isGroup) return null;
+    if (setorAtual) {
+      return (
+        <>
+          <span className="wa-header-metaItem" title={setorAtual}>
+            Setor: {setorAtual}
+          </span>
+          {podeTransferirSetor ? (
+            <button
+              type="button"
+              className="wa-header-setorBtn"
+              onClick={onOpenTransferirSetor}
+              title="Transferir para outro setor"
+            >
+              <span className="wa-setorBtn-label wa-setorBtn-label--full">Transferir setor</span>
+              <span className="wa-setorBtn-label wa-setorBtn-label--short">Trocar</span>
+            </button>
+          ) : null}
+        </>
+      );
+    }
+    return (
+      <>
+        <span className="wa-header-metaItem wa-muted">Sem setor</span>
+        {podeTransferirSetor ? (
+          <button
+            type="button"
+            className="wa-header-setorBtn"
+            onClick={onOpenTransferirSetor}
+            title="Definir setor"
+          >
+            <span className="wa-setorBtn-label wa-setorBtn-label--full">Definir setor</span>
+            <span className="wa-setorBtn-label wa-setorBtn-label--short">Setor</span>
+          </button>
+        ) : null}
+      </>
+    );
+  };
+
   const renderCompactOverflowTop = useCallback(
     (close) => (
       <>
@@ -248,47 +288,14 @@ function ConversaHeader({
                     ) : null}
                   </span>
                 ) : null}
-                {!headerSetorBelowStatus &&
-                  !isGroup &&
-                  (setorAtual ? (
-                    <>
-                      {badge || showPagamentoConcluidoBadge ? (
-                        <span className="wa-header-metaSep" aria-hidden="true" />
-                      ) : null}
-                      <span className="wa-header-metaItem" title={setorAtual}>
-                        Setor: {setorAtual}
-                      </span>
-                      {podeTransferirSetor ? (
-                        <button
-                          type="button"
-                          className="wa-header-setorBtn"
-                          onClick={onOpenTransferirSetor}
-                          title="Transferir para outro setor"
-                        >
-                          <span className="wa-setorBtn-label wa-setorBtn-label--full">Transferir setor</span>
-                          <span className="wa-setorBtn-label wa-setorBtn-label--short">Trocar</span>
-                        </button>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      {badge || showPagamentoConcluidoBadge ? (
-                        <span className="wa-header-metaSep" aria-hidden="true" />
-                      ) : null}
-                      <span className="wa-header-metaItem wa-muted">Sem setor</span>
-                      {podeTransferirSetor ? (
-                        <button
-                          type="button"
-                          className="wa-header-setorBtn"
-                          onClick={onOpenTransferirSetor}
-                          title="Definir setor"
-                        >
-                          <span className="wa-setorBtn-label wa-setorBtn-label--full">Definir setor</span>
-                          <span className="wa-setorBtn-label wa-setorBtn-label--short">Setor</span>
-                        </button>
-                      ) : null}
-                    </>
-                  ))}
+                {!headerSetorBelowStatus && !headerCompact && !isGroup ? (
+                  <>
+                    {badge || showPagamentoConcluidoBadge ? (
+                      <span className="wa-header-metaSep" aria-hidden="true" />
+                    ) : null}
+                    {renderSetorControls()}
+                  </>
+                ) : null}
                 {isGroup ? (
                   <>
                     {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
@@ -296,41 +303,9 @@ function ConversaHeader({
                   </>
                 ) : null}
               </div>
-              {headerSetorBelowStatus && !isGroup ? (
+              {headerSetorBelowStatus && !headerCompact && !isGroup ? (
                 <div className="wa-header-setorRow" aria-label="Setor da conversa">
-                  {setorAtual ? (
-                    <>
-                      <span className="wa-header-metaItem" title={setorAtual}>
-                        Setor: {setorAtual}
-                      </span>
-                      {podeTransferirSetor ? (
-                        <button
-                          type="button"
-                          className="wa-header-setorBtn"
-                          onClick={onOpenTransferirSetor}
-                          title="Transferir para outro setor"
-                        >
-                          <span className="wa-setorBtn-label wa-setorBtn-label--full">Transferir setor</span>
-                          <span className="wa-setorBtn-label wa-setorBtn-label--short">Trocar</span>
-                        </button>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      <span className="wa-header-metaItem wa-muted">Sem setor</span>
-                      {podeTransferirSetor ? (
-                        <button
-                          type="button"
-                          className="wa-header-setorBtn"
-                          onClick={onOpenTransferirSetor}
-                          title="Definir setor"
-                        >
-                          <span className="wa-setorBtn-label wa-setorBtn-label--full">Definir setor</span>
-                          <span className="wa-setorBtn-label wa-setorBtn-label--short">Setor</span>
-                        </button>
-                      ) : null}
-                    </>
-                  )}
+                  {renderSetorControls()}
                 </div>
               ) : null}
             </div>
@@ -349,6 +324,21 @@ function ConversaHeader({
           ) : null}
         </div>
       </div>
+
+      {headerCompact && !isGroup ? (
+        <div className="wa-header-mobileRow2" aria-label="Setor e ações de atendimento">
+          <div className="wa-header-mobileRow2-sector">{renderSetorControls()}</div>
+          <div className="wa-header-mobileRow2-actions">
+            <div className="wa-actions">
+              <AtendimentoActions
+                compactToolbar={headerAtendCompact}
+                splitCompactHeader
+                overflowTop={headerAtendCompact ? renderCompactOverflowTop : undefined}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="wa-header-right">
         <div className="wa-header-innerRow">
@@ -376,7 +366,7 @@ function ConversaHeader({
             ) : null}
           </div>
 
-          {!isGroup ? (
+          {!isGroup && !headerCompact ? (
             <div className="wa-header-actionsRow">
               <div className="wa-actions">
                 <AtendimentoActions
