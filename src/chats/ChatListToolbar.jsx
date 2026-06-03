@@ -121,33 +121,33 @@ function ChatListToolbar({
             role="group"
             aria-label="Filtros de conversa"
           >
-            <Chip variant="primary" active={tab === "minha_fila"} onClick={onTabMinhaFila}>
+            <Chip variant="primary" active={tab === "minha_fila"} onClick={onTabMinhaFila} count={minhaFilaCount}>
               Minha fila
             </Chip>
-            <Chip active={tab === "todas"} onClick={onTabTodas}>
+            <Chip active={tab === "todas"} onClick={onTabTodas} count={total}>
               Todas
             </Chip>
-            <Chip active={tab === "hoje"} onClick={onTabHoje}>
+            <Chip active={tab === "hoje"} onClick={onTabHoje} count={countHoje}>
               Hoje
             </Chip>
-            <Chip active={tab === "abertas"} onClick={onTabAbertas}>
+            <Chip active={tab === "abertas"} onClick={onTabAbertas} count={countAbertas}>
               Abertas
             </Chip>
             {separarMensagensDisparadasLigado ? (
-              <Chip active={tab === "mensagens_disparadas"} onClick={onTabMensagensDisparadas}>
+              <Chip active={tab === "mensagens_disparadas"} onClick={onTabMensagensDisparadas} count={mensagensDisparadasCount}>
                 Mensagens Disparadas
               </Chip>
             ) : null}
-            <Chip active={tab === "em_atendimento"} onClick={onTabEmAtendimento}>
+            <Chip active={tab === "em_atendimento"} onClick={onTabEmAtendimento} count={countEmAtendimento}>
               Em atendimento
             </Chip>
-            <Chip active={tab === "finalizadas"} onClick={onTabFinalizadas}>
+            <Chip active={tab === "finalizadas"} onClick={onTabFinalizadas} count={countFinalizadas}>
               Finalizadas
             </Chip>
-            <Chip active={tab === "finalizadas_auto"} onClick={onTabFinalizadasAuto}>
+            <Chip active={tab === "finalizadas_auto"} onClick={onTabFinalizadasAuto} count={countFinalizadasAuto}>
               Por ausência
             </Chip>
-            <Chip active={tab === "aguardando_cliente"} onClick={onTabAguardandoCliente}>
+            <Chip active={tab === "aguardando_cliente"} onClick={onTabAguardandoCliente} count={countAguardandoCliente}>
               Aguardando cliente
             </Chip>
             {isFinanceiroUser ? (
@@ -156,6 +156,7 @@ function ChatListToolbar({
                   active={tab === "pagamentos_pendentes"}
                   onClick={onTabPagamentosPendentes}
                   className="chat-list-chip--pagamento-pendente"
+                  count={countPagamentosPendentes}
                 >
                   Pagamentos pendentes
                 </Chip>
@@ -163,6 +164,7 @@ function ChatListToolbar({
                   active={tab === "em_atraso"}
                   onClick={onTabEmAtraso}
                   className="chat-list-chip--em-atraso"
+                  count={countEmAtraso}
                 >
                   Em atraso
                 </Chip>
@@ -173,6 +175,7 @@ function ChatListToolbar({
                 active={tab === "aguardando_funcionario"}
                 onClick={onTabAguardandoFuncionario}
                 className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
+                count={countAguardandoFuncionario}
               >
                 Aguardando atendente
                 {aguardandoFuncionarioVisualState === "critical" ? (
@@ -206,10 +209,17 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.separarMensagensDisparadasLigado !== next.separarMensagensDisparadasLigado) return false;
   if (prev.minhaFilaCount !== next.minhaFilaCount) return false;
   if (prev.total !== next.total) return false;
+  if (prev.countHoje !== next.countHoje) return false;
+  if (prev.countAbertas !== next.countAbertas) return false;
+  if (prev.countEmAtendimento !== next.countEmAtendimento) return false;
+  if (prev.countFinalizadas !== next.countFinalizadas) return false;
+  if (prev.countFinalizadasAuto !== next.countFinalizadasAuto) return false;
   if (prev.countAguardandoCliente !== next.countAguardandoCliente) return false;
   if (prev.isFinanceiroUser !== next.isFinanceiroUser) return false;
   if (prev.countPagamentosPendentes !== next.countPagamentosPendentes) return false;
   if (prev.countEmAtraso !== next.countEmAtraso) return false;
+  if (prev.countAguardandoFuncionario !== next.countAguardandoFuncionario) return false;
+  if (prev.mensagensDisparadasCount !== next.mensagensDisparadasCount) return false;
   if (prev.aguardandoFuncionarioVisualState !== next.aguardandoFuncionarioVisualState) return false;
   if (prev.searchClearNonce !== next.searchClearNonce) return false;
   if (prev.adminAtendenteFilterId !== next.adminAtendenteFilterId) return false;
