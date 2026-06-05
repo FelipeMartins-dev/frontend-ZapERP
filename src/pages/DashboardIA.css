@@ -1179,6 +1179,38 @@
   color: #94a3b8;
 }
 
+.ia-analitica-artifacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+
+.ia-analitica-artifact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(45, 212, 191, 0.42);
+  background: rgba(13, 148, 136, 0.14);
+  color: #dffcf6;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.ia-analitica-artifact-btn:hover {
+  border-color: rgba(94, 234, 212, 0.78);
+  background: rgba(13, 148, 136, 0.22);
+}
+
+.ia-analitica-artifact-btn small {
+  color: #99f6e4;
+  font-size: 0.72rem;
+}
+
 @media (max-width: 640px) {
   .ia-analitica-evidencias {
     grid-template-columns: 1fr;

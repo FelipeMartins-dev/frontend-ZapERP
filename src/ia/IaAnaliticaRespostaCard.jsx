@@ -7,6 +7,7 @@ import IaEvidenciasChips from "./IaEvidenciasChips.jsx";
 import IaEvidenciasMensagens from "./IaEvidenciasMensagens.jsx";
 import IaConversasEnvolvidas from "./IaConversasEnvolvidas.jsx";
 import IaTemporalAnswerHint from "./IaTemporalAnswerHint.jsx";
+import IaArtifactsDownloads from "./IaArtifactsDownloads.jsx";
 import { getOrientacaoResumoIa } from "./recorteTemporal.js";
 import { getMensagensAnaliticasLista } from "./extractMensagensAnaliticas.js";
 import { extractEvidenciasFromData } from "./extractEvidencias.js";
@@ -49,6 +50,7 @@ export default function IaAnaliticaRespostaCard({ markdown, data, intentFromRoot
         <div className="ia-analitica-answer">
           <IaMarkdownContent markdown={markdown} />
         </div>
+        <IaArtifactsDownloads data={data} />
         <IaEvidenciasMensagens data={data} />
         {legacyChips ? <IaEvidenciasChips data={data} /> : null}
         <IaConversasEnvolvidas data={data} />

@@ -894,9 +894,11 @@ export default function ChatList() {
           mensagensDisparadasCount,
         });
       }
+      const secondaryRefreshDelay =
+        minhaFilaAuxPrimed ? 1200 : tabRef.current === "todas" ? 650 : 120;
       loadSecondaryScheduleCancelRef.current = scheduleAfterInitialPaint(
         runSecondaryRefreshes,
-        minhaFilaAuxPrimed ? 1200 : 120
+        secondaryRefreshDelay
       );
     } catch (e) {
       if (requestId !== loadRequestIdRef.current) return;

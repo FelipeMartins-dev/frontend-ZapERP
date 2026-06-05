@@ -20,6 +20,18 @@ function digitsOnly(v) {
   return String(v || "").replace(/\D/g, "");
 }
 
+function getSidebarStatusKey(conversa) {
+  const s = getStatusAtendimentoEffective(conversa);
+  if (
+    s === "em_atendimento" &&
+    conversa?.atendente_id != null &&
+    conversa?.aguardando_cliente_desde != null
+  ) {
+    return "aguardando_cliente";
+  }
+  return s;
+}
+
 async function copyText(text) {
   const t = String(text || "");
   if (!t) return false;
@@ -292,21 +304,34 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
   }, [conversa, isGroup]);
 
   const statusLabel = useMemo(() => {
-    const s = getStatusAtendimentoEffective(conversa);
+    const s = getSidebarStatusKey(conversa);
     if (s === "em_atendimento") return "Em atendimento";
     if (s === "aguardando_cliente") return "Aguardando cliente";
+    if (s === "pagamento_pendente") return "Pagamento pendente";
+    if (s === "em_atraso") return "Em atraso";
+    if (s === "mensagem_disparada") return "Mensagem disparada";
     if (s === "fechada") return "Finalizada";
     if (!s) return "Aberta";
     return s;
-  }, [conversa?.status_atendimento, conversa?.status_atendimento_real]);
+  }, [
+    conversa?.status_atendimento,
+    conversa?.status_atendimento_real,
+    conversa?.atendente_id,
+    conversa?.aguardando_cliente_desde,
+  ]);
 
   const statusTone = useMemo(() => {
-    const s = getStatusAtendimentoEffective(conversa);
+    const s = getSidebarStatusKey(conversa);
     if (s === "fechada") return "closed";
-    if (s === "em_atendimento") return "active";
     if (s === "aguardando_cliente") return "awaiting";
+    if (s === "em_atendimento" || s === "pagamento_pendente" || s === "em_atraso") return "active";
     return "open";
-  }, [conversa?.status_atendimento, conversa?.status_atendimento_real]);
+  }, [
+    conversa?.status_atendimento,
+    conversa?.status_atendimento_real,
+    conversa?.atendente_id,
+    conversa?.aguardando_cliente_desde,
+  ]);
 
   const createdAt = useMemo(() => {
     if (!conversa?.criado_em) return "";
