@@ -1,7 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { shallow } from "zustand/shallow";
 import { useMatchMedia } from "../hooks/useMatchMedia";
-import { fetchChats, abrirConversaCliente, getZapiStatus, sincronizarFotosPerfil, postFinalizacaoAusenciaLote } from "./chatService";
+import {
+  fetchChats,
+  getChatsPageMeta,
+  abrirConversaCliente,
+  getZapiStatus,
+  sincronizarFotosPerfil,
+  postFinalizacaoAusenciaLote,
+} from "./chatService";
 import { useChatStore } from "./chatsStore";
 import { useConversaStore } from "../conversa/conversaStore";
 import { listarTags } from "../api/tagService";
@@ -83,6 +90,68 @@ function countDistinctConversas(list) {
 }
 
 const CONFIRM_LOTE_AUSENCIA = "FINALIZAR_LOTE_AUSENCIA_CLIENTE";
+const CHAT_LIST_PAGE_LIMIT = 80;
+
+function getChatSortTs(c) {
+  return (
+    c?.ultima_mensagem?.criado_em ||
+    getLastMessage(c)?.criado_em ||
+    c?.ultima_atividade ||
+    c?.criado_em ||
+    0
+  );
+}
+
+function sortChatRowsByOrder(list, order) {
+  return [...(Array.isArray(list) ? list : [])].sort((a, b) =>
+    order === "antigas"
+      ? new Date(getChatSortTs(a)) - new Date(getChatSortTs(b))
+      : new Date(getChatSortTs(b)) - new Date(getChatSortTs(a))
+  );
+}
+
+function dedupeChatRowsByStableKey(list) {
+  const byKey = new Map();
+  (Array.isArray(list) ? list : []).forEach((c) => {
+    const key =
+      c?.id != null
+        ? `conv-${c.id}`
+        : c?.cliente_id != null
+          ? `cliente-${c.cliente_id}`
+          : `tel-${c?.telefone ?? c?.telefone_exibivel ?? Math.random()}`;
+    if (!byKey.has(key)) byKey.set(key, c);
+  });
+  return Array.from(byKey.values());
+}
+
+function mergeChatRowsPreservingCurrent(current, incoming, order) {
+  const byKey = new Map();
+  const put = (row, preferIncoming = false) => {
+    if (!row) return;
+    const key =
+      row?.id != null
+        ? `conv-${row.id}`
+        : row?.cliente_id != null
+          ? `cliente-${row.cliente_id}`
+          : `tel-${row?.telefone ?? row?.telefone_exibivel ?? Math.random()}`;
+    const prev = byKey.get(key);
+    byKey.set(key, prev && preferIncoming ? { ...prev, ...row } : prev || row);
+  };
+  (Array.isArray(current) ? current : []).forEach((row) => put(row, false));
+  (Array.isArray(incoming) ? incoming : []).forEach((row) => put(row, true));
+  return sortChatRowsByOrder(Array.from(byKey.values()), order);
+}
+
+function buildChatListPageState(data) {
+  const meta = getChatsPageMeta(data);
+  return {
+    hasMore: Boolean(meta?.hasMore && meta?.nextCursor),
+    nextCursor: meta?.nextCursor || null,
+    nextCursorId: meta?.nextCursorId ?? null,
+    loading: false,
+    error: "",
+  };
+}
 
 /** IDs de conversas individuais em atendimento (para assistente de lote por ausência). */
 function collectEmAtendimentoIdsFromChats(list, max = 50) {
@@ -164,6 +233,7 @@ export default function ChatList() {
   /** Evita resync do socket logo após load() principal (login/F5). */
   const lastLoadFinishedAtRef = useRef(0);
   const loadSecondaryScheduleCancelRef = useRef(null);
+  const lastListParamsRef = useRef(null);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -176,6 +246,15 @@ export default function ChatList() {
   // busca: termo debounced no pai (filtro); digitação fica no filho para não re-renderizar a lista inteira
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchClearNonce, setSearchClearNonce] = useState(0);
+  const [chatListPage, setChatListPage] = useState({
+    hasMore: false,
+    nextCursor: null,
+    nextCursorId: null,
+    loading: false,
+    error: "",
+  });
+  const chatListPageRef = useRef(chatListPage);
+  chatListPageRef.current = chatListPage;
   const handleSearchDebounced = useCallback((t) => {
     setDebouncedSearch(t);
   }, []);
@@ -280,6 +359,7 @@ export default function ChatList() {
 
   const filterRequestKey = [
     tab,
+    debouncedSearch,
     tagFilter,
     departamentoFilter,
     statusFilter,
@@ -306,6 +386,13 @@ export default function ChatList() {
     if (filterRequestKeyRef.current === filterRequestKey) return;
     filterRequestKeyRef.current = filterRequestKey;
     setZapFilterSkeleton(true);
+    setChatListPage({
+      hasMore: false,
+      nextCursor: null,
+      nextCursorId: null,
+      loading: false,
+      error: "",
+    });
     if (tab === "minha_fila") {
       setMinhaFilaList(null);
     }
@@ -423,7 +510,7 @@ export default function ChatList() {
         atendente_id: atendenteFilter !== "todos" ? atendenteFilter : undefined,
         data_inicio: dataInicio || undefined,
         data_fim: dataFim || undefined,
-        incluir_todos_clientes: "1",
+        incluir_todos_clientes: undefined,
       };
       if (finalAutoQuery) {
         params.status_atendimento = "fechada";
@@ -462,7 +549,7 @@ export default function ChatList() {
           departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
           data_inicio: dataInicio || undefined,
           data_fim: dataFim || undefined,
-          incluir_todos_clientes: "1",
+          incluir_todos_clientes: undefined,
         };
       } else {
         params = {
@@ -471,7 +558,7 @@ export default function ChatList() {
           departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
           data_inicio: dataInicio || undefined,
           data_fim: dataFim || undefined,
-          incluir_todos_clientes: "1",
+          incluir_todos_clientes: undefined,
         };
       }
       const data = await fetchChats(params);
@@ -510,7 +597,7 @@ export default function ChatList() {
           departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
           data_inicio: dataInicio || undefined,
           data_fim: dataFim || undefined,
-          incluir_todos_clientes: "1",
+          incluir_todos_clientes: undefined,
         };
       } else {
         // Sem "Por funcionário": respeitar escopo padrão da sessão no backend.
@@ -520,7 +607,7 @@ export default function ChatList() {
           departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
           data_inicio: dataInicio || undefined,
           data_fim: dataFim || undefined,
-          incluir_todos_clientes: "1",
+          incluir_todos_clientes: undefined,
         };
       }
       const data = await fetchChats(params);
@@ -556,7 +643,7 @@ export default function ChatList() {
         departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
         data_inicio: dataInicio || undefined,
         data_fim: dataFim || undefined,
-        incluir_todos_clientes: "1",
+        incluir_todos_clientes: undefined,
       };
       const data = await fetchChats(params);
       const list = Array.isArray(data) ? data : [];
@@ -579,7 +666,7 @@ export default function ChatList() {
         departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
         data_inicio: dataInicio || undefined,
         data_fim: dataFim || undefined,
-        incluir_todos_clientes: "1",
+        incluir_todos_clientes: undefined,
       };
       const data = await fetchChats(params);
       const list = Array.isArray(data) ? data : [];
@@ -684,6 +771,8 @@ export default function ChatList() {
       const pagamentoPendenteQuery =
         isFinanceiroUser && (tab === "pagamentos_pendentes" || pagamentosPendentesOnly);
       const emAtrasoQuery = isFinanceiroUser && (tab === "em_atraso" || emAtrasoOnly);
+      const searchTerm = String(debouncedSearch || "").trim();
+      const includeAllForSearch = searchTerm ? "1" : undefined;
 
       let params;
       if (adminPorFuncionario) {
@@ -697,7 +786,9 @@ export default function ChatList() {
           departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
           data_inicio: dataInicio || undefined,
           data_fim: dataFim || undefined,
-          incluir_todos_clientes: "1",
+          palavra: searchTerm || undefined,
+          incluir_todos_clientes: includeAllForSearch,
+          limit: CHAT_LIST_PAGE_LIMIT,
         };
         if (finalAutoQuery) {
           params.finalizacao_motivo = "ausencia_cliente";
@@ -713,7 +804,9 @@ export default function ChatList() {
           atendente_id: atendenteFilter !== "todos" ? atendenteFilter : undefined,
           data_inicio: dataInicio || undefined,
           data_fim: dataFim || undefined,
-          incluir_todos_clientes: "1",
+          palavra: searchTerm || undefined,
+          incluir_todos_clientes: includeAllForSearch,
+          limit: CHAT_LIST_PAGE_LIMIT,
         };
         if (tab === "minha_fila") {
           params.minha_fila = "1";
@@ -748,6 +841,7 @@ export default function ChatList() {
       }
 
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
+      lastListParamsRef.current = { ...params };
 
       /** Lista estrita: só o que a API devolveu — o merge com `prev` não pode reintroduzir conversas de outras abas. */
       const strictMensagemDisparadaQuery =
@@ -757,27 +851,12 @@ export default function ChatList() {
       const data = await fetchChats(params);
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
+      setChatListPage(buildChatListPageState(data));
       if (!adminPorFuncionario && mineOnly && user?.id && !isAppAdmin(user)) {
         list = list.filter((c) => String(c.atendente_id) === String(user.id));
       }
       // Desduplicar por id (conversas) ou por cliente_id (clientes sem conversa) — NÃO descartar itens com id null
-      const byKey = new Map();
-      list.forEach((c) => {
-        const key = c?.id != null ? `conv-${c.id}` : (c?.cliente_id != null ? `cliente-${c.cliente_id}` : `tel-${c?.telefone ?? Math.random()}`);
-        if (!byKey.has(key)) byKey.set(key, c);
-      });
-      list = Array.from(byKey.values());
-      const getTs = (c) =>
-        c?.ultima_mensagem?.criado_em ||
-        getLastMessage(c)?.criado_em ||
-        c?.ultima_atividade ||
-        c?.criado_em ||
-        0;
-      list.sort((a, b) =>
-        order === "antigas"
-          ? new Date(getTs(a)) - new Date(getTs(b))
-          : new Date(getTs(b)) - new Date(getTs(a))
-      );
+      list = sortChatRowsByOrder(dedupeChatRowsByStableKey(list), order);
       if (!adminPorFuncionario && tabRef.current === "minha_fila") {
         const count = countDistinctConversas(list);
         setMinhaFilaCount((prev) => (prev === count ? prev : count));
@@ -906,6 +985,11 @@ export default function ChatList() {
       if (!(useChatStore.getState().chats?.length > 0)) {
         setChats([]);
       }
+      setChatListPage((prev) => ({
+        ...prev,
+        loading: false,
+        error: e?.response?.data?.error || e?.message || "Erro ao carregar conversas.",
+      }));
     } finally {
       if (requestId === loadRequestIdRef.current) {
         setLoading(false);
@@ -928,6 +1012,7 @@ export default function ChatList() {
     load();
   }, [
     tab,
+    debouncedSearch,
     tagFilter,
     departamentoFilter,
     statusFilter,
@@ -950,6 +1035,72 @@ export default function ChatList() {
   // loadRef para sync/interval — deve estar definido antes dos effects que o usam
   const loadRef = useRef(load);
   loadRef.current = load;
+
+  const handleLoadMoreChats = useCallback(async () => {
+    const page = chatListPageRef.current;
+    const baseParams = lastListParamsRef.current;
+    if (!baseParams || !page?.hasMore || !page?.nextCursor || page.loading) return;
+
+    const requestId = loadRequestIdRef.current;
+    setChatListPage((prev) => ({ ...prev, loading: true, error: "" }));
+
+    try {
+      const data = await fetchChats({
+        ...baseParams,
+        cursor: page.nextCursor,
+        cursorId: page.nextCursorId,
+        limit: CHAT_LIST_PAGE_LIMIT,
+      });
+      if (requestId !== loadRequestIdRef.current) return;
+
+      const adminPorFuncionario =
+        adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
+      let list = Array.isArray(data) ? data : [];
+      if (!adminPorFuncionario && mineOnly && user?.id && !isAppAdmin(user)) {
+        list = list.filter((c) => String(c.atendente_id) === String(user.id));
+      }
+      list = sortChatRowsByOrder(dedupeChatRowsByStableKey(list), order);
+      setChatListPage(buildChatListPageState(data));
+
+      if (!adminPorFuncionario && tabRef.current === "minha_fila") {
+        setMinhaFilaList((prev) => {
+          const merged = mergeChatRowsPreservingCurrent(prev || [], list, order);
+          const count = countDistinctConversas(merged);
+          setMinhaFilaCount((old) => (old === count ? old : count));
+          persistChatListSidebarToSession(filterScopeKey, useChatStore.getState().chats || [], {
+            minhaFila: merged,
+            minhaFilaCount: count,
+          });
+          return merged;
+        });
+        return;
+      }
+
+      setChats((prev) => mergeChatRowsPreservingCurrent(prev || [], list, order));
+      persistChatListSidebarToSession(filterScopeKey, useChatStore.getState().chats || [], {
+        emAtendimentoBadgeCount,
+        aguardandoClienteBadgeCount,
+        mensagensDisparadasCount,
+      });
+    } catch (e) {
+      const msg =
+        e?.response?.data?.error ||
+        e?.response?.data?.message ||
+        e?.message ||
+        "Não foi possível carregar mais conversas.";
+      setChatListPage((prev) => ({ ...prev, loading: false, error: String(msg) }));
+    }
+  }, [
+    adminAtendenteFilterId,
+    mineOnly,
+    user?.id,
+    order,
+    setChats,
+    filterScopeKey,
+    emAtendimentoBadgeCount,
+    aguardandoClienteBadgeCount,
+    mensagensDisparadasCount,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -1648,6 +1799,10 @@ export default function ChatList() {
         onRequestConfirmClear={onRequestConfirmClear}
         onRequestConfirmDelete={onRequestConfirmDelete}
         onReloadList={onReloadList}
+        canLoadMoreChats={chatListPage.hasMore}
+        loadingMoreChats={chatListPage.loading}
+        loadMoreChatsError={chatListPage.error}
+        onLoadMoreChats={handleLoadMoreChats}
         listRefreshing={listRefreshing}
         middleSlot={toolbarMetaLeftSlot}
         filtersPanelSlot={advancedFiltersSlot}

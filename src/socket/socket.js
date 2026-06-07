@@ -389,6 +389,7 @@ function logSocketConversaDebug(eventName, payload) {
   const payloadId = payload?.id ?? payload?.conversa_id ?? null
   if (selectedId == null || payloadId == null) return
   if (String(selectedId) !== String(payloadId)) return
+  if (!import.meta.env.DEV) return
   console.debug(`[scroll-debug] socket:${eventName}`, {
     conversaId: payloadId,
     metrics: getMessagesScrollMetrics(),
@@ -545,8 +546,8 @@ export function initSocket(token) {
   })
 
   if (import.meta.env.DEV) {
-    socket.on("connect", () => console.log("🟢 Socket conectado:", socket.id))
-    socket.on("disconnect", () => console.log("🔴 Socket desconectado"))
+    socket.on("connect", () => console.debug("Socket conectado:", socket.id))
+    socket.on("disconnect", () => console.debug("Socket desconectado"))
   }
 
   resetStatusMensagemBatch()

@@ -55,6 +55,7 @@ function getMessagesScrollMetrics() {
 }
 
 function logActionScroll(action, phase) {
+  if (!import.meta.env.DEV) return;
   const metrics = getMessagesScrollMetrics();
   if (!metrics) {
     console.debug(`[scroll-debug] ${action}:${phase} sem-container`);

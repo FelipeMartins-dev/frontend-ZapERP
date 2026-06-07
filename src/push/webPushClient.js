@@ -13,7 +13,7 @@ export function isPushDiagEnabled() {
 function pushDiag(...args) {
   if (!isPushDiagEnabled()) return
   try {
-    console.log("[push][diag]", ...args)
+    console.debug("[push][diag]", ...args)
   } catch {
     /* ignore */
   }

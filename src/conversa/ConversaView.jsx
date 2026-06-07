@@ -1250,8 +1250,26 @@ function ConversaViewBody() {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
           headers: { "Content-Type": false },
         });
-        const hasIds = Array.isArray(data?.ids) && data.ids.length > 0;
-        if (!hasIds && (!data?.id || Number(data?.conversa_id) !== Number(conversaId))) {
+        const responseIds = Array.isArray(data?.ids) && data.ids.length > 0
+          ? data.ids
+          : data?.id != null
+            ? [data.id]
+            : [];
+        responseIds.forEach((id, idx) => {
+          const tempId = tempIds[idx];
+          if (!tempId || id == null || String(id).trim() === "") return;
+          reconciliarMensagem(tempId, {
+            id,
+            conversa_id: Number(conversaId),
+            direcao: "out",
+            status: "pending",
+            status_mensagem: "pending",
+          });
+        });
+        if (
+          responseIds.length < tempIds.length ||
+          (!responseIds.length && (!data?.id || Number(data?.conversa_id) !== Number(conversaId)))
+        ) {
           const targetId = conversaId;
           scheduleAfterInitialPaint(() => {
             const st = useConversaStore.getState();
@@ -1281,6 +1299,7 @@ function ConversaViewBody() {
       showToast,
       focusMessageInput,
       marcarMensagemTempErro,
+      reconciliarMensagem,
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
     ]
@@ -1994,7 +2013,7 @@ function ConversaViewBody() {
       return;
     }
     setAddToGroupLoading(true);
-    fetchChats({ incluir_todos_clientes: true })
+    fetchChats()
       .then((list) => {
         const grupos = (Array.isArray(list) ? list : []).filter((c) => isGroupConversation(c));
         setAddToGroupGrupos(grupos);

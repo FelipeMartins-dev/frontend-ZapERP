@@ -21,8 +21,8 @@ import {
   revokeOptimisticBlobFromMessage,
 } from "./conversaOptimisticMessage"
 
-/** Primeira página + loadMore: 50 mensagens equilibra tempo de resposta e cobertura do histórico (backend limita a 200). */
-const PAGE_LIMIT = 50
+/** Primeira página + loadMore: 100 mensagens, alinhado ao contrato atual de histórico paginado. */
+const PAGE_LIMIT = 100
 
 /** PATCH de status_mensagem: evita set quando ticks já estão no mesmo nível. */
 function mensagemStatusPatchChanges(cur, merged, partial) {

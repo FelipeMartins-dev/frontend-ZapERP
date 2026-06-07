@@ -18,6 +18,41 @@ export function normalizeChatsResponse(data) {
   return [];
 }
 
+const CHAT_LIST_PAGE_META_KEY = "__chatListPageMeta";
+
+function readHeader(headers, name) {
+  if (!headers || !name) return undefined;
+  const direct = headers[name] ?? headers[name.toLowerCase()] ?? headers[name.toUpperCase()];
+  if (direct !== undefined) return direct;
+  const found = Object.keys(headers).find((k) => k.toLowerCase() === name.toLowerCase());
+  return found ? headers[found] : undefined;
+}
+
+function parseHeaderBoolean(value) {
+  const s = String(value ?? "").trim().toLowerCase();
+  return s === "1" || s === "true" || s === "yes" || s === "sim";
+}
+
+function attachChatsPageMeta(list, meta) {
+  if (!Array.isArray(list)) return list;
+  Object.defineProperty(list, CHAT_LIST_PAGE_META_KEY, {
+    value: meta,
+    enumerable: false,
+    configurable: true,
+  });
+  return list;
+}
+
+export function getChatsPageMeta(list) {
+  return Array.isArray(list)
+    ? list[CHAT_LIST_PAGE_META_KEY] || {
+        hasMore: false,
+        nextCursor: null,
+        nextCursorId: null,
+      }
+    : { hasMore: false, nextCursor: null, nextCursorId: null };
+}
+
 // 🔹 EXPORTS NOMEADOS (usados no ChatList.jsx)
 // pesquisa avançada: tag_id, data_inicio, data_fim, status_atendimento, atendente_id, palavra
 export async function fetchChats(params = {}) {
@@ -46,14 +81,35 @@ export async function fetchChats(params = {}) {
   if (params.em_atraso === true || params.em_atraso === 1 || params.em_atraso === "1") {
     q.set("em_atraso", "1");
   }
+  if (params.cursor) q.set("cursor", String(params.cursor));
+  if (params.cursorId != null && params.cursorId !== "") q.set("cursor_id", String(params.cursorId));
+  if (params.cursor_id != null && params.cursor_id !== "") q.set("cursor_id", String(params.cursor_id));
+  if (params.limit != null && params.limit !== "") q.set("limit", String(params.limit));
   const tp = params.tempo_parado != null ? String(params.tempo_parado).trim().toLowerCase() : "";
   if (tp) q.set("tempo_parado", tp);
   const query = q.toString();
-  const { data } = await api.get(`/chats${query ? `?${query}` : ""}`);
+  const response = await api.get(`/chats${query ? `?${query}` : ""}`);
+  const { data, headers } = response;
   const wantsCollab =
     params.incluir_colaboradores_encaminhar === true || params.incluir_colaboradores_encaminhar === "1";
   if (wantsCollab) return splitChatsEncaminharPayload(data);
-  return normalizeChatsResponse(data);
+  const list = normalizeChatsResponse(data);
+  const meta = {
+    hasMore:
+      parseHeaderBoolean(readHeader(headers, "x-chat-list-has-more")) ||
+      Boolean(data?.has_more ?? data?.hasMore),
+    nextCursor:
+      readHeader(headers, "x-chat-list-next-cursor") ??
+      data?.next_cursor ??
+      data?.nextCursor ??
+      null,
+    nextCursorId:
+      readHeader(headers, "x-chat-list-next-cursor-id") ??
+      data?.next_cursor_id ??
+      data?.nextCursorId ??
+      null,
+  };
+  return attachChatsPageMeta(list, meta);
 }
 
 /**

@@ -76,6 +76,10 @@ function ChatListBody({
   onRequestConfirmClear,
   onRequestConfirmDelete,
   onReloadList,
+  canLoadMoreChats = false,
+  loadingMoreChats = false,
+  loadMoreChatsError = "",
+  onLoadMoreChats,
   listRefreshing = false,
   middleSlot = null,
   filtersPanelSlot = null,
@@ -393,6 +397,10 @@ function ChatListBody({
         menuActions={menuActions}
         onMenuClose={closeMenu}
         onMenuAction={handleMenuAction}
+        canLoadMoreChats={canLoadMoreChats}
+        loadingMoreChats={loadingMoreChats}
+        loadMoreChatsError={loadMoreChatsError}
+        onLoadMoreChats={onLoadMoreChats}
       />
     </>
   );

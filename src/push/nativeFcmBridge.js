@@ -20,7 +20,7 @@ export function initNativeFcmBridge() {
     const t = ev?.detail?.token
     const pl = ev?.detail?.plataforma
     if (typeof t === "string" && t.trim().length >= 10) {
-      if (isPushDiagEnabled()) console.log("[push][native] evento zaperp-native-fcm", { len: t.trim().length, plataforma: pl })
+      if (isPushDiagEnabled()) console.debug("[push][native] evento zaperp-native-fcm", { len: t.trim().length, plataforma: pl })
       void registerNativeFcmToken(t.trim(), pl || "android-native")
     } else if (isPushDiagEnabled()) {
       console.warn("[push][native] zaperp-native-fcm com token inválido")
@@ -30,7 +30,7 @@ export function initNativeFcmBridge() {
   if (typeof window.__ZAPERP_RECEIVE_FCM_TOKEN__ !== "function") {
     window.__ZAPERP_RECEIVE_FCM_TOKEN__ = (token, plataforma) => {
       if (typeof token === "string" && token.trim().length >= 10) {
-        if (isPushDiagEnabled()) console.log("[push][native] __ZAPERP_RECEIVE_FCM_TOKEN__", { len: token.trim().length })
+        if (isPushDiagEnabled()) console.debug("[push][native] __ZAPERP_RECEIVE_FCM_TOKEN__", { len: token.trim().length })
         void registerNativeFcmToken(token.trim(), plataforma || "android-native")
       }
     }

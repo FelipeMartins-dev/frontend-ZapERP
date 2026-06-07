@@ -463,6 +463,13 @@ export default function ConnectWhatsApp() {
     }
   };
 
+  const badge = getStatusBadge(status);
+  const hasInstance = status?.hasInstance !== false;
+  const needsRestore = status?.needsRestore === true;
+  const connected = status?.connected === true;
+  const meSummary = status?.meSummary;
+  const canRetry = throttleState != null && retryCountdown !== null && retryCountdown <= 0;
+
   useEffect(() => {
     if (connected) {
       getZapiOperationalStatus().then((d) => { if (isMountedRef.current) setOpStatus(d); });
@@ -470,13 +477,6 @@ export default function ConnectWhatsApp() {
       setOpStatus(null);
     }
   }, [connected]);
-
-  const badge = getStatusBadge(status);
-  const hasInstance = status?.hasInstance !== false;
-  const needsRestore = status?.needsRestore === true;
-  const connected = status?.connected === true;
-  const meSummary = status?.meSummary;
-  const canRetry = throttleState != null && retryCountdown !== null && retryCountdown <= 0;
 
   const hasValidQr = qrSrc && qrSrc.startsWith("data:image/png;base64,") && qrSrc.length > 30;
 

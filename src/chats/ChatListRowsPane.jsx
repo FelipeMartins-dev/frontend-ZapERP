@@ -32,6 +32,10 @@ function ChatListRowsPane({
   menuActions,
   onMenuClose,
   onMenuAction,
+  canLoadMoreChats = false,
+  loadingMoreChats = false,
+  loadMoreChatsError = "",
+  onLoadMoreChats,
 }) {
   const filteredLen = chatsFiltrados.length;
 
@@ -73,6 +77,26 @@ function ChatListRowsPane({
             pendentesFuncionarioSet={pendentesFuncionarioSet}
           />
         )}
+        {!loading && filteredLen > 0 && (canLoadMoreChats || loadingMoreChats || loadMoreChatsError) ? (
+          <div className="chat-list-pagination-footer">
+            {loadMoreChatsError ? (
+              <p className="chat-list-pagination-error" role="alert">
+                {loadMoreChatsError}
+              </p>
+            ) : null}
+            {canLoadMoreChats || loadingMoreChats ? (
+              <button
+                type="button"
+                className="chat-list-load-more-btn"
+                onClick={onLoadMoreChats}
+                disabled={loadingMoreChats}
+                aria-busy={loadingMoreChats}
+              >
+                {loadingMoreChats ? "Carregando..." : "Carregar mais conversas"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <ConversationActionMenu
@@ -111,6 +135,10 @@ function rowsPanePropsAreEqual(prev, next) {
   if (prev.onNovoContato !== next.onNovoContato) return false;
   if (prev.onMenuClose !== next.onMenuClose) return false;
   if (prev.onMenuAction !== next.onMenuAction) return false;
+  if (prev.canLoadMoreChats !== next.canLoadMoreChats) return false;
+  if (prev.loadingMoreChats !== next.loadingMoreChats) return false;
+  if (prev.loadMoreChatsError !== next.loadMoreChatsError) return false;
+  if (prev.onLoadMoreChats !== next.onLoadMoreChats) return false;
   return true;
 }
 
