@@ -41,6 +41,7 @@ export default function DashboardIA() {
   const [periodDaysValue, setPeriodDaysValue] = useState("");
 
   const bottomRef = useRef(null);
+  const askInFlightRef = useRef(false);
 
   const canSend = useMemo(() => input.trim().length > 0 && !loading, [input, loading]);
 
@@ -55,9 +56,11 @@ export default function DashboardIA() {
 
   const ask = useCallback(
     async (questionText) => {
+      if (askInFlightRef.current) return;
       const text = questionText?.trim() || input.trim();
       if (!text) return;
 
+      askInFlightRef.current = true;
       setErrorMsg(null);
       setInput("");
 
@@ -98,6 +101,7 @@ export default function DashboardIA() {
         );
         setMessages((prev) => [...prev, assistantMsg]);
       } finally {
+        askInFlightRef.current = false;
         setLoading(false);
       }
     },
@@ -277,4 +281,3 @@ export default function DashboardIA() {
     </div>
   );
 }
-

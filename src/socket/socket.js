@@ -546,8 +546,12 @@ export function initSocket(token) {
   })
 
   if (import.meta.env.DEV) {
-    socket.on("connect", () => console.debug("Socket conectado:", socket.id))
-    socket.on("disconnect", () => console.debug("Socket desconectado"))
+    socket.on("connect", () => {
+      if (import.meta.env.DEV) console.debug("Socket conectado:", socket.id)
+    })
+    socket.on("disconnect", () => {
+      if (import.meta.env.DEV) console.debug("Socket desconectado")
+    })
   }
 
   resetStatusMensagemBatch()

@@ -135,6 +135,7 @@ export function computeChatsFiltrados({
   emAtrasoOnly,
   pendentesFuncionarioSet,
   conversaIdsPendenciaAtiva,
+  skipClientSearch = false,
 }) {
   /**
    * Filtro admin por funcionário (GET só com atendente_id): ignora chips de aba e minha_fila — prioridade única no fetch e aqui.
@@ -152,43 +153,24 @@ export function computeChatsFiltrados({
         ? [...chats]
         : [];
 
-  // tabs rápidas (minha_fila vem filtrada do backend com minha_fila=1); desativadas no modo adminPorFuncionario
+  // tabs rápidas — quando o backend já filtrou (GET com params), não re-filtrar client-side
   if (!adminPorFuncionario) {
-    if (tab === "hoje") {
-      list = list.filter((c) => {
-        const last = getLastMessage(c);
-        const ts = last?.criado_em || c?.criado_em;
-        return isToday(ts);
-      });
-    } else if (tab === "abertas") {
-      list = list.filter((c) => conversaContaComoAbertaNoChip(c));
-    } else if (tab === "em_atendimento") {
-      list = list.filter((c) => getStatusAtendimentoEffective(c) === "em_atendimento");
-    } else if (tab === "finalizadas") {
-      list = list.filter((c) => getStatusAtendimentoEffective(c) === "fechada");
-    } else if (tab === "finalizadas_auto") {
-      list = list.filter(
-        (c) =>
-          getStatusAtendimentoEffective(c) === "fechada" &&
-          (String(c?.finalizacao_motivo) === "ausencia_cliente" || c?.finalizada_automaticamente === true)
-      );
-    } else if (tab === "aguardando_cliente") {
-      list = list.filter((c) => {
-        if (isAguardandoClienteManual(c) && c?.atendente_id != null) return true;
-        return (
-          getStatusAtendimentoEffective(c) === "em_atendimento" &&
-          c?.aguardando_cliente_desde != null &&
-          c?.atendente_id != null
-        );
-      });
-    } else if (tab === "pagamentos_pendentes") {
-      list = list.filter(
-        (c) => getStatusAtendimentoEffective(c) === "pagamento_pendente" && c?.atendente_id != null
-      );
-    } else if (tab === "em_atraso") {
-      list = list.filter(
-        (c) => getStatusAtendimentoEffective(c) === "em_atraso" && c?.atendente_id != null
-      );
+    const backendFilteredTabs = new Set([
+      "abertas",
+      "em_atendimento",
+      "finalizadas",
+      "finalizadas_auto",
+      "aguardando_cliente",
+      "aguardando_funcionario",
+      "pagamentos_pendentes",
+      "em_atraso",
+      "mensagens_disparadas",
+      "hoje",
+    ]);
+    if (!backendFilteredTabs.has(tab)) {
+      if (tab === "aguardando_funcionario") {
+        list = list.filter((c) => isConversaAguardandoFuncionario(c, pendentesFuncionarioSet));
+      }
     } else if (tab === "aguardando_funcionario") {
       list = list.filter((c) => isConversaAguardandoFuncionario(c, pendentesFuncionarioSet));
     }
@@ -208,7 +190,10 @@ export function computeChatsFiltrados({
   }
 
   const skipStatusFilterRow =
+    tab === "hoje" ||
     tab === "abertas" ||
+    tab === "em_atendimento" ||
+    tab === "finalizadas" ||
     tab === "mensagens_disparadas" ||
     tab === "finalizadas_auto" ||
     onlyFinalizadasAusencia ||
@@ -273,7 +258,7 @@ export function computeChatsFiltrados({
   const termRaw = String(debouncedSearch || "").trim();
   const term = termRaw.toLowerCase();
   const termDigits = digitsOnly(termRaw);
-  if (term) {
+  if (term && !skipClientSearch) {
     list = list.filter((c) => {
       const title = getDisplayName(c).toLowerCase();
       const phone = String(getPhone(c) || "").toLowerCase();

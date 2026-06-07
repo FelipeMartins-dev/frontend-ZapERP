@@ -86,6 +86,7 @@ export function useChatListFilters({
         emAtrasoOnly: uiFilterDeps.emAtrasoOnly,
         pendentesFuncionarioSet,
         conversaIdsPendenciaAtiva,
+        skipClientSearch: Boolean(String(uiFilterDeps.debouncedSearch || "").trim()),
       }),
     [chats, minhaFilaList, uiFilterDeps, user, pendentesFuncionarioSet, conversaIdsPendenciaAtiva]
   );

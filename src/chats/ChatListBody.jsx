@@ -7,7 +7,7 @@ import { isGroupConversation } from "../utils/conversaUtils";
 import { useNotificationStore } from "../notifications/notificationStore";
 import { useConversationActionMenu } from "./useConversationActionMenu";
 import { useChatListFilters } from "./hooks/useChatListFilters";
-import { useChatListCounts } from "./hooks/useChatListCounts";
+import { useChatListCounts, getActiveFilterTotalCount } from "./hooks/useChatListCounts";
 import { rowPrefs } from "./chatListRowAtendimento";
 import {
   mergePrefsFromPatchResponse,
@@ -52,6 +52,8 @@ function ChatListBody({
   isFinanceiroUser,
   pendentesFuncionarioSet,
   minhaFilaCount,
+  chatFilterCounts,
+  activeListTotalCount,
   emAtendimentoBadgeCount,
   aguardandoClienteBadgeCount,
   pagamentosPendentesBadgeCount,
@@ -120,6 +122,7 @@ function ChatListBody({
   });
 
   const {
+    minhaFilaCount: minhaFilaCountFromServer,
     total,
     countHoje,
     countAbertas,
@@ -127,14 +130,31 @@ function ChatListBody({
     countFinalizadas,
     countFinalizadasAuto,
     countAguardandoCliente,
+    countPagamentosPendentes,
+    countEmAtraso,
     countAguardandoFuncionario,
+    mensagensDisparadasCount: mensagensDisparadasFromServer,
     aguardandoFuncionarioVisualState,
   } = useChatListCounts({
-    chats,
-    emAtendimentoBadgeCount,
-    aguardandoClienteBadgeCount,
+    chatFilterCounts,
     supervisaoResumo,
     pendentesFuncionarioIds,
+    separarMensagensDisparadasLigado,
+  });
+
+  const minhaFilaCountResolved = minhaFilaCountFromServer ?? minhaFilaCount ?? 0;
+  const countEmAtendimentoResolved = countEmAtendimento ?? emAtendimentoBadgeCount ?? 0;
+  const countAguardandoClienteResolved = countAguardandoCliente ?? aguardandoClienteBadgeCount ?? 0;
+  const countPagamentosPendentesResolved = countPagamentosPendentes ?? pagamentosPendentesBadgeCount ?? 0;
+  const countEmAtrasoResolved = countEmAtraso ?? emAtrasoBadgeCount ?? 0;
+  const mensagensDisparadasResolved = mensagensDisparadasFromServer ?? mensagensDisparadasCount ?? 0;
+
+  const activeFilterTotalCount = getActiveFilterTotalCount({
+    tab,
+    counts: chatFilterCounts,
+    activeListTotalCount,
+    adminPorFuncionarioAtivo,
+    countAguardandoFuncionario,
   });
 
   const filteredCount = chatsFiltrados.length;
@@ -330,24 +350,25 @@ function ChatListBody({
         tab={tab}
         user={user}
         separarMensagensDisparadasLigado={separarMensagensDisparadasLigado}
-        minhaFilaCount={minhaFilaCount}
+        minhaFilaCount={minhaFilaCountResolved}
         total={total}
         countHoje={countHoje}
         countAbertas={countAbertas}
-        countEmAtendimento={countEmAtendimento}
+        countEmAtendimento={countEmAtendimentoResolved}
         countFinalizadas={countFinalizadas}
         countFinalizadasAuto={countFinalizadasAuto}
-        countAguardandoCliente={countAguardandoCliente}
+        countAguardandoCliente={countAguardandoClienteResolved}
         isFinanceiroUser={isFinanceiroUser}
-        countPagamentosPendentes={pagamentosPendentesBadgeCount}
-        countEmAtraso={emAtrasoBadgeCount}
+        countPagamentosPendentes={countPagamentosPendentesResolved}
+        countEmAtraso={countEmAtrasoResolved}
         countAguardandoFuncionario={countAguardandoFuncionario}
         aguardandoFuncionarioVisualState={aguardandoFuncionarioVisualState}
-        mensagensDisparadasCount={mensagensDisparadasCount}
+        mensagensDisparadasCount={mensagensDisparadasResolved}
         listRefreshing={listRefreshing}
         loading={loading}
         hasStoreChats={hasStoreChats}
         filteredCount={filteredCount}
+        activeFilterTotalCount={activeFilterTotalCount}
         adminPorFuncionarioAtivo={adminPorFuncionarioAtivo}
         atendentes={atendentes}
         adminAtendenteFilterId={adminAtendenteFilterId}

@@ -36,6 +36,7 @@ function ChatListToolbar({
   loading,
   hasStoreChats,
   filteredCount,
+  activeFilterTotalCount,
   adminPorFuncionarioAtivo,
   atendentes,
   adminAtendenteFilterId,
@@ -60,21 +61,19 @@ function ChatListToolbar({
   filtersPanelSlot = null,
 }) {
   const hintLoading = loading && !hasStoreChats;
+  const totalForHint =
+    activeFilterTotalCount != null && Number.isFinite(Number(activeFilterTotalCount))
+      ? Number(activeFilterTotalCount)
+      : null;
   const hintText = hintLoading
     ? "Carregando…"
     : listRefreshing
       ? "Atualizando…"
       : adminPorFuncionarioAtivo
         ? `${filteredCount} conversas`
-        : tab === "minha_fila"
-          ? `${filteredCount} de ${minhaFilaCount}`
-          : tab === "aguardando_cliente"
-            ? `${filteredCount} de ${countAguardandoCliente}`
-            : tab === "pagamentos_pendentes"
-              ? `${filteredCount} de ${countPagamentosPendentes}`
-              : tab === "em_atraso"
-                ? `${filteredCount} de ${countEmAtraso}`
-                : `${filteredCount} de ${total}`;
+        : totalForHint != null
+          ? `${filteredCount} de ${totalForHint}`
+          : `${filteredCount} conversas`;
 
   return (
     <div className="chat-list-toolbar">
@@ -205,6 +204,7 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.loading !== next.loading) return false;
   if (prev.hasStoreChats !== next.hasStoreChats) return false;
   if (prev.filteredCount !== next.filteredCount) return false;
+  if (prev.activeFilterTotalCount !== next.activeFilterTotalCount) return false;
   if (prev.adminPorFuncionarioAtivo !== next.adminPorFuncionarioAtivo) return false;
   if (prev.separarMensagensDisparadasLigado !== next.separarMensagensDisparadasLigado) return false;
   if (prev.minhaFilaCount !== next.minhaFilaCount) return false;

@@ -49,13 +49,41 @@ export function getChatsPageMeta(list) {
         hasMore: false,
         nextCursor: null,
         nextCursorId: null,
+        totalCount: null,
       }
-    : { hasMore: false, nextCursor: null, nextCursorId: null };
+    : { hasMore: false, nextCursor: null, nextCursorId: null, totalCount: null };
+}
+
+function parseHeaderInt(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+}
+
+/** GET /chats/counts — totais reais por filtro (chips/KPIs). */
+export async function fetchChatCounts(params = {}, options = {}) {
+  const q = new URLSearchParams();
+  if (params.tag_id != null && params.tag_id !== "" && params.tag_id !== "todas") q.set("tag_id", params.tag_id);
+  if (params.departamento_id != null && params.departamento_id !== "" && params.departamento_id !== "todos") {
+    q.set("departamento_id", params.departamento_id);
+  }
+  if (params.data_inicio) q.set("data_inicio", params.data_inicio);
+  if (params.data_fim) q.set("data_fim", params.data_fim);
+  if (params.atendente_id != null && params.atendente_id !== "" && params.atendente_id !== "todos") {
+    q.set("atendente_id", params.atendente_id);
+  }
+  if (params.palavra && String(params.palavra).trim()) q.set("palavra", String(params.palavra).trim());
+  const query = q.toString();
+  const response = await api.get(`/chats/counts${query ? `?${query}` : ""}`, {
+    signal: options.signal,
+    silent: options.silent === true,
+  });
+  return response.data || {};
 }
 
 // 🔹 EXPORTS NOMEADOS (usados no ChatList.jsx)
 // pesquisa avançada: tag_id, data_inicio, data_fim, status_atendimento, atendente_id, palavra
-export async function fetchChats(params = {}) {
+export async function fetchChats(params = {}, options = {}) {
   const q = new URLSearchParams();
   if (params.tag_id != null && params.tag_id !== "" && params.tag_id !== "todas") q.set("tag_id", params.tag_id);
   if (params.departamento_id != null && params.departamento_id !== "" && params.departamento_id !== "todos") q.set("departamento_id", params.departamento_id);
@@ -81,14 +109,23 @@ export async function fetchChats(params = {}) {
   if (params.em_atraso === true || params.em_atraso === 1 || params.em_atraso === "1") {
     q.set("em_atraso", "1");
   }
+  if (params.hoje === true || params.hoje === 1 || params.hoje === "1") {
+    q.set("hoje", "1");
+  }
   if (params.cursor) q.set("cursor", String(params.cursor));
   if (params.cursorId != null && params.cursorId !== "") q.set("cursor_id", String(params.cursorId));
   if (params.cursor_id != null && params.cursor_id !== "") q.set("cursor_id", String(params.cursor_id));
   if (params.limit != null && params.limit !== "") q.set("limit", String(params.limit));
+  if (params.conversa_ids != null && String(params.conversa_ids).trim()) {
+    q.set("conversa_ids", String(params.conversa_ids).trim());
+  }
   const tp = params.tempo_parado != null ? String(params.tempo_parado).trim().toLowerCase() : "";
   if (tp) q.set("tempo_parado", tp);
   const query = q.toString();
-  const response = await api.get(`/chats${query ? `?${query}` : ""}`);
+  const response = await api.get(`/chats${query ? `?${query}` : ""}`, {
+    signal: options.signal,
+    silent: options.silent === true,
+  });
   const { data, headers } = response;
   const wantsCollab =
     params.incluir_colaboradores_encaminhar === true || params.incluir_colaboradores_encaminhar === "1";
@@ -108,6 +145,9 @@ export async function fetchChats(params = {}) {
       data?.next_cursor_id ??
       data?.nextCursorId ??
       null,
+    totalCount:
+      parseHeaderInt(readHeader(headers, "x-chat-list-total-count")) ??
+      parseHeaderInt(data?.total_count ?? data?.totalCount ?? data?.pagination?.total_count),
   };
   return attachChatsPageMeta(list, meta);
 }

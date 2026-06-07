@@ -25,6 +25,7 @@ export function useMinhasPendencias(scopeKey) {
 
   const pendenciaAtivaRef = useRef(pendenciaAtiva);
   pendenciaAtivaRef.current = pendenciaAtiva;
+  const categoriaRequestIdRef = useRef(0);
 
   const chatListResyncNonce = useChatStore((s) => s.chatListResyncNonce ?? 0, shallow);
 
@@ -47,14 +48,17 @@ export function useMinhasPendencias(scopeKey) {
 
   const refreshCategoria = useCallback(async (categoria) => {
     if (!categoria) return;
+    const requestId = ++categoriaRequestIdRef.current;
     setLoadingPendenciaCategoria(true);
     try {
       const detalhe = await fetchMinhasPendenciasCategoria(categoria);
+      if (requestId !== categoriaRequestIdRef.current) return;
       setConversaIdsRaw(detalhe.conversa_ids);
     } catch {
+      if (requestId !== categoriaRequestIdRef.current) return;
       setConversaIdsRaw([]);
     } finally {
-      setLoadingPendenciaCategoria(false);
+      if (requestId === categoriaRequestIdRef.current) setLoadingPendenciaCategoria(false);
     }
   }, []);
 
@@ -71,6 +75,7 @@ export function useMinhasPendencias(scopeKey) {
       if (!PENDENCIA_CATEGORIAS[categoria]) return;
 
       if (pendenciaAtivaRef.current === categoria) {
+        categoriaRequestIdRef.current += 1;
         setPendenciaAtiva(null);
         setConversaIdsRaw([]);
         return;
@@ -79,13 +84,16 @@ export function useMinhasPendencias(scopeKey) {
       setPendenciaAtiva(categoria);
       setConversaIdsRaw([]);
       setLoadingPendenciaCategoria(true);
+      const requestId = ++categoriaRequestIdRef.current;
       try {
         const detalhe = await fetchMinhasPendenciasCategoria(categoria);
+        if (requestId !== categoriaRequestIdRef.current) return;
         setConversaIdsRaw(detalhe.conversa_ids);
       } catch {
+        if (requestId !== categoriaRequestIdRef.current) return;
         setConversaIdsRaw([]);
       } finally {
-        setLoadingPendenciaCategoria(false);
+        if (requestId === categoriaRequestIdRef.current) setLoadingPendenciaCategoria(false);
       }
     },
     []
@@ -93,6 +101,7 @@ export function useMinhasPendencias(scopeKey) {
 
   useEffect(() => {
     if (!scopeKey) return;
+    categoriaRequestIdRef.current += 1;
     setPendenciaAtiva(null);
     setConversaIdsRaw([]);
     setMinhasPendencias(EMPTY_RESUMO);

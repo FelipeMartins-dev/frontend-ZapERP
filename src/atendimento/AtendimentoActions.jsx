@@ -10,6 +10,7 @@ import {
   canReabrir,
 } from "../auth/permissions";
 import api from "../api/http";
+import { listarTags } from "../api/tagService";
 import {
   getStatusAtendimentoEffective,
   isAguardandoClienteManual,
@@ -263,7 +264,7 @@ export default function AtendimentoActions({
     }
     const scope = buildChatListFiltersScopeKey(user);
     const loadDept = scope
-      ? loadChatListFiltersDataOnce(scope).then(() => getChatListFiltersDataCache()?.departamentos)
+      ? loadChatListFiltersDataOnce({ listarTags, api, scopeKey: scope }).then(() => getChatListFiltersDataCache()?.departamentos)
       : api.get("/dashboard/departamentos").then((r) => r.data);
     Promise.resolve(loadDept)
       .then((data) => {

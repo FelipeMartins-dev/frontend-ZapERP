@@ -3,6 +3,7 @@ import { shallow } from "zustand/shallow";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import {
   fetchChats,
+  fetchChatCounts,
   getChatsPageMeta,
   abrirConversaCliente,
   getZapiStatus,
@@ -148,9 +149,44 @@ function buildChatListPageState(data) {
     hasMore: Boolean(meta?.hasMore && meta?.nextCursor),
     nextCursor: meta?.nextCursor || null,
     nextCursorId: meta?.nextCursorId ?? null,
+    totalCount: meta?.totalCount ?? null,
     loading: false,
     error: "",
   };
+}
+
+function buildCountsQueryParams({
+  tagFilter,
+  departamentoFilter,
+  dataInicio,
+  dataFim,
+  debouncedSearch,
+  adminAtendenteFilterId,
+}) {
+  const adminPorFuncionario =
+    adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
+  const searchTerm = String(debouncedSearch || "").trim();
+  const params = {
+    tag_id: tagFilter !== "todas" ? tagFilter : undefined,
+    departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
+    data_inicio: dataInicio || undefined,
+    data_fim: dataFim || undefined,
+    palavra: searchTerm || undefined,
+  };
+  if (adminPorFuncionario) {
+    const aid = Number(adminAtendenteFilterId);
+    params.atendente_id =
+      Number.isFinite(aid) && aid > 0 ? aid : adminAtendenteFilterId;
+  }
+  return params;
+}
+
+function isAbortError(err) {
+  return (
+    err?.name === "AbortError" ||
+    err?.name === "CanceledError" ||
+    err?.code === "ERR_CANCELED"
+  );
 }
 
 /** IDs de conversas individuais em atendimento (para assistente de lote por ausência). */
@@ -206,6 +242,13 @@ export default function ChatList() {
   } = useMinhasPendencias(filterScopeKey);
   const refreshMinhasPendenciasRef = useRef(refreshMinhasPendencias);
   refreshMinhasPendenciasRef.current = refreshMinhasPendencias;
+  const conversaIdsPendenciaQuery = useMemo(() => {
+    if (conversaIdsPendenciaAtiva == null) return null;
+    const ids = Array.from(conversaIdsPendenciaAtiva)
+      .map((x) => Number(x))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return ids.length > 0 ? ids.join(",") : "0";
+  }, [conversaIdsPendenciaAtiva]);
   const [listRefreshing, setListRefreshing] = useState(false);
   const sessionBootRef = useRef(null);
   const auxScopeKeyRef = useRef(null);
@@ -227,6 +270,9 @@ export default function ChatList() {
   const scrollSaveRef = useRef(0);
   const scrollTopNoncePrevRef = useRef(0);
   const loadRequestIdRef = useRef(0);
+  const loadAbortRef = useRef(null);
+  const countsAbortRef = useRef(null);
+  const countsRequestIdRef = useRef(0);
   /** Evita GET /chats paralelos quando vários resyncs disparam load() na mesma janela */
   const loadInFlightRef = useRef(false);
   const loadQueuedRef = useRef(null);
@@ -250,9 +296,12 @@ export default function ChatList() {
     hasMore: false,
     nextCursor: null,
     nextCursorId: null,
+    totalCount: null,
     loading: false,
     error: "",
   });
+  const [chatFilterCounts, setChatFilterCounts] = useState(null);
+  const [activeListTotalCount, setActiveListTotalCount] = useState(null);
   const chatListPageRef = useRef(chatListPage);
   chatListPageRef.current = chatListPage;
   const handleSearchDebounced = useCallback((t) => {
@@ -374,6 +423,7 @@ export default function ChatList() {
     pagamentosPendentesOnly ? "pag-pendente" : "",
     emAtrasoOnly ? "em-atraso" : "",
     tempoParadoFilter,
+    conversaIdsPendenciaQuery ?? "",
     separarMensagensDisparadasLigado ? "sep-disparadas" : "",
     filterScopeKey,
   ].join("|");
@@ -386,17 +436,20 @@ export default function ChatList() {
     if (filterRequestKeyRef.current === filterRequestKey) return;
     filterRequestKeyRef.current = filterRequestKey;
     setZapFilterSkeleton(true);
+    setActiveListTotalCount(null);
     setChatListPage({
       hasMore: false,
       nextCursor: null,
       nextCursorId: null,
+      totalCount: null,
       loading: false,
       error: "",
     });
+    setChats([]);
     if (tab === "minha_fila") {
       setMinhaFilaList(null);
     }
-  }, [filterRequestKey, tab]);
+  }, [filterRequestKey, tab, setChats]);
 
   /** Hidratação antes da pintura: lista + Minha fila + filtros auxiliares (F5). */
   useLayoutEffect(() => {
@@ -443,6 +496,8 @@ export default function ChatList() {
     () => new Set((pendentesFuncionarioIds || []).map((x) => String(x))),
     [pendentesFuncionarioIds]
   );
+  const pendentesFuncionarioIdsRef = useRef(pendentesFuncionarioIds);
+  pendentesFuncionarioIdsRef.current = pendentesFuncionarioIds;
 
   // Status de conexão Z-API: null=não verificado, true=conectado, false=desconectado
   const [zapiConnected, setZapiConnected] = useState(null);
@@ -497,6 +552,45 @@ export default function ChatList() {
     const interval = setInterval(() => loadRef.current?.(), 300_000);
     return () => clearInterval(interval);
   }, []);
+
+  const refreshChatFilterCounts = useCallback(async (opts = {}) => {
+    const requestId = ++countsRequestIdRef.current;
+    countsAbortRef.current?.abort();
+    const controller = new AbortController();
+    countsAbortRef.current = controller;
+    try {
+      const params = buildCountsQueryParams({
+        tagFilter,
+        departamentoFilter,
+        dataInicio,
+        dataFim,
+        debouncedSearch,
+        adminAtendenteFilterId,
+      });
+      const data = await fetchChatCounts(params, {
+        signal: controller.signal,
+        silent: opts.silent === true,
+      });
+      if (requestId !== countsRequestIdRef.current) return;
+      setChatFilterCounts(data || null);
+      if (data?.minha_fila != null) {
+        setMinhaFilaCount((prev) => {
+          const next = Number(data.minha_fila) || 0;
+          return prev === next ? prev : next;
+        });
+      }
+    } catch (e) {
+      if (isAbortError(e)) return;
+      console.error("Erro ao carregar contadores de conversas:", e);
+    }
+  }, [
+    tagFilter,
+    departamentoFilter,
+    dataInicio,
+    dataFim,
+    debouncedSearch,
+    adminAtendenteFilterId,
+  ]);
 
   const refreshMinhaFila = useCallback(async () => {
     try {
@@ -750,6 +844,9 @@ export default function ChatList() {
     }
     loadInFlightRef.current = true;
     const requestId = ++loadRequestIdRef.current;
+    loadAbortRef.current?.abort();
+    const abortController = new AbortController();
+    loadAbortRef.current = abortController;
     loadSecondaryScheduleCancelRef.current?.();
     loadSecondaryScheduleCancelRef.current = null;
     const hasVisibleChats = (useChatStore.getState().chats?.length ?? 0) > 0;
@@ -835,12 +932,27 @@ export default function ChatList() {
           params.status_atendimento = "aberta";
         } else if (tab === "em_atendimento") {
           params.status_atendimento = "em_atendimento";
+        } else if (tab === "finalizadas") {
+          params.status_atendimento = "fechada";
+        } else if (tab === "hoje") {
+          params.hoje = "1";
+          delete params.status_atendimento;
         } else if (tab === "mensagens_disparadas" && separarMensagensDisparadasLigado) {
           params.status_atendimento = "mensagem_disparada";
+        } else if (tab === "aguardando_funcionario" && isSupervisorOrAdmin(user)) {
+          const ids = (pendentesFuncionarioIdsRef.current || [])
+            .map((x) => Number(x))
+            .filter((n) => Number.isFinite(n) && n > 0);
+          params.conversa_ids = ids.length > 0 ? ids.join(",") : "0";
+          delete params.status_atendimento;
+          delete params.atendente_id;
         }
       }
 
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
+      if (conversaIdsPendenciaQuery != null) {
+        params.conversa_ids = conversaIdsPendenciaQuery;
+      }
       lastListParamsRef.current = { ...params };
 
       /** Lista estrita: só o que a API devolveu — o merge com `prev` não pode reintroduzir conversas de outras abas. */
@@ -848,18 +960,20 @@ export default function ChatList() {
         separarMensagensDisparadasLigado &&
         String(params.status_atendimento || "").toLowerCase() === "mensagem_disparada";
 
-      const data = await fetchChats(params);
+      const data = await fetchChats(params, { signal: abortController.signal });
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
-      setChatListPage(buildChatListPageState(data));
+      const pageState = buildChatListPageState(data);
+      setChatListPage(pageState);
+      if (pageState.totalCount != null) {
+        setActiveListTotalCount(pageState.totalCount);
+      }
       if (!adminPorFuncionario && mineOnly && user?.id && !isAppAdmin(user)) {
         list = list.filter((c) => String(c.atendente_id) === String(user.id));
       }
       // Desduplicar por id (conversas) ou por cliente_id (clientes sem conversa) — NÃO descartar itens com id null
       list = sortChatRowsByOrder(dedupeChatRowsByStableKey(list), order);
       if (!adminPorFuncionario && tabRef.current === "minha_fila") {
-        const count = countDistinctConversas(list);
-        setMinhaFilaCount((prev) => (prev === count ? prev : count));
         setMinhaFilaList(list);
       }
       // Merge defensivo: nunca sobrescrever contato_nome/foto_perfil com undefined ou string vazia. Preserva chats locais não retornados pela API.
@@ -897,15 +1011,22 @@ export default function ChatList() {
           };
         });
         const extra = arr.filter((c) => c?.id != null && !fromApi.has(String(c.id)));
-        // Aba "Todas": lista estrita da API — evita centenas de itens "extra" de outras abas (travava o mobile ao abrir).
-        if (tab === "todas") return merged;
-        // Minha fila: exibição vem de minhaFilaList; store não acumula conversas de outras abas.
-        if (tab === "minha_fila") return merged;
-        // Em consultas de "aguardando_cliente", não reaproveitar conversas antigas fora do filtro.
+        const strictListTabs = new Set([
+          "todas",
+          "minha_fila",
+          "hoje",
+          "abertas",
+          "em_atendimento",
+          "finalizadas",
+          "finalizadas_auto",
+          "aguardando_cliente",
+          "aguardando_funcionario",
+          "pagamentos_pendentes",
+          "em_atraso",
+        ]);
+        if (strictListTabs.has(tab)) return merged;
         if (aguardandoQuery) return merged;
-        // Com filtro de tempo parado, a API já define o subconjunto; não misturar itens locais fora do critério.
         if (tempoParadoFilter) return merged;
-        // "Mensagens disparadas" (chip ou status avançado): alinhar lista ao contador — sem centenas da aba anterior.
         if (strictMensagemDisparadaQuery) return merged;
         if (extra.length === 0) return merged;
         const getTs = (x) => x?.ultima_mensagem?.criado_em || x?.ultima_atividade || x?.criado_em || 0;
@@ -927,59 +1048,23 @@ export default function ChatList() {
       const runSecondaryRefreshes = () => {
         if (rid !== loadRequestIdRef.current) return;
         const scope = filterScopeKey;
-        const auxOpts = {};
-        const badgeTasks = [
-          ...(minhaFilaAuxPrimed
-            ? []
-            : [() => runAuxBadgeFetch(scope, "minhaFila", () => refreshMinhaFila(), auxOpts)]),
-          () => runAuxBadgeFetch(scope, "emAtendimento", () => refreshEmAtendimentoBadge(), auxOpts),
-          () =>
-            runAuxBadgeFetch(scope, "aguardandoCliente", () => refreshAguardandoClienteBadge(), auxOpts),
-          ...(isFinanceiroUserRef.current
-            ? [
-                () =>
-                  runAuxBadgeFetch(
-                    scope,
-                    "pagamentosPendentes",
-                    () => refreshPagamentosPendentesBadge(),
-                    auxOpts
-                  ),
-                () => runAuxBadgeFetch(scope, "emAtraso", () => refreshEmAtrasoBadge(), auxOpts),
-              ]
-            : []),
-          () =>
-            runAuxBadgeFetch(
-              scope,
-              "mensagensDisparadas",
-              () => refreshMensagensDisparadasBadge(),
-              auxOpts
-            ),
-          () => runAuxBadgeFetch(scope, "supervisao", () => refreshSupervisaoData(), auxOpts),
-          () => void refreshMinhasPendenciasRef.current?.(),
-        ];
-        badgeTasks.forEach((task, index) => {
-          window.setTimeout(() => {
-            if (rid !== loadRequestIdRef.current) return;
-            void task();
-          }, index * 50);
-        });
+        void runAuxBadgeFetch(scope, "chatCounts", () => refreshChatFilterCounts({ silent: true }));
+        void runAuxBadgeFetch(scope, "supervisao", () => refreshSupervisaoData());
+        void refreshMinhasPendenciasRef.current?.();
       };
       if (minhaFilaAuxPrimed) {
         persistChatListSidebarToSession(filterScopeKey, useChatStore.getState().chats || [], {
           minhaFila: list,
-          minhaFilaCount: countDistinctConversas(list),
-          emAtendimentoBadgeCount,
-          aguardandoClienteBadgeCount,
-          mensagensDisparadasCount,
+          chatFilterCounts,
         });
       }
-      const secondaryRefreshDelay =
-        minhaFilaAuxPrimed ? 1200 : tabRef.current === "todas" ? 650 : 120;
+      const secondaryRefreshDelay = tabRef.current === "todas" ? 450 : 120;
       loadSecondaryScheduleCancelRef.current = scheduleAfterInitialPaint(
         runSecondaryRefreshes,
         secondaryRefreshDelay
       );
     } catch (e) {
+      if (isAbortError(e)) return;
       if (requestId !== loadRequestIdRef.current) return;
       console.error("Erro ao carregar conversas:", e);
       if (!(useChatStore.getState().chats?.length > 0)) {
@@ -1027,6 +1112,7 @@ export default function ChatList() {
     pagamentosPendentesOnly,
     emAtrasoOnly,
     tempoParadoFilter,
+    conversaIdsPendenciaQuery,
     separarMensagensDisparadasLigado,
     isFinanceiroUser,
     filterScopeKey,
@@ -1045,12 +1131,15 @@ export default function ChatList() {
     setChatListPage((prev) => ({ ...prev, loading: true, error: "" }));
 
     try {
-      const data = await fetchChats({
-        ...baseParams,
-        cursor: page.nextCursor,
-        cursorId: page.nextCursorId,
-        limit: CHAT_LIST_PAGE_LIMIT,
-      });
+      const data = await fetchChats(
+        {
+          ...baseParams,
+          cursor: page.nextCursor,
+          cursorId: page.nextCursorId,
+          limit: CHAT_LIST_PAGE_LIMIT,
+        },
+        { signal: loadAbortRef.current?.signal }
+      );
       if (requestId !== loadRequestIdRef.current) return;
 
       const adminPorFuncionario =
@@ -1065,11 +1154,8 @@ export default function ChatList() {
       if (!adminPorFuncionario && tabRef.current === "minha_fila") {
         setMinhaFilaList((prev) => {
           const merged = mergeChatRowsPreservingCurrent(prev || [], list, order);
-          const count = countDistinctConversas(merged);
-          setMinhaFilaCount((old) => (old === count ? old : count));
           persistChatListSidebarToSession(filterScopeKey, useChatStore.getState().chats || [], {
             minhaFila: merged,
-            minhaFilaCount: count,
           });
           return merged;
         });
@@ -1083,6 +1169,7 @@ export default function ChatList() {
         mensagensDisparadasCount,
       });
     } catch (e) {
+      if (isAbortError(e)) return;
       const msg =
         e?.response?.data?.error ||
         e?.response?.data?.message ||
@@ -1175,7 +1262,15 @@ export default function ChatList() {
     const hasVisibleChats = (useChatStore.getState().chats?.length ?? 0) > 0;
     if (hasVisibleChats && Date.now() - lastLoadFinishedAtRef.current < 2500) return;
     loadRef.current?.({ background: true });
-  }, [chatListResyncNonce]);
+    void refreshChatFilterCounts({ silent: true });
+  }, [chatListResyncNonce, refreshChatFilterCounts]);
+
+  /** Supervisão: ao atualizar IDs pendentes, refetch da aba "Aguardando atendente". */
+  useEffect(() => {
+    if (tabRef.current !== "aguardando_funcionario") return;
+    if (!isSupervisorOrAdmin(user)) return;
+    loadRef.current?.({ background: true });
+  }, [pendentesFuncionarioIds, user]);
 
   const chatListOptimisticMutationNonce = useChatStore((s) => s.chatListOptimisticMutationNonce);
   useEffect(() => {
@@ -1265,34 +1360,18 @@ export default function ChatList() {
     };
   }, [filterScopeKey]);
 
-  /** Quando departamentos chegam e o usuário é Financeiro, exibe chips e contadores sem F5. */
   useEffect(() => {
-    if (!isFinanceiroUser || !filterScopeKey) {
-      financeiroBadgesPrimedRef.current = false;
-      return;
-    }
-    if (financeiroBadgesPrimedRef.current) return;
-    financeiroBadgesPrimedRef.current = true;
-    void runAuxBadgeFetch(filterScopeKey, "pagamentosPendentes", () => refreshPagamentosPendentesBadge(), {
-      force: true,
-    });
-    void runAuxBadgeFetch(filterScopeKey, "emAtraso", () => refreshEmAtrasoBadge(), { force: true });
-    const financeiroTab =
-      tab === "pagamentos_pendentes" ||
-      tab === "em_atraso" ||
-      pagamentosPendentesOnly ||
-      emAtrasoOnly;
-    if (financeiroTab) {
-      loadRef.current?.({ background: true });
-    }
+    if (!filterScopeKey) return undefined;
+    void refreshChatFilterCounts();
   }, [
-    isFinanceiroUser,
     filterScopeKey,
-    tab,
-    pagamentosPendentesOnly,
-    emAtrasoOnly,
-    refreshPagamentosPendentesBadge,
-    refreshEmAtrasoBadge,
+    tagFilter,
+    departamentoFilter,
+    dataInicio,
+    dataFim,
+    debouncedSearch,
+    adminAtendenteFilterId,
+    refreshChatFilterCounts,
   ]);
 
   /** Tags/atendentes/setores: sob demanda ao abrir painel; fetch imediato se cache incompleto. */
@@ -1767,6 +1846,8 @@ export default function ChatList() {
         order={order}
         tab={tab}
         minhaFilaList={minhaFilaList}
+        chatFilterCounts={chatFilterCounts}
+        activeListTotalCount={activeListTotalCount}
         adminAtendenteFilterId={adminAtendenteFilterId}
         onlyFinalizadasAusencia={onlyFinalizadasAusencia}
         aguardandoClienteOnly={aguardandoClienteOnly}
