@@ -17,9 +17,23 @@ function normalizeBaseUrl(raw) {
   return url
 }
 
+function isLoopbackApiUrl(url) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?/i.test(String(url || "").trim())
+}
+
 export function getApiBaseUrl() {
   const fromEnv = normalizeBaseUrl(import.meta.env.VITE_API_URL)
-  if (fromEnv) return fromEnv
-  return normalizeBaseUrl(FALLBACK_API_URL)
+  let url = fromEnv || normalizeBaseUrl(FALLBACK_API_URL)
+
+  // Build com VITE_API_URL=localhost em site público: navegador bloqueia (Private Network Access).
+  if (typeof window !== "undefined") {
+    const host = String(window.location.hostname || "").trim().toLowerCase()
+    const isLocalFrontend = host === "localhost" || host === "127.0.0.1" || host === "[::1]"
+    if (!isLocalFrontend && isLoopbackApiUrl(url)) {
+      url = normalizeBaseUrl(FALLBACK_API_URL)
+    }
+  }
+
+  return url
 }
 
