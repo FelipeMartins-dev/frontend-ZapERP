@@ -104,4 +104,19 @@ const x2 = list.find((m) => m.tempId === "temp-x2" || String(m.id) === "910");
 assert(x1 && !x1.id, "temp-x1 não deve receber id do áudio 2");
 assert(x2 && String(x2.id) === "910", "temp-x2 deve ser reconciliado");
 
-console.log("OK — regressão de merge de áudios passou (5 cenários).");
+// 6) Nomes genéricos não devem causar merge incorreto
+list = [
+  audioTemp("temp-gen1", "audio-1733773200000.webm", 3000, 0),
+  audioTemp("temp-gen2", "audio-1733773200000.webm", 4000, 100) // Mesmo nome, tamanho diferente
+];
+assert(countAudios(list) === 2, "áudios com mesmo nome genérico devem permanecer separados");
+
+// 7) Confirmação sem client_temp_id para áudios com nomes iguais
+list = mergeMessageIntoListForTest(
+  list,
+  CONV,
+  { ...audioConfirmed(920, null, "audio-1733773200000.mp3", 3000, 0), client_temp_id: undefined }
+);
+assert(countAudios(list) === 2, "confirmação sem client_temp_id não deve fundir no áudio errado");
+
+console.log("OK — regressão de merge de áudios passou (7 cenários).");

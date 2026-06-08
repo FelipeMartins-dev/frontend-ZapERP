@@ -163,7 +163,8 @@ function areLikelySameMessageBubble(prev, incoming) {
     const nomeI = String(incoming.nome_arquivo || "").trim()
     if (nomeP && nomeI && nomeP === nomeI) {
       if (isAudioFamilyTipo(tipoP)) {
-        return sameMediaStrongHint(prev, incoming) || matchesClientTempCorrelation(prev, incoming)
+        // Para áudios, apenas nome igual NÃO é suficiente - precisamos de correlação explícita
+        return matchesClientTempCorrelation(prev, incoming) || sameMediaStrongHint(prev, incoming)
       }
       return true
     }
@@ -201,6 +202,17 @@ function pruneRedundantOutgoingTemps(list) {
     if (idOk || waOk) return true
     const ts = toMillis(m?.criado_em)
     if (!Number.isFinite(ts) || now - ts >= recentMs) return true
+    
+    // Para áudios, seja mais rigoroso - só remove se tiver correlação explícita
+    const isAudio = isAudioFamilyTipo(m.tipo)
+    if (isAudio) {
+      return !confirmed.some((c) => {
+        if (!isAudioFamilyTipo(c.tipo)) return false
+        return matchesClientTempCorrelation(m, c) || 
+               (sameMediaStrongHint(m, c) && Math.abs(toMillis(m.criado_em) - toMillis(c.criado_em)) < 5000)
+      })
+    }
+    
     return !confirmed.some((c) => areLikelySameMessageBubble(m, c))
   })
 }
@@ -233,7 +245,27 @@ function pruneRedundantOutgoingMediaEchoes(list) {
 }
 
 function finalizeMensagensList(list) {
-  return sortMensagensChronological(pruneRedundantOutgoingMediaEchoes(pruneRedundantOutgoingTemps(list)))
+  const beforePrune = list.length
+  const afterTemps = pruneRedundantOutgoingTemps(list)
+  const afterEchoes = pruneRedundantOutgoingMediaEchoes(afterTemps)
+  const final = sortMensagensChronological(afterEchoes)
+  
+  // Debug para detectar remoções inesperadas de áudios
+  if (typeof window !== "undefined" && final.length < beforePrune) {
+    const audiosBefore = list.filter(m => isAudioFamilyTipo(m?.tipo)).length
+    const audiosAfter = final.filter(m => isAudioFamilyTipo(m?.tipo)).length
+    if (audiosBefore > audiosAfter) {
+      console.warn("[AUDIO_DEBUG] Áudios removidos durante finalizeMensagensList", {
+        antes: audiosBefore,
+        depois: audiosAfter,
+        totalAntes: beforePrune,
+        totalDepois: final.length,
+        removidos: list.filter(m => isAudioFamilyTipo(m?.tipo) && !final.some(f => f.tempId === m.tempId && f.id === m.id))
+      })
+    }
+  }
+  
+  return final
 }
 
 /** Chave estável para React (evita colisão e remount errado). */
@@ -456,7 +488,13 @@ function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
   if (clientTempId) {
     const byClient = candidates.filter((c) => c.m?.tempId && String(c.m.tempId) === clientTempId)
     if (byClient.length === 1) return byClient[0].i
-    return -1
+    if (byClient.length > 1) {
+      // Múltiplos candidatos com mesmo client_temp_id - escolhe o mais próximo temporalmente
+      const closest = pickClosestPendingMediaCandidate(byClient, msg)
+      return closest?.i ?? -1
+    }
+    // Não encontrou por client_temp_id - para áudios, seja mais restritivo
+    if (mediaFamilyFromMsg(msg) === "audio") return -1
   }
 
   const strongOnes = candidates.filter((c) => c.strong)
@@ -539,12 +577,29 @@ function dedupeRowsByPersistedIdentity(list, keepIdx) {
       ? String(row.whatsapp_id)
       : null
   if (!id && !wa) return list
-  return list.filter((m, i) => {
+  
+  const filtered = list.filter((m, i) => {
     if (i === keepIdx) return true
-    if (id && m?.id != null && String(m.id) === id) return false
-    if (wa && m?.whatsapp_id != null && String(m.whatsapp_id) === wa) return false
+    
+    // Para mensagens que têm o mesmo ID, remove duplicatas
+    if (id && m?.id != null && String(m.id) === id) {
+      // Debug para áudios
+      if (typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
+        console.log("[AUDIO_DEBUG] Removendo duplicata por ID", { keepIdx, i, id, m })
+      }
+      return false
+    }
+    if (wa && m?.whatsapp_id != null && String(m.whatsapp_id) === wa) {
+      // Debug para áudios
+      if (typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
+        console.log("[AUDIO_DEBUG] Removendo duplicata por whatsapp_id", { keepIdx, i, wa, m })
+      }
+      return false
+    }
     return true
   })
+  
+  return filtered
 }
 
 function hasRenderableUrl(m) {

@@ -292,9 +292,13 @@ export const useConversaStore = create((set, get) => {
       }
       const sorted = finalizeMensagensList(list)
       if (import.meta.env.DEV && sorted.length < before) {
+        const audiosBefore = list.filter(m => m?.tipo === "audio").length
+        const audiosAfter = sorted.filter(m => m?.tipo === "audio").length
         console.warn("[conversaStore] flush anexar reduziu mensagens (inesperado)", {
           antes: before,
           depois: sorted.length,
+          audiosBefore,
+          audiosAfter,
           conversaId: convFb,
           lote: batch.length,
         })
