@@ -148,6 +148,52 @@ export function isOutgoingMessage(msg) {
 
 /** Segundos máx. entre foto/vídeo e mensagem de texto para agrupar visualmente como legenda. */
 
+const MEDIA_INLINE_CAPTION_PLACEHOLDERS = new Set([
+  "(mídia)",
+  "(mensagem vazia)",
+  "(imagem)",
+  "(áudio)",
+  "(áudio de voz)",
+  "(vídeo)",
+  "(figurinha)",
+  "(arquivo)",
+]);
+
+/** Mídia (foto/vídeo/figurinha) que já exibe legenda no próprio balão — não agrupar com texto seguinte. */
+export function mediaHasInlineCaption(msg) {
+  const t = safeString(msg?.tipo).toLowerCase();
+  if (t !== "imagem" && t !== "video" && t !== "sticker") return false;
+  const texto = safeString(msg?.texto);
+  if (!texto || MEDIA_INLINE_CAPTION_PLACEHOLDERS.has(texto)) return false;
+  if (isFilenameOnlyText(texto, msg?.nome_arquivo)) return false;
+  return true;
+}
+
+/** Normaliza legenda para comparar eco webhook / mensagem de texto duplicada. */
+export function normalizeCaptionForCompare(text) {
+  let t = safeString(text);
+  if (!t) return "";
+  t = t.replace(/\n?—\s*.+$/s, "").trim();
+  const lines = t.split("\n");
+  if (lines.length >= 2) {
+    const first = lines[0].trim().replace(/^\*+|\*+$/g, "").trim();
+    const rest = lines.slice(1).join("\n").trim();
+    if (rest && first.length > 0 && first.length <= 80) return rest;
+  }
+  return t;
+}
+
+/** Texto seguinte é eco da legenda já exibida na mídia anterior (evita duplicata visual). */
+export function captionTextsEquivalent(prev, cur) {
+  const a = safeString(prev?.texto);
+  const b = safeString(cur?.texto);
+  if (!a || !b) return false;
+  const na = normalizeCaptionForCompare(a).toLowerCase();
+  const nb = normalizeCaptionForCompare(b).toLowerCase();
+  if (na && nb && na === nb) return true;
+  return a.toLowerCase() === b.toLowerCase();
+}
+
 export function isMediaCaptionBundleTop(msg) {
   const t = safeString(msg?.tipo).toLowerCase();
   return t === "imagem" || t === "video";

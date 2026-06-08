@@ -9423,14 +9423,7 @@ main.main-content--crm .wa-mediaPreview-composer {
 ========================================================= */
 
 @media (max-width: 640px) {
-  /* Teclado aberto: shell acompanha visualViewport — elimina faixa branca entre composer e teclado */
-  .wa-shell.wa-keyboard-visible,
-  .wa-shell.wa-mobile-input-focused {
-    height: var(--wa-visual-height, 100dvh) !important;
-    max-height: var(--wa-visual-height, 100dvh) !important;
-    min-height: 0 !important;
-  }
-
+  /* Teclado aberto: só ancora o composer acima do teclado (não encolhe o shell — evita faixa branca) */
   .wa-shell.wa-keyboard-visible .wa-footer,
   .wa-shell.wa-mobile-input-focused .wa-footer {
     position: fixed;
@@ -9439,7 +9432,7 @@ main.main-content--crm .wa-mediaPreview-composer {
     bottom: var(--wa-keyboard-inset, 0px);
     z-index: 36;
     flex-shrink: 0;
-    padding: 6px 12px 4px !important;
+    padding: 6px 12px 2px !important;
     padding-left: calc(12px + env(safe-area-inset-left, 0)) !important;
     padding-right: calc(12px + env(safe-area-inset-right, 0)) !important;
     margin: 0;
@@ -9448,12 +9441,12 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   main.main-content--crm .wa-shell.wa-keyboard-visible .wa-footer,
   main.main-content--crm .wa-shell.wa-mobile-input-focused .wa-footer {
-    padding-bottom: 4px !important;
+    padding-bottom: 2px !important;
   }
 
   .wa-shell.wa-keyboard-visible .wa-messages,
   .wa-shell.wa-mobile-input-focused .wa-messages {
-    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 64px;
   }
 
   .main-content:has(.wa-shell.wa-keyboard-visible),

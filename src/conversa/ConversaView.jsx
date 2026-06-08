@@ -59,6 +59,8 @@ import {
   isOutgoingMessage,
   isMediaCaptionBundleTop,
   isPlainCaptionFollowMessage,
+  mediaHasInlineCaption,
+  captionTextsEquivalent,
   messageHasReplyMeta,
   sameCaptionBundleAuthor,
   captionFollowTimeOk,
@@ -2134,6 +2136,20 @@ function ConversaViewBody() {
       const prev = out[prevIdx];
       const cur = row;
       if (!isMediaCaptionBundleTop(prev)) continue;
+      if (mediaHasInlineCaption(prev)) {
+        /* Legenda já no balão da mídia (envio pelo CRM). Oculta texto seguinte idêntico (eco webhook). */
+        if (
+          isPlainCaptionFollowMessage(cur) &&
+          !messageHasReplyMeta(cur) &&
+          sameCaptionBundleAuthor(prev, cur) &&
+          captionFollowTimeOk(prev, cur) &&
+          captionTextsEquivalent(prev, cur)
+        ) {
+          out.splice(i, 1);
+          i -= 1;
+        }
+        continue;
+      }
       if (!isPlainCaptionFollowMessage(cur)) continue;
       if (messageHasReplyMeta(cur)) continue;
       if (!sameCaptionBundleAuthor(prev, cur)) continue;
