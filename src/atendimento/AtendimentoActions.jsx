@@ -796,11 +796,13 @@ export default function AtendimentoActions({
 
   function renderToolbarButton(a) {
     const icon = <AtendimentoActionIcon id={a.id} />;
+    const microChip =
+      compactToolbar && (a.id === "assumir" || a.id === "reabrir");
     return (
       <button
         key={a.id}
         type="button"
-        className={`${a.className} zap-action-btn`.trim()}
+        className={`${a.className}${microChip ? " wa-atendBtn--micro" : ""} zap-action-btn`.trim()}
         onClick={a.onClick}
         disabled={busy}
         title={a.title}

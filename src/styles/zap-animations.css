@@ -203,6 +203,13 @@
   will-change: transform, opacity;
 }
 
+@media (hover: none), (max-width: 640px) {
+  .zap-wait-time[data-wait-level="high"] {
+    animation: none !important;
+    will-change: auto !important;
+  }
+}
+
 /* ---- 6–7) Cards de conversa ---- */
 
 .chat-list-row.zap-conversation-card {

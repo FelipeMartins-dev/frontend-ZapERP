@@ -1199,6 +1199,34 @@
   display: block;
 }
 
+/* Assumir / Reabrir — chip compacto no mobile (não ocupar largura da barra) */
+.wa-atendToolbar--compact .wa-atendBtn--micro {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 7px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  border-radius: 7px !important;
+  line-height: 1.1 !important;
+  gap: 4px !important;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+.wa-atendToolbar--compact .wa-atendBtn--micro .wa-atendBtn-icon svg {
+  width: 12px;
+  height: 12px;
+}
+.wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro {
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 7px !important;
+  font-size: 10px !important;
+  border-radius: 7px !important;
+}
+
 /* -------------------------
    SECUNDÁRIO / REABRIR (neutro)
 ------------------------- */
@@ -2587,6 +2615,18 @@
     border-radius: 8px !important;
     line-height: 1.15 !important;
     flex-shrink: 0;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-primary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-assumir-destaque {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 0 7px !important;
+    font-size: 10px !important;
+    border-radius: 7px !important;
+    flex: 0 0 auto;
+    width: auto;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendLabel--long {
@@ -5776,52 +5816,62 @@
 }
 
 /* =========================================================
-   CITAÇÃO / REPLY — estilo WhatsApp Web
+   CITAÇÃO / REPLY — harmonizado estilo WhatsApp
 ========================================================= */
 .wa-replyCtx {
   display: flex;
   flex-direction: row;
   align-items: stretch;
   gap: 0;
-  margin: 0 0 4px;
-  border-radius: 6px;
+  margin: 0 0 5px;
+  padding: 0;
+  border-radius: 7px;
   overflow: hidden;
-  background: rgba(0,0,0,.05);
-  border: 1px solid rgba(0,0,0,.06);
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  box-shadow: none;
   cursor: pointer;
   min-width: 0;
   max-width: 100%;
+  transition: background 0.12s ease;
+}
+.wa-replyCtx:hover {
+  background: rgba(0, 0, 0, 0.07);
 }
 .wa-replyCtx.isOut {
-  background: rgba(0,0,0,.085);
-  border-color: rgba(0,0,0,.08);
+  background: rgba(0, 0, 0, 0.07);
 }
-/* barra colorida lateral (2–3px estilo WhatsApp) */
+.wa-replyCtx.isOut:hover {
+  background: rgba(0, 0, 0, 0.09);
+}
+/* barra lateral — acento fino integrado ao balão */
 .wa-replyCtx-bar {
-  width: 3px;
-  min-width: 3px;
-  border-radius: 6px 0 0 6px;
+  width: 4px;
+  min-width: 4px;
+  border-radius: 7px 0 0 7px;
   background: #667781;
   flex-shrink: 0;
 }
-.wa-replyCtx.isOut .wa-replyCtx-bar {
+.wa-bubble-in .wa-replyCtx.isIn .wa-replyCtx-bar {
   background: var(--wa-green, #00a884);
 }
-/* Citação: miniatura ao lado do texto (estilo WhatsApp) em todos os tamanhos de tela */
+.wa-replyCtx.isOut .wa-replyCtx-bar {
+  background: var(--wa-status-blue, #53bdeb);
+}
 .wa-replyCtx-content {
   flex: 1;
-  padding: 4px 6px 4px;
+  padding: 5px 8px 5px 6px;
   min-width: 0;
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 .wa-replyCtx-thumb {
   display: block;
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
+  width: 38px;
+  height: 38px;
+  border-radius: 5px;
   object-fit: cover;
   flex-shrink: 0;
   background: rgba(0, 0, 0, 0.08);
@@ -5832,61 +5882,96 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  justify-content: center;
 }
-/* (regras antigas só no ≥1025px removidas — thumb sempre visível) */
 @media (min-width: 1025px) {
   .wa-replyCtx-thumb {
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
   }
 }
 .wa-replyCtx-name {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  line-height: 1.2;
-  color: var(--wa-text);
-  white-space: normal;
-  overflow: visible;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  line-height: 1.15;
+  color: #667781;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wa-bubble-in .wa-replyCtx.isIn .wa-replyCtx-name {
+  color: var(--wa-green, #00a884);
 }
 .wa-replyCtx.isOut .wa-replyCtx-name {
-  /* no balão verde claro, o verde padrão fica “lavado” → escurece para manter contraste */
-  color: #0b5d4c;
+  color: #1d6f8f;
 }
 .wa-replyCtx-snippet {
-  font-size: 11px;
-  line-height: 1.3;
+  font-size: 12px;
+  line-height: 1.25;
   color: var(--wa-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: normal;
+  white-space: nowrap;
   max-width: 100%;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 .wa-replyCtx.isOut .wa-replyCtx-snippet {
-  color: rgba(17, 27, 33, 0.74);
+  color: rgba(17, 27, 33, 0.68);
 }
-/* Dark mode reply */
+/* Dark mode — citação integrada ao balão, sem “caixa dentro da caixa” */
 [data-theme="dark"] .wa-replyCtx {
-  /* mantém contraste mesmo no Windows “tema escuro” (nosso balão out ainda é verde claro) */
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+}
+[data-theme="dark"] .wa-replyCtx:hover {
+  background: rgba(0, 0, 0, 0.26);
 }
 [data-theme="dark"] .wa-replyCtx.isOut {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.14);
 }
-[data-theme="dark"] .wa-replyCtx-name { color: var(--ds-text-primary); }
-[data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-name { color: rgba(255, 255, 255, 0.95); }
-[data-theme="dark"] .wa-replyCtx-snippet { color: var(--ds-text-secondary); }
-[data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-snippet { color: rgba(255, 255, 255, 0.85); }
-[data-theme="dark"] .wa-replyCtx-bar { background: rgba(255, 255, 255, 0.5); }
-[data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-bar { background: var(--ds-accent); }
+[data-theme="dark"] .wa-replyCtx.isOut:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+[data-theme="dark"] .wa-bubble-in .wa-replyCtx.isIn .wa-replyCtx-name {
+  color: #53bdeb;
+}
+[data-theme="dark"] .wa-bubble-in .wa-replyCtx.isIn .wa-replyCtx-bar {
+  background: #53bdeb;
+}
+[data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-name {
+  color: rgba(255, 255, 255, 0.92);
+}
+[data-theme="dark"] .wa-replyCtx-snippet {
+  color: rgba(233, 237, 239, 0.72);
+}
+[data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-snippet {
+  color: rgba(255, 255, 255, 0.78);
+}
+[data-theme="dark"] .wa-replyCtx.isOut .wa-replyCtx-bar {
+  background: var(--ds-accent, #00a884);
+}
+
+@media (max-width: 640px) {
+  .wa-replyCtx {
+    margin-bottom: 4px;
+    border-radius: 6px;
+  }
+  .wa-replyCtx-content {
+    padding: 4px 7px 4px 5px;
+    gap: 6px;
+  }
+  .wa-replyCtx-thumb {
+    width: 34px;
+    height: 34px;
+    border-radius: 4px;
+  }
+  .wa-replyCtx-name {
+    font-size: 12px;
+  }
+  .wa-replyCtx-snippet {
+    font-size: 11.5px;
+  }
+}
 
 /* Nome do atendente acima da mensagem enviada pelo sistema — discreto, premium */
 .wa-bubble-atendente {
@@ -9825,9 +9910,28 @@ main.main-content--crm .wa-mediaPreview-composer {
     line-height: 1.15 !important;
   }
 
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-primary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-assumir-destaque {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 0 7px !important;
+    font-size: 10px !important;
+    border-radius: 7px !important;
+    line-height: 1.1 !important;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+  }
+
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn-icon svg {
     width: 14px;
     height: 14px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro .wa-atendBtn-icon svg {
+    width: 12px !important;
+    height: 12px !important;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
@@ -9969,9 +10073,29 @@ main.main-content--crm .wa-mediaPreview-composer {
     letter-spacing: 0;
   }
 
+  .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-primary,
+  .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary,
+  .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-assumir-destaque {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 0 7px !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    border-radius: 7px !important;
+    line-height: 1.1 !important;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+  }
+
   .wa-atendToolbar--compact .wa-atendBtn-icon svg {
     width: 14px;
     height: 14px;
+  }
+
+  .wa-atendToolbar--compact .wa-atendBtn--micro .wa-atendBtn-icon svg {
+    width: 12px !important;
+    height: 12px !important;
   }
 
   .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {

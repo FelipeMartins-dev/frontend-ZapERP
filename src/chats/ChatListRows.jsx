@@ -94,14 +94,18 @@ const ChatListRows = memo(function ChatListRows({
     ]
   );
 
+  const prevMobileSelectedRef = useRef(mobileSelectedId);
+
   const virtualizer = useVirtualizer({
     count: chatsFiltrados.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 84,
+    estimateSize: () => (isMobileLayout ? 100 : 84),
     gap: 8,
-    overscan: isMobileLayout ? 12 : 10,
+    overscan: isMobileLayout ? 4 : 10,
     scrollPaddingStart: 8,
     scrollPaddingEnd: 12,
+    /* Mobile: adia remeasure após o dedo soltar — evita layout thrash durante o arraste. */
+    isScrollingResetDelay: isMobileLayout ? 220 : 150,
     getItemKey: (index) => {
       const c = chatsFiltrados[index];
       if (!c) return `row-${index}`;
@@ -110,29 +114,10 @@ const ChatListRows = memo(function ChatListRows({
     },
   });
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return undefined;
-    let scrollEndTimer = 0;
-    const onScroll = () => {
-      el.classList.add("is-scrolling");
-      window.clearTimeout(scrollEndTimer);
-      scrollEndTimer = window.setTimeout(() => {
-        el.classList.remove("is-scrolling");
-      }, 140);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      window.clearTimeout(scrollEndTimer);
-      el.classList.remove("is-scrolling");
-    };
-  }, [scrollRef, useVirtual]);
-
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    if (isMobileLayout && mobileSelectedId != null) return;
+
     const n = chatListScrollToTopNonce;
     if (n !== scrollTopNoncePrevRef.current) {
       scrollTopNoncePrevRef.current = n;
@@ -141,16 +126,22 @@ const ChatListRows = memo(function ChatListRows({
         requestAnimationFrame(() => {
           if (scrollRef.current) scrollRef.current.scrollTop = 0;
         });
-        return;
       }
+      prevMobileSelectedRef.current = mobileSelectedId;
+      return;
     }
-    const saved = scrollSaveRef.current;
-    el.scrollTop = saved;
-    requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = saved;
-    });
+
+    const prevMobile = prevMobileSelectedRef.current;
+    prevMobileSelectedRef.current = mobileSelectedId;
+
+    /* Só restaura scroll ao voltar da conversa no mobile — não a cada update da lista. */
+    if (isMobileLayout && prevMobile != null && mobileSelectedId == null) {
+      const saved = scrollSaveRef.current;
+      requestAnimationFrame(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = saved;
+      });
+    }
   }, [
-    chatsFiltrados,
     chatListScrollToTopNonce,
     mobileSelectedId,
     isMobileLayout,
@@ -183,7 +174,7 @@ const ChatListRows = memo(function ChatListRows({
               <div
                 key={rowKey}
                 data-index={virtualRow.index}
-                ref={virtualizer.measureElement}
+                ref={isMobileLayout ? undefined : virtualizer.measureElement}
                 className="chat-list-row-virtual-slot"
                 style={{
                   position: "absolute",
