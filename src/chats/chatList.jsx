@@ -3,6 +3,7 @@ import { shallow } from "zustand/shallow";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import {
   fetchChats,
+  fetchMinhaFilaChatsCompleto,
   fetchChatCounts,
   getChatsPageMeta,
   abrirConversaCliente,
@@ -619,7 +620,7 @@ export default function ChatList() {
         params.finalizacao_motivo = "ausencia_cliente";
       }
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
-      const data = await fetchChats(params);
+      const data = await fetchMinhaFilaChatsCompleto(params);
       const list = Array.isArray(data) ? data : [];
       const count = countDistinctConversas(list);
       setMinhaFilaCount((prev) => (prev === count ? prev : count));
@@ -968,10 +969,15 @@ export default function ChatList() {
         separarMensagensDisparadasLigado &&
         String(params.status_atendimento || "").toLowerCase() === "mensagem_disparada";
 
-      const data = await fetchChats(params, { signal: abortController.signal });
+      const minhaFilaSemPaginacao = !adminPorFuncionario && tab === "minha_fila";
+      const data = minhaFilaSemPaginacao
+        ? await fetchMinhaFilaChatsCompleto(params, { signal: abortController.signal })
+        : await fetchChats(params, { signal: abortController.signal });
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
-      const pageState = buildChatListPageState(data);
+      const pageState = minhaFilaSemPaginacao
+        ? { hasMore: false, nextCursor: null, nextCursorId: null, totalCount: list.length, loading: false, error: "" }
+        : buildChatListPageState(data);
       setChatListPage(pageState);
       if (pageState.totalCount != null) {
         setActiveListTotalCount(pageState.totalCount);
@@ -1889,7 +1895,7 @@ export default function ChatList() {
         onRequestConfirmClear={onRequestConfirmClear}
         onRequestConfirmDelete={onRequestConfirmDelete}
         onReloadList={onReloadList}
-        canLoadMoreChats={chatListPage.hasMore}
+        canLoadMoreChats={tab !== "minha_fila" && chatListPage.hasMore}
         loadingMoreChats={chatListPage.loading}
         loadMoreChatsError={chatListPage.error}
         onLoadMoreChats={handleLoadMoreChats}

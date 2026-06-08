@@ -245,6 +245,13 @@
   will-change: transform, opacity;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .wa-bubble.zap-message-enter {
+    animation: none;
+    will-change: auto;
+  }
+}
+
 .wa-bubble.zap-message-enter.zap-anim-settled {
   animation: none;
   will-change: auto;

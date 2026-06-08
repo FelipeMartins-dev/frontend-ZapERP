@@ -922,68 +922,87 @@ function ConversaViewBody() {
   }, []);
 
   const loadMoreScrollRef = useRef({ top: 0, height: 0 });
-  /** Um único agendamento por frame para loadMore — evita spam na API e trabalho síncrono em cada evento de scroll (touch). */
-  const loadMoreScrollRafRef = useRef(0);
+  const loadMoreAnchorRef = useRef(null);
+  const loadMorePrevSeparatorCountRef = useRef(0);
+  const scrollEndTimerRef = useRef(0);
+
+  const captureLoadMoreAnchor = useCallback(() => {
+    loadMorePrevSeparatorCountRef.current = mensagensComSeparadoresRef.current.length;
+    const anchor = virtualThreadRef.current?.getScrollAnchor?.();
+    if (anchor) {
+      loadMoreAnchorRef.current = anchor;
+      return;
+    }
+    const el = messagesContainerRef.current;
+    if (el) {
+      loadMoreScrollRef.current = { top: el.scrollTop, height: el.scrollHeight };
+    }
+  }, []);
+
+  const tryLoadOlderMessages = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el || el.scrollTop >= 140) return;
+    const st = useConversaStore.getState();
+    if (!st.hasMore || st.loadingMore || !st.cursor || st.conversa?.mensagens_bloqueadas) return;
+    captureLoadMoreAnchor();
+    st.loadMore();
+  }, [captureLoadMoreAnchor]);
 
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     shouldStickToBottomRef.current = isNearBottom(el, 120);
 
-    const st = useConversaStore.getState();
-    if (!st.hasMore || st.loadingMore || !st.cursor) return;
-    if (loadMoreScrollRafRef.current) return;
-    loadMoreScrollRafRef.current = requestAnimationFrame(() => {
-      loadMoreScrollRafRef.current = 0;
-      const el2 = messagesContainerRef.current;
-      if (!el2) return;
-      const cur = useConversaStore.getState();
-      if (!cur.hasMore || cur.loadingMore || !cur.cursor) return;
-      if (el2.scrollTop < 140) {
-        loadMoreScrollRef.current = { top: el2.scrollTop, height: el2.scrollHeight };
-        cur.loadMore();
-      }
-    });
-  }, []);
+    window.clearTimeout(scrollEndTimerRef.current);
+    scrollEndTimerRef.current = window.setTimeout(
+      tryLoadOlderMessages,
+      headerCompact ? 200 : 140
+    );
+  }, [tryLoadOlderMessages, headerCompact]);
 
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     el.addEventListener("scroll", handleMessagesScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleMessagesScroll);
+    return () => {
+      el.removeEventListener("scroll", handleMessagesScroll);
+      window.clearTimeout(scrollEndTimerRef.current);
+    };
   }, [handleMessagesScroll, conversaId]);
 
   useEffect(() => {
-    return () => {
-      if (loadMoreScrollRafRef.current) {
-        cancelAnimationFrame(loadMoreScrollRafRef.current);
-        loadMoreScrollRafRef.current = 0;
-      }
-    };
-  }, [conversaId]);
-
-  useEffect(() => {
     if (loadingMore) return;
-    const { top, height } = loadMoreScrollRef.current;
-    if (top === 0 && height === 0) return;
+    const anchor = loadMoreAnchorRef.current;
+    const fallback = loadMoreScrollRef.current;
+    const hadCapture =
+      anchor != null || (fallback.top !== 0 && fallback.height !== 0);
+    if (!hadCapture) return;
+
+    const prepended =
+      mensagensComSeparadoresRef.current.length - loadMorePrevSeparatorCountRef.current;
     const el = messagesContainerRef.current;
-    if (!el) return;
-    const diff = el.scrollHeight - height;
-    if (diff > 0) {
-      el.scrollTop = top + diff;
-    }
-    loadMoreScrollRef.current = { top: 0, height: 0 };
+
+    const restore = () => {
+      if (anchor && prepended > 0 && virtualThreadRef.current?.restoreAfterPrepend) {
+        virtualThreadRef.current.restoreAfterPrepend(anchor, prepended);
+      } else if (el && fallback.height > 0) {
+        const diff = el.scrollHeight - fallback.height;
+        if (diff > 0) el.scrollTop = fallback.top + diff;
+      }
+      loadMoreAnchorRef.current = null;
+      loadMoreScrollRef.current = { top: 0, height: 0 };
+    };
+
+    requestAnimationFrame(() => requestAnimationFrame(restore));
   }, [loadingMore]);
 
-  /** Mesma estratégia do scroll ao topo: grava altura/scroll antes do `loadMore` para restaurar posição após o lote. */
+  /** Mesma estratégia do scroll ao topo: grava âncora antes do `loadMore` para restaurar posição após o lote. */
   const handleLoadOlderMessagesClick = useCallback(() => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
     const st = useConversaStore.getState();
     if (!st.hasMore || st.loadingMore || !st.cursor || st.conversa?.mensagens_bloqueadas) return;
-    loadMoreScrollRef.current = { top: el.scrollTop, height: el.scrollHeight };
+    captureLoadMoreAnchor();
     st.loadMore();
-  }, []);
+  }, [captureLoadMoreAnchor]);
 
   const handleDropFile = useCallback(
     (file) => {
@@ -2710,7 +2729,7 @@ function ConversaViewBody() {
         {/* MENSAGENS */}
         <div
           ref={messagesContainerRef}
-          className={`wa-messages${selectMode ? " wa-messages--selectDim" : ""}`}
+          className={`wa-messages${selectMode ? " wa-messages--selectDim" : ""}${atendimentoEncerradoHint ? " wa-messages--closedFullscreen" : ""}`}
           onDragOver={onDragOver}
           onDrop={onDrop}
           onDragLeave={onDragLeave}
@@ -2999,43 +3018,45 @@ function ConversaViewBody() {
           </Suspense>
         ) : null}
 
-                <ConversaComposer
-          ref={composerRef}
-          conversaId={conversaId}
-          scrollThreadId={scrollThreadId}
-          loading={loading}
-          sending={sending}
-          podeEnviar={podeEnviar}
-          mensagensBloqueadasHint={mensagensBloqueadasHint}
-          atendimentoEncerradoHint={atendimentoEncerradoHint}
-          atendenteNomeHint={atendenteNomeHint}
-          headerCompact={headerCompact}
-          composerEnterInsertsNewline={composerEnterInsertsNewline}
-          autocorrectToggleInMenu={autocorrectToggleInMenu}
-          user={user}
-          replyBarPreview={replyBarPreview}
-          onCancelReply={handleComposerCancelReply}
-          onSendMessage={handleEnviar}
-          onSendAudioFile={handleComposerSendAudio}
-          onPasteImageFile={handleComposerPasteImage}
-          onFileInputChange={handleFileInputChange}
-          onFototecaInputChange={handleFototecaInputChange}
-          onCameraInputChange={handleCameraInputChange}
-          onStickerInputChange={handleStickerInputChange}
-          onSendStickerFile={sendStickerFile}
-          onPixMenuClick={handlePixMenuClick}
-          onOpenPixConfig={handleComposerOpenPixConfig}
-          onShareContact={openShareContact}
-          onShareLocation={openShareLocation}
-          pixActionBusy={pixActionBusy}
-          pixConfigLoading={pixConfigLoading}
-          appendTextQueue={composerAppendQueue}
-          onAppendConsumed={handleComposerAppendConsumed}
-          onAppendTextApplied={handleComposerAppendApplied}
-          onTextMetrics={handleComposerTextMetrics}
-          clearTyping={clearTyping}
-          showToast={showToast}
-        />
+        {!atendimentoEncerradoHint ? (
+          <ConversaComposer
+            ref={composerRef}
+            conversaId={conversaId}
+            scrollThreadId={scrollThreadId}
+            loading={loading}
+            sending={sending}
+            podeEnviar={podeEnviar}
+            mensagensBloqueadasHint={mensagensBloqueadasHint}
+            atendimentoEncerradoHint={atendimentoEncerradoHint}
+            atendenteNomeHint={atendenteNomeHint}
+            headerCompact={headerCompact}
+            composerEnterInsertsNewline={composerEnterInsertsNewline}
+            autocorrectToggleInMenu={autocorrectToggleInMenu}
+            user={user}
+            replyBarPreview={replyBarPreview}
+            onCancelReply={handleComposerCancelReply}
+            onSendMessage={handleEnviar}
+            onSendAudioFile={handleComposerSendAudio}
+            onPasteImageFile={handleComposerPasteImage}
+            onFileInputChange={handleFileInputChange}
+            onFototecaInputChange={handleFototecaInputChange}
+            onCameraInputChange={handleCameraInputChange}
+            onStickerInputChange={handleStickerInputChange}
+            onSendStickerFile={sendStickerFile}
+            onPixMenuClick={handlePixMenuClick}
+            onOpenPixConfig={handleComposerOpenPixConfig}
+            onShareContact={openShareContact}
+            onShareLocation={openShareLocation}
+            pixActionBusy={pixActionBusy}
+            pixConfigLoading={pixConfigLoading}
+            appendTextQueue={composerAppendQueue}
+            onAppendConsumed={handleComposerAppendConsumed}
+            onAppendTextApplied={handleComposerAppendApplied}
+            onTextMetrics={handleComposerTextMetrics}
+            clearTyping={clearTyping}
+            showToast={showToast}
+          />
+        ) : null}
 
         {/* ESC handler central */}
         <button

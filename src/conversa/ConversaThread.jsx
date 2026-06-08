@@ -1,10 +1,11 @@
-import { useCallback } from "react";
-import { Archive, RefreshCw } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { Archive } from "lucide-react";
 import { getMessageListReactKey } from "./conversaStore";
 import { getStatusAtendimentoEffective, isClosedAttendanceStatus } from "../utils/conversaUtils";
 import { ConversaMessageVirtualList } from "./ConversaMessageVirtualList";
 import ThreadRow from "./ThreadRow";
 import { messageRowVisualSignature } from "./threadRowCompare";
+import ClosedAttendancePanel from "./ClosedAttendancePanel";
 
 function firstFilled(...values) {
   for (const value of values) {
@@ -87,9 +88,12 @@ export default function ConversaThread({
   /** Igual ao ConversaView anterior: chave React da bolha usa conversaId carregado, não só selectedId. */
   const messageKeyConversaId = conversaId;
 
+  const threadRowCount = mensagensComSeparadores.length;
+
   const renderItem = useCallback(
-    (item) => {
+    (item, index) => {
       if (!item) return null;
+      const allowEnterAnimation = index >= threadRowCount - 2;
 
       if (item.__type === "day") {
         return (
@@ -97,6 +101,7 @@ export default function ConversaThread({
             item={item}
             messageKey={item.id}
             messageVisualSig=""
+            allowEnterAnimation={allowEnterAnimation}
             BubbleComponent={BubbleComponent}
             zapSeenMsgKeysRef={zapSeenMsgKeysRef}
             zapMsgsInitialPassRef={zapMsgsInitialPassRef}
@@ -142,6 +147,7 @@ export default function ConversaThread({
           item={item}
           messageKey={messageKey}
           messageVisualSig={messageVisualSig}
+          allowEnterAnimation={allowEnterAnimation}
           BubbleComponent={BubbleComponent}
           zapSeenMsgKeysRef={zapSeenMsgKeysRef}
           zapMsgsInitialPassRef={zapMsgsInitialPassRef}
@@ -179,6 +185,7 @@ export default function ConversaThread({
       );
     },
     [
+      threadRowCount,
       messageKeyConversaId,
       BubbleComponent,
       zapSeenMsgKeysRef,
@@ -215,9 +222,7 @@ export default function ConversaThread({
     ]
   );
 
-  if (conversa?.mensagens_bloqueadas) {
-    const status = String(getStatusAtendimentoEffective(conversa) ?? "").toLowerCase();
-    const isClosed = isClosedAttendanceStatus(status);
+  const closedMeta = useMemo(() => {
     const atendenteNome = firstFilled(conversa?.atendente_nome, conversa?.atendente?.nome) || "outro usuário";
     const protocolo =
       firstFilled(
@@ -226,47 +231,39 @@ export default function ConversaThread({
         conversa?.atendimento_protocolo,
         conversa?.ultimo_protocolo
       ) || extractProtocolFromMessages(mensagens);
-    const setor = firstFilled(conversa?.setor, conversa?.departamento?.nome, conversa?.departamentos?.nome) || "Sem setor";
-    const blockedIcon = isClosed ? <RefreshCw size={20} strokeWidth={2.25} /> : <Archive size={20} strokeWidth={2.25} />;
+    const setor =
+      firstFilled(conversa?.setor, conversa?.departamento?.nome, conversa?.departamentos?.nome) || "Sem setor";
+    return { atendenteNome, protocolo, setor };
+  }, [conversa, mensagens]);
+
+  const statusAtendimento = String(getStatusAtendimentoEffective(conversa) ?? "").toLowerCase();
+  const isClosedConversation = isClosedAttendanceStatus(statusAtendimento);
+
+  if (isClosedConversation && !isGroup) {
+    return (
+      <div className="wa-closedAttendance-fill">
+        <ClosedAttendancePanel
+          atendenteNome={closedMeta.atendenteNome}
+          protocolo={closedMeta.protocolo}
+          setor={closedMeta.setor}
+          showReopenCta={showReopenClosedCta}
+          reopenBusy={reopenClosedBusy}
+          onReopen={onReopenClosed}
+        />
+      </div>
+    );
+  }
+
+  if (conversa?.mensagens_bloqueadas) {
+    const atendenteNome = closedMeta.atendenteNome;
 
     return (
       <div className="wa-messages-empty">
-        <div className={`wa-messages-emptyCard wa-messages-emptyCard--blocked ${isClosed ? "wa-messages-emptyCard--closed" : ""}`}>
+        <div className="wa-messages-emptyCard wa-messages-emptyCard--blocked">
           <span className="wa-messages-blocked-icon" aria-hidden="true">
-            {blockedIcon}
+            <Archive size={20} strokeWidth={2.25} />
           </span>
-          <strong>
-            {isClosed
-              ? `Este atendimento foi encerrado por ${atendenteNome}.`
-              : `Este atendimento foi assumido por ${atendenteNome}.`}
-          </strong>
-          {isClosed ? (
-            <div className="wa-closedAttendance-meta" aria-label="Dados do atendimento encerrado">
-              <div className="wa-closedAttendance-metaItem">
-                <span className="wa-closedAttendance-metaLabel">Encerrado por</span>
-                <span className="wa-closedAttendance-metaValue">{atendenteNome}</span>
-              </div>
-              <div className="wa-closedAttendance-metaItem">
-                <span className="wa-closedAttendance-metaLabel">Protocolo</span>
-                <span className="wa-closedAttendance-metaValue">{protocolo || "-"}</span>
-              </div>
-              <div className="wa-closedAttendance-metaItem">
-                <span className="wa-closedAttendance-metaLabel">Setor</span>
-                <span className="wa-closedAttendance-metaValue">{setor}</span>
-              </div>
-            </div>
-          ) : null}
-          {isClosed && showReopenClosedCta ? (
-            <button
-              type="button"
-              className="wa-btn wa-btn-primary wa-closedAttendance-reopenBtn"
-              onClick={onReopenClosed}
-              disabled={reopenClosedBusy}
-            >
-              <RefreshCw size={16} strokeWidth={2.35} aria-hidden="true" />
-              <span>{reopenClosedBusy ? "Reabrindo..." : "Reabrir"}</span>
-            </button>
-          ) : null}
+          <strong>{`Este atendimento foi assumido por ${atendenteNome}.`}</strong>
         </div>
       </div>
     );
@@ -334,7 +331,7 @@ export default function ConversaThread({
         key={`wa-thread-${String(threadConversaId ?? "")}`}
         ref={virtualThreadRef}
         scrollRef={messagesContainerRef}
-        overscan={headerCompact ? 5 : 16}
+        overscan={headerCompact ? 8 : 10}
         mobileThread={headerCompact}
         conversaId={threadConversaId}
         items={mensagensComSeparadores}

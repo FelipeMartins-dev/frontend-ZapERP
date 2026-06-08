@@ -41,6 +41,7 @@ export function threadRowPropsAreEqual(prev, next) {
 
   if (prev.messageKey !== next.messageKey) return false;
   if (prev.messageVisualSig !== next.messageVisualSig) return false;
+  if (prev.allowEnterAnimation !== next.allowEnterAnimation) return false;
 
   if (prev.isSelected !== next.isSelected) return false;
   if (prev.selectMode !== next.selectMode) return false;

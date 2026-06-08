@@ -10,6 +10,7 @@ function ThreadRow({
   item,
   messageKey,
   messageVisualSig: _messageVisualSigForMemo,
+  allowEnterAnimation = false,
   BubbleComponent,
   zapSeenMsgKeysRef,
   zapMsgsInitialPassRef,
@@ -49,8 +50,9 @@ function ThreadRow({
   }
 
   let zapAnimateIn = false;
-  /* Mobile: sem animação de entrada ao revelar histórico no scroll — evita travamento nas primeiras rolagens. */
+  /* Só anima mensagens novas no fim do thread — histórico revelado no scroll não anima (evita jank). */
   if (
+    allowEnterAnimation &&
     !mobileMessageChrome &&
     !zapMsgsInitialPassRef.current &&
     !zapSeenMsgKeysRef.current.has(messageKey)
