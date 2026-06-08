@@ -39,6 +39,8 @@ import { saveReplyMeta } from "./replyMeta";
 import {
   buildOptimisticOutgoingMessage,
   bumpChatListWithOptimisticMessage,
+  extractArquivoApiFailures,
+  extractArquivoApiReconciliations,
   normalizeArquivoApiToMessage,
 } from "./conversaOptimisticMessage";
 import {
@@ -1164,6 +1166,7 @@ function ConversaViewBody() {
       if (legenda) {
         formData.append("caption", legenda);
       }
+      formData.append("client_temp_id", tempId);
 
       setSending(true);
       try {
@@ -1171,11 +1174,18 @@ function ConversaViewBody() {
           headers: { "Content-Type": false },
         });
 
-        const realMsg = normalizeArquivoApiToMessage(data, conversaId);
-        if (realMsg?.id != null || realMsg?.whatsapp_id) {
-          reconciliarMensagem(tempId, realMsg);
-        } else if (
+        const reconciliations = extractArquivoApiReconciliations(data, conversaId, [tempId]);
+        if (reconciliations.length) {
+          reconciliations.forEach(({ tempId: tid, realMsg }) => reconciliarMensagem(tid, realMsg));
+        } else {
+          const realMsg = normalizeArquivoApiToMessage(data, conversaId);
+          if (realMsg?.id != null || realMsg?.whatsapp_id) {
+            reconciliarMensagem(tempId, realMsg);
+          }
+        }
+        if (
           !opts.waitSocketOnly &&
+          reconciliations.length === 0 &&
           (!data?.id || Number(data?.conversa_id) !== Number(conversaId))
         ) {
           const targetId = conversaId;
@@ -1187,7 +1197,6 @@ function ConversaViewBody() {
         }
       } catch (err) {
         revertOutgoingStatus?.();
-        console.error("Erro ao enviar arquivo:", err);
         const is403 = err?.response?.status === 403;
         const apiMsg = err?.response?.data?.error;
         marcarMensagemTempErro(tempId, {
@@ -1261,7 +1270,7 @@ function ConversaViewBody() {
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f });
+        const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f, insertIndex: i });
         tempIds.push(optimisticMsg.tempId);
         appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
       }
@@ -1270,31 +1279,27 @@ function ConversaViewBody() {
       for (let i = 0; i < files.length; i++) {
         formData.append("file", files[i]);
       }
+      formData.append("client_temp_ids", JSON.stringify(tempIds));
       setSending(true);
       try {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
           headers: { "Content-Type": false },
         });
-        const responseIds = Array.isArray(data?.ids) && data.ids.length > 0
-          ? data.ids
-          : data?.id != null
-            ? [data.id]
-            : [];
-        responseIds.forEach((id, idx) => {
-          const tempId = tempIds[idx];
-          if (!tempId || id == null || String(id).trim() === "") return;
-          reconciliarMensagem(tempId, {
-            id,
-            conversa_id: Number(conversaId),
-            direcao: "out",
-            status: "pending",
-            status_mensagem: "pending",
-          });
-        });
-        if (
-          responseIds.length < tempIds.length ||
-          (!responseIds.length && (!data?.id || Number(data?.conversa_id) !== Number(conversaId)))
-        ) {
+        const reconciliations = extractArquivoApiReconciliations(data, conversaId, tempIds);
+        reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
+
+        const failures = extractArquivoApiFailures(data, tempIds);
+        failures.forEach(({ tempId, error }) =>
+          marcarMensagemTempErro(tempId, { erro_mensagem: error })
+        );
+
+        const reconciledTempIds = new Set(reconciliations.map((r) => String(r.tempId)));
+        const failedTempIds = new Set(failures.map((f) => String(f.tempId)));
+        const pendingTempIds = tempIds.filter(
+          (tid) => !reconciledTempIds.has(String(tid)) && !failedTempIds.has(String(tid))
+        );
+
+        if (pendingTempIds.length > 0) {
           const targetId = conversaId;
           scheduleAfterInitialPaint(() => {
             const st = useConversaStore.getState();
@@ -1302,17 +1307,45 @@ function ConversaViewBody() {
             void st.refresh({ silent: true });
           }, 400);
         }
+
+        if (failures.length > 0) {
+          const okCount = reconciliations.length;
+          showToast({
+            type: okCount > 0 ? "warning" : "error",
+            title: okCount > 0 ? "Envio parcial" : "Falha ao enviar",
+            message:
+              okCount > 0
+                ? `${okCount} foto(s) enviada(s). ${failures.length} falhou(aram).`
+                : failures[0]?.error || "Não foi possível enviar as fotos. Tente novamente.",
+          });
+        }
       } catch (err) {
         revertOutgoingStatus?.();
-        console.error("Erro ao enviar fotos da galeria:", err);
         const is403 = err?.response?.status === 403;
         const apiMsg = err?.response?.data?.error;
-        tempIds.forEach((tid) => marcarMensagemTempErro(tid, { erro_mensagem: apiMsg || err?.message }));
-        showToast({
-          type: "error",
-          title: is403 ? "Acesso restrito" : "Falha ao enviar",
-          message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar as fotos. Tente novamente."),
-        });
+        const partialFailures = extractArquivoApiFailures(err?.response?.data, tempIds);
+        if (partialFailures.length) {
+          const reconciliations = extractArquivoApiReconciliations(err?.response?.data, conversaId, tempIds);
+          reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
+          partialFailures.forEach(({ tempId, error }) =>
+            marcarMensagemTempErro(tempId, { erro_mensagem: error })
+          );
+          showToast({
+            type: reconciliations.length > 0 ? "warning" : "error",
+            title: reconciliations.length > 0 ? "Envio parcial" : is403 ? "Acesso restrito" : "Falha ao enviar",
+            message:
+              reconciliations.length > 0
+                ? `${reconciliations.length} foto(s) enviada(s). ${partialFailures.length} falhou(aram).`
+                : apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar as fotos. Tente novamente."),
+          });
+        } else {
+          tempIds.forEach((tid) => marcarMensagemTempErro(tid, { erro_mensagem: apiMsg || err?.message }));
+          showToast({
+            type: "error",
+            title: is403 ? "Acesso restrito" : "Falha ao enviar",
+            message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar as fotos. Tente novamente."),
+          });
+        }
       } finally {
         setSending(false);
         focusMessageInput();

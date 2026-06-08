@@ -1082,6 +1082,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   return (
     <>
+      <div className="wa-composerStack">
       {replyBarPreview && !isRecording ? (
         <div className="wa-replyBar" role="region" aria-label="Respondendo">
           <div className="wa-replyBar-bar" aria-hidden="true" />
@@ -1382,6 +1383,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
             </div>
           </>
         )}
+      </div>
       </div>
 
       {!isRecording && stickerOpen

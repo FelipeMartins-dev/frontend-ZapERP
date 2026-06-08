@@ -402,45 +402,44 @@ function pruneRedundantOutgoingTemps(list) {
 
 function pruneRedundantOutgoingMediaEchoes(list) {
   if (!Array.isArray(list) || list.length < 2) return list
-  const media = list
-    .map((m, i) => ({ m, i }))
-    .filter(({ m }) => isOutgoingLike(m) && mediaFamilyFromMsg(m))
-  if (media.length < 2) return list
-
-  const confirmed = media.filter(({ m }) => {
-    const waOk = m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
-    return waOk && !m?.tempId
-  })
-  if (!confirmed.length) return list
-
   const remove = new Set()
-  const recentMs = 20_000
-  for (const { m, i } of media) {
-    if (m?.tempId) continue
-    if (m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") continue
-    const localCrmMedia = m?.autor_usuario_id != null || isLocalUploadMediaMessage(m)
-    if (!localCrmMedia) continue
-    const family = mediaFamilyFromMsg(m)
-    const ts = toMillis(m?.criado_em)
-    if (!Number.isFinite(ts)) continue
-    const matches = confirmed.filter(({ m: c }) => {
-      if (mediaFamilyFromMsg(c) !== family) return false
-      const tc = toMillis(c?.criado_em)
-      if (!Number.isFinite(tc) || Math.abs(tc - ts) > recentMs) return false
-      return true
-    })
-    const localMatches = media.filter(({ m: other }) => {
-      if (other?.tempId) return false
-      if (other?.whatsapp_id != null && String(other.whatsapp_id).trim() !== "") return false
-      if (!(other?.autor_usuario_id != null || isLocalUploadMediaMessage(other))) return false
-      if (mediaFamilyFromMsg(other) !== family) return false
-      const to = toMillis(other?.criado_em)
-      return Number.isFinite(to) && Math.abs(to - ts) <= recentMs
-    })
-    if (matches.length === 1 && localMatches.length === 1) remove.add(i)
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i]
+    if (!m || !isOutgoingLike(m) || !mediaFamilyFromMsg(m)) continue
+    const mid = m.id != null && String(m.id).trim() !== "" ? String(m.id) : null
+    const mwa = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== "" ? String(m.whatsapp_id) : null
+    for (let j = 0; j < list.length; j++) {
+      if (i === j) continue
+      const o = list[j]
+      if (!o || !isOutgoingLike(o) || !mediaFamilyFromMsg(o)) continue
+      if (mediaFamilyFromMsg(o) !== mediaFamilyFromMsg(m)) continue
+      const oid = o.id != null && String(o.id).trim() !== "" ? String(o.id) : null
+      const owa = o.whatsapp_id != null && String(o.whatsapp_id).trim() !== "" ? String(o.whatsapp_id) : null
+      if (mid && oid && mid === oid) {
+        const keepIdx = mwa && !owa ? j : i
+        const dropIdx = keepIdx === i ? j : i
+        remove.add(dropIdx)
+        break
+      }
+      if (mwa && owa && mwa === owa && mid !== oid) {
+        remove.add(i)
+        break
+      }
+      if (
+        (mid || mwa) &&
+        (oid || owa) &&
+        areLikelySameMessageBubble(m, o) &&
+        sameMediaStrongHint(m, o)
+      ) {
+        const mScore = (mwa ? 2 : 0) + (mid ? 1 : 0) + (m?.tempId ? 0 : 1)
+        const oScore = (owa ? 2 : 0) + (oid ? 1 : 0) + (o?.tempId ? 0 : 1)
+        remove.add(mScore >= oScore ? j : i)
+        break
+      }
+    }
   }
   if (!remove.size) return list
-  return list.filter((_, i) => !remove.has(i))
+  return list.filter((_, idx) => !remove.has(idx))
 }
 
 function finalizeMensagensList(list) {
@@ -572,21 +571,80 @@ function isLocalUploadMediaMessage(m) {
 function sameMediaStrongHint(prev, incoming) {
   const prevName = mediaFileBaseName(prev)
   const incomingName = mediaFileBaseName(incoming)
-  if (prevName && incomingName && prevName === incomingName) return true
+  const prevSize = prev?.tamanho ?? prev?.tamanho_bytes ?? null
+  const incomingSize = incoming?.tamanho ?? incoming?.tamanho_bytes ?? null
+  const prevLm = prev?.file_last_modified ?? null
+  const incomingLm = incoming?.file_last_modified ?? null
+  if (prevName && incomingName && prevName === incomingName) {
+    if (
+      prevSize != null &&
+      incomingSize != null &&
+      Number.isFinite(Number(prevSize)) &&
+      Number(prevSize) === Number(incomingSize)
+    ) {
+      return true
+    }
+    if (
+      prevLm != null &&
+      incomingLm != null &&
+      Number.isFinite(Number(prevLm)) &&
+      Number(prevLm) === Number(incomingLm)
+    ) {
+      return true
+    }
+    if (prevSize == null && incomingSize == null && prevLm == null && incomingLm == null) {
+      return true
+    }
+  }
   const prevUrl = mediaUrlTail(prev)
   const incomingUrl = mediaUrlTail(incoming)
   if (prevUrl && incomingUrl && prevUrl === incomingUrl) return true
-  const prevSize = prev?.tamanho ?? prev?.tamanho_bytes ?? null
-  const incomingSize = incoming?.tamanho ?? incoming?.tamanho_bytes ?? null
   if (
     prevSize != null &&
     incomingSize != null &&
     Number.isFinite(Number(prevSize)) &&
-    Number(prevSize) === Number(incomingSize)
+    Number(prevSize) === Number(incomingSize) &&
+    prevLm != null &&
+    incomingLm != null &&
+    Number.isFinite(Number(prevLm)) &&
+    Number(prevLm) === Number(incomingLm)
   ) {
     return true
   }
   return false
+}
+
+/** Índice do otimista de mídia mais adequado para fundir com confirmação (FIFO + hint forte). */
+function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
+  if (!Array.isArray(list) || !msg) return -1
+  const candidates = []
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i]
+    if (!isPendingOutgoingTemp(m) || !mediaFamilyFromMsg(m)) continue
+    if (!isOutgoingMediaReconcilePair(m, msg, opts) && !isOutgoingAudioReconcilePair(m, msg)) continue
+    candidates.push({
+      i,
+      m,
+      strong: sameMediaStrongHint(m, msg),
+      seq: Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity,
+    })
+  }
+  if (!candidates.length) return -1
+
+  const strongOnes = candidates.filter((c) => c.strong)
+  if (strongOnes.length === 1) return strongOnes[0].i
+  if (strongOnes.length > 1) {
+    strongOnes.sort((a, b) => a.seq - b.seq || a.i - b.i)
+    return strongOnes[0].i
+  }
+
+  const pendingSameFamily = list.filter(
+    (m) => isPendingOutgoingTemp(m) && mediaFamilyFromMsg(m) === mediaFamilyFromMsg(msg)
+  )
+  if (opts.allowLoose === true && candidates.length === 1 && pendingSameFamily.length === 1) {
+    return candidates[0].i
+  }
+  return -1
 }
 
 /** Otimista de audio + confirmacao (socket/HTTP): nomes/tipos podem divergir (audio vs voice). */
@@ -771,23 +829,11 @@ function applyAnexarOneToList(list, convId, msg) {
       return dedupeRowsByPersistedIdentity(next, i)
     }
 
-    for (let i = list.length - 1; i >= 0; i--) {
-      const m = list[i]
-      if (!isPendingOutgoingTemp(m) || !mediaFamilyFromMsg(m)) continue
-      if (!isOutgoingMediaReconcilePair(m, msg) && !isOutgoingAudioReconcilePair(m, msg)) continue
-      return mergePendingMediaAt(i)
+    let mergeIdx = findPendingOutgoingMediaMergeIndex(list, msg)
+    if (mergeIdx < 0) {
+      mergeIdx = findPendingOutgoingMediaMergeIndex(list, msg, { allowLoose: true })
     }
-
-    const looseCandidates = []
-    for (let i = list.length - 1; i >= 0; i--) {
-      const m = list[i]
-      if (!isPendingOutgoingTemp(m) || !mediaFamilyFromMsg(m)) continue
-      if (!isOutgoingMediaReconcilePair(m, msg, { allowLoose: true })) continue
-      looseCandidates.push(i)
-    }
-    if (looseCandidates.length === 1) {
-      return mergePendingMediaAt(looseCandidates[0])
-    }
+    if (mergeIdx >= 0) return mergePendingMediaAt(mergeIdx)
   }
 
   if (isFromMe && textoIn && isTipoTextoParaReconciliarPorConteudo(msg)) {

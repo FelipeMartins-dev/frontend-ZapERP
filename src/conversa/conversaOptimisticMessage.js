@@ -50,14 +50,15 @@ export function buildOptimisticOutgoingMessage(params) {
   const conversaId = params?.conversaId;
   const normalizedConversaId = normalizeOptimisticConversaId(conversaId);
   const tempId = params?.tempId || createOptimisticTempId();
-  const now = new Date().toISOString();
+  const insertIndex = Number.isFinite(Number(params?.insertIndex)) ? Number(params.insertIndex) : 0;
+  const criado_em = new Date(Date.now() + insertIndex).toISOString();
   const base = {
     tempId,
     conversa_id: normalizedConversaId,
     direcao: "out",
     status: "pending",
     status_mensagem: "pending",
-    criado_em: now,
+    criado_em,
     reply_meta: params?.replyMeta || undefined,
   };
 
@@ -79,6 +80,7 @@ export function buildOptimisticOutgoingMessage(params) {
       conteudo: preview,
       nome_arquivo: nome,
       tamanho: file.size,
+      ...(file?.lastModified != null ? { file_last_modified: file.lastModified } : {}),
       ...(blobUrl
         ? { url: blobUrl, url_absoluta: blobUrl, _optimisticBlobUrl: blobUrl }
         : {}),
@@ -118,16 +120,86 @@ export function cleanupOptimisticBlobFields(merged) {
   return next;
 }
 
+function buildArquivoReconcileRow(row, conversaId) {
+  if (!row || typeof row !== "object") return null;
+  const id = row.id ?? row.mensagem_id ?? row.message_id;
+  if (id == null || String(id).trim() === "") return null;
+  return {
+    id,
+    conversa_id: row.conversa_id ?? conversaId,
+    direcao: row.direcao ?? "out",
+    status: row.status ?? row.status_mensagem ?? "pending",
+    status_mensagem: row.status_mensagem ?? row.status ?? "pending",
+    ...(row.tipo ? { tipo: row.tipo } : {}),
+    ...(row.url ? { url: row.url, url_absoluta: row.url_absoluta ?? row.url } : {}),
+    ...(row.nome_arquivo ? { nome_arquivo: row.nome_arquivo } : {}),
+    ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
+    ...(row.whatsapp_id ? { whatsapp_id: row.whatsapp_id } : {}),
+    ...(row.client_temp_id ? { client_temp_id: row.client_temp_id } : {}),
+  };
+}
+
 /** Normaliza corpo da API POST /chats/:id/arquivo para reconciliação. */
 export function normalizeArquivoApiToMessage(data, conversaId) {
   if (!data || typeof data !== "object") return null;
   const m = data.mensagem && typeof data.mensagem === "object" ? data.mensagem : data;
   if (!m || typeof m !== "object") return null;
-  return {
-    ...m,
-    conversa_id: m.conversa_id ?? conversaId,
-    direcao: m.direcao ?? "out",
-  };
+  return buildArquivoReconcileRow(
+    {
+      ...m,
+      conversa_id: m.conversa_id ?? conversaId,
+      direcao: m.direcao ?? "out",
+    },
+    conversaId
+  );
+}
+
+/**
+ * Extrai reconciliações por tempId a partir da resposta do POST /arquivo (single ou lote).
+ * @returns {{ tempId: string, realMsg: object }[]}
+ */
+export function extractArquivoApiReconciliations(data, conversaId, tempIds = []) {
+  if (!data || typeof data !== "object") return [];
+  const out = [];
+  const results = Array.isArray(data.results) ? data.results : null;
+
+  if (results?.length) {
+    results.forEach((row, idx) => {
+      if (!row?.ok) return;
+      const realMsg = buildArquivoReconcileRow(row, conversaId);
+      if (!realMsg) return;
+      const tempId =
+        row.client_temp_id ||
+        (Array.isArray(tempIds) && tempIds[idx] != null ? tempIds[idx] : null);
+      if (tempId) out.push({ tempId, realMsg });
+    });
+    return out;
+  }
+
+  const single = normalizeArquivoApiToMessage(data, conversaId);
+  if (single) {
+    const tempId =
+      data.client_temp_id ||
+      (Array.isArray(tempIds) && tempIds[0] != null ? tempIds[0] : null);
+    if (tempId) out.push({ tempId, realMsg: single });
+  }
+  return out;
+}
+
+/** Resultados com falha parcial do POST /arquivo (lote). */
+export function extractArquivoApiFailures(data, tempIds = []) {
+  if (!data || typeof data !== "object" || !Array.isArray(data.results)) return [];
+  const failures = [];
+  data.results.forEach((row, idx) => {
+    if (row?.ok) return;
+    const tempId =
+      row?.client_temp_id ||
+      (Array.isArray(tempIds) && tempIds[idx] != null ? tempIds[idx] : null);
+    if (tempId) {
+      failures.push({ tempId, error: row?.error || "Falha ao enviar arquivo." });
+    }
+  });
+  return failures;
 }
 
 function forwardBodyFromSource(src) {
