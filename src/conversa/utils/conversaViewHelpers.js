@@ -426,18 +426,38 @@ export function getMediaUrl(url, urlAbsoluta) {
   return base.replace(/\/$/, "") + (url.startsWith("/") ? url : "/" + url);
 }
 
-/** URL exibível na bolha — preserva blob local e usa proxy para CDN externa. */
-export function resolveBubbleMediaUrl(msg) {
-  if (!msg || typeof msg !== "object") return "";
+/** URLs candidatas para exibir mídia na bolha (blob local primeiro, depois servidor/proxy). */
+export function resolveBubbleMediaCandidates(msg) {
+  if (!msg || typeof msg !== "object") return [];
+  const out = [];
+  const seen = new Set();
+  const push = (u) => {
+    const s = String(u || "").trim();
+    if (!s || seen.has(s)) return;
+    seen.add(s);
+    out.push(s);
+  };
+
   const blob = msg?._optimisticBlobUrl;
-  const blobOk = blob != null && String(blob).startsWith("blob:");
+  if (blob != null && String(blob).startsWith("blob:")) push(blob);
+  if (String(msg?.url || "").startsWith("blob:")) push(msg.url);
+  if (String(msg?.url_absoluta || "").startsWith("blob:")) push(msg.url_absoluta);
+
   const abs = getMediaUrl(msg?.url, msg?.url_absoluta);
-  if (!abs && blobOk) return String(blob);
-  if (!abs) return "";
-  if (needsProxiedMediaPlayback(abs)) {
-    return getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) || abs;
+  if (abs) {
+    if (needsProxiedMediaPlayback(abs)) {
+      push(getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) || abs);
+    }
+    push(abs);
   }
-  return abs;
+
+  return out;
+}
+
+/** URL exibível na bolha — prioriza preview local até haver fallback no componente. */
+export function resolveBubbleMediaUrl(msg) {
+  const candidates = resolveBubbleMediaCandidates(msg);
+  return candidates[0] || "";
 }
 
 function getAuthTokenFromStorage() {

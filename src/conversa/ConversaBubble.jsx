@@ -10,7 +10,7 @@ import {
   isFilenameOnlyText,
   getMediaUrl,
   getMediaPlaybackUrl,
-  resolveBubbleMediaUrl,
+  resolveBubbleMediaCandidates,
   formatHora,
   formatMmSs,
   formatFileSize,
@@ -37,6 +37,43 @@ import {
 
 let __waCurrentAudio = null;
 const WA_AUDIO_SPEEDS = [1, 1.5, 2];
+
+/** Imagem na bolha com fallback: blob local → URL do servidor → proxy. */
+function BubbleImage({ msg, alt, className }) {
+  const candidates = useMemo(() => resolveBubbleMediaCandidates(msg), [
+    msg?._optimisticBlobUrl,
+    msg?.url,
+    msg?.url_absoluta,
+  ]);
+  const [idx, setIdx] = useState(0);
+  const [exhausted, setExhausted] = useState(false);
+
+  useEffect(() => {
+    setIdx(0);
+    setExhausted(false);
+  }, [candidates.join("\u0001")]);
+
+  const src = candidates[idx] || "";
+  if (!src || exhausted) return <span className="wa-bubble-text wa-muted">(imagem)</span>;
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => {
+        setIdx((cur) => {
+          if (cur + 1 < candidates.length) return cur + 1;
+          setExhausted(true);
+          return cur;
+        });
+      }}
+    />
+  );
+}
 
 function MessageTicks({ msg, isGroup }) {
   const out = isOutgoingMessage(msg);
@@ -672,7 +709,11 @@ const Bubble = memo(function Bubble({
 }) {
   const out = isOutgoingMessage(msg);
   const isApagadaParaTodos = !!msg?.apagada_para_todos;
-  const mediaUrl = resolveBubbleMediaUrl(msg);
+  const mediaCandidates = useMemo(
+    () => resolveBubbleMediaCandidates(msg),
+    [msg?._optimisticBlobUrl, msg?.url, msg?.url_absoluta]
+  );
+  const mediaUrl = mediaCandidates[0] || "";
   const videoPlaybackUrl =
     msg?.tipo === "video" && mediaUrl ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) : mediaUrl;
   const audioPlaybackUrl =
@@ -1159,13 +1200,10 @@ const Bubble = memo(function Bubble({
                       onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
                     }}
                   >
-                    <img
-                      src={mediaUrl}
+                    <BubbleImage
+                      msg={msg}
                       alt={isSticker ? "figurinha" : "imagem"}
                       className="wa-bubble-img"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
                     />
                   </button>
                   {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}
@@ -1246,13 +1284,10 @@ const Bubble = memo(function Bubble({
                   onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
                 }}
               >
-                <img
-                  src={mediaUrl}
+                <BubbleImage
+                  msg={msg}
                   alt={isSticker ? "figurinha" : "imagem"}
                   className="wa-bubble-img"
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
                 />
               </button>
               {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}

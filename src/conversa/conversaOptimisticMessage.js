@@ -115,14 +115,9 @@ function hasTrustedPersistedMediaUrl(msg) {
   return false;
 }
 
+/** Não revoga blob no merge do store — evita “aparece e vira ?” ao reconciliar com a API/socket. */
 export function cleanupOptimisticBlobFields(merged) {
-  if (!merged || typeof merged !== "object") return merged;
-  if (!hasTrustedPersistedMediaUrl(merged)) return merged;
-  revokeOptimisticBlobFromMessage(merged);
-  if (!merged._optimisticBlobUrl) return merged;
-  const next = { ...merged };
-  delete next._optimisticBlobUrl;
-  return next;
+  return merged;
 }
 
 function buildArquivoReconcileRow(row, conversaId) {

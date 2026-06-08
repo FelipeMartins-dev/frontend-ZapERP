@@ -738,14 +738,7 @@ function preserveLocalMediaFields(prev, merged) {
 
   const prevBlob = prev?._optimisticBlobUrl
   if (prevBlob && String(prevBlob).startsWith("blob:")) {
-    const trustedServer = mergedLocal || prevLocal
-    if (!trustedServer || !hasRenderableUrl(next)) {
-      next._optimisticBlobUrl = prevBlob
-      if (!hasRenderableUrl(next)) {
-        next.url = prev.url || prevBlob
-        next.url_absoluta = prev.url_absoluta || prevBlob
-      }
-    }
+    next._optimisticBlobUrl = prevBlob
   }
 
   return next
