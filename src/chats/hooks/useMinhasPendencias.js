@@ -99,6 +99,13 @@ export function useMinhasPendencias(scopeKey) {
     []
   );
 
+  const clearPendenciaAtiva = useCallback(() => {
+    categoriaRequestIdRef.current += 1;
+    setPendenciaAtiva(null);
+    setConversaIdsRaw([]);
+    setLoadingPendenciaCategoria(false);
+  }, []);
+
   useEffect(() => {
     if (!scopeKey) return;
     categoriaRequestIdRef.current += 1;
@@ -120,6 +127,7 @@ export function useMinhasPendencias(scopeKey) {
     loadingPendenciaCategoria,
     conversaIdsPendenciaAtiva,
     onPendenciaClick,
+    clearPendenciaAtiva,
     refresh,
   };
 }

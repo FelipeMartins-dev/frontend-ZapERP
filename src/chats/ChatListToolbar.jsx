@@ -59,7 +59,9 @@ function ChatListToolbar({
   onTabAguardandoFuncionario,
   middleSlot = null,
   filtersPanelSlot = null,
+  hasActivePendencia = false,
 }) {
+  const isMainChipActive = (targetTab) => !hasActivePendencia && tab === targetTab;
   const hintLoading = loading && !hasStoreChats;
   const totalForHint =
     activeFilterTotalCount != null && Number.isFinite(Number(activeFilterTotalCount))
@@ -120,39 +122,39 @@ function ChatListToolbar({
             role="group"
             aria-label="Filtros de conversa"
           >
-            <Chip variant="primary" active={tab === "minha_fila"} onClick={onTabMinhaFila} count={minhaFilaCount}>
+            <Chip variant="primary" active={isMainChipActive("minha_fila")} onClick={onTabMinhaFila} count={minhaFilaCount}>
               Minha fila
             </Chip>
-            <Chip active={tab === "todas"} onClick={onTabTodas} count={total}>
+            <Chip active={isMainChipActive("todas")} onClick={onTabTodas} count={total}>
               Todas
             </Chip>
-            <Chip active={tab === "hoje"} onClick={onTabHoje} count={countHoje}>
+            <Chip active={isMainChipActive("hoje")} onClick={onTabHoje} count={countHoje}>
               Hoje
             </Chip>
-            <Chip active={tab === "abertas"} onClick={onTabAbertas} count={countAbertas}>
+            <Chip active={isMainChipActive("abertas")} onClick={onTabAbertas} count={countAbertas}>
               Abertas
             </Chip>
             {separarMensagensDisparadasLigado ? (
-              <Chip active={tab === "mensagens_disparadas"} onClick={onTabMensagensDisparadas} count={mensagensDisparadasCount}>
+              <Chip active={isMainChipActive("mensagens_disparadas")} onClick={onTabMensagensDisparadas} count={mensagensDisparadasCount}>
                 Mensagens Disparadas
               </Chip>
             ) : null}
-            <Chip active={tab === "em_atendimento"} onClick={onTabEmAtendimento} count={countEmAtendimento}>
+            <Chip active={isMainChipActive("em_atendimento")} onClick={onTabEmAtendimento} count={countEmAtendimento}>
               Em atendimento
             </Chip>
-            <Chip active={tab === "finalizadas"} onClick={onTabFinalizadas} count={countFinalizadas}>
+            <Chip active={isMainChipActive("finalizadas")} onClick={onTabFinalizadas} count={countFinalizadas}>
               Finalizadas
             </Chip>
-            <Chip active={tab === "finalizadas_auto"} onClick={onTabFinalizadasAuto} count={countFinalizadasAuto}>
+            <Chip active={isMainChipActive("finalizadas_auto")} onClick={onTabFinalizadasAuto} count={countFinalizadasAuto}>
               Por ausência
             </Chip>
-            <Chip active={tab === "aguardando_cliente"} onClick={onTabAguardandoCliente} count={countAguardandoCliente}>
+            <Chip active={isMainChipActive("aguardando_cliente")} onClick={onTabAguardandoCliente} count={countAguardandoCliente}>
               Aguardando cliente
             </Chip>
             {isFinanceiroUser ? (
               <>
                 <Chip
-                  active={tab === "pagamentos_pendentes"}
+                  active={isMainChipActive("pagamentos_pendentes")}
                   onClick={onTabPagamentosPendentes}
                   className="chat-list-chip--pagamento-pendente"
                   count={countPagamentosPendentes}
@@ -160,7 +162,7 @@ function ChatListToolbar({
                   Pagamentos pendentes
                 </Chip>
                 <Chip
-                  active={tab === "em_atraso"}
+                  active={isMainChipActive("em_atraso")}
                   onClick={onTabEmAtraso}
                   className="chat-list-chip--em-atraso"
                   count={countEmAtraso}
@@ -171,7 +173,7 @@ function ChatListToolbar({
             ) : null}
             {isSupervisorOrAdmin(user) ? (
               <Chip
-                active={tab === "aguardando_funcionario"}
+                active={isMainChipActive("aguardando_funcionario")}
                 onClick={onTabAguardandoFuncionario}
                 className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
                 count={countAguardandoFuncionario}
@@ -230,6 +232,7 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.atendentes !== next.atendentes) return false;
   if (prev.middleSlot !== next.middleSlot) return false;
   if (prev.filtersPanelSlot !== next.filtersPanelSlot) return false;
+  if (prev.hasActivePendencia !== next.hasActivePendencia) return false;
   if (prev.searchRef !== next.searchRef) return false;
   if (prev.onSearchDebounced !== next.onSearchDebounced) return false;
   if (prev.onTabMinhaFila !== next.onTabMinhaFila) return false;

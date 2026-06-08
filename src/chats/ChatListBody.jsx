@@ -72,6 +72,7 @@ function ChatListBody({
   setShowNovoMenu,
   setShowFilters,
   setTab,
+  onClearPendenciaAtiva,
   setNovoContatoModalOpen,
   onSelect,
   onOpenClienteSemConversa,
@@ -86,6 +87,7 @@ function ChatListBody({
   middleSlot = null,
   filtersPanelSlot = null,
   conversaIdsPendenciaAtiva = null,
+  hasActivePendencia = false,
 }) {
   const chats = useChatStore((s) => s.chats || [], chatListsStoreEquivalent);
   const chatsLength = chats?.length ?? 0;
@@ -228,18 +230,26 @@ function ChatListBody({
     ];
   }, [openMenuChat]);
 
-  const onTabMinhaFila = useCallback(() => setTab("minha_fila"), [setTab]);
-  const onTabTodas = useCallback(() => setTab("todas"), [setTab]);
-  const onTabHoje = useCallback(() => setTab("hoje"), [setTab]);
-  const onTabAbertas = useCallback(() => setTab("abertas"), [setTab]);
-  const onTabMensagensDisparadas = useCallback(() => setTab("mensagens_disparadas"), [setTab]);
-  const onTabEmAtendimento = useCallback(() => setTab("em_atendimento"), [setTab]);
-  const onTabFinalizadas = useCallback(() => setTab("finalizadas"), [setTab]);
-  const onTabFinalizadasAuto = useCallback(() => setTab("finalizadas_auto"), [setTab]);
-  const onTabAguardandoCliente = useCallback(() => setTab("aguardando_cliente"), [setTab]);
-  const onTabPagamentosPendentes = useCallback(() => setTab("pagamentos_pendentes"), [setTab]);
-  const onTabEmAtraso = useCallback(() => setTab("em_atraso"), [setTab]);
-  const onTabAguardandoFuncionario = useCallback(() => setTab("aguardando_funcionario"), [setTab]);
+  const activateMainTab = useCallback(
+    (nextTab) => {
+      if (hasActivePendencia) onClearPendenciaAtiva?.();
+      setTab(nextTab);
+    },
+    [hasActivePendencia, onClearPendenciaAtiva, setTab]
+  );
+
+  const onTabMinhaFila = useCallback(() => activateMainTab("minha_fila"), [activateMainTab]);
+  const onTabTodas = useCallback(() => activateMainTab("todas"), [activateMainTab]);
+  const onTabHoje = useCallback(() => activateMainTab("hoje"), [activateMainTab]);
+  const onTabAbertas = useCallback(() => activateMainTab("abertas"), [activateMainTab]);
+  const onTabMensagensDisparadas = useCallback(() => activateMainTab("mensagens_disparadas"), [activateMainTab]);
+  const onTabEmAtendimento = useCallback(() => activateMainTab("em_atendimento"), [activateMainTab]);
+  const onTabFinalizadas = useCallback(() => activateMainTab("finalizadas"), [activateMainTab]);
+  const onTabFinalizadasAuto = useCallback(() => activateMainTab("finalizadas_auto"), [activateMainTab]);
+  const onTabAguardandoCliente = useCallback(() => activateMainTab("aguardando_cliente"), [activateMainTab]);
+  const onTabPagamentosPendentes = useCallback(() => activateMainTab("pagamentos_pendentes"), [activateMainTab]);
+  const onTabEmAtraso = useCallback(() => activateMainTab("em_atraso"), [activateMainTab]);
+  const onTabAguardandoFuncionario = useCallback(() => activateMainTab("aguardando_funcionario"), [activateMainTab]);
 
   const onAdminSelectUser = useCallback(
     (u) => {
@@ -391,6 +401,7 @@ function ChatListBody({
         onTabAguardandoFuncionario={onTabAguardandoFuncionario}
         middleSlot={middleSlot}
         filtersPanelSlot={filtersPanelSlot}
+        hasActivePendencia={hasActivePendencia}
       />
 
       <ChatListRowsPane

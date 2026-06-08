@@ -238,6 +238,7 @@ export default function ChatList() {
     loadingPendenciaCategoria,
     conversaIdsPendenciaAtiva,
     onPendenciaClick,
+    clearPendenciaAtiva,
     refresh: refreshMinhasPendencias,
   } = useMinhasPendencias(filterScopeKey);
   const refreshMinhasPendenciasRef = useRef(refreshMinhasPendencias);
@@ -358,6 +359,13 @@ export default function ChatList() {
   // tabs estilo WhatsApp (chip row)
   // todas | hoje | abertas | minha_fila | em_atendimento | finalizadas | finalizadas_auto | aguardando_cliente | aguardando_funcionario
   const [tab, setTab] = useState("minha_fila");
+  const handlePendenciaClick = useCallback(
+    (categoria) => {
+      setTab("todas");
+      void onPendenciaClick(categoria);
+    },
+    [onPendenciaClick, setTab]
+  );
   const [zapFilterSkeleton, setZapFilterSkeleton] = useState(false);
   const tabRef = useRef(tab);
   tabRef.current = tab;
@@ -1787,7 +1795,7 @@ export default function ChatList() {
         pendenciaAtiva={pendenciaAtiva}
         loadingPendencias={loadingPendencias}
         loadingPendenciaCategoria={loadingPendenciaCategoria}
-        onPendenciaClick={onPendenciaClick}
+        onPendenciaClick={handlePendenciaClick}
       />
     ),
     [
@@ -1795,7 +1803,7 @@ export default function ChatList() {
       pendenciaAtiva,
       loadingPendencias,
       loadingPendenciaCategoria,
-      onPendenciaClick,
+      handlePendenciaClick,
     ]
   );
 
@@ -1874,6 +1882,7 @@ export default function ChatList() {
         setShowNovoMenu={setShowNovoMenu}
         setShowFilters={setShowFilters}
         setTab={setTab}
+        onClearPendenciaAtiva={clearPendenciaAtiva}
         setNovoContatoModalOpen={setNovoContatoModalOpen}
         onSelect={handleSelecionarConversa}
         onOpenClienteSemConversa={handleOpenClienteSemConversa}
@@ -1888,6 +1897,7 @@ export default function ChatList() {
         middleSlot={toolbarMetaLeftSlot}
         filtersPanelSlot={advancedFiltersSlot}
         conversaIdsPendenciaAtiva={conversaIdsPendenciaAtiva}
+        hasActivePendencia={!!pendenciaAtiva}
       />
 
       <ConfirmDialog
