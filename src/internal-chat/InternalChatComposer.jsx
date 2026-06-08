@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPin, Mic, Paperclip, SendHorizontal, Square, Trash2, User } from "lucide-react";
+import { acquireMicStream, invalidateMicStream, isMicSupported } from "../media/micStreamService";
 import InternalChatContactModal from "./InternalChatContactModal.jsx";
 
 /**
@@ -45,15 +46,9 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
 
   const recRef = useRef(/** @type {MediaRecorder | null} */ (null));
   const chunksRef = useRef(/** @type {BlobPart[]} */ ([]));
-  const streamRef = useRef(/** @type {MediaStream | null} */ (null));
   const recordStartedAtRef = useRef(0);
   const tickRef = useRef(/** @type {ReturnType<typeof setInterval> | null} */ (null));
   const lastMimeRef = useRef("");
-
-  function stopStream() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-  }
 
   function clearAudioTick() {
     if (tickRef.current) {
@@ -72,7 +67,6 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
   useEffect(
     () => () => {
       clearAudioTick();
-      stopStream();
     },
     []
   );
@@ -140,11 +134,11 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
     setPendingCaption("");
   }
 
-  function resetAudioUi() {
+  function resetAudioUi({ invalidateMic = false } = {}) {
     clearAudioTick();
     recRef.current = null;
     chunksRef.current = [];
-    stopStream();
+    if (invalidateMic) invalidateMicStream();
     setAudioPhase("idle");
     setElapsedSec(0);
     setAudioPreviewFile(null);
@@ -152,10 +146,9 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
   }
 
   async function startAudioRecording() {
-    if (disabled || audioPhase !== "idle" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
+    if (disabled || audioPhase !== "idle" || !isMicSupported() || typeof MediaRecorder === "undefined") return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      const stream = await acquireMicStream();
       chunksRef.current = [];
       const mr = new MediaRecorder(stream);
       recRef.current = mr;
@@ -171,7 +164,7 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
         setElapsedSec(Math.floor((Date.now() - recordStartedAtRef.current) / 1000));
       }, 250);
     } catch {
-      resetAudioUi();
+      resetAudioUi({ invalidateMic: true });
     }
   }
 
@@ -186,7 +179,6 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
       mr.onstop = resolve;
       mr.stop();
     });
-    stopStream();
     lastMimeRef.current = mr.mimeType || "audio/webm";
     const blob = new Blob(chunksRef.current, { type: lastMimeRef.current });
     chunksRef.current = [];
@@ -245,7 +237,7 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
     }
   }
 
-  const canRecord = typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+  const canRecord = typeof MediaRecorder !== "undefined" && isMicSupported();
   const audioBusy = audioPhase === "recording" || audioPhase === "preview";
   const blockOtherActions = disabled || audioBusy;
 

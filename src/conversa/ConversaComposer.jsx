@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { acquireMicStream, invalidateMicStream, isMicSupported, queryMicPermissionState } from "../media/micStreamService";
 import { getSocket } from "../socket/socket";
 import { getAutocorrectEdit } from "../utils/autocorrectText";
 import {
@@ -175,7 +176,6 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const audioChunksRef = useRef([]);
   const recordingCanceledRef = useRef(false);
   const recordingTimerRef = useRef(null);
-  const micStreamRef = useRef(null);
   const prevTextLenRef = useRef(0);
   const prevTextConversaRef = useRef(null);
 
@@ -484,19 +484,6 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     };
   }, [isRecording]);
 
-  useEffect(() => {
-    return () => {
-      const s = micStreamRef.current;
-      if (!s) return;
-      try {
-        s.getTracks().forEach((t) => t.stop());
-      } catch {
-        /* ignore */
-      }
-      micStreamRef.current = null;
-    };
-  }, []);
-
   const runInputFlash = useCallback(() => {
     setAutoCorrectFlash(true);
     if (autoCorrectFlashTimeoutRef.current) {
@@ -738,7 +725,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         });
         return;
       }
-      if (!navigator.mediaDevices?.getUserMedia) {
+      if (!isMicSupported()) {
         showToast?.({
           type: "error",
           title: "Microfone",
@@ -747,43 +734,17 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         return;
       }
 
-      try {
-        const perm = await navigator.permissions?.query?.({ name: "microphone" });
-        if (perm?.state === "denied") {
-          showToast?.({
-            type: "error",
-            title: "Microfone bloqueado",
-            message: "O microfone está bloqueado para este site. Clique no cadeado do navegador e permita o microfone.",
-          });
-          return;
-        }
-      } catch {
-        /* ignore */
+      const permState = await queryMicPermissionState();
+      if (permState === "denied") {
+        showToast?.({
+          type: "error",
+          title: "Microfone bloqueado",
+          message: "O microfone está bloqueado para este site. Clique no cadeado do navegador e permita o microfone.",
+        });
+        return;
       }
 
-      let stream = micStreamRef.current;
-      const audioTracks = stream?.getAudioTracks?.() || [];
-      const hasLiveMic = audioTracks.some((t) => t.readyState === "live");
-      if (!hasLiveMic) {
-        if (stream) {
-          try {
-            stream.getTracks().forEach((t) => t.stop());
-          } catch {
-            /* ignore */
-          }
-          micStreamRef.current = null;
-        }
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        micStreamRef.current = stream;
-        const track = stream.getAudioTracks?.()[0];
-        if (track) {
-          const onEnded = () => {
-            track.removeEventListener("ended", onEnded);
-            micStreamRef.current = null;
-          };
-          track.addEventListener("ended", onEnded);
-        }
-      }
+      const stream = await acquireMicStream();
 
       const preferred = [
         "audio/ogg;codecs=opus",
@@ -827,12 +788,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       console.error("Erro ao iniciar gravação:", err);
       const name = String(err?.name || "");
       if (name === "NotAllowedError" || name === "NotFoundError") {
-        try {
-          micStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-        } catch {
-          /* ignore */
-        }
-        micStreamRef.current = null;
+        invalidateMicStream();
       }
       const msg =
         name === "NotAllowedError"
