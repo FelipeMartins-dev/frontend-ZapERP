@@ -238,21 +238,20 @@ export default function ConversaThread({
 
   const statusAtendimento = String(getStatusAtendimentoEffective(conversa) ?? "").toLowerCase();
   const isClosedConversation = isClosedAttendanceStatus(statusAtendimento);
+  const showClosedBanner = isClosedConversation && !isGroup;
 
-  if (isClosedConversation && !isGroup) {
-    return (
-      <div className="wa-closedAttendance-fill">
-        <ClosedAttendancePanel
-          atendenteNome={closedMeta.atendenteNome}
-          protocolo={closedMeta.protocolo}
-          setor={closedMeta.setor}
-          showReopenCta={showReopenClosedCta}
-          reopenBusy={reopenClosedBusy}
-          onReopen={onReopenClosed}
-        />
-      </div>
-    );
-  }
+  const closedBanner = showClosedBanner ? (
+    <div className="wa-closedAttendance-banner">
+      <ClosedAttendancePanel
+        atendenteNome={closedMeta.atendenteNome}
+        protocolo={closedMeta.protocolo}
+        setor={closedMeta.setor}
+        showReopenCta={showReopenClosedCta}
+        reopenBusy={reopenClosedBusy}
+        onReopen={onReopenClosed}
+      />
+    </div>
+  ) : null;
 
   if (conversa?.mensagens_bloqueadas) {
     const atendenteNome = closedMeta.atendenteNome;
@@ -271,36 +270,43 @@ export default function ConversaThread({
 
   if (loading && mensagensComSeparadores.length === 0) {
     return (
-      <div className="wa-messages-empty">
-        <div className="wa-messages-emptyCard wa-messages-emptyCard--loading">
-          <p className="wa-messages-emptyText">Carregando mensagens…</p>
+      <>
+        {closedBanner}
+        <div className="wa-messages-empty">
+          <div className="wa-messages-emptyCard wa-messages-emptyCard--loading">
+            <p className="wa-messages-emptyText">Carregando mensagens…</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (mensagensComSeparadores.length === 0) {
     return (
-      <div className="wa-messages-empty">
-        <div className="wa-messages-emptyCard">
-          <p className="wa-messages-emptyText">Sem mensagens ainda.</p>
-          {showAssumeEmptyCta ? (
-            <button
-              type="button"
-              className="wa-btn wa-btn-primary wa-btn-assumir-destaque"
-              onClick={onAssumeEmpty}
-              disabled={assumeEmptyBusy}
-            >
-              {assumeEmptyBusy ? "Assumindo…" : "Assumir"}
-            </button>
-          ) : null}
+      <>
+        {closedBanner}
+        <div className="wa-messages-empty">
+          <div className="wa-messages-emptyCard">
+            <p className="wa-messages-emptyText">Sem mensagens ainda.</p>
+            {showAssumeEmptyCta ? (
+              <button
+                type="button"
+                className="wa-btn wa-btn-primary wa-btn-assumir-destaque"
+                onClick={onAssumeEmpty}
+                disabled={assumeEmptyBusy}
+              >
+                {assumeEmptyBusy ? "Assumindo…" : "Assumir"}
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <>
+      {closedBanner}
       {!conversa?.mensagens_bloqueadas && Array.isArray(mensagens) && mensagens.length > 0 && !loading ? (
         <div className="wa-loadOlderHistory">
           {hasMore && cursor ? (

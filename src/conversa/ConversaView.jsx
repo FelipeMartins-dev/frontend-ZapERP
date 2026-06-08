@@ -370,6 +370,7 @@ function ConversaViewBody() {
         shell.style.removeProperty("--wa-keyboard-inset");
         shell.style.removeProperty("--wa-visual-height");
         shell.classList.remove("wa-mobile-input-focused");
+        shell.classList.remove("wa-keyboard-visible");
         return;
       }
       shell.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
@@ -380,9 +381,11 @@ function ConversaViewBody() {
         const kbInset = Math.max(0, ih - vvNow.height - vvNow.offsetTop);
         shell.style.setProperty("--wa-keyboard-inset", `${kbInset}px`);
         shell.style.setProperty("--wa-visual-height", `${vvNow.height}px`);
+        shell.classList.toggle("wa-keyboard-visible", kbInset > 80);
       } else {
         shell.style.removeProperty("--wa-keyboard-inset");
         shell.style.removeProperty("--wa-visual-height");
+        shell.classList.remove("wa-keyboard-visible");
       }
       syncMobileInputFocusClass();
     };
@@ -422,6 +425,7 @@ function ConversaViewBody() {
         input.removeEventListener("blur", onInputFocusBlur);
       }
       shell.classList.remove("wa-mobile-input-focused");
+      shell.classList.remove("wa-keyboard-visible");
       shell.style.removeProperty("--wa-mobile-header-h");
       shell.style.removeProperty("--wa-vv-top");
       shell.style.removeProperty("--wa-keyboard-inset");
@@ -2729,7 +2733,7 @@ function ConversaViewBody() {
         {/* MENSAGENS */}
         <div
           ref={messagesContainerRef}
-          className={`wa-messages${selectMode ? " wa-messages--selectDim" : ""}${atendimentoEncerradoHint ? " wa-messages--closedFullscreen" : ""}`}
+          className={`wa-messages${selectMode ? " wa-messages--selectDim" : ""}`}
           onDragOver={onDragOver}
           onDrop={onDrop}
           onDragLeave={onDragLeave}

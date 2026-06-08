@@ -685,8 +685,8 @@ export default function AtendimentoActions({
   if (podeReabrir) {
     actions.push({
       id: "reabrir",
-      className: "wa-btn-secondary",
-      labelLong: "Reabrir",
+      className: "wa-btn-primary wa-btn-assumir-destaque",
+      labelLong: "Reabrir atendimento",
       labelShort: "Reabrir",
       onClick: handleReabrir,
       title: "Reabrir conversa",
@@ -796,13 +796,13 @@ export default function AtendimentoActions({
 
   function renderToolbarButton(a) {
     const icon = <AtendimentoActionIcon id={a.id} />;
-    const microChip = compactToolbar && a.id === "reabrir";
+    const reabrirHero = compactToolbar && a.id === "reabrir";
     const assumirHero = compactToolbar && a.id === "assumir";
     return (
       <button
         key={a.id}
         type="button"
-        className={`${a.className}${microChip ? " wa-atendBtn--micro" : ""}${assumirHero ? " wa-atendBtn--assumir-hero" : ""} zap-action-btn`.trim()}
+        className={`${a.className}${reabrirHero ? " wa-atendBtn--assumir-hero wa-atendBtn--reabrir-hero" : ""}${assumirHero ? " wa-atendBtn--assumir-hero" : ""} zap-action-btn`.trim()}
         onClick={a.onClick}
         disabled={busy}
         title={a.title}

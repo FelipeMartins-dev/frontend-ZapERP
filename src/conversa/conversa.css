@@ -1231,7 +1231,14 @@
   animation: wa-assumir-pulse 2.4s ease-in-out infinite;
 }
 
-/* Reabrir — chip compacto no mobile */
+/* Reabrir — ação principal quando atendimento finalizado (mesmo destaque do Assumir) */
+.wa-atendToolbar--compact .wa-atendBtn--reabrir-hero {
+  flex: 1 1 auto;
+  min-width: 120px;
+  max-width: 100%;
+}
+
+/* Reabrir — chip compacto (legado; não usado na barra principal) */
 .wa-atendToolbar--compact .wa-atendBtn--micro {
   flex: 0 0 auto;
   width: auto;
@@ -1747,62 +1754,49 @@
   background: rgba(255, 255, 255, 0.22);
 }
 
-.wa-messages--closedFullscreen {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-}
-
-.wa-messages--closedFullscreen::before,
-.wa-messages--closedFullscreen::after {
-  opacity: 0.35;
-}
-
-.wa-closedAttendance-fill {
-  flex: 1 1 auto;
-  min-height: 100%;
+.wa-closedAttendance-banner {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  flex-shrink: 0;
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px 20px max(28px, env(safe-area-inset-bottom, 0px));
+  padding: 0 0 10px;
   box-sizing: border-box;
-  background: var(--ds-chat-bg);
-  position: relative;
-  z-index: 2;
 }
 
 .wa-closedAttendance-panel {
-  width: min(440px, 100%);
-  max-width: 440px;
-  padding: 28px 26px;
-  border-radius: 14px;
-  background: var(--wa-glass-strong);
+  position: relative;
+  width: 100%;
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--wa-glass-strong) 92%, var(--wa-panel));
   color: var(--wa-text-muted);
-  text-align: center;
-  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 80%, transparent);
-  box-shadow: 0 18px 42px -28px rgba(15, 23, 42, 0.42);
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--wa-green) 28%, var(--wa-panel-border));
+  box-shadow:
+    0 10px 28px -22px rgba(15, 23, 42, 0.38),
+    inset 0 1px 0 color-mix(in srgb, #ffffff 14%, transparent);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 14px;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .wa-closedAttendance-title {
   color: var(--wa-text);
   font-weight: 600;
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: 14.5px;
+  line-height: 1.35;
   margin: 0;
+  padding-right: 44px;
 }
 
 .wa-closedAttendance-sub {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 12.5px;
+  line-height: 1.4;
   color: var(--wa-text-muted);
-  max-width: 36ch;
+  max-width: none;
 }
 
 .wa-messages-empty {
@@ -1902,40 +1896,61 @@
 .wa-closedAttendance-reopenBtn {
   width: 100%;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   font-size: 15px;
-  font-weight: 600;
-  min-height: 48px;
-  margin-top: 4px;
+  font-weight: 700;
+  min-height: 50px;
+  margin-top: 2px;
+}
+
+.wa-closedAttendance-reopenBtn--hero {
+  background: color-mix(in srgb, var(--wa-green) 18%, var(--wa-panel));
+  color: var(--wa-green);
+  border: 1px solid color-mix(in srgb, var(--wa-green) 42%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 20%, transparent),
+    0 8px 22px -12px color-mix(in srgb, var(--wa-green) 78%, transparent);
+  animation: wa-assumir-pulse 2.4s ease-in-out infinite;
+}
+
+.wa-closedAttendance-reopenBtn--hero:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--wa-green) 24%, var(--wa-panel));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 20%, transparent),
+    0 10px 26px -10px color-mix(in srgb, var(--wa-green) 85%, transparent);
+}
+
+.wa-closedAttendance-panel .wa-messages-blocked-icon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
 }
 
 @media (max-width: 640px) {
-  .wa-closedAttendance-fill {
-    padding: 20px 16px max(24px, env(safe-area-inset-bottom, 0px));
-    align-items: stretch;
+  .wa-closedAttendance-banner {
+    padding: 0 0 8px;
   }
 
   .wa-closedAttendance-panel {
-    width: 100%;
-    max-width: none;
-    flex: 1 1 auto;
-    justify-content: center;
-    padding: 32px 22px;
-    border-radius: 0;
-    border: none;
-    box-shadow: none;
-    background: transparent;
+    padding: 14px 14px 14px;
+    border-radius: 10px;
   }
 
   .wa-closedAttendance-title {
-    font-size: 16px;
+    font-size: 15px;
+    padding-right: 40px;
   }
 
-  .wa-closedAttendance-reopenBtn {
-    min-height: 52px;
+  .wa-closedAttendance-reopenBtn,
+  .wa-closedAttendance-reopenBtn--hero {
+    min-height: 54px;
     font-size: 16px;
+    border-radius: 12px;
+    padding: 16px 18px;
   }
 }
 
@@ -9408,16 +9423,48 @@ main.main-content--crm .wa-mediaPreview-composer {
 ========================================================= */
 
 @media (max-width: 640px) {
+  /* Teclado aberto: shell acompanha visualViewport — elimina faixa branca entre composer e teclado */
+  .wa-shell.wa-keyboard-visible,
+  .wa-shell.wa-mobile-input-focused {
+    height: var(--wa-visual-height, 100dvh) !important;
+    max-height: var(--wa-visual-height, 100dvh) !important;
+    min-height: 0 !important;
+  }
+
+  .wa-shell.wa-keyboard-visible .wa-footer,
   .wa-shell.wa-mobile-input-focused .wa-footer {
-    padding-bottom: 6px !important;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--wa-keyboard-inset, 0px);
+    z-index: 36;
+    flex-shrink: 0;
+    padding: 6px 12px 4px !important;
+    padding-left: calc(12px + env(safe-area-inset-left, 0)) !important;
+    padding-right: calc(12px + env(safe-area-inset-right, 0)) !important;
+    margin: 0;
+    box-sizing: border-box;
   }
 
+  main.main-content--crm .wa-shell.wa-keyboard-visible .wa-footer,
   main.main-content--crm .wa-shell.wa-mobile-input-focused .wa-footer {
-    padding-bottom: 6px !important;
+    padding-bottom: 4px !important;
   }
 
+  .wa-shell.wa-keyboard-visible .wa-messages,
+  .wa-shell.wa-mobile-input-focused .wa-messages {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .main-content:has(.wa-shell.wa-keyboard-visible),
   .main-content:has(.wa-shell.wa-mobile-input-focused),
+  .main-content.main-content--crm:has(.wa-shell.wa-keyboard-visible),
   .main-content.main-content--crm:has(.wa-shell.wa-mobile-input-focused) {
+    padding-bottom: 0 !important;
+  }
+
+  .app-layout:has(.wa-shell.wa-keyboard-visible) .main-content,
+  .app-layout:has(.wa-shell.wa-mobile-input-focused) .main-content {
     padding-bottom: 0 !important;
   }
 

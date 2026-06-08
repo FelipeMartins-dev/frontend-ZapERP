@@ -687,6 +687,12 @@ body {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
+  /* Teclado no chat: remove safe-area extra que virava faixa branca acima do teclado */
+  .app-layout:has(.wa-shell.wa-keyboard-visible) .main-content,
+  .app-layout:has(.wa-shell.wa-mobile-input-focused) .main-content {
+    padding-bottom: 0 !important;
+  }
+
   /* Chat interno com conversa aberta: lista + busca somem; só thread + cabeçalho; barra inferior some */
   .app-layout:has(.internal-chat-root.internal-chat-root--thread-open) .sidebar {
     display: none;

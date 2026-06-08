@@ -190,11 +190,23 @@ export function useAutoScroll({
       snapThreadToBottom(container, virtualListRef);
     };
 
-    /* Mobile: um único passe — cadeias de rAF + ResizeObserver geravam congelamento ao abrir. */
+    /* Mobile: poucos passes curtos — ancora nas últimas mensagens ao abrir conversa. */
     if (mobileLike) {
-      snap();
-      const rafOnce = requestAnimationFrame(snap);
-      return () => cancelAnimationFrame(rafOnce);
+      const snapHard = () => {
+        if (!shouldStickToBottomRef.current) return;
+        snapThreadToBottom(container, virtualListRef, { min: true });
+      };
+      snapHard();
+      const rafOnce = requestAnimationFrame(snapHard);
+      const t1 = window.setTimeout(snapHard, 60);
+      const t2 = window.setTimeout(snapHard, 180);
+      const t3 = window.setTimeout(snapHard, 380);
+      return () => {
+        cancelAnimationFrame(rafOnce);
+        window.clearTimeout(t1);
+        window.clearTimeout(t2);
+        window.clearTimeout(t3);
+      };
     }
 
     const rafCap = 10;

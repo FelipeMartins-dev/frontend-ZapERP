@@ -20,7 +20,7 @@ export default function ClosedAttendancePanel({
         Este atendimento foi encerrado por {atendenteNome}.
       </strong>
       <p className="wa-closedAttendance-sub">
-        Reabra o atendimento para visualizar o histórico completo e enviar novas mensagens.
+        O histórico permanece visível abaixo. Reabra o atendimento para enviar novas mensagens.
       </p>
       <div className="wa-closedAttendance-meta" aria-label="Dados do atendimento encerrado">
         <div className="wa-closedAttendance-metaItem">
@@ -39,11 +39,11 @@ export default function ClosedAttendancePanel({
       {showReopenCta ? (
         <button
           type="button"
-          className="wa-btn wa-btn-primary wa-btn-assumir-destaque wa-closedAttendance-reopenBtn"
+          className="wa-btn wa-btn-primary wa-btn-assumir-destaque wa-closedAttendance-reopenBtn wa-closedAttendance-reopenBtn--hero"
           onClick={onReopen}
           disabled={reopenBusy}
         >
-          <RefreshCw size={18} strokeWidth={2.35} aria-hidden="true" />
+          <RefreshCw size={20} strokeWidth={2.4} aria-hidden="true" />
           <span>{reopenBusy ? "Reabrindo..." : "Reabrir atendimento"}</span>
         </button>
       ) : null}
