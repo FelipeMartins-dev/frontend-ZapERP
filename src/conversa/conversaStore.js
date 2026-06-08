@@ -361,7 +361,12 @@ function areLikelySameMessageBubble(prev, incoming) {
   if (tipoP && tipoP === tipoI && isMediaTipo(tipoP)) {
     const nomeP = String(prev.nome_arquivo || "").trim()
     const nomeI = String(incoming.nome_arquivo || "").trim()
-    if (nomeP && nomeI && nomeP === nomeI) return true
+    if (nomeP && nomeI && nomeP === nomeI) {
+      if (isAudioFamilyTipo(tipoP)) {
+        return sameMediaStrongHint(prev, incoming) || matchesClientTempCorrelation(prev, incoming)
+      }
+      return true
+    }
   }
   if (isOutgoingMediaReconcilePair(prev, incoming)) return true
   if (isOutgoingAudioReconcilePair(prev, incoming)) return true
@@ -553,6 +558,40 @@ function isLocalUploadMediaMessage(m) {
   return raw.startsWith("/uploads/")
 }
 
+function resolveClientTempId(msg) {
+  const v = msg?.client_temp_id ?? msg?.clientTempId
+  if (v == null || String(v).trim() === "") return null
+  return String(v).trim()
+}
+
+/** Correlação explícita bolha otimista ↔ confirmação HTTP/socket. */
+function matchesClientTempCorrelation(prev, incoming) {
+  const cid = resolveClientTempId(incoming) || resolveClientTempId(prev)
+  if (!cid) return false
+  if (prev?.tempId && String(prev.tempId) === cid) return true
+  if (incoming?.tempId && String(incoming.tempId) === cid) return true
+  return false
+}
+
+function pickClosestPendingMediaCandidate(candidates, msg) {
+  if (!candidates?.length) return null
+  const tsIn = toMillis(msg?.criado_em)
+  if (!Number.isFinite(tsIn)) return candidates[0]
+  let best = candidates[0]
+  let bestDist = Math.abs(toMillis(best.m?.criado_em) - tsIn)
+  for (let i = 1; i < candidates.length; i++) {
+    const c = candidates[i]
+    const ts = toMillis(c.m?.criado_em)
+    if (!Number.isFinite(ts)) continue
+    const dist = Math.abs(ts - tsIn)
+    if (dist < bestDist || (dist === bestDist && c.seq < best.seq)) {
+      best = c
+      bestDist = dist
+    }
+  }
+  return best
+}
+
 function sameMediaStrongHint(prev, incoming) {
   const prevName = mediaFileBaseName(prev)
   const incomingName = mediaFileBaseName(incoming)
@@ -577,9 +616,6 @@ function sameMediaStrongHint(prev, incoming) {
     ) {
       return true
     }
-    if (prevSize == null && incomingSize == null && prevLm == null && incomingLm == null) {
-      return true
-    }
   }
   const prevUrl = mediaUrlTail(prev)
   const incomingUrl = mediaUrlTail(incoming)
@@ -593,14 +629,6 @@ function sameMediaStrongHint(prev, incoming) {
     incomingLm != null &&
     Number.isFinite(Number(prevLm)) &&
     Number(prevLm) === Number(incomingLm)
-  ) {
-    return true
-  }
-  if (
-    prevSize != null &&
-    incomingSize != null &&
-    Number.isFinite(Number(prevSize)) &&
-    Number(prevSize) === Number(incomingSize)
   ) {
     return true
   }
@@ -624,17 +652,29 @@ function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
   }
   if (!candidates.length) return -1
 
+  const clientTempId = resolveClientTempId(msg)
+  if (clientTempId) {
+    const byClient = candidates.filter((c) => c.m?.tempId && String(c.m.tempId) === clientTempId)
+    if (byClient.length === 1) return byClient[0].i
+  }
+
   const strongOnes = candidates.filter((c) => c.strong)
   if (strongOnes.length === 1) return strongOnes[0].i
   if (strongOnes.length > 1) {
-    strongOnes.sort((a, b) => a.seq - b.seq || a.i - b.i)
-    return strongOnes[0].i
+    const closest = pickClosestPendingMediaCandidate(strongOnes, msg)
+    return closest?.i ?? -1
   }
 
   const pendingSameFamily = list.filter(
     (m) => isPendingOutgoingTemp(m) && mediaFamilyFromMsg(m) === mediaFamilyFromMsg(msg)
   )
-  if (opts.allowLoose === true && candidates.length === 1 && pendingSameFamily.length === 1) {
+  const audioFamily = mediaFamilyFromMsg(msg) === "audio"
+  if (
+    opts.allowLoose === true &&
+    !audioFamily &&
+    candidates.length === 1 &&
+    pendingSameFamily.length === 1
+  ) {
     return candidates[0].i
   }
   return -1
@@ -654,7 +694,9 @@ function isOutgoingAudioReconcilePair(prev, incoming) {
   const incPending = isPendingOutgoingTemp(incoming)
   const prevPersist = hasPersistedMessageIdentity(prev)
   const incPersist = hasPersistedMessageIdentity(incoming)
-  return (prevPending && incPersist) || (incPending && prevPersist)
+  if (!((prevPending && incPersist) || (incPending && prevPersist))) return false
+  if (matchesClientTempCorrelation(prev, incoming)) return true
+  return sameMediaStrongHint(prev, incoming)
 }
 
 function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
@@ -676,6 +718,8 @@ function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
   if (Math.abs(tsP - tsI) > recentMs) return false
 
   if (sameMediaStrongHint(prev, incoming)) return true
+  if (matchesClientTempCorrelation(prev, incoming)) return true
+  if (prevFamily === "audio") return false
   return opts.allowLoose === true
 }
 
