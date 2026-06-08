@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPin, Mic, Paperclip, SendHorizontal, Square, Trash2, User } from "lucide-react";
-import { acquireMicStream, invalidateMicStream, isMicSupported } from "../media/micStreamService";
+import { acquireMicStream, invalidateMicStream, isMicSupported, shouldShowMicPersistenceHint } from "../media/micStreamService";
 import InternalChatContactModal from "./InternalChatContactModal.jsx";
 
 /**
@@ -43,6 +43,7 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
   const [elapsedSec, setElapsedSec] = useState(0);
   const [audioPreviewFile, setAudioPreviewFile] = useState(/** @type {File | null} */ (null));
   const [audioPreviewUrl, setAudioPreviewUrl] = useState(/** @type {string | null} */ (null));
+  const [micPermissionHint, setMicPermissionHint] = useState("");
 
   const recRef = useRef(/** @type {MediaRecorder | null} */ (null));
   const chunksRef = useRef(/** @type {BlobPart[]} */ ([]));
@@ -149,6 +150,11 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
     if (disabled || audioPhase !== "idle" || !isMicSupported() || typeof MediaRecorder === "undefined") return;
     try {
       const stream = await acquireMicStream();
+      if (await shouldShowMicPersistenceHint()) {
+        setMicPermissionHint(
+          "O navegador liberou o microfone, mas não confirmou permissão permanente. Para não pedir de novo ao sair e entrar, abra o cadeado/permissões do site e marque Microfone como Permitir."
+        );
+      }
       chunksRef.current = [];
       const mr = new MediaRecorder(stream);
       recRef.current = mr;
@@ -164,6 +170,7 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
         setElapsedSec(Math.floor((Date.now() - recordStartedAtRef.current) / 1000));
       }, 250);
     } catch {
+      setMicPermissionHint("Não foi possível acessar o microfone. Verifique as permissões do site no navegador.");
       resetAudioUi({ invalidateMic: true });
     }
   }
@@ -381,6 +388,12 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
       {sendError ? (
         <div className="ic-thread-send-err ic-thread-send-err--below" role="status">
           {sendError}
+        </div>
+      ) : null}
+
+      {micPermissionHint ? (
+        <div className="ic-thread-send-err ic-thread-send-err--below" role="status">
+          {micPermissionHint}
         </div>
       ) : null}
 

@@ -707,6 +707,64 @@ function ConversaViewBody() {
     ]
   );
 
+  const scheduleArquivoSendConsistencyCheck = useCallback((targetConversaId, tempIds, opts = {}) => {
+    if (!targetConversaId) return;
+    const tempSet = new Set(
+      (Array.isArray(tempIds) ? tempIds : [tempIds])
+        .map((v) => String(v || "").trim())
+        .filter(Boolean)
+    );
+    const knownIdSet = new Set(
+      (Array.isArray(opts.knownIds) ? opts.knownIds : [opts.knownIds])
+        .map((v) => String(v ?? "").trim())
+        .filter(Boolean)
+    );
+    if (!tempSet.size && !knownIdSet.size) return;
+
+    const matchesTrackedUpload = (msg) => {
+      if (!msg) return false;
+      if (msg.tempId && tempSet.has(String(msg.tempId))) return true;
+      if (msg.id != null && knownIdSet.has(String(msg.id))) return true;
+      return false;
+    };
+    const hasPersistedIdentity = (msg) =>
+      (msg?.id != null && String(msg.id).trim() !== "") ||
+      (msg?.whatsapp_id != null && String(msg.whatsapp_id).trim() !== "");
+    const isStillPending = (msg) => {
+      const s = String(msg?.status_mensagem ?? msg?.status ?? "").toLowerCase();
+      return s === "" || s === "pending" || s === "sending" || s === "enviando";
+    };
+
+    const run = (phase) => {
+      const st = useConversaStore.getState();
+      if (String(st.selectedId) !== String(targetConversaId)) return;
+      const found = (st.mensagens || []).filter(matchesTrackedUpload);
+      const hasEveryTemp =
+        !tempSet.size ||
+        [...tempSet].every((tid) => found.some((m) => String(m?.tempId || "") === tid)) ||
+        (tempSet.size === 1 &&
+          knownIdSet.size > 0 &&
+          found.some((m) => m?.id != null && knownIdSet.has(String(m.id))));
+      const hasAnyKnownId =
+        !knownIdSet.size ||
+        found.some((m) => m?.id != null && knownIdSet.has(String(m.id)));
+      const needsPresenceRefresh =
+        found.length === 0 ||
+        !hasEveryTemp ||
+        !hasAnyKnownId ||
+        found.some((m) => !hasPersistedIdentity(m));
+      const needsStatusRefresh =
+        phase === "status" && found.some((m) => hasPersistedIdentity(m) && isStillPending(m));
+
+      if (needsPresenceRefresh || needsStatusRefresh) {
+        void st.refresh({ silent: true });
+      }
+    };
+
+    scheduleAfterInitialPaint(() => run("presence"), 700);
+    scheduleAfterInitialPaint(() => run("status"), 2600);
+  }, []);
+
   const applyOutgoingStatusOptimistic = useCallback(() => {
     if (!conversaId || isGroup) return null;
 
@@ -1195,6 +1253,12 @@ function ConversaViewBody() {
             void st.refresh({ silent: true });
           }, 400);
         }
+        const knownIds = [
+          data?.id,
+          ...(Array.isArray(data?.ids) ? data.ids : []),
+          ...(Array.isArray(data?.results) ? data.results.map((r) => r?.id) : []),
+        ];
+        scheduleArquivoSendConsistencyCheck(conversaId, [tempId], { knownIds });
       } catch (err) {
         revertOutgoingStatus?.();
         const is403 = err?.response?.status === 403;
@@ -1223,6 +1287,7 @@ function ConversaViewBody() {
       marcarMensagemTempErro,
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
+      scheduleArquivoSendConsistencyCheck,
     ]
   );
 
@@ -1307,6 +1372,15 @@ function ConversaViewBody() {
             void st.refresh({ silent: true });
           }, 400);
         }
+        const knownIds = [
+          data?.id,
+          ...(Array.isArray(data?.ids) ? data.ids : []),
+          ...(Array.isArray(data?.results) ? data.results.map((r) => r?.id) : []),
+        ];
+        const tempIdsToCheck = tempIds.filter((tid) => !failedTempIds.has(String(tid)));
+        if (tempIdsToCheck.length > 0) {
+          scheduleArquivoSendConsistencyCheck(conversaId, tempIdsToCheck, { knownIds });
+        }
 
         if (failures.length > 0) {
           const okCount = reconciliations.length;
@@ -1360,6 +1434,7 @@ function ConversaViewBody() {
       reconciliarMensagem,
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
+      scheduleArquivoSendConsistencyCheck,
     ]
   );
 

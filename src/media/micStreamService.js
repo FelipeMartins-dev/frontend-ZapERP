@@ -1,12 +1,12 @@
 /** Stream de microfone compartilhado — reutiliza o acesso entre gravações e sessões quando o navegador já concedeu permissão. */
 
 const STORAGE_MIC_GRANTED = "zaperp_mic_perm_granted_v1";
+const SESSION_MIC_PERSISTENCE_HINT_SHOWN = "zaperp_mic_persistence_hint_shown_v1";
 
 /** @type {MediaStream | null} */
 let cachedStream = null;
 /** @type {Promise<MediaStream> | null} */
 let acquirePromise = null;
-let lifecycleListenersRegistered = false;
 
 function isLiveStream(stream) {
   if (!stream) return false;
@@ -65,6 +65,18 @@ export async function queryMicPermissionState() {
   }
 }
 
+export async function shouldShowMicPersistenceHint() {
+  const perm = await queryMicPermissionState();
+  if (perm === "granted") return false;
+  try {
+    if (sessionStorage.getItem(SESSION_MIC_PERSISTENCE_HINT_SHOWN) === "1") return false;
+    sessionStorage.setItem(SESSION_MIC_PERSISTENCE_HINT_SHOWN, "1");
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
 /** Libera o stream (ex.: permissão negada). Não chamar após cada gravação. */
 export function invalidateMicStream() {
   stopCachedStream();
@@ -116,8 +128,8 @@ export async function acquireMicStream() {
 }
 
 /**
- * Reabre o microfone silenciosamente quando a permissão já foi concedida antes.
- * Evita popup ao voltar ao app após fechar o navegador.
+ * Reabre o microfone somente quando o navegador confirma permissão persistente.
+ * Não confia em localStorage para evitar popup repetido após login/logout.
  */
 export async function warmMicStreamSilently() {
   if (!isMicSupported()) return false;
@@ -129,7 +141,7 @@ export async function warmMicStreamSilently() {
     return false;
   }
 
-  if (perm !== "granted" && !hasStoredMicGrant()) {
+  if (perm !== "granted") {
     return false;
   }
 
@@ -141,50 +153,7 @@ export async function warmMicStreamSilently() {
   }
 }
 
-let warmInFlight = false;
-
-async function runWarm(reason) {
-  if (warmInFlight) return;
-  warmInFlight = true;
-  try {
-    await warmMicStreamSilently();
-  } catch {
-    /* ignore */
-  } finally {
-    warmInFlight = false;
-  }
-}
-
-function registerLifecycleListeners() {
-  if (lifecycleListenersRegistered || typeof window === "undefined") return;
-  lifecycleListenersRegistered = true;
-
-  const onResume = () => {
-    if (document.visibilityState && document.visibilityState !== "visible") return;
-    void runWarm("resume");
-  };
-
-  window.addEventListener("focus", onResume);
-  window.addEventListener("pageshow", onResume);
-  document.addEventListener("visibilitychange", onResume);
-
-  void navigator.permissions
-    ?.query?.({ name: "microphone" })
-    ?.then((perm) => {
-      perm?.addEventListener?.("change", () => {
-        if (perm.state === "granted") {
-          markMicPermissionGranted();
-          void runWarm("permission_granted");
-        } else if (perm.state === "denied") {
-          invalidateMicStream();
-        }
-      });
-    })
-    .catch(() => {});
-}
-
-/** Chamar uma vez no arranque do app (após login). */
+/** Compatibilidade: não abre microfone automaticamente no arranque do app. */
 export function initMicStreamLifecycle() {
-  registerLifecycleListeners();
-  void runWarm("init");
+  return false;
 }

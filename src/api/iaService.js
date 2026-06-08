@@ -38,3 +38,23 @@ export async function getLogs(limit = 50) {
   const { data } = await api.get('/ia/logs', { params: { limit } })
   return data || []
 }
+
+export async function getAlertaSemRespostaConfig() {
+  const { data } = await api.get('/config/alerta-sem-resposta')
+  return data || {}
+}
+
+export async function putAlertaSemRespostaConfig(payload) {
+  const { data } = await api.put('/config/alerta-sem-resposta', payload)
+  return data?.config || data || {}
+}
+
+export async function getAlertaSemRespostaEventos(params = {}) {
+  const { data } = await api.get('/config/alerta-sem-resposta/eventos', { params })
+  return data?.eventos || []
+}
+
+export async function processarAlertaSemResposta(dryRun = true) {
+  const { data } = await api.post('/config/alerta-sem-resposta/processar', { dry_run: dryRun })
+  return data
+}

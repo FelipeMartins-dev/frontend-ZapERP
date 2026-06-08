@@ -569,6 +569,8 @@ export function initSocket(token) {
   off("mensagem_oculta")
   off("status_mensagem")
   off("mensagens_lidas")
+  off("alerta_sem_resposta")
+  off("alerta_sem_resposta_evento")
   off("zapi_sync_contatos")
   off("conversa_atualizada")
   off("conversa_prefs_atualizada")
@@ -857,6 +859,51 @@ export function initSocket(token) {
     })
     updateDocumentTitleFromChats()
   })
+
+  const alertaSemRespostaDedup = new Map()
+  const ALERTA_SEM_RESPOSTA_DEDUP_MS = 8_000
+
+  function shouldSkipDuplicateAlertaSemResposta(payload, channel) {
+    const key = `${payload?.conversa_id ?? ""}:${payload?.tipo ?? ""}:${payload?.nivel ?? ""}:${channel}`
+    const now = Date.now()
+    const exp = alertaSemRespostaDedup.get(key)
+    if (exp != null && now < exp) return true
+    alertaSemRespostaDedup.set(key, now + ALERTA_SEM_RESPOSTA_DEDUP_MS)
+    return false
+  }
+
+  function handleAlertaSemResposta(payload = {}, channel = "direto") {
+    if (!payload?.conversa_id) return
+    if (shouldIgnoreByCompany(payload)) return
+
+    const myId = getCurrentUserId()
+    const atendenteId =
+      payload?.atendente_id != null && String(payload.atendente_id).trim() !== ""
+        ? String(payload.atendente_id)
+        : null
+    // Backend emite `alerta_sem_resposta` na sala do atendente e `alerta_sem_resposta_evento` na empresa.
+    if (channel === "evento" && atendenteId && myId && atendenteId === myId) return
+    if (shouldSkipDuplicateAlertaSemResposta(payload, channel)) return
+
+    const tipo = String(payload.tipo || "")
+    const isCritical = payload.nivel === "critico" || tipo === "alerta_critico"
+    const isManager = payload.nivel === "gestor" || tipo === "gestor_notificado"
+    playNotificationSound()
+    useNotificationStore.getState().showToast({
+      type: isCritical ? "warning" : "info",
+      title: isManager ? "Gestor notificado" : (isCritical ? "Alerta critico" : "Atendimento sem resposta"),
+      message: payload.mensagem || "Uma conversa esta aguardando resposta.",
+      actionLabel: "Abrir",
+      onAction: () => {
+        if (typeof window !== "undefined") {
+          window.location.href = `/atendimento?conversa=${encodeURIComponent(payload.conversa_id)}`
+        }
+      },
+    })
+  }
+
+  socket.on("alerta_sem_resposta", (payload = {}) => handleAlertaSemResposta(payload, "direto"))
+  socket.on("alerta_sem_resposta_evento", (payload = {}) => handleAlertaSemResposta(payload, "evento"))
 
   /* ===========================
      Z-API: SYNC DE CONTATOS FINALIZADO (auto)

@@ -6,7 +6,7 @@ import { canAcessarConfiguracoes } from "../auth/permissions";
 import { useNotificationStore } from "../notifications/notificationStore";
 import api from "../api/http";
 import * as iaApi from "../api/iaService";
-import { getClientes } from "../api/configService";
+import { getClientes, getUsuarios } from "../api/configService";
 import Breadcrumb from "../components/layout/Breadcrumb";
 import { SkeletonGrid } from "../components/feedback/Skeleton";
 import Switch from "../components/ui/Switch";
@@ -71,6 +71,24 @@ const DEFAULT_CONFIG = {
     incluir_nota_media: false,
     incluir_conversas_sem_resposta: true,
   },
+};
+
+const DEFAULT_ALERTA_SEM_RESPOSTA = {
+  alerta_sem_resposta_ativo: false,
+  tempo_primeiro_alerta_minutos: 2,
+  tempo_alerta_critico_minutos: 10,
+  tempo_notificar_gestor_minutos: 15,
+  notificar_por_whatsapp: false,
+  notificar_por_email: false,
+  notificar_interno: true,
+  reabrir_conversa_automaticamente: true,
+  aplicar_tag_automatica: true,
+  nome_tag_automatica: "Reaberta por falta de resposta",
+  gestor_notificado_id: null,
+  responsaveis_notificacao_ids: [],
+  telefone_gestor: "",
+  horario_comercial_ativo: false,
+  timezone: "America/Sao_Paulo",
 };
 
 function normalizeHorarioAdminAlerta(t) {
@@ -148,6 +166,7 @@ const TABS = [
   { id: "respostas", label: "Respostas automáticas" },
   { id: "ia", label: "IA (sugestões)" },
   { id: "automacoes", label: "Automações" },
+  { id: "alertas", label: "Alertas de Atendimento" },
   { id: "logs", label: "Logs do bot" },
 ];
 
@@ -385,6 +404,7 @@ export default function IA() {
             saving={saving}
           />
         )}
+        {tab === "alertas" && <SecaoAlertasAtendimento />}
         {tab === "logs" && <SecaoLogs logs={logs} onRefresh={loadLogs} />}
       </div>
     </div>
@@ -1654,6 +1674,454 @@ function SecaoChatbotTriagem({
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function normalizeAlertaSemRespostaFromApi(raw) {
+  const s = raw && typeof raw === "object" ? raw : {};
+  const num = (value, fallback) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+  };
+  const responsaveis = Array.isArray(s.responsaveis_notificacao_ids)
+    ? s.responsaveis_notificacao_ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : [];
+  const gestorId = Number(s.gestor_notificado_id);
+  return {
+    ...DEFAULT_ALERTA_SEM_RESPOSTA,
+    ...s,
+    alerta_sem_resposta_ativo: s.alerta_sem_resposta_ativo === true || s.ativo === true,
+    tempo_primeiro_alerta_minutos: num(s.tempo_primeiro_alerta_minutos, 2),
+    tempo_alerta_critico_minutos: num(s.tempo_alerta_critico_minutos, 10),
+    tempo_notificar_gestor_minutos: num(s.tempo_notificar_gestor_minutos, 15),
+    notificar_por_whatsapp: s.notificar_por_whatsapp === true,
+    notificar_por_email: false,
+    notificar_interno: s.notificar_interno !== false,
+    reabrir_conversa_automaticamente: s.reabrir_conversa_automaticamente !== false,
+    aplicar_tag_automatica: s.aplicar_tag_automatica !== false,
+    nome_tag_automatica: String(s.nome_tag_automatica || DEFAULT_ALERTA_SEM_RESPOSTA.nome_tag_automatica).trim(),
+    gestor_notificado_id: Number.isFinite(gestorId) && gestorId > 0 ? gestorId : null,
+    responsaveis_notificacao_ids: responsaveis,
+    telefone_gestor: String(s.telefone_gestor || "").trim(),
+    horario_comercial_ativo: s.horario_comercial_ativo === true,
+    timezone: String(s.timezone || DEFAULT_ALERTA_SEM_RESPOSTA.timezone).trim(),
+  };
+}
+
+function validateAlertaSemResposta(v) {
+  const first = Number(v.tempo_primeiro_alerta_minutos);
+  const critical = Number(v.tempo_alerta_critico_minutos);
+  const manager = Number(v.tempo_notificar_gestor_minutos);
+  if (!Number.isFinite(first) || first <= 0) return "Informe um tempo maior que zero para o primeiro alerta.";
+  if (!Number.isFinite(critical) || critical <= first) return "O alerta critico precisa ser maior que o primeiro alerta.";
+  if (!Number.isFinite(manager) || manager <= critical) return "A notificacao ao gestor precisa ser maior que o alerta critico.";
+  if (v.aplicar_tag_automatica && !String(v.nome_tag_automatica || "").trim()) return "Informe o nome da tag automatica.";
+  if (v.notificar_por_whatsapp && !String(v.telefone_gestor || "").trim()) {
+    return "Para WhatsApp, informe o telefone do gestor.";
+  }
+  if (!v.notificar_por_whatsapp && !v.notificar_interno) {
+    return "Selecione ao menos um canal de notificacao disponivel.";
+  }
+  return null;
+}
+
+function buildAlertaSemRespostaPayload(v) {
+  const gestorId = Number(v.gestor_notificado_id);
+  return {
+    alerta_sem_resposta_ativo: v.alerta_sem_resposta_ativo === true,
+    tempo_primeiro_alerta_minutos: Math.max(1, Math.floor(Number(v.tempo_primeiro_alerta_minutos) || 1)),
+    tempo_alerta_critico_minutos: Math.max(1, Math.floor(Number(v.tempo_alerta_critico_minutos) || 1)),
+    tempo_notificar_gestor_minutos: Math.max(1, Math.floor(Number(v.tempo_notificar_gestor_minutos) || 1)),
+    notificar_por_whatsapp: v.notificar_por_whatsapp === true,
+    notificar_por_email: false,
+    notificar_interno: v.notificar_interno !== false,
+    reabrir_conversa_automaticamente: v.reabrir_conversa_automaticamente !== false,
+    aplicar_tag_automatica: v.aplicar_tag_automatica !== false,
+    nome_tag_automatica: String(v.nome_tag_automatica || DEFAULT_ALERTA_SEM_RESPOSTA.nome_tag_automatica).trim(),
+    gestor_notificado_id: Number.isFinite(gestorId) && gestorId > 0 ? gestorId : null,
+    responsaveis_notificacao_ids: Number.isFinite(gestorId) && gestorId > 0 ? [gestorId] : [],
+    telefone_gestor: String(v.telefone_gestor || "").trim(),
+    horario_comercial_ativo: v.horario_comercial_ativo === true,
+    timezone: String(v.timezone || "America/Sao_Paulo").trim(),
+  };
+}
+
+function formatAlertaEventoTipo(tipo) {
+  const map = {
+    primeiro_alerta: "Primeiro alerta enviado",
+    alerta_critico: "Alerta critico enviado",
+    gestor_notificado: "Gestor notificado",
+    tag_aplicada: "Tag aplicada",
+    conversa_reaberta: "Conversa reaberta",
+    sla_resetado: "SLA resetado",
+    whatsapp_falha: "Falha no WhatsApp",
+    email_indisponivel: "E-mail indisponivel",
+  };
+  return map[tipo] || tipo || "Evento";
+}
+
+function SecaoAlertasAtendimento() {
+  const showToast = useNotificationStore((s) => s.showToast);
+  const [cfg, setCfg] = useState(DEFAULT_ALERTA_SEM_RESPOSTA);
+  const [logs, setLogs] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState("");
+
+  const gestores = usuarios.filter((u) => {
+    const perfil = String(u.perfil || u.role || "").toLowerCase();
+    return perfil === "admin" || perfil === "gestor" || perfil === "supervisor";
+  });
+  const responsaveis = gestores.length ? gestores : usuarios.filter((u) => String(u.perfil || "").toLowerCase() !== "atendente");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [configResp, eventosResp, usuariosResp] = await Promise.all([
+        iaApi.getAlertaSemRespostaConfig(),
+        iaApi.getAlertaSemRespostaEventos({ limit: 20 }),
+        getUsuarios().catch(() => []),
+      ]);
+      setCfg(normalizeAlertaSemRespostaFromApi(configResp));
+      setLogs(eventosResp || []);
+      setUsuarios(Array.isArray(usuariosResp) ? usuariosResp : []);
+    } catch (e) {
+      console.error("Erro ao carregar alerta sem resposta:", e);
+      setError(e?.response?.data?.error || "Nao foi possivel carregar os alertas de atendimento.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const validation = validateAlertaSemResposta(cfg);
+  const previewFirst = Number(cfg.tempo_primeiro_alerta_minutos) || 2;
+  const previewCritical = Number(cfg.tempo_alerta_critico_minutos) || 10;
+  const previewManager = Number(cfg.tempo_notificar_gestor_minutos) || 15;
+  const selectedGestor = responsaveis.find((u) => Number(u.id) === Number(cfg.gestor_notificado_id));
+
+  const handleSave = async () => {
+    const msg = validateAlertaSemResposta(cfg);
+    if (msg) {
+      setError(msg);
+      showToast({ type: "error", title: "Configuracao invalida", message: msg });
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const saved = await iaApi.putAlertaSemRespostaConfig(buildAlertaSemRespostaPayload(cfg));
+      setCfg(normalizeAlertaSemRespostaFromApi(saved));
+      showToast({ type: "success", title: "Salvo", message: "Alertas de atendimento atualizados." });
+      const eventos = await iaApi.getAlertaSemRespostaEventos({ limit: 20 }).catch(() => logs);
+      setLogs(eventos || []);
+    } catch (e) {
+      const msgErr = e?.response?.data?.error || "Nao foi possivel salvar a configuracao.";
+      setError(msgErr);
+      showToast({ type: "error", title: "Erro ao salvar", message: msgErr });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDryRun = async () => {
+    setChecking(true);
+    try {
+      const result = await iaApi.processarAlertaSemResposta(true);
+      const total = Number(result?.processadas || 0);
+      showToast({
+        type: "success",
+        title: "Simulacao concluida",
+        message: total ? `${total} conversa(s) elegiveis agora.` : "Nenhuma conversa elegivel neste momento.",
+      });
+    } catch (e) {
+      showToast({
+        type: "error",
+        title: "Falha na simulacao",
+        message: e?.response?.data?.error || "Nao foi possivel processar a simulacao.",
+      });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="sla-section">
+        <SkeletonGrid count={4} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="sla-section">
+      <div className="sla-header">
+        <div>
+          <h2 className="chatbot-title">Alertas de Atendimento</h2>
+          <p className="chatbot-subtitle">Configure escalonamento quando a ultima mensagem da conversa for do cliente.</p>
+        </div>
+        <span className={`chatbot-badge ${cfg.alerta_sem_resposta_ativo ? "chatbot-badge--on" : "chatbot-badge--off"}`}>
+          {cfg.alerta_sem_resposta_ativo ? "Ativo" : "Inativo"}
+        </span>
+      </div>
+
+      {error && (
+        <div className="sla-inline-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      <div className="sla-grid">
+        <div className="sla-main">
+          <div className="chatbot-card sla-card">
+            <div className="sla-card-head">
+              <div>
+                <h3 className="chatbot-card-title">Alerta de atendimento sem resposta</h3>
+                <p className="chatbot-card-subtitle">Evite que clientes fiquem esquecidos quando um atendente nao responde no prazo.</p>
+              </div>
+              <Switch
+                checked={cfg.alerta_sem_resposta_ativo}
+                onChange={(x) => setCfg((c) => ({ ...c, alerta_sem_resposta_ativo: x }))}
+              />
+            </div>
+            <div className="sla-note">
+              O fluxo roda somente quando esta ativo, a conversa nao esta encerrada e a ultima mensagem foi enviada pelo cliente.
+            </div>
+          </div>
+
+          <div className="chatbot-card sla-card">
+            <h3 className="chatbot-card-title">Tempos de alerta</h3>
+            <div className="sla-time-grid">
+              <div className="ia-field">
+                <label>Primeiro alerta de atencao apos</label>
+                <div className="sla-input-suffix">
+                  <input
+                    type="number"
+                    min="1"
+                    className="ia-input"
+                    value={cfg.tempo_primeiro_alerta_minutos}
+                    onChange={(e) => setCfg((c) => ({ ...c, tempo_primeiro_alerta_minutos: e.target.value }))}
+                  />
+                  <span>min</span>
+                </div>
+              </div>
+              <div className="ia-field">
+                <label>Alerta critico apos</label>
+                <div className="sla-input-suffix">
+                  <input
+                    type="number"
+                    min="1"
+                    className="ia-input"
+                    value={cfg.tempo_alerta_critico_minutos}
+                    onChange={(e) => setCfg((c) => ({ ...c, tempo_alerta_critico_minutos: e.target.value }))}
+                  />
+                  <span>min</span>
+                </div>
+              </div>
+              <div className="ia-field">
+                <label>Notificar gestor/admin apos</label>
+                <div className="sla-input-suffix">
+                  <input
+                    type="number"
+                    min="1"
+                    className="ia-input"
+                    value={cfg.tempo_notificar_gestor_minutos}
+                    onChange={(e) => setCfg((c) => ({ ...c, tempo_notificar_gestor_minutos: e.target.value }))}
+                  />
+                  <span>min</span>
+                </div>
+              </div>
+            </div>
+            {validation && <p className="sla-field-error">{validation}</p>}
+          </div>
+
+          <div className="chatbot-card sla-card">
+            <h3 className="chatbot-card-title">Acao automatica</h3>
+            <div className="sla-switch-list">
+              <label className="sla-switch-item">
+                <Switch
+                  checked={cfg.reabrir_conversa_automaticamente}
+                  onChange={(x) => setCfg((c) => ({ ...c, reabrir_conversa_automaticamente: x }))}
+                />
+                <span>
+                  <strong>Reabrir/liberar conversa automaticamente</strong>
+                  <small>Ao atingir o tempo final, outro atendente ou gestor podera assumir.</small>
+                </span>
+              </label>
+              <label className="sla-switch-item">
+                <Switch
+                  checked={cfg.aplicar_tag_automatica}
+                  onChange={(x) => setCfg((c) => ({ ...c, aplicar_tag_automatica: x }))}
+                />
+                <span>
+                  <strong>Aplicar tag automatica</strong>
+                  <small>Ajuda supervisao e filtros operacionais.</small>
+                </span>
+              </label>
+            </div>
+            <div className="ia-field" style={{ marginTop: 14 }}>
+              <label>Nome da tag automatica</label>
+              <input
+                className="ia-input"
+                value={cfg.nome_tag_automatica}
+                disabled={!cfg.aplicar_tag_automatica}
+                onChange={(e) => setCfg((c) => ({ ...c, nome_tag_automatica: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="chatbot-card sla-card">
+            <h3 className="chatbot-card-title">Notificacao do gestor</h3>
+            <div className="sla-channel-grid">
+              <label className="sla-check-card">
+                <input
+                  type="checkbox"
+                  checked={cfg.notificar_por_whatsapp}
+                  onChange={(e) => setCfg((c) => ({ ...c, notificar_por_whatsapp: e.target.checked }))}
+                />
+                <span>WhatsApp</span>
+              </label>
+              <label className="sla-check-card">
+                <input
+                  type="checkbox"
+                  checked={false}
+                  disabled
+                  onChange={() => {}}
+                />
+                <span>E-mail</span>
+              </label>
+              <label className="sla-check-card">
+                <input
+                  type="checkbox"
+                  checked={cfg.notificar_interno}
+                  onChange={(e) => setCfg((c) => ({ ...c, notificar_interno: e.target.checked }))}
+                />
+                <span>Interna</span>
+              </label>
+            </div>
+            <div className="sla-manager-grid">
+              <div className="ia-field">
+                <label>Responsavel</label>
+                <select
+                  className="ia-select"
+                  value={cfg.gestor_notificado_id || ""}
+                  onChange={(e) => setCfg((c) => ({ ...c, gestor_notificado_id: e.target.value ? Number(e.target.value) : null }))}
+                >
+                  <option value="">Admin principal / regras do sistema</option>
+                  {responsaveis.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome || u.email || `Usuario ${u.id}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="ia-field">
+                <label>Telefone WhatsApp do gestor</label>
+                <input
+                  className="ia-input"
+                  value={cfg.telefone_gestor}
+                  placeholder="Ex: 5511999999999"
+                  onChange={(e) => setCfg((c) => ({ ...c, telefone_gestor: e.target.value }))}
+                />
+              </div>
+            </div>
+            {selectedGestor && (
+              <p className="chatbot-hint">Responsavel selecionado: {selectedGestor.nome || selectedGestor.email || `Usuario ${selectedGestor.id}`}</p>
+            )}
+            <p className="chatbot-hint">E-mail fica indisponivel ate a configuracao de um provedor SMTP/transacional no servidor.</p>
+          </div>
+
+          <div className="sla-actions">
+            <button type="button" className="ia-btn ia-btn--primary" onClick={handleSave} disabled={saving || !!validation}>
+              {saving ? "Salvando..." : "Salvar configuracoes"}
+            </button>
+            <button type="button" className="ia-btn ia-btn--outline" onClick={handleDryRun} disabled={checking}>
+              {checking ? "Simulando..." : "Simular agora"}
+            </button>
+            <button type="button" className="ia-btn ia-btn--outline" onClick={load} disabled={saving || checking}>
+              Recarregar
+            </button>
+          </div>
+        </div>
+
+        <aside className="sla-side">
+          <div className="chatbot-card sla-card">
+            <h3 className="chatbot-card-title">Como funciona</h3>
+            <ol className="sla-flow">
+              <li>Cliente envia mensagem</li>
+              <li>Atendente nao responde</li>
+              <li>Apos {previewFirst} min: alerta de atencao</li>
+              <li>Apos {previewCritical} min: alerta critico</li>
+              <li>Apos {previewManager} min: gestor notificado</li>
+              <li>{cfg.reabrir_conversa_automaticamente ? "Conversa reaberta/liberada" : "Conversa permanece com o atendente"}</li>
+              <li>Tag: {cfg.aplicar_tag_automatica ? cfg.nome_tag_automatica : "desativada"}</li>
+            </ol>
+            <p className="sla-note">Se o atendente responder antes do prazo final, o contador para automaticamente.</p>
+          </div>
+
+          <div className="chatbot-card sla-card">
+            <h3 className="chatbot-card-title">Preview das mensagens</h3>
+            <div className="sla-preview-list">
+              <div className="sla-preview-message">
+                <strong>Atendente</strong>
+                <p>⚠️ Atencao: este cliente esta aguardando resposta ha {previewFirst} minutos. Responda agora para evitar escalonamento.</p>
+              </div>
+              <div className="sla-preview-message sla-preview-message--critical">
+                <strong>Critico</strong>
+                <p>🚨 Alerta critico: esta conversa esta sem resposta ha {previewCritical} minutos. Se nao houver resposta, {cfg.reabrir_conversa_automaticamente ? "o gestor sera notificado e a conversa podera ser reaberta" : "o gestor sera notificado para acompanhar a conversa"}.</p>
+              </div>
+              <div className="sla-preview-message sla-preview-message--manager">
+                <strong>Gestor</strong>
+                <p>🚨 Atendimento sem resposta no ZapERP<br />Cliente: Carlos Almeida<br />Atendente: Joao<br />Tempo sem resposta: {previewManager} minutos<br />Status: {cfg.reabrir_conversa_automaticamente ? "conversa reaberta por falta de resposta" : "gestor notificado; conversa permanece com o atendente"}<br />{cfg.reabrir_conversa_automaticamente ? "A conversa foi liberada para outro atendente ou gestor assumir." : "A conversa permanece atribuida ao atendente atual para acompanhamento do gestor."}</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div className="chatbot-card sla-card sla-logs-card">
+        <div className="chatbot-logs-header">
+          <h3 className="chatbot-card-title">Logs recentes</h3>
+          <button type="button" className="ia-btn ia-btn--outline chatbot-btn-refresh" onClick={load}>
+            Atualizar
+          </button>
+        </div>
+        {logs.length === 0 ? (
+          <p className="chatbot-empty">Nenhum alerta registrado ainda.</p>
+        ) : (
+          <div className="sla-log-table-wrap">
+            <table className="ia-table sla-log-table">
+              <thead>
+                <tr>
+                  <th>Data/hora</th>
+                  <th>Cliente</th>
+                  <th>Atendente</th>
+                  <th>Etapa</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((l) => (
+                  <tr key={l.id}>
+                    <td>{l.criado_em ? new Date(l.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                    <td>{l.detalhes?.cliente_nome || (l.conversa_id ? `Conversa #${l.conversa_id}` : "-")}</td>
+                    <td>{l.detalhes?.atendente_nome || (l.atendente_id ? `Usuario #${l.atendente_id}` : "-")}</td>
+                    <td>{formatAlertaEventoTipo(l.tipo)}</td>
+                    <td>{l.nivel || l.detalhes?.status_atendimento || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

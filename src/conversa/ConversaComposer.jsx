@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { acquireMicStream, invalidateMicStream, isMicSupported, queryMicPermissionState } from "../media/micStreamService";
+import { acquireMicStream, invalidateMicStream, isMicSupported, queryMicPermissionState, shouldShowMicPersistenceHint } from "../media/micStreamService";
 import { getSocket } from "../socket/socket";
 import { getAutocorrectEdit } from "../utils/autocorrectText";
 import {
@@ -745,6 +745,14 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
 
       const stream = await acquireMicStream();
+      if (await shouldShowMicPersistenceHint()) {
+        showToast?.({
+          type: "info",
+          title: "Permissão do microfone",
+          message:
+            "O navegador liberou o microfone, mas não confirmou permissão permanente. Para não pedir de novo ao sair e entrar, abra o cadeado/permissões do site e marque Microfone como Permitir.",
+        });
+      }
 
       const preferred = [
         "audio/ogg;codecs=opus",
