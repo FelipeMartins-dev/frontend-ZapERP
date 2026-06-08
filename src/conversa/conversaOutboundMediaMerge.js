@@ -164,7 +164,12 @@ function areLikelySameMessageBubble(prev, incoming) {
     if (nomeP && nomeI && nomeP === nomeI) {
       if (isAudioFamilyTipo(tipoP)) {
         // Para áudios, apenas nome igual NÃO é suficiente - precisamos de correlação explícita
-        return matchesClientTempCorrelation(prev, incoming) || sameMediaStrongHint(prev, incoming)
+        if (matchesClientTempCorrelation(prev, incoming)) return true
+        // Fallback: sameMediaStrongHint só aceito quando file_last_modified está presente como âncora.
+        const hasLm =
+          (prev?.file_last_modified != null && Number.isFinite(Number(prev.file_last_modified))) ||
+          (incoming?.file_last_modified != null && Number.isFinite(Number(incoming.file_last_modified)))
+        return hasLm && sameMediaStrongHint(prev, incoming)
       }
       return true
     }
@@ -176,8 +181,15 @@ function areLikelySameMessageBubble(prev, incoming) {
 
 function findMergeableMapKey(map, copy) {
   if (!map || !copy) return null
+  // Áudios com identidade persistida nunca colapsam por similaridade — cada gravação é independente.
+  const copyIsPersistedAudio =
+    isOutgoingLike(copy) &&
+    hasPersistedMessageIdentity(copy) &&
+    mediaFamilyFromMsg(copy) === "audio"
   for (const [key, prev] of map.entries()) {
     if (!prev) continue
+    // Não fundir dois áudios confirmados pelo mapa — bloqueado também em applyAnexarOneToList (crossIdx guard).
+    if (copyIsPersistedAudio && isOutgoingLike(prev) && hasPersistedMessageIdentity(prev) && mediaFamilyFromMsg(prev) === "audio") continue
     if (areLikelySameMessageBubble(prev, copy)) return key
   }
   return null
@@ -203,13 +215,14 @@ function pruneRedundantOutgoingTemps(list) {
     const ts = toMillis(m?.criado_em)
     if (!Number.isFinite(ts) || now - ts >= recentMs) return true
     
-    // Para áudios, seja mais rigoroso - só remove se tiver correlação explícita
+    // Para áudios, exige correlação client_temp_id explícita.
+    // sameMediaStrongHint sozinho pode dar falso-positivo quando dois áudios têm nome igual
+    // (ex: "audio.ogg") e tamanho parecido — removeria o otimista do áudio anterior.
     const isAudio = isAudioFamilyTipo(m.tipo)
     if (isAudio) {
       return !confirmed.some((c) => {
         if (!isAudioFamilyTipo(c.tipo)) return false
-        return matchesClientTempCorrelation(m, c) || 
-               (sameMediaStrongHint(m, c) && Math.abs(toMillis(m.criado_em) - toMillis(c.criado_em)) < 5000)
+        return matchesClientTempCorrelation(m, c)
       })
     }
     
@@ -536,6 +549,12 @@ function isOutgoingAudioReconcilePair(prev, incoming) {
   if (!((prevPending && incPersist) || (incPending && prevPersist))) return false
   const cid = resolveClientTempId(incoming) || resolveClientTempId(prev)
   if (cid) return matchesClientTempCorrelation(prev, incoming)
+  // Sem client_temp_id: exige file_last_modified como âncora de unicidade.
+  // Nome+tamanho sem last_modified é fraco demais para áudios gravados em sequência.
+  const hasLm =
+    (prev?.file_last_modified != null && Number.isFinite(Number(prev.file_last_modified))) ||
+    (incoming?.file_last_modified != null && Number.isFinite(Number(incoming.file_last_modified)))
+  if (!hasLm) return false
   return sameMediaStrongHint(prev, incoming)
 }
 
@@ -560,6 +579,11 @@ function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
   if (prevFamily === "audio") {
     const cid = resolveClientTempId(incoming) || resolveClientTempId(prev)
     if (cid) return matchesClientTempCorrelation(prev, incoming)
+    // Sem client_temp_id: exige file_last_modified — nome+tamanho sem LM é insuficiente para áudios.
+    const hasLm =
+      (prev?.file_last_modified != null && Number.isFinite(Number(prev.file_last_modified))) ||
+      (incoming?.file_last_modified != null && Number.isFinite(Number(incoming.file_last_modified)))
+    if (!hasLm) return false
     return sameMediaStrongHint(prev, incoming)
   }
 
