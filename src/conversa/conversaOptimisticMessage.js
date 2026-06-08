@@ -107,12 +107,17 @@ export function revokeOptimisticBlobFromMessage(msg) {
   }
 }
 
+function hasTrustedPersistedMediaUrl(msg) {
+  const url = String(msg?.url || msg?.url_absoluta || "").trim();
+  if (!url || url.startsWith("blob:")) return false;
+  if (url.startsWith("/uploads/") || url.includes("/uploads/")) return true;
+  if (/^https?:\/\//i.test(url)) return true;
+  return false;
+}
+
 export function cleanupOptimisticBlobFields(merged) {
   if (!merged || typeof merged !== "object") return merged;
-  const url = merged.url || merged.url_absoluta;
-  const hasServerUrl =
-    url != null && String(url).trim() !== "" && !String(url).startsWith("blob:");
-  if (!hasServerUrl) return merged;
+  if (!hasTrustedPersistedMediaUrl(merged)) return merged;
   revokeOptimisticBlobFromMessage(merged);
   if (!merged._optimisticBlobUrl) return merged;
   const next = { ...merged };
@@ -173,15 +178,16 @@ export function extractArquivoApiReconciliations(data, conversaId, tempIds = [])
         (Array.isArray(tempIds) && tempIds[idx] != null ? tempIds[idx] : null);
       if (tempId) out.push({ tempId, realMsg });
     });
-    return out;
   }
 
-  const single = normalizeArquivoApiToMessage(data, conversaId);
-  if (single) {
-    const tempId =
-      data.client_temp_id ||
-      (Array.isArray(tempIds) && tempIds[0] != null ? tempIds[0] : null);
-    if (tempId) out.push({ tempId, realMsg: single });
+  if (!out.length) {
+    const single = normalizeArquivoApiToMessage(data, conversaId);
+    if (single) {
+      const tempId =
+        data.client_temp_id ||
+        (Array.isArray(tempIds) && tempIds[0] != null ? tempIds[0] : null);
+      if (tempId) out.push({ tempId, realMsg: single });
+    }
   }
   return out;
 }

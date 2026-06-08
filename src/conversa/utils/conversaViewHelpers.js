@@ -426,6 +426,20 @@ export function getMediaUrl(url, urlAbsoluta) {
   return base.replace(/\/$/, "") + (url.startsWith("/") ? url : "/" + url);
 }
 
+/** URL exibível na bolha — preserva blob local e usa proxy para CDN externa. */
+export function resolveBubbleMediaUrl(msg) {
+  if (!msg || typeof msg !== "object") return "";
+  const blob = msg?._optimisticBlobUrl;
+  const blobOk = blob != null && String(blob).startsWith("blob:");
+  const abs = getMediaUrl(msg?.url, msg?.url_absoluta);
+  if (!abs && blobOk) return String(blob);
+  if (!abs) return "";
+  if (needsProxiedMediaPlayback(abs)) {
+    return getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) || abs;
+  }
+  return abs;
+}
+
 function getAuthTokenFromStorage() {
   try {
     const raw = localStorage.getItem("zap_erp_auth");

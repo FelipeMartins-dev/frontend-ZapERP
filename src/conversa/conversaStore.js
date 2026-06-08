@@ -407,35 +407,20 @@ function pruneRedundantOutgoingMediaEchoes(list) {
     const m = list[i]
     if (!m || !isOutgoingLike(m) || !mediaFamilyFromMsg(m)) continue
     const mid = m.id != null && String(m.id).trim() !== "" ? String(m.id) : null
-    const mwa = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== "" ? String(m.whatsapp_id) : null
+    if (!mid) continue
     for (let j = 0; j < list.length; j++) {
       if (i === j) continue
       const o = list[j]
       if (!o || !isOutgoingLike(o) || !mediaFamilyFromMsg(o)) continue
-      if (mediaFamilyFromMsg(o) !== mediaFamilyFromMsg(m)) continue
       const oid = o.id != null && String(o.id).trim() !== "" ? String(o.id) : null
-      const owa = o.whatsapp_id != null && String(o.whatsapp_id).trim() !== "" ? String(o.whatsapp_id) : null
-      if (mid && oid && mid === oid) {
-        const keepIdx = mwa && !owa ? j : i
-        const dropIdx = keepIdx === i ? j : i
-        remove.add(dropIdx)
-        break
-      }
-      if (mwa && owa && mwa === owa && mid !== oid) {
-        remove.add(i)
-        break
-      }
-      if (
-        (mid || mwa) &&
-        (oid || owa) &&
-        areLikelySameMessageBubble(m, o) &&
-        sameMediaStrongHint(m, o)
-      ) {
-        const mScore = (mwa ? 2 : 0) + (mid ? 1 : 0) + (m?.tempId ? 0 : 1)
-        const oScore = (owa ? 2 : 0) + (oid ? 1 : 0) + (o?.tempId ? 0 : 1)
-        remove.add(mScore >= oScore ? j : i)
-        break
-      }
+      if (!oid || oid !== mid) continue
+      const mLocal = isLocalUploadMediaMessage(m) && hasRenderableUrl(m)
+      const oLocal = isLocalUploadMediaMessage(o) && hasRenderableUrl(o)
+      if (mLocal && !oLocal) remove.add(j)
+      else if (oLocal && !mLocal) remove.add(i)
+      else if (m?.tempId && !o?.tempId) remove.add(i)
+      else if (o?.tempId && !m?.tempId) remove.add(j)
+      break
     }
   }
   if (!remove.size) return list
@@ -611,6 +596,14 @@ function sameMediaStrongHint(prev, incoming) {
   ) {
     return true
   }
+  if (
+    prevSize != null &&
+    incomingSize != null &&
+    Number.isFinite(Number(prevSize)) &&
+    Number(prevSize) === Number(incomingSize)
+  ) {
+    return true
+  }
   return false
 }
 
@@ -718,14 +711,43 @@ function preserveLocalMediaFields(prev, merged) {
   if (!prev) return merged
   const tipo = String(merged.tipo || prev.tipo || "").toLowerCase().trim()
   if (!isMediaTipo(tipo)) return merged
-  if (hasRenderableUrl(merged)) return merged
-  if (!hasRenderableUrl(prev)) return merged
+
   const next = { ...merged }
   if (!next.tipo || String(next.tipo).trim() === "") next.tipo = prev.tipo
-  next.url = prev.url
-  next.url_absoluta = prev.url_absoluta
-  if (prev.nome_arquivo) next.nome_arquivo = prev.nome_arquivo
-  if (prev.thumbnail_url) next.thumbnail_url = prev.thumbnail_url
+
+  const mergedHasUrl = hasRenderableUrl(merged)
+  const prevHasUrl = hasRenderableUrl(prev)
+  const prevLocal = isLocalUploadMediaMessage(prev)
+  const mergedLocal = isLocalUploadMediaMessage(merged)
+
+  // URL do CRM (/uploads/) tem prioridade sobre eco WebSocket sem mídia ou CDN externo.
+  if (prevLocal && (!mergedHasUrl || !mergedLocal)) {
+    next.url = prev.url
+    next.url_absoluta = prev.url_absoluta ?? prev.url
+  } else if (!mergedHasUrl && prevHasUrl) {
+    next.url = prev.url
+    next.url_absoluta = prev.url_absoluta ?? prev.url
+  }
+
+  if (prev.nome_arquivo && !next.nome_arquivo) next.nome_arquivo = prev.nome_arquivo
+  if (prev.thumbnail_url && !next.thumbnail_url) next.thumbnail_url = prev.thumbnail_url
+  if (prev.tamanho != null && next.tamanho == null) next.tamanho = prev.tamanho
+  if (prev.file_last_modified != null && next.file_last_modified == null) {
+    next.file_last_modified = prev.file_last_modified
+  }
+
+  const prevBlob = prev?._optimisticBlobUrl
+  if (prevBlob && String(prevBlob).startsWith("blob:")) {
+    const trustedServer = mergedLocal || prevLocal
+    if (!trustedServer || !hasRenderableUrl(next)) {
+      next._optimisticBlobUrl = prevBlob
+      if (!hasRenderableUrl(next)) {
+        next.url = prev.url || prevBlob
+        next.url_absoluta = prev.url_absoluta || prevBlob
+      }
+    }
+  }
+
   return next
 }
 
@@ -1637,7 +1659,11 @@ export const useConversaStore = create((set, get) => {
         const next = [...list]
         const mergedRec = normalizeMsgForStore({ ...realMsg, conversa_id: state.conversa?.id })
         const prevRow = list[idx]
-        const flat = preserveLocalMediaFields(prevRow, { ...prevRow, ...mergedRec })
+        let flat = preserveLocalMediaFields(prevRow, { ...prevRow, ...mergedRec })
+        if (!flat.tipo && prevRow.tipo) flat.tipo = prevRow.tipo
+        if (!hasRenderableUrl(flat) && hasRenderableUrl(prevRow)) {
+          flat = preserveLocalMediaFields(prevRow, flat)
+        }
         if (isOutgoingLike(prevRow) && isOutgoingLike(mergedRec)) {
           /* Mantém timestamp local da bolha — evita reordenar no reconcile HTTP/socket. */
           flat.criado_em = prevRow.criado_em ?? flat.criado_em

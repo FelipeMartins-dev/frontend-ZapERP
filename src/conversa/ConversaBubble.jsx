@@ -10,6 +10,7 @@ import {
   isFilenameOnlyText,
   getMediaUrl,
   getMediaPlaybackUrl,
+  resolveBubbleMediaUrl,
   formatHora,
   formatMmSs,
   formatFileSize,
@@ -671,7 +672,7 @@ const Bubble = memo(function Bubble({
 }) {
   const out = isOutgoingMessage(msg);
   const isApagadaParaTodos = !!msg?.apagada_para_todos;
-  const mediaUrl = getMediaUrl(msg?.url, msg?.url_absoluta);
+  const mediaUrl = resolveBubbleMediaUrl(msg);
   const videoPlaybackUrl =
     msg?.tipo === "video" && mediaUrl ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) : mediaUrl;
   const audioPlaybackUrl =
@@ -686,8 +687,10 @@ const Bubble = memo(function Bubble({
     return String(msg.autor_usuario_id) === String(currentUserId);
   }, [out, currentUserId, msg?.autor_usuario_id, msg?.apagada_para_todos]);
   /* Com mídia preservada no painel, ainda exibe imagem/áudio após “apagar para todos” no WhatsApp. */
-  const isImg = msg?.tipo === "imagem" && (!isApagadaParaTodos || !!mediaUrl);
-  const isSticker = msg?.tipo === "sticker" && (!isApagadaParaTodos || !!mediaUrl);
+  const isImg =
+    msg?.tipo === "imagem" && !!mediaUrl && (!isApagadaParaTodos || !!mediaUrl);
+  const isSticker =
+    msg?.tipo === "sticker" && !!mediaUrl && (!isApagadaParaTodos || !!mediaUrl);
   const isFile = msg?.tipo === "arquivo" && (!isApagadaParaTodos || !!mediaUrl);
   const isAudio = msg?.tipo === "audio" && (!isApagadaParaTodos || !!mediaUrl);
   const isVoice = msg?.tipo === "voice" && (!isApagadaParaTodos || !!mediaUrl);
