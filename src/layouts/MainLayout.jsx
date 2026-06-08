@@ -5,7 +5,6 @@ import { can, isSupervisorOrAdmin } from "../auth/permissions";
 import ZapERPLogo from "../brand/ZapERPLogo";
 import GlobalNotifications from "../notifications/GlobalNotifications";
 import PushPermissionPrompt from "../push/PushPermissionPrompt";
-import MicPermissionPrompt from "../media/MicPermissionPrompt";
 import { getOpenConversationNotificationEventName } from "../notifications/desktopNotificationService";
 import { useChatStore } from "../chats/chatsStore";
 import { useMatchMedia } from "../hooks/useMatchMedia";
@@ -92,7 +91,6 @@ export default function MainLayout() {
       </a>
       <GlobalNotifications />
       <PushPermissionPrompt />
-      <MicPermissionPrompt />
       <InternalChatGlobalSocketBridge />
       <aside className="sidebar sidebar--compact" aria-label="Menu">
         <div className="sidebar-brand-compact" title="ZapERP — Atendimento inteligente">
