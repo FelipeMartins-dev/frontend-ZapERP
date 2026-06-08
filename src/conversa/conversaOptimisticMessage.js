@@ -136,6 +136,8 @@ function buildArquivoReconcileRow(row, conversaId) {
     ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
     ...(row.whatsapp_id ? { whatsapp_id: row.whatsapp_id } : {}),
     ...(row.client_temp_id ? { client_temp_id: row.client_temp_id } : {}),
+    ...(row.tamanho != null ? { tamanho: row.tamanho } : {}),
+    ...(row.tamanho_bytes != null ? { tamanho_bytes: row.tamanho_bytes } : {}),
   };
 }
 
