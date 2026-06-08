@@ -22,9 +22,20 @@ import {
   mapDedupeKey,
   getMessageListReactKey,
   isPendingOutgoingTemp,
+  normalizeMsgForStore,
   applyAnexarOneToList,
   finalizeMensagensList,
   putMensagemInDedupeMap,
+  sortMensagensChronological,
+  preserveLocalMediaFields,
+  mergeMsgPreferringTombstone,
+  mergeStableSeq,
+  dedupeRowsByPersistedIdentity,
+  finalizeMergedMessageRow,
+  hasRenderableUrl,
+  isOutgoingLike,
+  toMillis,
+  stripTempIdWhenPersisted,
 } from "./conversaOutboundMediaMerge.js"
 
 export { stableSyntheticMessageKey, mapDedupeKey, getMessageListReactKey, isPendingOutgoingTemp }
