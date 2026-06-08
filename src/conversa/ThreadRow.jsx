@@ -49,7 +49,12 @@ function ThreadRow({
   }
 
   let zapAnimateIn = false;
-  if (!zapMsgsInitialPassRef.current && !zapSeenMsgKeysRef.current.has(messageKey)) {
+  /* Mobile: sem animação de entrada ao revelar histórico no scroll — evita travamento nas primeiras rolagens. */
+  if (
+    !mobileMessageChrome &&
+    !zapMsgsInitialPassRef.current &&
+    !zapSeenMsgKeysRef.current.has(messageKey)
+  ) {
     zapAnimateIn = true;
   }
   zapSeenMsgKeysRef.current.add(messageKey);

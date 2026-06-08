@@ -99,12 +99,13 @@ const ChatListRows = memo(function ChatListRows({
   const virtualizer = useVirtualizer({
     count: chatsFiltrados.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => (isMobileLayout ? 100 : 84),
+    /* Mobile: cards com setor/status passam de 100px — subestimar causa sobreposição na lista virtual. */
+    estimateSize: () => (isMobileLayout ? 128 : 84),
     gap: 8,
-    overscan: isMobileLayout ? 4 : 10,
+    overscan: isMobileLayout ? 6 : 10,
     scrollPaddingStart: 8,
     scrollPaddingEnd: 12,
-    /* Mobile: adia remeasure após o dedo soltar — evita layout thrash durante o arraste. */
+    /* Mobile: adia remeasure após o dedo soltar — reduz thrash sem desativar medição real. */
     isScrollingResetDelay: isMobileLayout ? 220 : 150,
     getItemKey: (index) => {
       const c = chatsFiltrados[index];
@@ -113,6 +114,11 @@ const ChatListRows = memo(function ChatListRows({
       return `chat-${String(c.id ?? index)}`;
     },
   });
+
+  useLayoutEffect(() => {
+    if (!useVirtual) return;
+    virtualizer.measure();
+  }, [chatsFiltrados, useVirtual]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -174,7 +180,7 @@ const ChatListRows = memo(function ChatListRows({
               <div
                 key={rowKey}
                 data-index={virtualRow.index}
-                ref={isMobileLayout ? undefined : virtualizer.measureElement}
+                ref={virtualizer.measureElement}
                 className="chat-list-row-virtual-slot"
                 style={{
                   position: "absolute",

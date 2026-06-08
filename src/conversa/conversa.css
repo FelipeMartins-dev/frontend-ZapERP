@@ -1199,7 +1199,39 @@
   display: block;
 }
 
-/* Assumir / Reabrir — chip compacto no mobile (não ocupar largura da barra) */
+/* Mobile: Assumir — ação principal, maior e mais visível que Transf./Encerr. */
+.wa-atendToolbar--compact .wa-atendBtn--assumir-hero {
+  flex: 1 1 auto;
+  min-width: 88px;
+  max-width: 100%;
+  min-height: 42px !important;
+  height: 42px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  line-height: 1.15 !important;
+  gap: 6px !important;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 6px 18px -10px color-mix(in srgb, var(--ds-accent) 72%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--long {
+  display: inline;
+}
+.wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--short {
+  display: none;
+}
+.wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendBtn-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+.wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-assumir-destaque {
+  animation: wa-assumir-pulse 2.4s ease-in-out infinite;
+}
+
+/* Reabrir — chip compacto no mobile */
 .wa-atendToolbar--compact .wa-atendBtn--micro {
   flex: 0 0 auto;
   width: auto;
@@ -1579,7 +1611,11 @@
   }
 
   .wa-messages.is-scrolling {
-    will-change: scroll-position;
+    will-change: auto;
+  }
+
+  .wa-messages-virtual-root > div {
+    contain: layout style;
   }
 }
 
@@ -2618,8 +2654,7 @@
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-primary,
-  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary,
-  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-assumir-destaque {
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary {
     min-height: 28px !important;
     height: 28px !important;
     padding: 0 7px !important;
@@ -2627,6 +2662,24 @@
     border-radius: 7px !important;
     flex: 0 0 auto;
     width: auto;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero {
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+    flex: 1 1 auto;
+    min-width: 88px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--long {
+    display: inline;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--short {
+    display: none;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendLabel--long {
@@ -9911,8 +9964,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-primary,
-  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary,
-  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-assumir-destaque {
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary {
     min-height: 28px !important;
     height: 28px !important;
     padding: 0 7px !important;
@@ -9922,6 +9974,31 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 0 0 auto;
     width: auto;
     max-width: none;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-primary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-assumir-destaque {
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    flex: 1 1 auto;
+    min-width: 88px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--long {
+    display: inline !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--short {
+    display: none !important;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendBtn-icon svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 
   .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn-icon svg {
@@ -10074,8 +10151,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-primary,
-  .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary,
-  .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-assumir-destaque {
+  .wa-atendToolbar--compact .wa-atendBtn--micro.wa-btn-secondary {
     min-height: 28px !important;
     height: 28px !important;
     padding: 0 7px !important;
@@ -10086,6 +10162,31 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 0 0 auto;
     width: auto;
     max-width: none;
+  }
+
+  .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-primary,
+  .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-assumir-destaque {
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    flex: 1 1 auto;
+    min-width: 88px;
+  }
+
+  .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--long {
+    display: inline !important;
+  }
+
+  .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendLabel--short {
+    display: none !important;
+  }
+
+  .wa-atendToolbar--compact .wa-atendBtn--assumir-hero .wa-atendBtn-icon svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 
   .wa-atendToolbar--compact .wa-atendBtn-icon svg {

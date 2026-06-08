@@ -7,21 +7,23 @@ import { getMessageListReactKey } from "./conversaStore";
  * O scroll fica no elemento pai (.wa-messages).
  */
 export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVirtualList(
-  { items, scrollRef, overscan = 12, renderItem, onVirtualContentResize, conversaId },
+  { items, scrollRef, overscan = 12, mobileThread = false, renderItem, onVirtualContentResize, conversaId },
   ref
 ) {
   const innerRootRef = useRef(null);
   const isScrollingRef = useRef(false);
   const resizeAfterScrollRef = useRef(false);
+  const resizeThrottleRef = useRef(0);
   const count = Array.isArray(items) ? items.length : 0;
 
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => scrollRef?.current ?? null,
-    estimateSize: () => 96,
+    estimateSize: () => (mobileThread ? 112 : 96),
     overscan,
     scrollPaddingStart: 12,
     scrollPaddingEnd: 16,
+    isScrollingResetDelay: mobileThread ? 280 : 150,
     getItemKey: (index) => {
       const item = items[index];
       if (!item) return `row-${index}`;
@@ -69,7 +71,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
         isScrollingRef.current = false;
         scrollEl.classList.remove("is-scrolling");
         flushResizeAfterScroll();
-      }, 150);
+      }, mobileThread ? 220 : 150);
     };
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
     return () => {
@@ -77,7 +79,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
       window.clearTimeout(scrollEndTimer);
       scrollEl.classList.remove("is-scrolling");
     };
-  }, [scrollRef, onVirtualContentResize]);
+  }, [scrollRef, onVirtualContentResize, mobileThread]);
 
   const prevCountRef = useRef(0);
   useLayoutEffect(() => {
@@ -106,6 +108,11 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
         resizeAfterScrollRef.current = true;
         return;
       }
+      if (mobileThread) {
+        const now = Date.now();
+        if (now - resizeThrottleRef.current < 120) return;
+        resizeThrottleRef.current = now;
+      }
       if (rafOuter || rafInner) return;
       rafOuter = requestAnimationFrame(() => {
         rafOuter = 0;
@@ -123,7 +130,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
       if (rafOuter) cancelAnimationFrame(rafOuter);
       if (rafInner) cancelAnimationFrame(rafInner);
     };
-  }, [onVirtualContentResize, count]);
+  }, [onVirtualContentResize, count, mobileThread]);
 
   if (count === 0) return null;
 

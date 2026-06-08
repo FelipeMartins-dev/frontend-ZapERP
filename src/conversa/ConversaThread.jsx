@@ -334,7 +334,8 @@ export default function ConversaThread({
         key={`wa-thread-${String(threadConversaId ?? "")}`}
         ref={virtualThreadRef}
         scrollRef={messagesContainerRef}
-        overscan={headerCompact ? 12 : 16}
+        overscan={headerCompact ? 5 : 16}
+        mobileThread={headerCompact}
         conversaId={threadConversaId}
         items={mensagensComSeparadores}
         onVirtualContentResize={onVirtualContentResize}

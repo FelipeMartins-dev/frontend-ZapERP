@@ -1002,6 +1002,8 @@ a { color: inherit; text-decoration: none; }
   box-sizing: border-box;
   contain: layout style;
   backface-visibility: hidden;
+  overflow: visible;
+  min-height: 72px;
 }
 
 .chat-list-row-virtual-slot .chat-list-row {
