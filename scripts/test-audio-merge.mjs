@@ -179,24 +179,48 @@ assert(countAudios(list) === 1, `socket sem client_temp_id deve fundir, obteve $
 assert(String(list[0].id) === "951", "bolha reconciliada deve ter id do servidor");
 assert(list[0].tempId === "temp-s1", "bolha reconciliada deve manter tempId da UI");
 
-// 11) Dois áudios rápidos: socket sem client_temp_id funde no pendente mais próximo
-list = [
-  audioTemp("temp-r1", "audio-r1.webm", 1000, 0),
-  audioTemp("temp-r2", "audio-r2.webm", 2000, 100),
-];
+// 11) Com um único otimista pendente, socket sem client_temp_id ainda funde no bolha certa
+list = [audioTemp("temp-r1", "audio-r1.webm", 1000, 0)];
+list = mergeMessageIntoListForTest(
+  list,
+  CONV,
+  audioConfirmed(961, "temp-r1", "audio-r1.mp3", 1000, 0)
+);
+list = mergeMessageIntoListForTest(list, CONV, audioTemp("temp-r2", "audio-r2.webm", 2000, 100));
 list = mergeMessageIntoListForTest(list, CONV, {
-  id: 961,
+  id: 962,
   conversa_id: CONV,
   direcao: "out",
   tipo: "voice",
-  nome_arquivo: "961.ogg",
+  nome_arquivo: "962.ogg",
   tamanho: 2000,
-  criado_em: list[1].criado_em,
-  url: "/uploads/961.ogg",
+  criado_em: list.find((m) => m.tempId === "temp-r2").criado_em,
+  url: "/uploads/962.ogg",
 });
 assert(countAudios(list) === 2, `dois áudios após confirmar o 2º, obteve ${countAudios(list)}`);
-const r2 = list.find((m) => String(m.id) === "961");
+assert(String(list.find((m) => m.tempId === "temp-r1")?.id) === "961", "1º áudio confirmado intacto");
+const r2 = list.find((m) => String(m.id) === "962");
 assert(r2?.tempId === "temp-r2", "2º áudio deve reconciliar no temp-r2");
-assert(list.some((m) => m.tempId === "temp-r1" && !m.id), "1º áudio ainda pendente");
 
-console.log("OK — regressão de merge de áudios passou (11 cenários).");
+// 12) Dois pendentes: confirmação do 1º sem client_temp_id NÃO pode fundir no 2º pendente
+list = [
+  audioTemp("temp-w1", "audio-w1.webm", 1000, 0),
+  audioTemp("temp-w2", "audio-w2.webm", 2000, 100),
+];
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 971,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "voice",
+  nome_arquivo: "971.ogg",
+  tamanho: 1000,
+  criado_em: list[0].criado_em,
+  url: "/uploads/971.ogg",
+});
+const w1 = list.find((m) => m.tempId === "temp-w1");
+const w2 = list.find((m) => m.tempId === "temp-w2");
+assert(w1 && !w1.id, "1º otimista não deve receber id via merge errado no 2º");
+assert(w2 && !w2.id, "2º otimista deve permanecer intacto");
+assert(countAudios(list) >= 2, "nenhum áudio deve sumir da lista");
+
+console.log("OK — regressão de merge de áudios passou (12 cenários).");

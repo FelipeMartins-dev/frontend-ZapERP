@@ -560,7 +560,12 @@ function findClosestPendingOutgoingAudioIndex(list, msg, recentMs = 90_000) {
   }
   if (!pending.length) return -1
   if (pending.length === 1) return pending[0].i
-  return pickClosestPendingMediaCandidate(pending, msg)?.i ?? -1
+
+  // Vários otimistas ao mesmo tempo: não adivinhar pelo relógio (confundia 1º e 2º áudio).
+  const withHint = pending.filter((p) => sameMediaStrongHint(p.m, msg))
+  if (withHint.length === 1) return withHint[0].i
+  if (withHint.length > 1) return pickClosestPendingMediaCandidate(withHint, msg)?.i ?? -1
+  return -1
 }
 
 /** Índice do otimista de mídia mais adequado para fundir com confirmação (FIFO + hint forte). */
@@ -594,12 +599,8 @@ function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
       const closest = pickClosestPendingMediaCandidate(byClient, msg)
       return closest?.i ?? -1
     }
-    // Não encontrou por client_temp_id - para áudios, tenta o pendente mais próximo no tempo
-    if (mediaFamilyFromMsg(msg) === "audio") {
-      const looseIdx = findClosestPendingOutgoingAudioIndex(list, msg)
-      if (looseIdx >= 0) return looseIdx
-      return -1
-    }
+    // client_temp_id presente mas sem bolha correspondente — não fundir em outro áudio pendente
+    return -1
   }
 
   const strongOnes = candidates.filter((c) => c.strong)
@@ -1015,7 +1016,7 @@ function applyAnexarOneToList(list, convId, msg) {
       const incPersist = hasPersistedMessageIdentity(candNew)
       if (prevPersist && incPersist) return false
       if (prevPersist || incPersist) return isOutgoingAudioReconcilePair(m, candNew)
-      return true
+      return false
     })
 
   const crossIdx =
