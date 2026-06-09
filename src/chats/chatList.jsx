@@ -25,7 +25,6 @@ import {
 } from "../utils/conversaUtils";
 import api from "../api/http";
 import { useNavigate, useLocation } from "react-router-dom";
-import ZapERPLogo from "../brand/ZapERPLogo";
 import { useNotificationStore } from "../notifications/notificationStore";
 import ConfirmDialog from "../components/feedback/ConfirmDialog";
 import "../components/feedback/empty-state.css";
@@ -1820,9 +1819,13 @@ export default function ChatList() {
           <span className="chat-list-zapi-alert__icon" aria-hidden>⚠️</span>
           <span>
             WhatsApp desconectado — mensagens não serão entregues.{" "}
-            <a href="/configuracoes" className="chat-list-zapi-alert__link">
+            <button
+              type="button"
+              className="chat-list-zapi-alert__link"
+              onClick={() => navigate("/configuracoes")}
+            >
               Reconectar
-            </a>
+            </button>
           </span>
         </div>
       )}
