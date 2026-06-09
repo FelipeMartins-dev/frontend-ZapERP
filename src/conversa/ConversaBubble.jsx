@@ -11,6 +11,7 @@ import {
   getMediaUrl,
   getMediaPlaybackUrl,
   resolveBubbleMediaCandidates,
+  resolveAudioPlaybackCandidates,
   formatHora,
   formatMmSs,
   formatFileSize,
@@ -407,7 +408,19 @@ function LocationBubbleContent({ msg, selectMode, isGroup, out }) {
   );
 }
 
-function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sentAtLabel }) {
+function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDuration, sentAtLabel }) {
+  const sourceList = useMemo(() => {
+    const list = Array.isArray(candidates) && candidates.length ? candidates : src ? [src] : [];
+    const seen = new Set();
+    return list.filter((u) => {
+      const s = String(u || "").trim();
+      if (!s || seen.has(s)) return false;
+      seen.add(s);
+      return true;
+    });
+  }, [candidates, src]);
+  const [sourceIdx, setSourceIdx] = useState(0);
+  const activeSrc = sourceList[sourceIdx] || "";
   const audioRef = useRef(null);
   const waveMeasureRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -417,6 +430,13 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sent
   const [waveBarCount, setWaveBarCount] = useState(34);
   const rafRef = useRef(null);
   const rafLastRef = useRef(0);
+
+  useEffect(() => {
+    setSourceIdx(0);
+    setPlaying(false);
+    setCur(0);
+    setDur(0);
+  }, [sourceList.join("\u0001")]);
 
   useLayoutEffect(() => {
     const el = waveMeasureRef.current;
@@ -444,13 +464,13 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sent
       ro.disconnect();
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [src]);
+  }, [activeSrc]);
 
   const bars = useMemo(() => makeWaveBars(waveBarCount, seedFromAny(msgKey)), [msgKey, waveBarCount]);
 
   useEffect(() => {
     setPlaybackRate(1);
-  }, [src]);
+  }, [activeSrc]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -460,7 +480,7 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sent
     } catch {
       /* ignore */
     }
-  }, [playbackRate, src]);
+  }, [playbackRate, activeSrc]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -492,20 +512,26 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sent
       }
     };
     const onPause = () => setPlaying(false);
+    const onError = () => {
+      setPlaying(false);
+      setSourceIdx((curIdx) => (curIdx + 1 < sourceList.length ? curIdx + 1 : curIdx));
+    };
 
     el.addEventListener("loadedmetadata", onLoaded);
     el.addEventListener("seeked", onSeeked);
     el.addEventListener("ended", onEnded);
     el.addEventListener("play", onPlay);
     el.addEventListener("pause", onPause);
+    el.addEventListener("error", onError);
     return () => {
       el.removeEventListener("loadedmetadata", onLoaded);
       el.removeEventListener("seeked", onSeeked);
       el.removeEventListener("ended", onEnded);
       el.removeEventListener("play", onPlay);
       el.removeEventListener("pause", onPause);
+      el.removeEventListener("error", onError);
     };
-  }, [src, playbackRate]);
+  }, [activeSrc, playbackRate, sourceList.length]);
 
   // Progresso mais fluido (rAF com throttle leve) enquanto toca
   useEffect(() => {
@@ -548,9 +574,11 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sent
         el.pause();
       }
     } catch {
-      // ignore
+      if (sourceIdx + 1 < sourceList.length) {
+        setSourceIdx((curIdx) => curIdx + 1);
+      }
     }
-  }, [playbackRate]);
+  }, [playbackRate, sourceIdx, sourceList.length]);
 
   const seek = useCallback((e) => {
     const el = audioRef.current;
@@ -664,7 +692,7 @@ function AudioWavePlayer({ src, msgKey, avatarUrl, avatarLabel, onDuration, sent
           />
         </span>
       ) : null}
-      <audio ref={audioRef} src={src} preload="metadata" className="wa-audioElHidden" />
+      <audio ref={audioRef} src={activeSrc || undefined} preload="metadata" className="wa-audioElHidden" />
     </div>
   );
 }
@@ -714,12 +742,12 @@ const Bubble = memo(function Bubble({
     [msg?._optimisticBlobUrl, msg?.url, msg?.url_absoluta]
   );
   const mediaUrl = mediaCandidates[0] || "";
+  const audioPlaybackCandidates = useMemo(
+    () => resolveAudioPlaybackCandidates(msg),
+    [msg?._optimisticBlobUrl, msg?.url, msg?.url_absoluta, msg?.tipo]
+  );
   const videoPlaybackUrl =
     msg?.tipo === "video" && mediaUrl ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) : mediaUrl;
-  const audioPlaybackUrl =
-    (msg?.tipo === "audio" || msg?.tipo === "voice") && mediaUrl
-      ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta)
-      : mediaUrl;
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
     if (msg?.apagada_para_todos) return false;
@@ -1315,8 +1343,8 @@ const Bubble = memo(function Bubble({
             <div className="wa-bubble-audioStack">
               <div className="wa-bubble-audioWrap">
                 <AudioWavePlayer
-                  src={audioPlaybackUrl || mediaUrl}
-                  msgKey={msg?.whatsapp_id || msg?.id || audioPlaybackUrl || mediaUrl}
+                  candidates={audioPlaybackCandidates}
+                  msgKey={msg?.whatsapp_id || msg?.id || msg?.tempId || audioPlaybackCandidates[0] || mediaUrl}
                   avatarUrl={!out ? peerAvatarUrl : null}
                   avatarLabel={!out ? peerName : null}
                   sentAtLabel={formatHora(msg?.criado_em)}

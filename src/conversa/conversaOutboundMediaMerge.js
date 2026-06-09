@@ -764,8 +764,19 @@ function preserveLocalMediaFields(prev, merged) {
   }
 
   const prevBlob = prev?._optimisticBlobUrl
-  if (prevBlob && String(prevBlob).startsWith("blob:")) {
-    next._optimisticBlobUrl = prevBlob
+  const prevBlobUrl =
+    prevBlob && String(prevBlob).startsWith("blob:")
+      ? prevBlob
+      : String(prev?.url || "").startsWith("blob:")
+        ? prev.url
+        : null
+  if (prevBlobUrl) {
+    next._optimisticBlobUrl = prevBlobUrl
+    // Mantém áudio ouvível no blob até haver /uploads confiável no servidor (evita URL de produção quebrada em dev).
+    if (!isLocalUploadMediaMessage(merged) || !mergedHasUrl) {
+      next.url = prevBlobUrl
+      next.url_absoluta = prevBlobUrl
+    }
   }
 
   return next

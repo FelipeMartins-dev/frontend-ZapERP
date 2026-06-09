@@ -132,7 +132,10 @@ function buildArquivoReconcileRow(row, conversaId) {
     status: row.status ?? row.status_mensagem ?? "pending",
     status_mensagem: row.status_mensagem ?? row.status ?? "pending",
     ...(row.tipo ? { tipo: row.tipo } : {}),
-    ...(row.url ? { url: row.url, url_absoluta: row.url_absoluta ?? row.url } : {}),
+    ...(row.url ? { url: row.url } : {}),
+    ...(row.url_absoluta && /^https?:\/\//i.test(String(row.url_absoluta))
+      ? { url_absoluta: row.url_absoluta }
+      : {}),
     ...(row.nome_arquivo ? { nome_arquivo: row.nome_arquivo } : {}),
     ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
     ...(row.whatsapp_id ? { whatsapp_id: row.whatsapp_id } : {}),

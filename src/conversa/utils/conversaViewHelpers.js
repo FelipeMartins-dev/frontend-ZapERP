@@ -417,13 +417,45 @@ export function mensagemArquivoBloqueadoWhatsApp(file) {
   );
 }
 
+function getApiOrigin() {
+  try {
+    const base = getApiBaseUrl().replace(/\/$/, "");
+    return new URL(base.startsWith("http") ? base : `https://${base}`).origin;
+  } catch {
+    return "";
+  }
+}
+
+/** Normaliza path relativo, blob ou URL absoluta para reprodução no host da API atual. */
+export function resolveMediaUrlForPlayback(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  if (s.startsWith("blob:")) return s;
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      // Mensagem gravada com APP_URL de produção mas frontend apontando p/ API local (dev).
+      if (u.pathname.startsWith("/uploads/")) {
+        const apiOrigin = getApiOrigin();
+        if (apiOrigin && u.origin !== apiOrigin) {
+          return `${apiOrigin}${u.pathname}${u.search}${u.hash}`;
+        }
+      }
+    } catch {
+      /* mantém s */
+    }
+    return s;
+  }
+  const base = getApiBaseUrl().replace(/\/$/, "");
+  return `${base}${s.startsWith("/") ? s : `/${s}`}`;
+}
+
 export function getMediaUrl(url, urlAbsoluta) {
-  if (urlAbsoluta) return urlAbsoluta;
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("blob:")) return url;
-  const base = getApiBaseUrl();
-  return base.replace(/\/$/, "") + (url.startsWith("/") ? url : "/" + url);
+  const absRaw = urlAbsoluta != null && String(urlAbsoluta).trim() !== "" ? String(urlAbsoluta).trim() : "";
+  if (absRaw) return resolveMediaUrlForPlayback(absRaw);
+  const urlRaw = url != null && String(url).trim() !== "" ? String(url).trim() : "";
+  if (urlRaw) return resolveMediaUrlForPlayback(urlRaw);
+  return "";
 }
 
 /** URLs candidatas para exibir mídia na bolha (blob local primeiro, depois servidor/proxy). */
@@ -458,6 +490,33 @@ export function resolveBubbleMediaCandidates(msg) {
 export function resolveBubbleMediaUrl(msg) {
   const candidates = resolveBubbleMediaCandidates(msg);
   return candidates[0] || "";
+}
+
+/** Candidatos de áudio prontos para `<audio>` — blob local primeiro, depois /uploads da API atual, depois proxy. */
+export function resolveAudioPlaybackCandidates(msg) {
+  if (!msg || typeof msg !== "object") return [];
+  const out = [];
+  const seen = new Set();
+  const push = (u) => {
+    const s = String(u || "").trim();
+    if (!s || seen.has(s)) return;
+    seen.add(s);
+    out.push(s);
+  };
+
+  for (const raw of resolveBubbleMediaCandidates(msg)) {
+    if (String(raw).startsWith("blob:")) {
+      push(raw);
+      continue;
+    }
+    const resolved = resolveMediaUrlForPlayback(raw);
+    if (!resolved) continue;
+    if (needsProxiedMediaPlayback(resolved)) {
+      push(getMediaPlaybackUrl(raw, raw) || resolved);
+    }
+    push(resolved);
+  }
+  return out;
 }
 
 function getAuthTokenFromStorage() {

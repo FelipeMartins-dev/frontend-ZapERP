@@ -12,6 +12,10 @@ export default defineConfig({
         target: LOCAL_BACKEND,
         changeOrigin: true,
       },
+      '/media': {
+        target: LOCAL_BACKEND,
+        changeOrigin: true,
+      },
     },
   },
   build: {
