@@ -39,53 +39,92 @@ export async function getLogs(limit = 50) {
   return data || []
 }
 
+const ALERTA_SEM_RESPOSTA_UNAVAILABLE_KEY = 'zap_erp_alerta_sem_resposta_unavailable'
+
 function isAlertaSemRespostaUnavailable(err) {
   return err?.response?.status === 404
 }
 
+function markAlertaSemRespostaUnavailable() {
+  try {
+    sessionStorage.setItem(ALERTA_SEM_RESPOSTA_UNAVAILABLE_KEY, '1')
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function isAlertaSemRespostaMarkedUnavailable() {
+  try {
+    return sessionStorage.getItem(ALERTA_SEM_RESPOSTA_UNAVAILABLE_KEY) === '1'
+  } catch (_) {
+    return false
+  }
+}
+
+function throwAlertaSemRespostaUnavailable() {
+  const e = new Error('Recurso de alertas de atendimento indisponivel no servidor.')
+  e.code = 'ALERTA_SEM_RESPOSTA_UNAVAILABLE'
+  throw e
+}
+
+/** Evita chamadas repetidas quando o backend ainda nao publicou as rotas /config/alerta-sem-resposta. */
+export function isAlertaSemRespostaApiEnabled() {
+  const raw = String(import.meta.env.VITE_ALERTA_SEM_RESPOSTA_ENABLED ?? '').trim().toLowerCase()
+  if (raw === '0' || raw === 'false' || raw === 'off') return false
+  return !isAlertaSemRespostaMarkedUnavailable()
+}
+
 export async function getAlertaSemRespostaConfig() {
+  if (!isAlertaSemRespostaApiEnabled()) return null
   try {
     const { data } = await api.get('/config/alerta-sem-resposta', { silent: true })
     return data || {}
   } catch (err) {
-    if (isAlertaSemRespostaUnavailable(err)) return null
+    if (isAlertaSemRespostaUnavailable(err)) {
+      markAlertaSemRespostaUnavailable()
+      return null
+    }
     throw err
   }
 }
 
 export async function putAlertaSemRespostaConfig(payload) {
+  if (!isAlertaSemRespostaApiEnabled()) throwAlertaSemRespostaUnavailable()
   try {
     const { data } = await api.put('/config/alerta-sem-resposta', payload, { silent: true })
     return data?.config || data || {}
   } catch (err) {
     if (isAlertaSemRespostaUnavailable(err)) {
-      const e = new Error('Recurso de alertas de atendimento indisponivel no servidor.')
-      e.code = 'ALERTA_SEM_RESPOSTA_UNAVAILABLE'
-      throw e
+      markAlertaSemRespostaUnavailable()
+      throwAlertaSemRespostaUnavailable()
     }
     throw err
   }
 }
 
 export async function getAlertaSemRespostaEventos(params = {}) {
+  if (!isAlertaSemRespostaApiEnabled()) return []
   try {
     const { data } = await api.get('/config/alerta-sem-resposta/eventos', { params, silent: true })
     return data?.eventos || []
   } catch (err) {
-    if (isAlertaSemRespostaUnavailable(err)) return []
+    if (isAlertaSemRespostaUnavailable(err)) {
+      markAlertaSemRespostaUnavailable()
+      return []
+    }
     throw err
   }
 }
 
 export async function processarAlertaSemResposta(dryRun = true) {
+  if (!isAlertaSemRespostaApiEnabled()) throwAlertaSemRespostaUnavailable()
   try {
     const { data } = await api.post('/config/alerta-sem-resposta/processar', { dry_run: dryRun }, { silent: true })
     return data
   } catch (err) {
     if (isAlertaSemRespostaUnavailable(err)) {
-      const e = new Error('Recurso de alertas de atendimento indisponivel no servidor.')
-      e.code = 'ALERTA_SEM_RESPOSTA_UNAVAILABLE'
-      throw e
+      markAlertaSemRespostaUnavailable()
+      throwAlertaSemRespostaUnavailable()
     }
     throw err
   }

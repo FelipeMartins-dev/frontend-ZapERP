@@ -1773,6 +1773,9 @@ function SecaoAlertasAtendimento() {
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
+  const [featureUnavailable, setFeatureUnavailable] = useState(
+    () => !iaApi.isAlertaSemRespostaApiEnabled()
+  );
 
   const gestores = usuarios.filter((u) => {
     const perfil = String(u.perfil || u.role || "").toLowerCase();
@@ -1784,22 +1787,34 @@ function SecaoAlertasAtendimento() {
     setLoading(true);
     setError("");
     try {
-      const [configResp, eventosResp, usuariosResp] = await Promise.all([
-        iaApi.getAlertaSemRespostaConfig(),
-        iaApi.getAlertaSemRespostaEventos({ limit: 20 }),
-        getUsuarios().catch(() => []),
-      ]);
-      if (configResp == null) {
+      const usuariosResp = await getUsuarios().catch(() => []);
+      setUsuarios(Array.isArray(usuariosResp) ? usuariosResp : []);
+
+      if (!iaApi.isAlertaSemRespostaApiEnabled()) {
+        setFeatureUnavailable(true);
         setCfg(DEFAULT_ALERTA_SEM_RESPOSTA);
         setLogs([]);
         setError(
           "Os alertas de atendimento ainda nao estao disponiveis neste servidor. Atualize o backend ou contate o suporte."
         );
-      } else {
-        setCfg(normalizeAlertaSemRespostaFromApi(configResp));
-        setLogs(Array.isArray(eventosResp) ? eventosResp : []);
+        return;
       }
-      setUsuarios(Array.isArray(usuariosResp) ? usuariosResp : []);
+
+      const configResp = await iaApi.getAlertaSemRespostaConfig();
+      if (configResp == null) {
+        setFeatureUnavailable(true);
+        setCfg(DEFAULT_ALERTA_SEM_RESPOSTA);
+        setLogs([]);
+        setError(
+          "Os alertas de atendimento ainda nao estao disponiveis neste servidor. Atualize o backend ou contate o suporte."
+        );
+        return;
+      }
+
+      setFeatureUnavailable(false);
+      setCfg(normalizeAlertaSemRespostaFromApi(configResp));
+      const eventosResp = await iaApi.getAlertaSemRespostaEventos({ limit: 20 });
+      setLogs(Array.isArray(eventosResp) ? eventosResp : []);
     } catch (e) {
       if (import.meta.env.DEV) console.warn("Erro ao carregar alerta sem resposta:", e);
       setError(e?.response?.data?.error || "Nao foi possivel carregar os alertas de atendimento.");
@@ -2056,10 +2071,20 @@ function SecaoAlertasAtendimento() {
           </div>
 
           <div className="sla-actions">
-            <button type="button" className="ia-btn ia-btn--primary" onClick={handleSave} disabled={saving || !!validation}>
+            <button
+              type="button"
+              className="ia-btn ia-btn--primary"
+              onClick={handleSave}
+              disabled={featureUnavailable || saving || !!validation}
+            >
               {saving ? "Salvando..." : "Salvar configuracoes"}
             </button>
-            <button type="button" className="ia-btn ia-btn--outline" onClick={handleDryRun} disabled={checking}>
+            <button
+              type="button"
+              className="ia-btn ia-btn--outline"
+              onClick={handleDryRun}
+              disabled={featureUnavailable || checking}
+            >
               {checking ? "Simulando..." : "Simular agora"}
             </button>
             <button type="button" className="ia-btn ia-btn--outline" onClick={load} disabled={saving || checking}>
