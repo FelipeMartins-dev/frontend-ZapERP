@@ -85,6 +85,8 @@ const DEFAULT_ALERTA_SEM_RESPOSTA = {
   aplicar_tag_automatica: true,
   nome_tag_automatica: "Reaberta por falta de resposta",
   gestor_notificado_id: null,
+  gestor_cliente_id: null,
+  gestor_cliente_nome: "",
   responsaveis_notificacao_ids: [],
   telefone_gestor: "",
   horario_comercial_ativo: false,
@@ -1691,6 +1693,7 @@ function normalizeAlertaSemRespostaFromApi(raw) {
     ? s.responsaveis_notificacao_ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
     : [];
   const gestorId = Number(s.gestor_notificado_id);
+  const gestorClienteId = Number(s.gestor_cliente_id);
   return {
     ...DEFAULT_ALERTA_SEM_RESPOSTA,
     ...s,
@@ -1705,6 +1708,8 @@ function normalizeAlertaSemRespostaFromApi(raw) {
     aplicar_tag_automatica: s.aplicar_tag_automatica !== false,
     nome_tag_automatica: String(s.nome_tag_automatica || DEFAULT_ALERTA_SEM_RESPOSTA.nome_tag_automatica).trim(),
     gestor_notificado_id: Number.isFinite(gestorId) && gestorId > 0 ? gestorId : null,
+    gestor_cliente_id: Number.isFinite(gestorClienteId) && gestorClienteId > 0 ? gestorClienteId : null,
+    gestor_cliente_nome: String(s.gestor_cliente_nome || "").trim(),
     responsaveis_notificacao_ids: responsaveis,
     telefone_gestor: String(s.telefone_gestor || "").trim(),
     horario_comercial_ativo: s.horario_comercial_ativo === true,
@@ -1720,8 +1725,12 @@ function validateAlertaSemResposta(v) {
   if (!Number.isFinite(critical) || critical <= first) return "O alerta critico precisa ser maior que o primeiro alerta.";
   if (!Number.isFinite(manager) || manager <= critical) return "A notificacao ao gestor precisa ser maior que o alerta critico.";
   if (v.aplicar_tag_automatica && !String(v.nome_tag_automatica || "").trim()) return "Informe o nome da tag automatica.";
-  if (v.notificar_por_whatsapp && !String(v.telefone_gestor || "").trim()) {
-    return "Para WhatsApp, informe o telefone do gestor.";
+  if (v.notificar_por_whatsapp) {
+    const clienteId = Number(v.gestor_cliente_id);
+    const manual = String(v.telefone_gestor || "").replace(/\D/g, "");
+    if (!(Number.isFinite(clienteId) && clienteId > 0) && (!manual || manual.length < 10)) {
+      return "Para WhatsApp, selecione um contato cadastrado no sistema.";
+    }
   }
   if (!v.notificar_por_whatsapp && !v.notificar_interno) {
     return "Selecione ao menos um canal de notificacao disponivel.";
@@ -1731,6 +1740,7 @@ function validateAlertaSemResposta(v) {
 
 function buildAlertaSemRespostaPayload(v) {
   const gestorId = Number(v.gestor_notificado_id);
+  const gestorClienteId = Number(v.gestor_cliente_id);
   return {
     alerta_sem_resposta_ativo: v.alerta_sem_resposta_ativo === true,
     tempo_primeiro_alerta_minutos: Math.max(1, Math.floor(Number(v.tempo_primeiro_alerta_minutos) || 1)),
@@ -1743,6 +1753,8 @@ function buildAlertaSemRespostaPayload(v) {
     aplicar_tag_automatica: v.aplicar_tag_automatica !== false,
     nome_tag_automatica: String(v.nome_tag_automatica || DEFAULT_ALERTA_SEM_RESPOSTA.nome_tag_automatica).trim(),
     gestor_notificado_id: Number.isFinite(gestorId) && gestorId > 0 ? gestorId : null,
+    gestor_cliente_id: Number.isFinite(gestorClienteId) && gestorClienteId > 0 ? gestorClienteId : null,
+    gestor_cliente_nome: String(v.gestor_cliente_nome || "").trim(),
     responsaveis_notificacao_ids: Number.isFinite(gestorId) && gestorId > 0 ? [gestorId] : [],
     telefone_gestor: String(v.telefone_gestor || "").trim(),
     horario_comercial_ativo: v.horario_comercial_ativo === true,
@@ -1755,6 +1767,7 @@ function formatAlertaEventoTipo(tipo) {
     primeiro_alerta: "Primeiro alerta enviado",
     alerta_critico: "Alerta critico enviado",
     gestor_notificado: "Gestor notificado",
+    whatsapp_enviado: "WhatsApp enviado ao gestor",
     tag_aplicada: "Tag aplicada",
     conversa_reaberta: "Conversa reaberta",
     sla_resetado: "SLA resetado",
@@ -1776,12 +1789,40 @@ function SecaoAlertasAtendimento() {
   const [featureUnavailable, setFeatureUnavailable] = useState(
     () => !iaApi.isAlertaSemRespostaApiEnabled()
   );
+  const [gestorContatoBusca, setGestorContatoBusca] = useState("");
+  const [gestorContatoOptions, setGestorContatoOptions] = useState([]);
+  const [gestorContatoLoading, setGestorContatoLoading] = useState(false);
 
   const gestores = usuarios.filter((u) => {
     const perfil = String(u.perfil || u.role || "").toLowerCase();
     return perfil === "admin" || perfil === "gestor" || perfil === "supervisor";
   });
   const responsaveis = gestores.length ? gestores : usuarios.filter((u) => String(u.perfil || "").toLowerCase() !== "atendente");
+
+  useEffect(() => {
+    if (!cfg.notificar_por_whatsapp) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setGestorContatoLoading(true);
+      try {
+        const clientes = await getClientes({
+          palavra: gestorContatoBusca.trim() || undefined,
+          limit: 20,
+          page: 1,
+        });
+        if (!cancelled) setGestorContatoOptions(Array.isArray(clientes) ? clientes : []);
+      } catch (e) {
+        if (import.meta.env.DEV) console.warn("Erro ao carregar contatos do gestor:", e);
+        if (!cancelled) setGestorContatoOptions([]);
+      } finally {
+        if (!cancelled) setGestorContatoLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [cfg.notificar_por_whatsapp, gestorContatoBusca]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1837,6 +1878,18 @@ function SecaoAlertasAtendimento() {
   const previewCritical = Number(cfg.tempo_alerta_critico_minutos) || 10;
   const previewManager = Number(cfg.tempo_notificar_gestor_minutos) || 15;
   const selectedGestor = responsaveis.find((u) => Number(u.id) === Number(cfg.gestor_notificado_id));
+  const selectedGestorContatoId = cfg.gestor_cliente_id ? String(cfg.gestor_cliente_id) : "";
+  const gestorContatoSelectOptions = (() => {
+    const base = [...gestorContatoOptions];
+    if (cfg.gestor_cliente_id && !base.some((c) => String(c.id) === String(cfg.gestor_cliente_id))) {
+      base.unshift({
+        id: Number(cfg.gestor_cliente_id),
+        nome: cfg.gestor_cliente_nome || `Cliente ${cfg.gestor_cliente_id}`,
+        telefone: cfg.telefone_gestor || "",
+      });
+    }
+    return base;
+  })();
 
   const handleSave = async () => {
     const msg = validateAlertaSemResposta(cfg);
@@ -2045,7 +2098,7 @@ function SecaoAlertasAtendimento() {
             </div>
             <div className="sla-manager-grid">
               <div className="ia-field">
-                <label>Responsavel</label>
+                <label>Responsavel (alerta interno)</label>
                 <select
                   className="ia-select"
                   value={cfg.gestor_notificado_id || ""}
@@ -2059,18 +2112,56 @@ function SecaoAlertasAtendimento() {
                   ))}
                 </select>
               </div>
-              <div className="ia-field">
-                <label>Telefone WhatsApp do gestor</label>
-                <input
-                  className="ia-input"
-                  value={cfg.telefone_gestor}
-                  placeholder="Ex: 5511999999999"
-                  onChange={(e) => setCfg((c) => ({ ...c, telefone_gestor: e.target.value }))}
-                />
-              </div>
             </div>
+            {cfg.notificar_por_whatsapp ? (
+              <div className="ia-field" style={{ marginTop: 14 }}>
+                <label>Contato WhatsApp do gestor (cadastrado no sistema)</label>
+                <div className="chatbot-time-row" style={{ alignItems: "flex-end", gap: 12 }}>
+                  <input
+                    type="search"
+                    className="ia-input"
+                    value={gestorContatoBusca}
+                    onChange={(e) => setGestorContatoBusca(e.target.value)}
+                    placeholder="Buscar por nome ou telefone"
+                    autoComplete="off"
+                    style={{ minWidth: 220 }}
+                  />
+                  <select
+                    className="ia-select"
+                    value={selectedGestorContatoId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const contato = gestorContatoSelectOptions.find((c) => String(c.id) === id);
+                      setCfg((c) => ({
+                        ...c,
+                        gestor_cliente_id: id ? Number(id) : null,
+                        gestor_cliente_nome: contato ? String(contato.nome || contato.pushname || "").trim().slice(0, 120) : "",
+                        telefone_gestor: contato ? String(contato.telefone || contato.wa_id || "").trim().slice(0, 40) : "",
+                      }));
+                    }}
+                    style={{ minWidth: 280 }}
+                  >
+                    <option value="">{gestorContatoLoading ? "Carregando contatos..." : "Selecione um contato"}</option>
+                    {gestorContatoSelectOptions.map((cliente) => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {formatAdminAlertContactOption(cliente)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {cfg.telefone_gestor ? (
+                  <p className="chatbot-hint" style={{ marginTop: 6 }}>
+                    Envio para {cfg.gestor_cliente_nome || "contato selecionado"} ({cfg.telefone_gestor}).
+                  </p>
+                ) : (
+                  <p className="chatbot-hint" style={{ marginTop: 6 }}>
+                    O contato precisa ter telefone ou WhatsApp cadastrado.
+                  </p>
+                )}
+              </div>
+            ) : null}
             {selectedGestor && (
-              <p className="chatbot-hint">Responsavel selecionado: {selectedGestor.nome || selectedGestor.email || `Usuario ${selectedGestor.id}`}</p>
+              <p className="chatbot-hint">Responsavel interno: {selectedGestor.nome || selectedGestor.email || `Usuario ${selectedGestor.id}`}</p>
             )}
             <p className="chatbot-hint">E-mail fica indisponivel ate a configuracao de um provedor SMTP/transacional no servidor.</p>
           </div>
