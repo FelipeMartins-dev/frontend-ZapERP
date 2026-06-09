@@ -267,8 +267,26 @@ function dedupeListByPersistedIdentity(list) {
       m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
         ? String(m.whatsapp_id)
         : null
-    if (id && bestById.has(id) && bestById.get(id).idx !== idx) drop.add(idx)
-    if (wa && bestByWa.has(wa) && bestByWa.get(wa).idx !== idx) drop.add(idx)
+    if (id && bestById.has(id) && bestById.get(id).idx !== idx) {
+      const kept = bestById.get(id).m
+      const sameAudioFamily =
+        isAudioFamilyTipo(kept?.tipo) && isAudioFamilyTipo(m?.tipo)
+      const distinctTempIds =
+        m?.tempId &&
+        kept?.tempId &&
+        String(m.tempId) !== String(kept.tempId)
+      if (!(sameAudioFamily && distinctTempIds)) drop.add(idx)
+    }
+    if (wa && bestByWa.has(wa) && bestByWa.get(wa).idx !== idx) {
+      const kept = bestByWa.get(wa).m
+      const sameAudioFamily =
+        isAudioFamilyTipo(kept?.tipo) && isAudioFamilyTipo(m?.tipo)
+      const distinctTempIds =
+        m?.tempId &&
+        kept?.tempId &&
+        String(m.tempId) !== String(kept.tempId)
+      if (!(sameAudioFamily && distinctTempIds)) drop.add(idx)
+    }
   })
   if (!drop.size) return list
   return list.filter((_, idx) => !drop.has(idx))
@@ -468,9 +486,7 @@ function matchesClientTempCorrelation(prev, incoming) {
   if (prevTemp && incCid && prevTemp === incCid) return true
   if (incTemp && prevCid && incTemp === prevCid) return true
   if (prevTemp && incTemp && prevTemp === incTemp) return true
-  if (prevCid && incCid && prevCid === incCid && prevTemp && incTemp && prevTemp === incTemp) {
-    return true
-  }
+  if (prevCid && incCid && prevCid === incCid) return true
   return false
 }
 

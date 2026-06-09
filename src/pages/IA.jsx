@@ -1786,11 +1786,11 @@ function SecaoAlertasAtendimento() {
     try {
       const [configResp, eventosResp, usuariosResp] = await Promise.all([
         iaApi.getAlertaSemRespostaConfig(),
-        iaApi.getAlertaSemRespostaEventos({ limit: 20 }),
+        iaApi.getAlertaSemRespostaEventos({ limit: 20 }).catch(() => []),
         getUsuarios().catch(() => []),
       ]);
       setCfg(normalizeAlertaSemRespostaFromApi(configResp));
-      setLogs(eventosResp || []);
+      setLogs(Array.isArray(eventosResp) ? eventosResp : []);
       setUsuarios(Array.isArray(usuariosResp) ? usuariosResp : []);
     } catch (e) {
       console.error("Erro ao carregar alerta sem resposta:", e);

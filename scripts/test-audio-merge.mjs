@@ -223,4 +223,26 @@ assert(w1 && !w1.id, "1º otimista não deve receber id via merge errado no 2º"
 assert(w2 && !w2.id, "2º otimista deve permanecer intacto");
 assert(countAudios(list) >= 2, "nenhum áudio deve sumir da lista");
 
-console.log("OK — regressão de merge de áudios passou (12 cenários).");
+// 13) finalizeMensagensList não remove áudios distintos (eco id-only + 2º otimista)
+list = [];
+list = mergeMessageIntoListForTest(list, CONV, audioTemp("temp-f1", "audio-f1.webm", 5000, 0));
+list = mergeMessageIntoListForTest(
+  list,
+  CONV,
+  audioConfirmed(981, "temp-f1", "audio-f1.mp3", 5000, 0)
+);
+list = mergeMessageIntoListForTest(list, CONV, audioTemp("temp-f2", "audio-f2.webm", 6000, 50));
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 981,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "voice",
+  url: "/uploads/981.ogg",
+  criado_em: list[0].criado_em,
+});
+list = finalizeMensagensList(list);
+assert(countAudios(list) === 2, `finalize não deve remover áudios distintos, obteve ${countAudios(list)}`);
+assert(list.some((m) => String(m.id) === "981" && m.tempId === "temp-f1"), "1º áudio intacto");
+assert(list.some((m) => m.tempId === "temp-f2" && !m.id), "2º otimista intacto");
+
+console.log("OK — regressão de merge de áudios passou (13 cenários).");
