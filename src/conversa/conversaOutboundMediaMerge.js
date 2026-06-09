@@ -154,7 +154,33 @@ function areLikelySameMessageBubble(prev, incoming) {
     textoCompareI &&
     textoCompareP.toLowerCase() === textoCompareI.toLowerCase()
   ) {
-    return isTipoTextoParaReconciliarPorConteudo(prev) && isTipoTextoParaReconciliarPorConteudo(incoming)
+    if (!isTipoTextoParaReconciliarPorConteudo(prev) || !isTipoTextoParaReconciliarPorConteudo(incoming)) {
+      return false
+    }
+    const prevPersist = hasPersistedMessageIdentity(prev)
+    const incPersist = hasPersistedMessageIdentity(incoming)
+    /* Duas mensagens confirmadas distintas podem ter o mesmo texto ("oi", "ok", …). */
+    if (prevPersist && incPersist) {
+      const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
+      const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
+      if (pid && iid && pid !== iid) return false
+      const pwa =
+        prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== ""
+          ? String(prev.whatsapp_id)
+          : null
+      const iwa =
+        incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== ""
+          ? String(incoming.whatsapp_id)
+          : null
+      if (pwa && iwa && pwa !== iwa) return false
+    }
+    /* Dois otimistas distintos (tempId diferente): não fundir só pelo texto. */
+    if (!prevPersist && !incPersist) {
+      const prevTemp = prev?.tempId != null ? String(prev.tempId) : null
+      const incTemp = incoming?.tempId != null ? String(incoming.tempId) : null
+      if (prevTemp && incTemp && prevTemp !== incTemp) return false
+    }
+    return true
   }
   const tipoP = String(prev.tipo || "").toLowerCase().trim()
   const tipoI = String(incoming.tipo || "").toLowerCase().trim()
@@ -216,9 +242,8 @@ function pruneRedundantOutgoingTemps(list) {
     const ts = toMillis(m?.criado_em)
     if (!Number.isFinite(ts) || now - ts >= recentMs) return true
     
-    // Para áudios, exige correlação client_temp_id explícita.
-    // sameMediaStrongHint sozinho pode dar falso-positivo quando dois áudios têm nome igual
-    // (ex: "audio.ogg") e tamanho parecido — removeria o otimista do áudio anterior.
+    // Áudio, texto e demais: só remove otimista órfão com correlação explícita (tempId/client_temp_id).
+    // Mesmo texto em mensagens distintas ("oi" duas vezes) não pode ser tratado como duplicata.
     const isAudio = isAudioFamilyTipo(m.tipo)
     if (isAudio) {
       return !confirmed.some((c) => {
@@ -226,8 +251,14 @@ function pruneRedundantOutgoingTemps(list) {
         return matchesClientTempCorrelation(m, c)
       })
     }
-    
-    return !confirmed.some((c) => areLikelySameMessageBubble(m, c))
+    if (isTipoTextoParaReconciliarPorConteudo(m)) {
+      return !confirmed.some((c) => {
+        if (!isTipoTextoParaReconciliarPorConteudo(c)) return false
+        return matchesClientTempCorrelation(m, c)
+      })
+    }
+
+    return !confirmed.some((c) => matchesClientTempCorrelation(m, c) || areLikelySameMessageBubble(m, c))
   })
 }
 
@@ -911,7 +942,7 @@ function applyAnexarOneToList(list, convId, msg) {
     if (mergeIdx >= 0) return mergePendingMediaAt(mergeIdx)
   }
 
-  if (isFromMe && textoIn && isTipoTextoParaReconciliarPorConteudo(msg)) {
+  if (isFromMe && textoIn && isTipoTextoParaReconciliarPorConteudo(msg) && !isPendingOutgoingTemp(msg)) {
     const candidates = []
     for (let i = 0; i < list.length; i++) {
       const m = list[i]

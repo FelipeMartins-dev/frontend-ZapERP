@@ -245,6 +245,8 @@ function ConversaViewBody() {
   const [messageSearchOpen, setMessageSearchOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const sendingCountRef = useRef(0);
+  /** Ordem estável entre vários envios de texto seguidos (criado_em + insertIndex). */
+  const optimisticTextSendSeqRef = useRef(0);
   const setSendingTracked = useCallback((active) => {
     if (active) {
       sendingCountRef.current += 1;
@@ -616,6 +618,7 @@ function ConversaViewBody() {
 
   useEffect(() => {
     // reset por conversa
+    optimisticTextSendSeqRef.current = 0;
     setReplyTo(null);
     setSelectMode(false);
     setSelectedMsgIds({});
@@ -1559,11 +1562,8 @@ function ConversaViewBody() {
 
   const handleCloseTimeline = useCallback(() => setShowTimeline(false), []);
 
-  const enviarTextoEmAndamentoRef = useRef(false);
-
   const handleEnviar = useCallback(async (forcedText) => {
     if (!conversaId) return;
-    if (enviarTextoEmAndamentoRef.current) return;
     if (!podeEnviar) {
       showToast({
         type: "warning",
@@ -1588,6 +1588,7 @@ function ConversaViewBody() {
       conversaId,
       texto: t,
       replyMeta: replyMeta || undefined,
+      insertIndex: optimisticTextSendSeqRef.current++,
     });
     const tempId = optimisticMsg.tempId;
     const revertOutgoingStatus = applyOutgoingStatusOptimistic();
@@ -1595,7 +1596,6 @@ function ConversaViewBody() {
     setReplyTo(null);
 
     let envioFalhou = false;
-    enviarTextoEmAndamentoRef.current = true;
     setSendingTracked(true);
     try {
       const res = await enviarMensagem(conversaId, t, replyMeta || undefined);
@@ -1626,7 +1626,6 @@ function ConversaViewBody() {
       });
       focusMessageInput();
     } finally {
-      enviarTextoEmAndamentoRef.current = false;
       setSendingTracked(false);
     }
     if (!envioFalhou) {
