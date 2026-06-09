@@ -54,6 +54,7 @@ export function buildOptimisticOutgoingMessage(params) {
   const criado_em = new Date(Date.now() + insertIndex).toISOString();
   const base = {
     tempId,
+    client_temp_id: tempId,
     conversa_id: normalizedConversaId,
     direcao: "out",
     status: "pending",

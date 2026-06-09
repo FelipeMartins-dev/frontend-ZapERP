@@ -52,7 +52,7 @@ function assert(cond, msg) {
 }
 
 function countAudios(list) {
-  return list.filter((m) => String(m?.tipo || "").toLowerCase() === "audio").length;
+  return list.filter((m) => ["audio", "voice", "ptt"].includes(String(m?.tipo || "").toLowerCase())).length;
 }
 
 function ids(list) {
@@ -160,4 +160,43 @@ assert(countAudios(list) === 2, `refresh não deve duplicar áudios, obteve ${co
 assert(list.filter((m) => String(m.id) === "941").length === 1, "id 941 único após refresh");
 assert(list.filter((m) => String(m.id) === "942").length === 1, "id 942 único após refresh");
 
-console.log("OK — regressão de merge de áudios passou (9 cenários).");
+// 10) Socket sem client_temp_id (nome/tipo divergentes) não duplica o otimista
+list = [audioTemp("temp-s1", "audio-100.webm", 1000, 0)];
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 951,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "voice",
+  texto: "(áudio)",
+  nome_arquivo: "951.ogg",
+  tamanho: 1000,
+  status: "delivered",
+  status_mensagem: "delivered",
+  criado_em: list[0].criado_em,
+  url: "/uploads/951.ogg",
+});
+assert(countAudios(list) === 1, `socket sem client_temp_id deve fundir, obteve ${countAudios(list)}`);
+assert(String(list[0].id) === "951", "bolha reconciliada deve ter id do servidor");
+assert(list[0].tempId === "temp-s1", "bolha reconciliada deve manter tempId da UI");
+
+// 11) Dois áudios rápidos: socket sem client_temp_id funde no pendente mais próximo
+list = [
+  audioTemp("temp-r1", "audio-r1.webm", 1000, 0),
+  audioTemp("temp-r2", "audio-r2.webm", 2000, 100),
+];
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 961,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "voice",
+  nome_arquivo: "961.ogg",
+  tamanho: 2000,
+  criado_em: list[1].criado_em,
+  url: "/uploads/961.ogg",
+});
+assert(countAudios(list) === 2, `dois áudios após confirmar o 2º, obteve ${countAudios(list)}`);
+const r2 = list.find((m) => String(m.id) === "961");
+assert(r2?.tempId === "temp-r2", "2º áudio deve reconciliar no temp-r2");
+assert(list.some((m) => m.tempId === "temp-r1" && !m.id), "1º áudio ainda pendente");
+
+console.log("OK — regressão de merge de áudios passou (11 cenários).");

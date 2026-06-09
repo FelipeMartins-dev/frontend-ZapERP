@@ -202,7 +202,7 @@ function pruneRedundantOutgoingTemps(list) {
   const recentMs = 90_000
   const now = Date.now()
   const confirmed = list.filter((m) => {
-    if (!isOutgoingLike(m) || m?.tempId) return false
+    if (!isOutgoingLike(m)) return false
     const idOk = m.id != null && String(m.id).trim() !== ""
     const waOk = m.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
     return idOk || waOk
@@ -456,10 +456,21 @@ function resolveClientTempId(msg) {
 
 /** Correlação explícita bolha otimista ↔ confirmação HTTP/socket. */
 function matchesClientTempCorrelation(prev, incoming) {
-  const cid = resolveClientTempId(incoming) || resolveClientTempId(prev)
-  if (!cid) return false
-  if (prev?.tempId && String(prev.tempId) === cid) return true
-  if (incoming?.tempId && String(incoming.tempId) === cid) return true
+  const prevTemp =
+    prev?.tempId != null && String(prev.tempId).trim() !== "" ? String(prev.tempId).trim() : null
+  const incTemp =
+    incoming?.tempId != null && String(incoming.tempId).trim() !== ""
+      ? String(incoming.tempId).trim()
+      : null
+  const prevCid = resolveClientTempId(prev)
+  const incCid = resolveClientTempId(incoming)
+
+  if (prevTemp && incCid && prevTemp === incCid) return true
+  if (incTemp && prevCid && incTemp === prevCid) return true
+  if (prevTemp && incTemp && prevTemp === incTemp) return true
+  if (prevCid && incCid && prevCid === incCid && prevTemp && incTemp && prevTemp === incTemp) {
+    return true
+  }
   return false
 }
 
@@ -525,6 +536,33 @@ function sameMediaStrongHint(prev, incoming) {
   return false
 }
 
+/**
+ * Áudio outbound confirmado (socket/API) sem client_temp_id: funde no otimista pendente
+ * mais próximo no tempo — evita bolha duplicada quando nome/tipo divergem (webm vs voice).
+ */
+function findClosestPendingOutgoingAudioIndex(list, msg, recentMs = 90_000) {
+  if (!Array.isArray(list) || !msg || mediaFamilyFromMsg(msg) !== "audio") return -1
+  if (!hasPersistedMessageIdentity(msg) || !isOutgoingLike(msg)) return -1
+  const tsI = toMillis(msg?.criado_em)
+  if (!Number.isFinite(tsI)) return -1
+
+  const pending = []
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i]
+    if (!isPendingOutgoingTemp(m) || mediaFamilyFromMsg(m) !== "audio") continue
+    const tsP = toMillis(m?.criado_em)
+    if (!Number.isFinite(tsP) || Math.abs(tsP - tsI) > recentMs) continue
+    pending.push({
+      i,
+      m,
+      seq: Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity,
+    })
+  }
+  if (!pending.length) return -1
+  if (pending.length === 1) return pending[0].i
+  return pickClosestPendingMediaCandidate(pending, msg)?.i ?? -1
+}
+
 /** Índice do otimista de mídia mais adequado para fundir com confirmação (FIFO + hint forte). */
 function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
   if (!Array.isArray(list) || !msg) return -1
@@ -540,7 +578,12 @@ function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
       seq: Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity,
     })
   }
-  if (!candidates.length) return -1
+  if (!candidates.length) {
+    if (mediaFamilyFromMsg(msg) === "audio" && hasPersistedMessageIdentity(msg)) {
+      return findClosestPendingOutgoingAudioIndex(list, msg)
+    }
+    return -1
+  }
 
   const clientTempId = resolveClientTempId(msg)
   if (clientTempId) {
@@ -551,8 +594,12 @@ function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
       const closest = pickClosestPendingMediaCandidate(byClient, msg)
       return closest?.i ?? -1
     }
-    // Não encontrou por client_temp_id - para áudios, seja mais restritivo
-    if (mediaFamilyFromMsg(msg) === "audio") return -1
+    // Não encontrou por client_temp_id - para áudios, tenta o pendente mais próximo no tempo
+    if (mediaFamilyFromMsg(msg) === "audio") {
+      const looseIdx = findClosestPendingOutgoingAudioIndex(list, msg)
+      if (looseIdx >= 0) return looseIdx
+      return -1
+    }
   }
 
   const strongOnes = candidates.filter((c) => c.strong)
@@ -573,6 +620,11 @@ function findPendingOutgoingMediaMergeIndex(list, msg, opts = {}) {
     pendingSameFamily.length === 1
   ) {
     return candidates[0].i
+  }
+
+  if (audioFamily && hasPersistedMessageIdentity(msg)) {
+    const looseIdx = findClosestPendingOutgoingAudioIndex(list, msg)
+    if (looseIdx >= 0) return looseIdx
   }
   return -1
 }
@@ -777,6 +829,11 @@ function applyAnexarOneToList(list, convId, msg) {
     if (msg.tempId) {
       const byTemp = list.findIndex((m) => String(m.tempId) === String(msg.tempId))
       if (byTemp >= 0) return byTemp
+    }
+    const clientTempId = resolveClientTempId(msg)
+    if (clientTempId) {
+      const byClient = list.findIndex((m) => m?.tempId && String(m.tempId) === clientTempId)
+      if (byClient >= 0) return byClient
     }
     return -1
   }
