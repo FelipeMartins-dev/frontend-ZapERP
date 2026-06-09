@@ -1786,14 +1786,22 @@ function SecaoAlertasAtendimento() {
     try {
       const [configResp, eventosResp, usuariosResp] = await Promise.all([
         iaApi.getAlertaSemRespostaConfig(),
-        iaApi.getAlertaSemRespostaEventos({ limit: 20 }).catch(() => []),
+        iaApi.getAlertaSemRespostaEventos({ limit: 20 }),
         getUsuarios().catch(() => []),
       ]);
-      setCfg(normalizeAlertaSemRespostaFromApi(configResp));
-      setLogs(Array.isArray(eventosResp) ? eventosResp : []);
+      if (configResp == null) {
+        setCfg(DEFAULT_ALERTA_SEM_RESPOSTA);
+        setLogs([]);
+        setError(
+          "Os alertas de atendimento ainda nao estao disponiveis neste servidor. Atualize o backend ou contate o suporte."
+        );
+      } else {
+        setCfg(normalizeAlertaSemRespostaFromApi(configResp));
+        setLogs(Array.isArray(eventosResp) ? eventosResp : []);
+      }
       setUsuarios(Array.isArray(usuariosResp) ? usuariosResp : []);
     } catch (e) {
-      console.error("Erro ao carregar alerta sem resposta:", e);
+      if (import.meta.env.DEV) console.warn("Erro ao carregar alerta sem resposta:", e);
       setError(e?.response?.data?.error || "Nao foi possivel carregar os alertas de atendimento.");
     } finally {
       setLoading(false);
@@ -1826,7 +1834,10 @@ function SecaoAlertasAtendimento() {
       const eventos = await iaApi.getAlertaSemRespostaEventos({ limit: 20 }).catch(() => logs);
       setLogs(eventos || []);
     } catch (e) {
-      const msgErr = e?.response?.data?.error || "Nao foi possivel salvar a configuracao.";
+      const msgErr =
+        e?.code === "ALERTA_SEM_RESPOSTA_UNAVAILABLE"
+          ? e.message
+          : e?.response?.data?.error || "Nao foi possivel salvar a configuracao.";
       setError(msgErr);
       showToast({ type: "error", title: "Erro ao salvar", message: msgErr });
     } finally {
@@ -1848,7 +1859,10 @@ function SecaoAlertasAtendimento() {
       showToast({
         type: "error",
         title: "Falha na simulacao",
-        message: e?.response?.data?.error || "Nao foi possivel processar a simulacao.",
+        message:
+          e?.code === "ALERTA_SEM_RESPOSTA_UNAVAILABLE"
+            ? e.message
+            : e?.response?.data?.error || "Nao foi possivel processar a simulacao.",
       });
     } finally {
       setChecking(false);

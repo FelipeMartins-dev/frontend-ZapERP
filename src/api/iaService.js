@@ -39,22 +39,54 @@ export async function getLogs(limit = 50) {
   return data || []
 }
 
+function isAlertaSemRespostaUnavailable(err) {
+  return err?.response?.status === 404
+}
+
 export async function getAlertaSemRespostaConfig() {
-  const { data } = await api.get('/config/alerta-sem-resposta')
-  return data || {}
+  try {
+    const { data } = await api.get('/config/alerta-sem-resposta', { silent: true })
+    return data || {}
+  } catch (err) {
+    if (isAlertaSemRespostaUnavailable(err)) return null
+    throw err
+  }
 }
 
 export async function putAlertaSemRespostaConfig(payload) {
-  const { data } = await api.put('/config/alerta-sem-resposta', payload)
-  return data?.config || data || {}
+  try {
+    const { data } = await api.put('/config/alerta-sem-resposta', payload, { silent: true })
+    return data?.config || data || {}
+  } catch (err) {
+    if (isAlertaSemRespostaUnavailable(err)) {
+      const e = new Error('Recurso de alertas de atendimento indisponivel no servidor.')
+      e.code = 'ALERTA_SEM_RESPOSTA_UNAVAILABLE'
+      throw e
+    }
+    throw err
+  }
 }
 
 export async function getAlertaSemRespostaEventos(params = {}) {
-  const { data } = await api.get('/config/alerta-sem-resposta/eventos', { params })
-  return data?.eventos || []
+  try {
+    const { data } = await api.get('/config/alerta-sem-resposta/eventos', { params, silent: true })
+    return data?.eventos || []
+  } catch (err) {
+    if (isAlertaSemRespostaUnavailable(err)) return []
+    throw err
+  }
 }
 
 export async function processarAlertaSemResposta(dryRun = true) {
-  const { data } = await api.post('/config/alerta-sem-resposta/processar', { dry_run: dryRun })
-  return data
+  try {
+    const { data } = await api.post('/config/alerta-sem-resposta/processar', { dry_run: dryRun }, { silent: true })
+    return data
+  } catch (err) {
+    if (isAlertaSemRespostaUnavailable(err)) {
+      const e = new Error('Recurso de alertas de atendimento indisponivel no servidor.')
+      e.code = 'ALERTA_SEM_RESPOSTA_UNAVAILABLE'
+      throw e
+    }
+    throw err
+  }
 }
