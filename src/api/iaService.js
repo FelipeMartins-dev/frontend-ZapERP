@@ -45,6 +45,12 @@ function isAlertaSemRespostaUnavailable(err) {
   return err?.response?.status === 404
 }
 
+function isAlertaSemRespostaEventosSoftFail(err) {
+  const status = err?.response?.status
+  const msg = String(err?.response?.data?.error || err?.message || '').toLowerCase()
+  return status === 500 && msg.includes('permission denied')
+}
+
 function markAlertaSemRespostaUnavailable() {
   try {
     sessionStorage.setItem(ALERTA_SEM_RESPOSTA_UNAVAILABLE_KEY, '1')
@@ -112,6 +118,7 @@ export async function getAlertaSemRespostaEventos(params = {}) {
       markAlertaSemRespostaUnavailable()
       return []
     }
+    if (isAlertaSemRespostaEventosSoftFail(err)) return []
     throw err
   }
 }

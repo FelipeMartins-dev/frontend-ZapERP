@@ -1813,8 +1813,13 @@ function SecaoAlertasAtendimento() {
 
       setFeatureUnavailable(false);
       setCfg(normalizeAlertaSemRespostaFromApi(configResp));
-      const eventosResp = await iaApi.getAlertaSemRespostaEventos({ limit: 20 });
-      setLogs(Array.isArray(eventosResp) ? eventosResp : []);
+      try {
+        const eventosResp = await iaApi.getAlertaSemRespostaEventos({ limit: 20 });
+        setLogs(Array.isArray(eventosResp) ? eventosResp : []);
+      } catch (eventosErr) {
+        setLogs([]);
+        if (import.meta.env.DEV) console.warn("Logs de alerta indisponiveis:", eventosErr);
+      }
     } catch (e) {
       if (import.meta.env.DEV) console.warn("Erro ao carregar alerta sem resposta:", e);
       setError(e?.response?.data?.error || "Nao foi possivel carregar os alertas de atendimento.");
