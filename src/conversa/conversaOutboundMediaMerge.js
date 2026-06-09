@@ -181,15 +181,16 @@ function areLikelySameMessageBubble(prev, incoming) {
 
 function findMergeableMapKey(map, copy) {
   if (!map || !copy) return null
-  // Áudios com identidade persistida nunca colapsam por similaridade — cada gravação é independente.
   const copyIsPersistedAudio =
     isOutgoingLike(copy) &&
     hasPersistedMessageIdentity(copy) &&
     mediaFamilyFromMsg(copy) === "audio"
   for (const [key, prev] of map.entries()) {
     if (!prev) continue
-    // Não fundir dois áudios confirmados pelo mapa — bloqueado também em applyAnexarOneToList (crossIdx guard).
-    if (copyIsPersistedAudio && isOutgoingLike(prev) && hasPersistedMessageIdentity(prev) && mediaFamilyFromMsg(prev) === "audio") continue
+    // Dois áudios confirmados distintos não colapsam — mas a MESMA mensagem (id/wa/temp) ainda deve fundir.
+    if (copyIsPersistedAudio && isOutgoingLike(prev) && hasPersistedMessageIdentity(prev) && mediaFamilyFromMsg(prev) === "audio") {
+      if (!areLikelySameMessageBubble(prev, copy)) continue
+    }
     if (areLikelySameMessageBubble(prev, copy)) return key
   }
   return null
@@ -230,6 +231,49 @@ function pruneRedundantOutgoingTemps(list) {
   })
 }
 
+/** Preferência ao colapsar duplicatas id/whatsapp_id (tempId + blob local > eco id-only). */
+function persistedIdentityDedupeScore(m) {
+  let score = 0
+  if (m?.tempId) score += 8
+  if (isLocalUploadMediaMessage(m) && hasRenderableUrl(m)) score += 4
+  else if (hasRenderableUrl(m)) score += 2
+  if (m?._optimisticBlobUrl) score += 1
+  const seq = Number(m?._stableInsertSeq)
+  if (Number.isFinite(seq)) score -= seq / 1e15
+  return score
+}
+
+function dedupeListByPersistedIdentity(list) {
+  if (!Array.isArray(list) || list.length < 2) return list
+  const bestById = new Map()
+  const bestByWa = new Map()
+  const pickBetter = (a, b) =>
+    persistedIdentityDedupeScore(b.m) > persistedIdentityDedupeScore(a.m) ? b : a
+
+  list.forEach((m, idx) => {
+    const id = m?.id != null && String(m.id).trim() !== "" ? String(m.id) : null
+    const wa =
+      m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
+        ? String(m.whatsapp_id)
+        : null
+    if (id) bestById.set(id, bestById.has(id) ? pickBetter(bestById.get(id), { m, idx }) : { m, idx })
+    if (wa) bestByWa.set(wa, bestByWa.has(wa) ? pickBetter(bestByWa.get(wa), { m, idx }) : { m, idx })
+  })
+
+  const drop = new Set()
+  list.forEach((m, idx) => {
+    const id = m?.id != null && String(m.id).trim() !== "" ? String(m.id) : null
+    const wa =
+      m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== ""
+        ? String(m.whatsapp_id)
+        : null
+    if (id && bestById.has(id) && bestById.get(id).idx !== idx) drop.add(idx)
+    if (wa && bestByWa.has(wa) && bestByWa.get(wa).idx !== idx) drop.add(idx)
+  })
+  if (!drop.size) return list
+  return list.filter((_, idx) => !drop.has(idx))
+}
+
 function pruneRedundantOutgoingMediaEchoes(list) {
   if (!Array.isArray(list) || list.length < 2) return list
   const remove = new Set()
@@ -261,7 +305,8 @@ function finalizeMensagensList(list) {
   const beforePrune = list.length
   const afterTemps = pruneRedundantOutgoingTemps(list)
   const afterEchoes = pruneRedundantOutgoingMediaEchoes(afterTemps)
-  const final = sortMensagensChronological(afterEchoes)
+  const afterIdentityDedupe = dedupeListByPersistedIdentity(afterEchoes)
+  const final = sortMensagensChronological(afterIdentityDedupe)
   
   // Debug para detectar remoções inesperadas de áudios
   if (typeof window !== "undefined" && final.length < beforePrune) {
@@ -871,7 +916,10 @@ function applyAnexarOneToList(list, convId, msg) {
   if (dupIdx >= 0) {
     const prevRow = list[dupIdx]
     if (canMergeDedupeEntries(prevRow, candNew)) {
-      let mergedNew = preserveLocalMediaFields(prevRow, mergeMsgPreferringTombstone(prevRow, candNew))
+      let mergedNew = preserveLocalMediaFields(
+        prevRow,
+        mergeMsgPreferringTombstone(prevRow, { ...prevRow, ...candNew })
+      )
       if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
         mergedNew.criado_em = pickLaterCriadoEmIso(prevRow, candNew)
       }
@@ -882,23 +930,38 @@ function applyAnexarOneToList(list, convId, msg) {
     }
   }
 
-  const crossIdx = (() => {
-    if (
-      isOutgoingLike(candNew) &&
-      hasPersistedMessageIdentity(candNew) &&
-      mediaFamilyFromMsg(candNew) === "audio"
-    ) {
-      return -1
-    }
-    return list.findIndex(
-      (m, i) =>
-        i !== dupIdx &&
-        areLikelySameMessageBubble(m, candNew)
-    )
-  })()
+  const findAudioCrossMergeIndex = () =>
+    list.findIndex((m, i) => {
+      if (i === dupIdx || !areLikelySameMessageBubble(m, candNew)) return false
+      if (matchesClientTempCorrelation(m, candNew)) return true
+      const pid = m?.id != null && String(m.id).trim() !== "" ? String(m.id) : null
+      const iid = candNew?.id != null && String(candNew.id).trim() !== "" ? String(candNew.id) : null
+      if (pid && iid && pid === iid) return true
+      const pwa = m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "" ? String(m.whatsapp_id) : null
+      const iwa =
+        candNew?.whatsapp_id != null && String(candNew.whatsapp_id).trim() !== ""
+          ? String(candNew.whatsapp_id)
+          : null
+      if (pwa && iwa && pwa === iwa) return true
+      const prevPersist = hasPersistedMessageIdentity(m)
+      const incPersist = hasPersistedMessageIdentity(candNew)
+      if (prevPersist && incPersist) return false
+      if (prevPersist || incPersist) return isOutgoingAudioReconcilePair(m, candNew)
+      return true
+    })
+
+  const crossIdx =
+    isOutgoingLike(candNew) && mediaFamilyFromMsg(candNew) === "audio"
+      ? findAudioCrossMergeIndex()
+      : list.findIndex(
+          (m, i) => i !== dupIdx && areLikelySameMessageBubble(m, candNew)
+        )
   if (crossIdx >= 0) {
     const prevRow = list[crossIdx]
-    let mergedNew = preserveLocalMediaFields(prevRow, mergeMsgPreferringTombstone(prevRow, candNew))
+    let mergedNew = preserveLocalMediaFields(
+      prevRow,
+      mergeMsgPreferringTombstone(prevRow, { ...prevRow, ...candNew })
+    )
     if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
       mergedNew.criado_em = pickLaterCriadoEmIso(prevRow, candNew)
     }

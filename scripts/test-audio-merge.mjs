@@ -2,7 +2,11 @@
  * Regressão: vários áudios outbound não devem sumir nem duplicar após merge.
  * Executar: node scripts/test-audio-merge.mjs
  */
-import { mergeMessageIntoListForTest } from "../src/conversa/conversaOutboundMediaMerge.js";
+import {
+  mergeMessageIntoListForTest,
+  putMensagemInDedupeMap,
+  finalizeMensagensList,
+} from "../src/conversa/conversaOutboundMediaMerge.js";
 
 const CONV = 42;
 
@@ -119,4 +123,41 @@ list = mergeMessageIntoListForTest(
 );
 assert(countAudios(list) === 2, "confirmação sem client_temp_id não deve fundir no áudio errado");
 
-console.log("OK — regressão de merge de áudios passou (7 cenários).");
+// 8) Segundo otimista após reconciliar o 1º não pode apagar id nem duplicar
+list = [];
+list = mergeMessageIntoListForTest(list, CONV, audioTemp("temp-b1", "audio-b1.webm", 7000, 0));
+list = mergeMessageIntoListForTest(
+  list,
+  CONV,
+  audioConfirmed(931, "temp-b1", "audio-b1.mp3", 7000, 0)
+);
+list = mergeMessageIntoListForTest(list, CONV, audioTemp("temp-b2", "audio-b2.webm", 8000, 50));
+assert(countAudios(list) === 2, "2º otimista após reconciliar o 1º deve manter 2 áudios");
+assert(list.some((m) => String(m.id) === "931"), "1º áudio confirmado deve manter id");
+
+// 9) Eco id-only + refresh não duplica áudios já reconciliados
+function mergeFromApi(existing, fromApi) {
+  const map = new Map();
+  let ord = 0;
+  const put = (raw) => {
+    if (!raw) return;
+    putMensagemInDedupeMap(map, raw, CONV, ++ord);
+  };
+  existing.forEach(put);
+  fromApi.forEach(put);
+  return finalizeMensagensList(Array.from(map.values()));
+}
+list = [
+  { ...audioConfirmed(941, "temp-c1", "audio-c1.mp3", 9000, 0), tempId: "temp-c1" },
+  { id: 941, conversa_id: CONV, direcao: "out", tipo: "audio", texto: "(áudio)", url: "/uploads/941.mp3", criado_em: new Date().toISOString() },
+  { ...audioConfirmed(942, "temp-c2", "audio-c2.mp3", 9500, 50), tempId: "temp-c2" },
+];
+list = mergeFromApi(list, [
+  { id: 941, conversa_id: CONV, direcao: "out", tipo: "audio", texto: "(áudio)", url: "/uploads/941.mp3", criado_em: list[0].criado_em },
+  { id: 942, conversa_id: CONV, direcao: "out", tipo: "audio", texto: "(áudio)", url: "/uploads/942.mp3", criado_em: list[2].criado_em },
+]);
+assert(countAudios(list) === 2, `refresh não deve duplicar áudios, obteve ${countAudios(list)}`);
+assert(list.filter((m) => String(m.id) === "941").length === 1, "id 941 único após refresh");
+assert(list.filter((m) => String(m.id) === "942").length === 1, "id 942 único após refresh");
+
+console.log("OK — regressão de merge de áudios passou (9 cenários).");

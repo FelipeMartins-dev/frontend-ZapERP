@@ -244,6 +244,16 @@ function ConversaViewBody() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [messageSearchOpen, setMessageSearchOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const sendingCountRef = useRef(0);
+  const setSendingTracked = useCallback((active) => {
+    if (active) {
+      sendingCountRef.current += 1;
+      setSending(true);
+    } else {
+      sendingCountRef.current = Math.max(0, sendingCountRef.current - 1);
+      if (sendingCountRef.current === 0) setSending(false);
+    }
+  }, []);
 
   const [toast, setToast] = useState(null);
   const toastT = useStableTimeout();
@@ -748,6 +758,13 @@ function ConversaViewBody() {
       const hasAnyKnownId =
         !knownIdSet.size ||
         found.some((m) => m?.id != null && knownIdSet.has(String(m.id)));
+      const allTrackedReconciled =
+        (tempSet.size === 0 ||
+          [...tempSet].every((tid) =>
+            found.some((m) => String(m?.tempId || "") === tid && hasPersistedIdentity(m))
+          )) &&
+        (knownIdSet.size === 0 ||
+          [...knownIdSet].every((kid) => found.some((m) => m?.id != null && knownIdSet.has(String(m.id)))));
       const needsPresenceRefresh =
         found.length === 0 ||
         !hasEveryTemp ||
@@ -756,6 +773,7 @@ function ConversaViewBody() {
       const needsStatusRefresh =
         phase === "status" && found.some((m) => hasPersistedIdentity(m) && isStillPending(m));
 
+      if (allTrackedReconciled && !needsStatusRefresh) return;
       if (needsPresenceRefresh || needsStatusRefresh) {
         void st.refresh({ silent: true });
       }
@@ -1226,7 +1244,7 @@ function ConversaViewBody() {
       }
       formData.append("client_temp_id", tempId);
 
-      setSending(true);
+      setSendingTracked(true);
       try {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
           headers: { "Content-Type": false },
@@ -1273,7 +1291,7 @@ function ConversaViewBody() {
         });
       } finally {
         arquivoEnvioInFlightRef.current.delete(flightKey);
-        setSending(false);
+        setSendingTracked(false);
         focusMessageInput();
       }
     },
@@ -1288,6 +1306,7 @@ function ConversaViewBody() {
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
       scheduleArquivoSendConsistencyCheck,
+      setSendingTracked,
     ]
   );
 
@@ -1345,7 +1364,7 @@ function ConversaViewBody() {
         formData.append("file", files[i]);
       }
       formData.append("client_temp_ids", JSON.stringify(tempIds));
-      setSending(true);
+      setSendingTracked(true);
       try {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
           headers: { "Content-Type": false },
@@ -1421,7 +1440,7 @@ function ConversaViewBody() {
           });
         }
       } finally {
-        setSending(false);
+        setSendingTracked(false);
         focusMessageInput();
       }
     },
@@ -1435,6 +1454,7 @@ function ConversaViewBody() {
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
       scheduleArquivoSendConsistencyCheck,
+      setSendingTracked,
     ]
   );
 
@@ -1576,7 +1596,7 @@ function ConversaViewBody() {
 
     let envioFalhou = false;
     enviarTextoEmAndamentoRef.current = true;
-    setSending(true);
+    setSendingTracked(true);
     try {
       const res = await enviarMensagem(conversaId, t, replyMeta || undefined);
       const resMsgId = res?.mensagem?.id ?? res?.id;
@@ -1607,7 +1627,7 @@ function ConversaViewBody() {
       focusMessageInput();
     } finally {
       enviarTextoEmAndamentoRef.current = false;
-      setSending(false);
+      setSendingTracked(false);
     }
     if (!envioFalhou) {
       focusMessageInput();
@@ -1625,6 +1645,7 @@ function ConversaViewBody() {
     fromChat,
     podeEnviar,
     focusMessageInput,
+    setSendingTracked,
   ]);
 
   const {

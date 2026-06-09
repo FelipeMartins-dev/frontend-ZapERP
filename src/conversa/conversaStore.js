@@ -280,7 +280,7 @@ export const useConversaStore = create((set, get) => {
             nextList.length === list.length &&
             nextList.some((m) => m?.tempId && String(m.tempId) === String(lone.tempId))
           if (appended || mergedInPlace) {
-            return { mensagens: nextList }
+            return { mensagens: finalizeMensagensList(nextList) }
           }
         }
       }
@@ -292,8 +292,9 @@ export const useConversaStore = create((set, get) => {
       }
       const sorted = finalizeMensagensList(list)
       if (import.meta.env.DEV && sorted.length < before) {
-        const audiosBefore = list.filter(m => m?.tipo === "audio").length
-        const audiosAfter = sorted.filter(m => m?.tipo === "audio").length
+        const isAudio = (m) => ["audio", "voice", "ptt"].includes(String(m?.tipo || "").toLowerCase().trim())
+        const audiosBefore = list.filter(isAudio).length
+        const audiosAfter = sorted.filter(isAudio).length
         console.warn("[conversaStore] flush anexar reduziu mensagens (inesperado)", {
           antes: before,
           depois: sorted.length,
@@ -872,7 +873,7 @@ export const useConversaStore = create((set, get) => {
         let tomb = mergeMsgPreferringTombstone(prevRow, flat)
         tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
         next[idx] = finalizeMergedMessageRow(prevRow, tomb)
-        return { mensagens: dedupeRowsByPersistedIdentity(next, idx) }
+        return { mensagens: finalizeMensagensList(dedupeRowsByPersistedIdentity(next, idx)) }
       }
       return state
     })
