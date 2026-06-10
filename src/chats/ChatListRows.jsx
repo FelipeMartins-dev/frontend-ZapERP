@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useConversaStore } from "../conversa/conversaStore";
+import { chatRowListStoreKey } from "./chatListStoreCompare";
 import MemoChatRow from "./ChatListRow";
 
 /** A partir deste tamanho, lista virtualizada (crítico na aba Todas no mobile). */
@@ -96,11 +97,16 @@ const ChatListRows = memo(function ChatListRows({
 
   const prevMobileSelectedRef = useRef(mobileSelectedId);
 
+  const chatsLayoutKey = useMemo(
+    () => chatsFiltrados.map((c) => chatRowListStoreKey(c)).join("\n"),
+    [chatsFiltrados]
+  );
+
   const virtualizer = useVirtualizer({
     count: chatsFiltrados.length,
     getScrollElement: () => scrollRef.current,
-    /* Mobile: cards com setor/status passam de 100px — subestimar causa sobreposição na lista virtual. */
-    estimateSize: () => (isMobileLayout ? 128 : 84),
+    /* Cards com badge/status/preview quebra linha — subestimar causa sobreposição absoluta. */
+    estimateSize: () => (isMobileLayout ? 140 : 120),
     gap: 8,
     overscan: isMobileLayout ? 6 : 10,
     scrollPaddingStart: 8,
@@ -115,10 +121,19 @@ const ChatListRows = memo(function ChatListRows({
     },
   });
 
+  const virtualizerRef = useRef(virtualizer);
+  virtualizerRef.current = virtualizer;
+
   useLayoutEffect(() => {
     if (!useVirtual) return;
-    virtualizer.measure();
-  }, [chatsFiltrados, useVirtual]);
+    const remeasure = () => virtualizerRef.current?.measure?.();
+    remeasure();
+    const raf1 = requestAnimationFrame(() => {
+      remeasure();
+      requestAnimationFrame(remeasure);
+    });
+    return () => cancelAnimationFrame(raf1);
+  }, [chatsLayoutKey, chatsFiltrados.length, useVirtual]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -204,8 +219,11 @@ const ChatListRows = memo(function ChatListRows({
       {chatsFiltrados.map((c) => renderChatListRow(c, selectedIdHighlight, rowProps))}
     </div>
   );
-}, (prev, next) =>
-  prev.chatsFiltrados === next.chatsFiltrados &&
+}, (prev, next) => {
+  const prevLayout = (prev.chatsFiltrados || []).map((c) => chatRowListStoreKey(c)).join("\n");
+  const nextLayout = (next.chatsFiltrados || []).map((c) => chatRowListStoreKey(c)).join("\n");
+  return (
+  prevLayout === nextLayout &&
   prev.isMobileLayout === next.isMobileLayout &&
   prev.scrollRef === next.scrollRef &&
   prev.scrollSaveRef === next.scrollSaveRef &&
@@ -217,6 +235,7 @@ const ChatListRows = memo(function ChatListRows({
   prev.openConversationId === next.openConversationId &&
   prev.onToggleMenu === next.onToggleMenu &&
   prev.pendentesFuncionarioSet === next.pendentesFuncionarioSet
-);
+  );
+});
 
 export default ChatListRows;

@@ -1003,7 +1003,8 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-row-virtual-slot {
   box-sizing: border-box;
-  contain: layout style;
+  /* contain:layout impedia ResizeObserver/measureElement de ver altura real após nova msg */
+  contain: none;
   backface-visibility: hidden;
   overflow: visible;
   min-height: 72px;
@@ -1012,6 +1013,7 @@ a { color: inherit; text-decoration: none; }
 .chat-list-row-virtual-slot .chat-list-row {
   content-visibility: visible;
   contain: none;
+  contain-intrinsic-size: unset;
 }
 
 @media (max-width: 640px) {
@@ -1025,8 +1027,6 @@ a { color: inherit; text-decoration: none; }
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
-    transform: translateZ(0);
-    backface-visibility: hidden;
   }
 
   .chat-list-row {

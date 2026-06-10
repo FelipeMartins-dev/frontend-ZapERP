@@ -7,36 +7,62 @@ function safeStr(v) {
   return v == null ? "" : String(v);
 }
 
+function safeReplySig(replyMeta) {
+  if (!replyMeta || typeof replyMeta !== "object") return "";
+  return [
+    safeStr(replyMeta.replyToId ?? replyMeta.id ?? replyMeta.messageId),
+    safeStr(replyMeta.name ?? replyMeta.senderName).slice(0, 120),
+    safeStr(replyMeta.snippet ?? replyMeta.text ?? replyMeta.body).slice(0, 240),
+    safeStr(replyMeta.thumb ?? replyMeta.thumbnail ?? replyMeta.url).slice(0, 200),
+    safeStr(replyMeta.tipo ?? replyMeta.type),
+  ].join("\u0002");
+}
+
 /** Campos que afetam render visual da bolha (sem comparar objeto msg inteiro por referência). */
 export function messageRowVisualSignature(item) {
   if (!item || item.__type !== "msg") return "";
   return [
     safeStr(item.id),
     safeStr(item.tempId),
+    safeStr(item.client_temp_id),
     safeStr(item.whatsapp_id),
     safeStr(item.status ?? item.status_mensagem),
     safeStr(item.tipo),
     safeStr(item.texto ?? item.conteudo).slice(0, 512),
-    safeStr(item.url ?? item.url_absoluta).slice(0, 200),
+    safeStr(item._optimisticBlobUrl).slice(0, 200),
+    safeStr(item.url).slice(0, 200),
+    safeStr(item.url_absoluta).slice(0, 200),
     safeStr(item.nome_arquivo).slice(0, 120),
+    safeStr(item.tamanho ?? item.tamanho_bytes),
+    safeStr(item.file_last_modified),
     item.apagada_para_todos ? "1" : "0",
+    item.encaminhado ? "1" : "0",
     item.__showRemetente ? "1" : "0",
     safeStr(item.__reaction),
     item.__captionBundleTop ? "1" : "0",
     item.__captionBundleFollow ? "1" : "0",
     safeStr(item.remetente_nome),
     safeStr(item.remetente_telefone),
+    safeStr(item.usuario_nome),
+    item.enviado_por_usuario ? "1" : "0",
     safeStr(item.criado_em),
     safeStr(item.direcao),
     safeStr(item.editado),
+    safeReplySig(item.reply_meta),
+    safeStr(item.location_live),
+    item.location_meta ? JSON.stringify(item.location_meta) : "",
   ].join("\u0001");
 }
 
 export function threadRowPropsAreEqual(prev, next) {
-  if (prev.item.__type !== next.item.__type) return false;
+  const prevItem = prev?.item;
+  const nextItem = next?.item;
 
-  if (prev.item.__type === "day") {
-    return prev.item.id === next.item.id && prev.item.label === next.item.label;
+  if (!prevItem || !nextItem) return prevItem === nextItem;
+  if (prevItem.__type !== nextItem.__type) return false;
+
+  if (prevItem.__type === "day") {
+    return prevItem.id === nextItem.id && prevItem.label === nextItem.label;
   }
 
   if (prev.messageKey !== next.messageKey) return false;
@@ -49,7 +75,6 @@ export function threadRowPropsAreEqual(prev, next) {
   if (prev.isStarred !== next.isStarred) return false;
   if (prev.reactionForMessage !== next.reactionForMessage) return false;
   if (prev.reactionLoadingForMessage !== next.reactionLoadingForMessage) return false;
-  if (prev.zapAnimateIn !== next.zapAnimateIn) return false;
 
   if (prev.isGroup !== next.isGroup) return false;
   if (prev.peerAvatarUrl !== next.peerAvatarUrl) return false;

@@ -1,14 +1,12 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getDisplayName } from "../chats/chatList";
 import { resolveContactMetaFromMessage } from "../utils/conversaUtils";
 import { SwipeReplyTrack } from "./SwipeReplyTrack";
-import { useMatchMedia } from "../hooks/useMatchMedia";
+import { useConversaStore } from "./conversaStore";
 import {
   safeString,
   isOutgoingMessage,
   isFilenameOnlyText,
-  getMediaUrl,
   getMediaPlaybackUrl,
   resolveBubbleMediaCandidates,
   resolveAudioPlaybackCandidates,
@@ -474,6 +472,21 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
 
   useEffect(() => {
     const el = audioRef.current;
+    return () => {
+      if (!el) return;
+      try {
+        el.pause();
+      } catch {
+        /* ignore */
+      }
+      if (__waCurrentAudio === el) {
+        __waCurrentAudio = null;
+      }
+    };
+  }, [activeSrc]);
+
+  useEffect(() => {
+    const el = audioRef.current;
     if (!el) return;
     try {
       el.playbackRate = playbackRate;
@@ -736,6 +749,7 @@ const Bubble = memo(function Bubble({
   zapAnimateIn = false,
 }) {
   const out = isOutgoingMessage(msg);
+  const tipoMsg = safeString(msg?.tipo).toLowerCase();
   const isApagadaParaTodos = !!msg?.apagada_para_todos;
   const mediaCandidates = useMemo(
     () => resolveBubbleMediaCandidates(msg),
@@ -747,7 +761,9 @@ const Bubble = memo(function Bubble({
     [msg?._optimisticBlobUrl, msg?.url, msg?.url_absoluta, msg?.tipo]
   );
   const videoPlaybackUrl =
-    msg?.tipo === "video" && mediaUrl ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) : mediaUrl;
+    (tipoMsg === "video" || tipoMsg === "vídeo") && mediaUrl
+      ? getMediaPlaybackUrl(msg?.url, msg?.url_absoluta)
+      : mediaUrl;
   const canDeleteForEveryone = useMemo(() => {
     if (!out) return false;
     if (msg?.apagada_para_todos) return false;
@@ -757,17 +773,18 @@ const Bubble = memo(function Bubble({
   }, [out, currentUserId, msg?.autor_usuario_id, msg?.apagada_para_todos]);
   /* Com mídia preservada no painel, ainda exibe imagem/áudio após “apagar para todos” no WhatsApp. */
   const isImg =
-    msg?.tipo === "imagem" && !!mediaUrl && (!isApagadaParaTodos || !!mediaUrl);
+    (tipoMsg === "imagem" || tipoMsg === "image") && !!mediaUrl && (!isApagadaParaTodos || !!mediaUrl);
   const isSticker =
-    msg?.tipo === "sticker" && !!mediaUrl && (!isApagadaParaTodos || !!mediaUrl);
-  const isFile = msg?.tipo === "arquivo" && (!isApagadaParaTodos || !!mediaUrl);
-  const isAudio = msg?.tipo === "audio" && (!isApagadaParaTodos || !!mediaUrl);
-  const isVoice = msg?.tipo === "voice" && (!isApagadaParaTodos || !!mediaUrl);
+    tipoMsg === "sticker" && !!mediaUrl && (!isApagadaParaTodos || !!mediaUrl);
+  const isFile =
+    ["arquivo", "documento", "document", "file"].includes(tipoMsg) && (!isApagadaParaTodos || !!mediaUrl);
+  const isAudio = tipoMsg === "audio" && (!isApagadaParaTodos || !!mediaUrl);
+  const isVoice = (tipoMsg === "voice" || tipoMsg === "ptt") && (!isApagadaParaTodos || !!mediaUrl);
   const isAudioOrVoice = isAudio || isVoice;
-  const isVideo = msg?.tipo === "video" && (!isApagadaParaTodos || !!mediaUrl);
+  const isVideo = (tipoMsg === "video" || tipoMsg === "vídeo") && (!isApagadaParaTodos || !!mediaUrl);
   const contactBubbleMeta = useMemo(() => resolveContactMetaFromMessage(msg), [msg]);
   const isContact = !!contactBubbleMeta;
-  const isLocation = msg?.tipo === "location";
+  const isLocation = tipoMsg === "location";
   const textoRaw = safeString(msg?.texto);
   const texto =
     isApagadaParaTodos && !textoRaw ? "Esta mensagem foi apagada para todos." : textoRaw;
@@ -829,7 +846,7 @@ const Bubble = memo(function Bubble({
   }, [zapAnimateIn]);
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
-  const isCall = !isApagadaParaTodos && msg?.tipo === "call";
+  const isCall = !isApagadaParaTodos && tipoMsg === "call";
   const [audioDur, setAudioDur] = useState(0);
   const audioDurLabel = useMemo(() => (audioDur > 0 ? formatMmSs(audioDur) : null), [audioDur]);
 

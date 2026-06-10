@@ -282,6 +282,7 @@ function ConversaViewBody() {
   const [callSending, setCallSending] = useState(false);
   const messagesContainerRef = useRef(null);
   const shouldStickToBottomRef = useRef(true);
+  const messagesLastScrollTopRef = useRef(0);
   /** Bloqueia snap automático ao fundo (Assumir, etc.). */
   const suppressAutoScrollRef = useRef(false);
   const messagesScrollPreserveSnapRef = useRef(null);
@@ -1032,10 +1033,22 @@ function ConversaViewBody() {
     st.loadMore();
   }, [captureLoadMoreAnchor]);
 
+  const releaseStickToBottom = useCallback(() => {
+    shouldStickToBottomRef.current = false;
+  }, []);
+
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    shouldStickToBottomRef.current = isNearBottom(el, 120);
+    const top = el.scrollTop;
+    const prevTop = messagesLastScrollTopRef.current;
+    /* Qualquer arraste para cima libera o auto-scroll — evita “travar” ao ler histórico. */
+    if (top < prevTop - 1) {
+      shouldStickToBottomRef.current = false;
+    } else {
+      shouldStickToBottomRef.current = isNearBottom(el, 120);
+    }
+    messagesLastScrollTopRef.current = top;
 
     window.clearTimeout(scrollEndTimerRef.current);
     scrollEndTimerRef.current = window.setTimeout(
@@ -1043,6 +1056,10 @@ function ConversaViewBody() {
       headerCompact ? 200 : 140
     );
   }, [tryLoadOlderMessages, headerCompact]);
+
+  useEffect(() => {
+    messagesLastScrollTopRef.current = 0;
+  }, [scrollThreadId]);
 
   useEffect(() => {
     const el = messagesContainerRef.current;
@@ -1053,6 +1070,30 @@ function ConversaViewBody() {
       window.clearTimeout(scrollEndTimerRef.current);
     };
   }, [handleMessagesScroll, conversaId]);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    let touchStartY = 0;
+    const onTouchStart = (e) => {
+      touchStartY = e.touches?.[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e) => {
+      const y = e.touches?.[0]?.clientY ?? 0;
+      if (touchStartY - y > 6) releaseStickToBottom();
+    };
+    const onWheel = (e) => {
+      if (e.deltaY < 0) releaseStickToBottom();
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("wheel", onWheel, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [scrollThreadId, releaseStickToBottom]);
 
   useEffect(() => {
     if (loadingMore) return;

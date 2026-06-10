@@ -78,7 +78,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     scrollPaddingEnd: 16,
 
-    isScrollingResetDelay: mobileThread ? 320 : 200,
+    isScrollingResetDelay: mobileThread ? 420 : 200,
 
     getItemKey: (index) => {
 
@@ -270,7 +270,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
         flushResizeAfterScroll();
 
-      }, mobileThread ? 280 : 180);
+      }, mobileThread ? 120 : 180);
 
     };
 

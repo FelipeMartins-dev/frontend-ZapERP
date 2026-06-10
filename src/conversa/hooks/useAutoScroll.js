@@ -1,7 +1,34 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { isNearBottom } from "../scrollUtils";
 import { isOutgoingMessage } from "../utils/conversaViewHelpers";
 import { isPendingOutgoingTemp } from "../conversaStore";
+
+function scheduleFrame(fn) {
+  if (typeof requestAnimationFrame === "function") {
+    return requestAnimationFrame(fn);
+  }
+  if (typeof window !== "undefined" && typeof window.setTimeout === "function") {
+    return window.setTimeout(fn, 16);
+  }
+  return setTimeout(fn, 16);
+}
+
+function cancelFrame(id) {
+  if (!id) return;
+  if (typeof cancelAnimationFrame === "function") {
+    try {
+      cancelAnimationFrame(id);
+      return;
+    } catch {
+      /* fallback abaixo */
+    }
+  }
+  try {
+    clearTimeout(id);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function snapThreadToBottom(container, virtualListRef, opts = {}) {
   const min = opts.min === true;
@@ -31,9 +58,7 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
   if (min) {
     scrollVirtualToEnd();
     scrollContainerToBottom();
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(scrollContainerToBottom);
-    }
+    scheduleFrame(scrollContainerToBottom);
     return;
   }
 
@@ -53,7 +78,7 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
     };
     apply();
     if (!gentle) {
-      requestAnimationFrame(apply);
+      scheduleFrame(apply);
     }
   }
 }
@@ -190,59 +215,67 @@ export function useAutoScroll({
       snapThreadToBottom(container, virtualListRef);
     };
 
-    /* Mobile: poucos passes curtos — ancora nas últimas mensagens ao abrir conversa. */
+    /* Mobile: um snap + um rAF — timers extras puxavam o scroll de volta e travavam o arraste para cima. */
     if (mobileLike) {
       const snapHard = () => {
         if (!shouldStickToBottomRef.current) return;
         snapThreadToBottom(container, virtualListRef, { min: true });
       };
       snapHard();
-      const rafOnce = requestAnimationFrame(snapHard);
-      const t1 = window.setTimeout(snapHard, 60);
-      const t2 = window.setTimeout(snapHard, 180);
-      const t3 = window.setTimeout(snapHard, 380);
-      return () => {
-        cancelAnimationFrame(rafOnce);
-        window.clearTimeout(t1);
-        window.clearTimeout(t2);
-        window.clearTimeout(t3);
-      };
+      const rafOnce = scheduleFrame(snapHard);
+      return () => cancelFrame(rafOnce);
     }
 
     const rafCap = 10;
     const stickMax = 18;
 
+    let cancelled = false;
+
     snap();
+    let rafChain = 0;
     let n = 0;
     const chain = () => {
+      if (cancelled) return;
       n += 1;
       snap();
-      if (n < rafCap) requestAnimationFrame(chain);
+      if (n < rafCap) {
+        rafChain = scheduleFrame(chain);
+      }
     };
-    requestAnimationFrame(chain);
-    const t1 = window.setTimeout(snap, 0);
-    const t2 = window.setTimeout(snap, 120);
-    const t3 = window.setTimeout(snap, 380);
+    rafChain = scheduleFrame(chain);
+
+    const t1 = window.setTimeout(() => {
+      if (!cancelled) snap();
+    }, 0);
+    const t2 = window.setTimeout(() => {
+      if (!cancelled) snap();
+    }, 120);
+    const t3 = window.setTimeout(() => {
+      if (!cancelled) snap();
+    }, 380);
 
     let rafStick = 0;
     let stickAttempts = 0;
     const tryStickOpen = () => {
+      if (cancelled) return;
       const c = messagesContainerRef?.current;
       stickAttempts += 1;
       if (!c || stickAttempts > stickMax) return;
       if (!shouldStickToBottomRef.current) return;
       if (!isNearBottom(c, 200)) {
         snap();
-        rafStick = requestAnimationFrame(tryStickOpen);
+        rafStick = scheduleFrame(tryStickOpen);
       }
     };
-    rafStick = requestAnimationFrame(tryStickOpen);
+    rafStick = scheduleFrame(tryStickOpen);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(t1);
       window.clearTimeout(t2);
-      if (t3) window.clearTimeout(t3);
-      if (rafStick) cancelAnimationFrame(rafStick);
+      window.clearTimeout(t3);
+      cancelFrame(rafChain);
+      cancelFrame(rafStick);
     };
   }, [
     conversaId,

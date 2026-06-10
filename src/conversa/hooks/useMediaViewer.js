@@ -12,6 +12,32 @@ import {
 } from "../utils/conversaViewHelpers";
 
 /**
+ * Normaliza aliases de tipo apenas para o visualizador.
+ * Não altera o contrato externo: quem chama pode continuar enviando "imagem", "video", "arquivo" etc.
+ */
+function normalizeViewerType(type, fileName) {
+  const t = String(type || "").trim().toLowerCase();
+  const fn = String(fileName || "").trim().toLowerCase();
+
+  if (t === "image") return "imagem";
+  if (t === "foto" || t === "photo" || t === "figurinha") return "imagem";
+  if (t === "vídeo") return "video";
+  if (t === "document" || t === "file" || t === "documento" || t === "pdf") return "arquivo";
+
+  if (!t && fn.endsWith(".pdf")) return "arquivo";
+  return t || "imagem";
+}
+
+function revokeObjectUrl(url) {
+  if (!url || typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") return;
+  try {
+    URL.revokeObjectURL(url);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * Visualizador de mídia em tela cheia (imagem, vídeo, PDF) e impressão.
  * UI em MediaViewerOverlay; lógica concentrada neste hook.
  */
@@ -23,10 +49,29 @@ export function useMediaViewer({ showToast }) {
   const [mediaPrintLoading, setMediaPrintLoading] = useState(false);
   const mediaViewerImgRef = useRef(null);
   const mediaViewerVideoRef = useRef(null);
+  const mediaPdfBlobUrlRef = useRef(null);
+
+  useEffect(() => {
+    mediaPdfBlobUrlRef.current = mediaPdfBlobUrl;
+  }, [mediaPdfBlobUrl]);
+
+  useEffect(
+    () => () => {
+      revokeObjectUrl(mediaPdfBlobUrlRef.current);
+      mediaPdfBlobUrlRef.current = null;
+    },
+    []
+  );
 
   const openMediaViewer = useCallback((url, type = "imagem", fileName) => {
     if (!url) return;
-    setMediaViewer({ url, type: type || "imagem", fileName: fileName || null });
+    const normalizedType = normalizeViewerType(type, fileName);
+    setMediaViewer({
+      url,
+      type: normalizedType,
+      fileName: fileName || null,
+      originalType: type || null,
+    });
   }, []);
 
   const closeMediaViewer = useCallback(() => {
@@ -35,7 +80,10 @@ export function useMediaViewer({ showToast }) {
 
   const handleMediaViewerPrint = useCallback(async () => {
     if (!mediaViewer?.url || mediaPrintLoading) return;
-    if (!mediaViewerSupportsPrint(mediaViewer.type, mediaViewer.fileName)) {
+
+    const viewerType = normalizeViewerType(mediaViewer.type, mediaViewer.fileName);
+
+    if (!mediaViewerSupportsPrint(viewerType, mediaViewer.fileName)) {
       showToast({
         type: "info",
         title: "Impressão",
@@ -46,7 +94,7 @@ export function useMediaViewer({ showToast }) {
 
     setMediaPrintLoading(true);
     try {
-      if (mediaViewer.type === "video") {
+      if (viewerType === "video") {
         const v = mediaViewerVideoRef.current;
         if (!v) {
           showToast({ type: "error", title: "Impressão", message: "Vídeo indisponível no visualizador." });
@@ -105,19 +153,11 @@ export function useMediaViewer({ showToast }) {
 
   useEffect(() => {
     let cancelled = false;
-    const revokeIf = (u) => {
-      if (u) {
-        try {
-          URL.revokeObjectURL(u);
-        } catch {
-          /* ignore */
-        }
-      }
-    };
+    let createdPdfUrl = null;
 
     if (!mediaViewer) {
       setMediaPdfBlobUrl((prev) => {
-        revokeIf(prev);
+        revokeObjectUrl(prev);
         return null;
       });
       setMediaPdfLoading(false);
@@ -125,11 +165,13 @@ export function useMediaViewer({ showToast }) {
       return undefined;
     }
 
+    const viewerType = normalizeViewerType(mediaViewer.type, mediaViewer.fileName);
     const fn = String(mediaViewer.fileName || "").toLowerCase();
-    const isPdf = mediaViewer.type === "arquivo" && fn.endsWith(".pdf");
+    const isPdf = viewerType === "arquivo" && (fn.endsWith(".pdf") || mediaViewer.originalType === "pdf");
+
     if (!isPdf) {
       setMediaPdfBlobUrl((prev) => {
-        revokeIf(prev);
+        revokeObjectUrl(prev);
         return null;
       });
       setMediaPdfLoading(false);
@@ -140,19 +182,26 @@ export function useMediaViewer({ showToast }) {
     setMediaPdfLoading(true);
     setMediaPdfError(null);
     setMediaPdfBlobUrl((prev) => {
-      revokeIf(prev);
+      revokeObjectUrl(prev);
       return null;
     });
 
     const abs = getMediaPlaybackUrl(mediaViewer.url, false) || getMediaUrl(mediaViewer.url, false);
+
     (async () => {
       try {
         const blob = await fetchMediaBinaryAuthenticated(abs);
-        if (cancelled) return;
         const pdfBlob =
           blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
-        const u = URL.createObjectURL(pdfBlob);
-        setMediaPdfBlobUrl(u);
+        createdPdfUrl = URL.createObjectURL(pdfBlob);
+
+        if (cancelled) {
+          revokeObjectUrl(createdPdfUrl);
+          createdPdfUrl = null;
+          return;
+        }
+
+        setMediaPdfBlobUrl(createdPdfUrl);
       } catch (e) {
         if (!cancelled) {
           setMediaPdfError(String(e?.message || e || "Erro ao carregar o documento."));

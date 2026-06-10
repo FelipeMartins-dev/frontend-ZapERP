@@ -249,6 +249,46 @@ function pickConversaShellFromChatList(normalizedId) {
   return { id: normalizedId }
 }
 
+/** Microtask defensivo: evita quebrar em ambientes de teste/legados sem queueMicrotask. */
+function scheduleMicrotaskSafe(fn) {
+  if (typeof queueMicrotask === "function") {
+    queueMicrotask(fn)
+    return
+  }
+  Promise.resolve().then(fn)
+}
+
+/** Comparação rasa para evitar set/re-render quando patchConversa não muda nada real. */
+function shallowObjectChanged(prev, next) {
+  if (prev === next) return false
+  if (!prev || !next) return true
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)])
+  for (const key of keys) {
+    if (prev[key] !== next[key]) return true
+  }
+  return false
+}
+
+/** Prepara mensagem recebida por socket/API para entrar apenas na conversa correta. */
+function normalizeIncomingMessageForCurrentConversation(raw, fallbackConversaId) {
+  if (!raw || fallbackConversaId == null) return null
+  const normalizedFallbackId = normalizeConversaId(fallbackConversaId)
+  if (normalizedFallbackId == null) return null
+
+  const msg = normalizeMsgForStore({ ...raw })
+  const incomingConversaId = normalizeConversaId(msg?.conversa_id ?? normalizedFallbackId)
+  if (incomingConversaId == null) return null
+
+  if (String(incomingConversaId) !== String(normalizedFallbackId)) {
+    return null
+  }
+
+  return {
+    ...msg,
+    conversa_id: incomingConversaId,
+  }
+}
+
 export const useConversaStore = create((set, get) => {
   conversaStoreGetState = get
   const pendingAnexar = []
@@ -311,7 +351,7 @@ export const useConversaStore = create((set, get) => {
   function scheduleAnexarFlush() {
     if (anexarFlushScheduled) return
     anexarFlushScheduled = true
-    queueMicrotask(takeAndApplyAnexarBatch)
+    scheduleMicrotaskSafe(takeAndApplyAnexarBatch)
   }
 
   return {
@@ -830,20 +870,20 @@ export const useConversaStore = create((set, get) => {
 
   anexarMensagem: (msg) => {
     if (msg == null) return
-    const probe = normalizeMsgForStore({ ...msg })
-    const conversaId = probe?.conversa_id ?? get().conversa?.id
-    if (!conversaId) return
-    pendingAnexar.push(msg)
+    const conversaId = get().conversa?.id ?? get().selectedId
+    const prepared = normalizeIncomingMessageForCurrentConversation(msg, conversaId)
+    if (!prepared) return
+    pendingAnexar.push(prepared)
     scheduleAnexarFlush()
   },
 
   /** Envio otimista do usuário: aplica na mesma tick (sem esperar microtask). */
   anexarMensagemImediata: (msg) => {
     if (msg == null) return
-    const probe = normalizeMsgForStore({ ...msg })
-    const conversaId = probe?.conversa_id ?? get().conversa?.id
-    if (!conversaId) return
-    pendingAnexar.push(msg)
+    const conversaId = get().conversa?.id ?? get().selectedId
+    const prepared = normalizeIncomingMessageForCurrentConversation(msg, conversaId)
+    if (!prepared) return
+    pendingAnexar.push(prepared)
     takeAndApplyAnexarBatch()
   },
 
@@ -1458,10 +1498,11 @@ export const useConversaStore = create((set, get) => {
       const becameAssignee = nowAssignee && !wasAssignee
       const msgs = state.mensagens || []
       if ((becameUnblocked || becameAssignee) && msgs.length === 0) shouldReloadMessages = true
+      if (!shallowObjectChanged(cur, merged)) return state
       return { conversa: merged }
     })
     if (shouldReloadMessages) {
-      queueMicrotask(() => {
+      scheduleMicrotaskSafe(() => {
         if (String(get().selectedId) !== String(partial.id)) return
         get().refresh({ silent: true })
       })

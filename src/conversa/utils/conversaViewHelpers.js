@@ -74,6 +74,21 @@ export function safeString(v) {
 }
 
 /**
+ * Normaliza aliases de tipo vindos de APIs/webhooks diferentes.
+ * Mantém os tipos internos principais usados pela UI.
+ */
+export function normalizeMessageTipo(tipo) {
+  const t = safeString(tipo).toLowerCase();
+  if (t === "image") return "imagem";
+  if (t === "vídeo") return "video";
+  if (t === "document" || t === "file" || t === "documento") return "arquivo";
+  if (t === "ptt") return "voice";
+  if (t === "location_message" || t === "localizacao" || t === "localização") return "location";
+  if (t === "contact_message" || t === "vcard" || t === "contato") return "contact";
+  return t;
+}
+
+/**
  * Detecta se o texto é apenas um nome de arquivo (sem qualquer descrição).
  * Usado para evitar exibir "IMG_6559.png" / "VID-2026.mp4" como legenda da mídia
  * quando o backend gravou o originalname em `mensagens.texto`.
@@ -161,7 +176,7 @@ const MEDIA_INLINE_CAPTION_PLACEHOLDERS = new Set([
 
 /** Mídia (foto/vídeo/figurinha) que já exibe legenda no próprio balão — não agrupar com texto seguinte. */
 export function mediaHasInlineCaption(msg) {
-  const t = safeString(msg?.tipo).toLowerCase();
+  const t = normalizeMessageTipo(msg?.tipo);
   if (t !== "imagem" && t !== "video" && t !== "sticker") return false;
   const texto = safeString(msg?.texto);
   if (!texto || MEDIA_INLINE_CAPTION_PLACEHOLDERS.has(texto)) return false;
@@ -195,12 +210,12 @@ export function captionTextsEquivalent(prev, cur) {
 }
 
 export function isMediaCaptionBundleTop(msg) {
-  const t = safeString(msg?.tipo).toLowerCase();
+  const t = normalizeMessageTipo(msg?.tipo);
   return t === "imagem" || t === "video";
 }
 
 export function isPlainCaptionFollowMessage(msg) {
-  const t = safeString(msg?.tipo).toLowerCase();
+  const t = normalizeMessageTipo(msg?.tipo);
   const nonText = new Set([
     "imagem",
     "video",
@@ -352,7 +367,7 @@ export function isImageFile(file) {
   const t = String(file.type || "").toLowerCase();
   if (t.startsWith("image/")) return true;
   const name = String(file.name || "").toLowerCase();
-  return /\.(png|jpe?g|gif|webp|bmp)$/i.test(name);
+  return /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(name);
 }
 
 /** Imagens estáticas editáveis no mobile (sem GIF/SVG). */
@@ -370,7 +385,7 @@ export function isAudioFile(file) {
   const t = String(file.type || "").toLowerCase();
   if (t.startsWith("audio/")) return true;
   const name = String(file.name || "").toLowerCase();
-  return /\.(mp3|ogg|wav|m4a|webm|aac|opus)$/i.test(name);
+  return /\.(mp3|ogg|wav|m4a|webm|aac|opus|amr)$/i.test(name);
 }
 
 export function isVideoFile(file) {
@@ -469,19 +484,34 @@ export function resolveBubbleMediaCandidates(msg) {
     seen.add(s);
     out.push(s);
   };
-
-  const blob = msg?._optimisticBlobUrl;
-  if (blob != null && String(blob).startsWith("blob:")) push(blob);
-  if (String(msg?.url || "").startsWith("blob:")) push(msg.url);
-  if (String(msg?.url_absoluta || "").startsWith("blob:")) push(msg.url_absoluta);
-
-  const abs = getMediaUrl(msg?.url, msg?.url_absoluta);
-  if (abs) {
+  const pushResolved = (url, urlAbsoluta) => {
+    const abs = getMediaUrl(url, urlAbsoluta);
+    if (!abs) return;
     if (needsProxiedMediaPlayback(abs)) {
-      push(getMediaPlaybackUrl(msg?.url, msg?.url_absoluta) || abs);
+      push(getMediaPlaybackUrl(url, urlAbsoluta) || abs);
     }
     push(abs);
+  };
+
+  const blobCandidates = [
+    msg?._optimisticBlobUrl,
+    msg?.url,
+    msg?.url_absoluta,
+    msg?.media_url,
+    msg?.mediaUrl,
+    msg?.file_url,
+    msg?.fileUrl,
+    msg?.download_url,
+    msg?.downloadUrl,
+  ];
+  for (const raw of blobCandidates) {
+    if (String(raw || "").startsWith("blob:")) push(raw);
   }
+
+  pushResolved(msg?.url, msg?.url_absoluta);
+  pushResolved(msg?.media_url ?? msg?.mediaUrl, null);
+  pushResolved(msg?.file_url ?? msg?.fileUrl, null);
+  pushResolved(msg?.download_url ?? msg?.downloadUrl, null);
 
   return out;
 }
@@ -584,8 +614,8 @@ export async function fetchMediaBinaryAuthenticated(absoluteUrl) {
 
 /** Visualizador de mídia: tipos em que a impressão faz sentido (imagem / vídeo-quadro). */
 export function mediaViewerSupportsPrint(viewerType, fileName) {
-  const t = String(viewerType || "").toLowerCase();
-  if (t === "video" || t === "imagem" || t === "figurinha") return true;
+  const t = normalizeMessageTipo(viewerType);
+  if (t === "video" || t === "imagem" || t === "sticker" || t === "figurinha") return true;
   if (t === "arquivo") {
     const fn = String(fileName || "").toLowerCase();
     return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fn);
@@ -690,7 +720,7 @@ export function convertImageToWebp(file, quality = 0.9) {
 
 /** Mídia cujo apagamento o usuário costuma querer evitar por engano (foto, vídeo, áudio, arquivo…). */
 export function isRichMediaMessage(msg) {
-  const tipo = safeString(msg?.tipo).toLowerCase();
+  const tipo = normalizeMessageTipo(msg?.tipo);
   return ["imagem", "video", "sticker", "audio", "voice", "arquivo"].includes(tipo);
 }
 

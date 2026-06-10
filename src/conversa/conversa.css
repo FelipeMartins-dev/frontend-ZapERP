@@ -1635,8 +1635,10 @@
     animation: none;
   }
 
-  .wa-messages-virtual-root > div {
-    contain: layout style;
+  /* contain durante scroll tátil gerava jank nas bolhas virtualizadas */
+  .wa-messages-virtual-root > div,
+  .wa-messages.is-scrolling .wa-messages-virtual-root > div {
+    contain: none;
   }
 }
 

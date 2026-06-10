@@ -1,5 +1,10 @@
 /** Merge/dedupe de mensagens — módulo puro (sem React/socket) para store + testes. */
 function cleanupOptimisticBlobFields(merged) { return merged }
+
+/** Logs técnicos pesados só em desenvolvimento. */
+function isDebugRuntime() {
+  return Boolean(import.meta?.env?.DEV)
+}
 const RUNTIME_INSERT_SEQ_BASE = 10_000_000
 let stableInsertSeqCounter = RUNTIME_INSERT_SEQ_BASE
 function allocStableInsertSeq() {
@@ -327,7 +332,7 @@ function finalizeMensagensList(list) {
   const final = sortMensagensChronological(afterIdentityDedupe)
   
   // Debug para detectar remoções inesperadas de áudios
-  if (typeof window !== "undefined" && final.length < beforePrune) {
+  if (isDebugRuntime() && typeof window !== "undefined" && final.length < beforePrune) {
     const audiosBefore = list.filter(m => isAudioFamilyTipo(m?.tipo)).length
     const audiosAfter = final.filter(m => isAudioFamilyTipo(m?.tipo)).length
     if (audiosBefore > audiosAfter) {
@@ -722,14 +727,14 @@ function dedupeRowsByPersistedIdentity(list, keepIdx) {
     // Para mensagens que têm o mesmo ID, remove duplicatas
     if (id && m?.id != null && String(m.id) === id) {
       // Debug para áudios
-      if (typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
+      if (isDebugRuntime() && typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
         console.log("[AUDIO_DEBUG] Removendo duplicata por ID", { keepIdx, i, id, m })
       }
       return false
     }
     if (wa && m?.whatsapp_id != null && String(m.whatsapp_id) === wa) {
       // Debug para áudios
-      if (typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
+      if (isDebugRuntime() && typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
         console.log("[AUDIO_DEBUG] Removendo duplicata por whatsapp_id", { keepIdx, i, wa, m })
       }
       return false

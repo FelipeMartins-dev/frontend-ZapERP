@@ -81,6 +81,7 @@ export function buildOptimisticOutgoingMessage(params) {
       conteudo: preview,
       nome_arquivo: nome,
       tamanho: file.size,
+      ...(file?.size != null ? { tamanho_bytes: file.size } : {}),
       ...(file?.lastModified != null ? { file_last_modified: file.lastModified } : {}),
       ...(blobUrl
         ? { url: blobUrl, url_absoluta: blobUrl, _optimisticBlobUrl: blobUrl }
@@ -116,6 +117,28 @@ function hasTrustedPersistedMediaUrl(msg) {
   return false;
 }
 
+function pickTrustedMediaUrl(row) {
+  const directUrl = String(row?.url || "").trim();
+  if (hasTrustedPersistedMediaUrl({ url: directUrl })) return directUrl;
+
+  const absoluteUrl = String(row?.url_absoluta || "").trim();
+  if (hasTrustedPersistedMediaUrl({ url_absoluta: absoluteUrl })) return absoluteUrl;
+
+  return "";
+}
+
+function pickClientTempId(row) {
+  const v = row?.client_temp_id ?? row?.clientTempId ?? row?.temp_id ?? row?.tempId;
+  if (v == null || String(v).trim() === "") return null;
+  return String(v).trim();
+}
+
+function pickFileLastModified(row) {
+  const v = row?.file_last_modified ?? row?.fileLastModified ?? row?.lastModified;
+  if (v == null || String(v).trim?.() === "") return null;
+  return v;
+}
+
 /** Não revoga blob no merge do store — evita “aparece e vira ?” ao reconciliar com a API/socket. */
 export function cleanupOptimisticBlobFields(merged) {
   return merged;
@@ -125,6 +148,11 @@ function buildArquivoReconcileRow(row, conversaId) {
   if (!row || typeof row !== "object") return null;
   const id = row.id ?? row.mensagem_id ?? row.message_id;
   if (id == null || String(id).trim() === "") return null;
+
+  const trustedUrl = pickTrustedMediaUrl(row);
+  const clientTempId = pickClientTempId(row);
+  const fileLastModified = pickFileLastModified(row);
+
   return {
     id,
     conversa_id: row.conversa_id ?? conversaId,
@@ -132,16 +160,14 @@ function buildArquivoReconcileRow(row, conversaId) {
     status: row.status ?? row.status_mensagem ?? "pending",
     status_mensagem: row.status_mensagem ?? row.status ?? "pending",
     ...(row.tipo ? { tipo: row.tipo } : {}),
-    ...(row.url ? { url: row.url } : {}),
-    ...(row.url_absoluta && /^https?:\/\//i.test(String(row.url_absoluta))
-      ? { url_absoluta: row.url_absoluta }
-      : {}),
+    ...(trustedUrl ? { url: trustedUrl, url_absoluta: trustedUrl } : {}),
     ...(row.nome_arquivo ? { nome_arquivo: row.nome_arquivo } : {}),
     ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
     ...(row.whatsapp_id ? { whatsapp_id: row.whatsapp_id } : {}),
-    ...(row.client_temp_id ? { client_temp_id: row.client_temp_id } : {}),
+    ...(clientTempId ? { client_temp_id: clientTempId } : {}),
     ...(row.tamanho != null ? { tamanho: row.tamanho } : {}),
     ...(row.tamanho_bytes != null ? { tamanho_bytes: row.tamanho_bytes } : {}),
+    ...(fileLastModified != null ? { file_last_modified: fileLastModified } : {}),
   };
 }
 
@@ -153,8 +179,13 @@ export function normalizeArquivoApiToMessage(data, conversaId) {
   return buildArquivoReconcileRow(
     {
       ...m,
-      conversa_id: m.conversa_id ?? conversaId,
-      direcao: m.direcao ?? "out",
+      conversa_id: m.conversa_id ?? data.conversa_id ?? conversaId,
+      direcao: m.direcao ?? data.direcao ?? "out",
+      client_temp_id: m.client_temp_id ?? data.client_temp_id ?? data.clientTempId ?? data.temp_id ?? data.tempId,
+      file_last_modified:
+        m.file_last_modified ?? data.file_last_modified ?? data.fileLastModified ?? data.lastModified,
+      url: m.url ?? data.url,
+      url_absoluta: m.url_absoluta ?? data.url_absoluta,
     },
     conversaId
   );
@@ -175,7 +206,7 @@ export function extractArquivoApiReconciliations(data, conversaId, tempIds = [])
       const realMsg = buildArquivoReconcileRow(row, conversaId);
       if (!realMsg) return;
       const tempId =
-        row.client_temp_id ||
+        pickClientTempId(row) ||
         (Array.isArray(tempIds) && tempIds[idx] != null ? tempIds[idx] : null);
       if (tempId) out.push({ tempId, realMsg });
     });
@@ -185,7 +216,7 @@ export function extractArquivoApiReconciliations(data, conversaId, tempIds = [])
     const single = normalizeArquivoApiToMessage(data, conversaId);
     if (single) {
       const tempId =
-        data.client_temp_id ||
+        pickClientTempId(data) ||
         (Array.isArray(tempIds) && tempIds[0] != null ? tempIds[0] : null);
       if (tempId) out.push({ tempId, realMsg: single });
     }
@@ -200,7 +231,7 @@ export function extractArquivoApiFailures(data, tempIds = []) {
   data.results.forEach((row, idx) => {
     if (row?.ok) return;
     const tempId =
-      row?.client_temp_id ||
+      pickClientTempId(row) ||
       (Array.isArray(tempIds) && tempIds[idx] != null ? tempIds[idx] : null);
     if (tempId) {
       failures.push({ tempId, error: row?.error || "Falha ao enviar arquivo." });
@@ -236,6 +267,7 @@ export function buildOptimisticForwardMessages(destConversaId, sourceMsgs) {
     const criado_em = new Date(baseMs + idx).toISOString();
     const out = {
       tempId,
+      client_temp_id: tempId,
       conversa_id: cid,
       direcao: "out",
       status: "pending",
@@ -253,6 +285,8 @@ export function buildOptimisticForwardMessages(destConversaId, sourceMsgs) {
     }
     if (src?.nome_arquivo) out.nome_arquivo = src.nome_arquivo;
     if (src?.tamanho != null) out.tamanho = src.tamanho;
+    if (src?.tamanho_bytes != null) out.tamanho_bytes = src.tamanho_bytes;
+    if (src?.file_last_modified != null) out.file_last_modified = src.file_last_modified;
     return out;
   });
 }
