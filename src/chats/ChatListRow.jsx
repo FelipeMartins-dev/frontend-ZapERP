@@ -1082,7 +1082,7 @@ function ChatRow({
   const reabertaFaltaRowClass = isReabertaPorFaltaInteracao(chat) ? " chat-list-row--reaberta-falta-card" : "";
   const somenteAbertaRowClass =
     !semConversa &&
-    !isGroup &&
+    !isGroupConversation(chat) &&
     chat?.exibir_badge_aberta === true &&
     !isReabertaPorFaltaInteracao(chat) &&
     !aguardandoFuncionarioVisivelRow &&
