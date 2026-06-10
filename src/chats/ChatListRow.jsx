@@ -602,17 +602,7 @@ function TagMini({ tag }) {
 }
 
 function isReabertaPorFaltaInteracao(chat) {
-  if (chat?.reaberta_por_falta_interacao === true) return true;
-  if (chat?.reaberta_falta_interacao_em) return true;
-  const tags = Array.isArray(chat?.tags) ? chat.tags : [];
-  return tags.some((tag) => {
-    const nome = String(tag?.nome || "")
-      .normalize("NFD")
-      .replace(/\p{M}/gu, "")
-      .toLowerCase();
-    if (!nome) return false;
-    return /reabert/.test(nome) && /falta|resposta|interac|inativid/.test(nome);
-  });
+  return chat?.reaberta_por_falta_interacao === true || Boolean(chat?.reaberta_falta_interacao_em);
 }
 
 function ReabertaFaltaInteracaoBadge({ sub = false }) {
@@ -622,10 +612,10 @@ function ReabertaFaltaInteracaoBadge({ sub = false }) {
         "chat-list-status-tech chat-list-status-tech--reaberta-falta zap-badge-reaberta-falta" +
         (sub ? " chat-list-status-tech--reaberta-falta-sub" : "")
       }
-      title="Reaberta automaticamente por falta de resposta do atendente"
+      title="Reaberta automaticamente por falta de interação do atendente (gestor notificado)"
     >
       <span className="chat-list-status-tech-reaberta-dot zap-dot" aria-hidden="true" />
-      <span className="chat-list-status-tech-reaberta-label">Reaberta por falta de interação</span>
+      <span className="chat-list-status-tech-reaberta-label">Reaberta por falta de interação do atendente</span>
     </span>
   );
 }
