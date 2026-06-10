@@ -260,8 +260,6 @@ export default function ConversaThread({
     <div className="wa-closedAttendance-banner">
       <ClosedAttendancePanel
         atendenteNome={closedMeta.atendenteNome}
-        protocolo={closedMeta.protocolo}
-        setor={closedMeta.setor}
         showReopenCta={showReopenClosedCta}
         reopenBusy={reopenClosedBusy}
         onReopen={onReopenClosed}
