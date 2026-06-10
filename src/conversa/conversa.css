@@ -1620,6 +1620,14 @@
     scroll-padding-top: 8px;
   }
 
+  .wa-messages-virtual-root {
+    touch-action: pan-y;
+  }
+
+  .wa-swipeReplyTrack {
+    touch-action: pan-y;
+  }
+
   /* Glow animado no fundo custa GPU durante scroll tátil — estático no mobile. */
   .wa-messages::after {
     animation: none;
@@ -1647,8 +1655,10 @@
   will-change: auto;
 }
 
-.wa-messages.is-scrolling .wa-messages-virtual-root > div {
-  contain: layout style paint;
+@media (min-width: 641px) {
+  .wa-messages.is-scrolling .wa-messages-virtual-root > div {
+    contain: layout style paint;
+  }
 }
 
 .wa-messages-virtual-root > div {

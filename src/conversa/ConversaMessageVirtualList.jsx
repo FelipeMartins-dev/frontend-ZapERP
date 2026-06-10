@@ -78,7 +78,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     scrollPaddingEnd: 16,
 
-    isScrollingResetDelay: mobileThread ? 420 : 200,
+    isScrollingResetDelay: mobileThread ? 280 : 200,
 
     getItemKey: (index) => {
 
@@ -270,7 +270,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
         flushResizeAfterScroll();
 
-      }, mobileThread ? 120 : 180);
+      }, mobileThread ? 80 : 180);
 
     };
 
@@ -298,6 +298,9 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     prevCountRef.current = count;
 
+    /* Mobile: useAutoScroll já ancora ao abrir — evita 2º scrollToIndex competindo com o dedo. */
+    if (mobileThread) return;
+
     if (prev === 0 && count > 0) {
 
       requestAnimationFrame(() => {
@@ -310,7 +313,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     }
 
-  }, [count, virtualizer]);
+  }, [count, virtualizer, mobileThread]);
 
 
 
@@ -346,7 +349,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
         const now = Date.now();
 
-        if (now - resizeThrottleRef.current < 160) return;
+        if (now - resizeThrottleRef.current < 240) return;
 
         resizeThrottleRef.current = now;
 

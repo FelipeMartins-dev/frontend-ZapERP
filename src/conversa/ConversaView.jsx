@@ -212,7 +212,7 @@ function ConversaViewBody() {
   );
 
   const user = useAuthStore((s) => s.user);
-  const myUserId = user?.id != null ? Number(user.id) : null;
+  const myUserId = user?.id != null && user.id !== "" ? String(user.id) : null;
   const podeTransferirSetor = canTransferirSetorConversa(user);
   const podeGerenciarTags = canTag(user);
   const mostrarEnviarCrm = user?.crm_habilitado !== false;
@@ -285,6 +285,9 @@ function ConversaViewBody() {
   const messagesLastScrollTopRef = useRef(0);
   /** Bloqueia snap automático ao fundo (Assumir, etc.). */
   const suppressAutoScrollRef = useRef(false);
+  /** Enquanto o utilizador arrasta o thread (touch), bloqueia reancoragem programática. */
+  const userScrollLockRef = useRef(false);
+  const userScrollUnlockTimerRef = useRef(0);
   const messagesScrollPreserveSnapRef = useRef(null);
   const [allTags, setAllTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -338,22 +341,19 @@ function ConversaViewBody() {
   const handleComposerTextMetrics = useCallback(() => {}, []);
 
   useEffect(() => {
-    pendingBlobUrlRef.current = pendingPreview || null;
-  }, [pendingPreview]);
+    const currentBlobUrl = pendingPreview || null;
+    pendingBlobUrlRef.current = currentBlobUrl;
 
-  useEffect(
-    () => () => {
-      const url = pendingBlobUrlRef.current;
-      if (url && String(url).startsWith("blob:")) {
+    return () => {
+      if (currentBlobUrl && String(currentBlobUrl).startsWith("blob:")) {
         try {
-          URL.revokeObjectURL(url);
+          URL.revokeObjectURL(currentBlobUrl);
         } catch {
           /* ignore */
         }
       }
-    },
-    []
-  );
+    };
+  }, [pendingPreview]);
 
   const conversaId = conversa?.id || null;
 
@@ -450,7 +450,7 @@ function ConversaViewBody() {
 
   const isSomeoneTyping = Boolean(
     typingInfo &&
-    typingInfo.usuario_id !== myUserId &&
+    (myUserId == null || String(typingInfo.usuario_id ?? "") !== String(myUserId)) &&
     (typingInfo.expiresAt == null || typingInfo.expiresAt > Date.now())
   );
 
@@ -658,7 +658,7 @@ function ConversaViewBody() {
   /** Só reancora ao fundo se o utilizador ainda está colado ao fim (evita “puxar” ao meio ao ler histórico). */
   const snapIfStickBottom = useCallback(() => {
     const c = messagesContainerRef.current;
-    if (!c || loadingMore) return;
+    if (!c || loadingMore || userScrollLockRef.current) return;
     if (!shouldStickToBottomRef.current) return;
     const list = useConversaStore.getState().mensagens || [];
     const last = list.length ? list[list.length - 1] : null;
@@ -870,6 +870,7 @@ function ConversaViewBody() {
     virtualListRef: virtualThreadRef,
     mensagensCount: Array.isArray(mensagens) ? mensagens.length : 0,
     suppressAutoScrollRef,
+    userScrollLockRef,
   });
 
   useLayoutEffect(() => {
@@ -1037,6 +1038,18 @@ function ConversaViewBody() {
     shouldStickToBottomRef.current = false;
   }, []);
 
+  const lockUserScroll = useCallback(() => {
+    userScrollLockRef.current = true;
+    window.clearTimeout(userScrollUnlockTimerRef.current);
+  }, []);
+
+  const scheduleUserScrollUnlock = useCallback((delayMs = 160) => {
+    window.clearTimeout(userScrollUnlockTimerRef.current);
+    userScrollUnlockTimerRef.current = window.setTimeout(() => {
+      userScrollLockRef.current = false;
+    }, delayMs);
+  }, []);
+
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
@@ -1059,6 +1072,8 @@ function ConversaViewBody() {
 
   useEffect(() => {
     messagesLastScrollTopRef.current = 0;
+    userScrollLockRef.current = false;
+    window.clearTimeout(userScrollUnlockTimerRef.current);
   }, [scrollThreadId]);
 
   useEffect(() => {
@@ -1075,25 +1090,45 @@ function ConversaViewBody() {
     const el = messagesContainerRef.current;
     if (!el) return;
     let touchStartY = 0;
+    let touchActive = false;
+
     const onTouchStart = (e) => {
+      touchActive = true;
       touchStartY = e.touches?.[0]?.clientY ?? 0;
+      lockUserScroll();
+      releaseStickToBottom();
     };
     const onTouchMove = (e) => {
+      if (!touchActive) return;
+      lockUserScroll();
       const y = e.touches?.[0]?.clientY ?? 0;
-      if (touchStartY - y > 6) releaseStickToBottom();
+      if (Math.abs(touchStartY - y) > 4) releaseStickToBottom();
+    };
+    const onTouchEnd = () => {
+      touchActive = false;
+      scheduleUserScrollUnlock(180);
     };
     const onWheel = (e) => {
-      if (e.deltaY < 0) releaseStickToBottom();
+      if (e.deltaY < 0) {
+        lockUserScroll();
+        releaseStickToBottom();
+        scheduleUserScrollUnlock(120);
+      }
     };
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
     el.addEventListener("wheel", onWheel, { passive: true });
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("wheel", onWheel);
+      window.clearTimeout(userScrollUnlockTimerRef.current);
     };
-  }, [scrollThreadId, releaseStickToBottom]);
+  }, [scrollThreadId, releaseStickToBottom, lockUserScroll, scheduleUserScrollUnlock]);
 
   useEffect(() => {
     if (loadingMore) return;
@@ -1618,7 +1653,7 @@ function ConversaViewBody() {
       forcedText &&
       typeof forcedText === "object" &&
       ("nativeEvent" in forcedText || "preventDefault" in forcedText || "currentTarget" in forcedText);
-    const t = safeString(forcedLooksLikeEvent ? undefined : forcedText);
+    const t = safeString(forcedLooksLikeEvent ? undefined : forcedText).trim();
     if (!t) return;
     const socket = getSocket();
     if (socket?.connected) socket.emit("typing_stop", { conversa_id: conversaId });
@@ -2331,7 +2366,9 @@ function ConversaViewBody() {
     return out;
   }, [mensagens, isGroup]);
 
-  mensagensComSeparadoresRef.current = mensagensComSeparadores;
+  useLayoutEffect(() => {
+    mensagensComSeparadoresRef.current = mensagensComSeparadores;
+  }, [mensagensComSeparadores]);
 
   const showAssumeEmptyCta = useMemo(() => {
     if (isGroup) return false;
