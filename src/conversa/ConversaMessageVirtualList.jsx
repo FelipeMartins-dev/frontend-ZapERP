@@ -56,6 +56,10 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
   const resizeAfterScrollRef = useRef(false);
 
+  const pendingScrollMarginRef = useRef(null);
+
+  const applyMarginFnRef = useRef(null);
+
   const resizeThrottleRef = useRef(0);
 
   const count = Array.isArray(items) ? items.length : 0;
@@ -80,6 +84,8 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     isScrollingResetDelay: mobileThread ? 280 : 200,
 
+    useAnimationFrameWithResizeObserver: mobileThread,
+
     getItemKey: (index) => {
 
       const item = items[index];
@@ -102,6 +108,44 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
   useLayoutEffect(() => {
 
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) => {
+
+      if (isScrollingRef.current || instance.isScrolling) return false;
+
+      const scrollEl = scrollRef?.current;
+
+      if (!scrollEl) return false;
+
+      const margin = scrollMarginRef.current;
+
+      const scrollTop = scrollEl.scrollTop;
+
+      const viewportBottom = scrollTop + scrollEl.clientHeight;
+
+      const distanceToBottom = scrollEl.scrollHeight - viewportBottom;
+
+      const readingHistory = distanceToBottom > 120;
+
+      if (readingHistory) {
+
+        const itemBottom = item.end + margin;
+
+        return itemBottom <= scrollTop;
+
+      }
+
+      const offset = instance.scrollOffset ?? scrollTop;
+
+      return item.start < offset + (instance.scrollAdjustments ?? 0);
+
+    };
+
+  }, [virtualizer, scrollRef]);
+
+
+
+  useLayoutEffect(() => {
+
     const scrollEl = scrollRef?.current;
 
     const root = innerRootRef.current;
@@ -113,12 +157,31 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     let marginTimer = 0;
 
     const applyMargin = (next) => {
+      const prev = scrollMarginRef.current;
+      if (prev === next) return;
+      const scrollEl = scrollRef?.current;
+      if (scrollEl && !isScrollingRef.current) {
+        const delta = next - prev;
+        if (delta !== 0) {
+          try {
+            scrollEl.scrollTop = Math.max(0, scrollEl.scrollTop + delta);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
       scrollMarginRef.current = next;
-      setScrollMargin((prev) => (prev === next ? prev : next));
+      setScrollMargin((prevState) => (prevState === next ? prevState : next));
     };
+
+    applyMarginFnRef.current = applyMargin;
 
     const syncMargin = () => {
       const next = Math.max(0, Math.round(root.offsetTop));
+      if (isScrollingRef.current) {
+        pendingScrollMarginRef.current = next;
+        return;
+      }
       if (mobileThread) {
         window.clearTimeout(marginTimer);
         marginTimer = window.setTimeout(() => applyMargin(next), 48);
@@ -138,6 +201,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     return () => {
       window.clearTimeout(marginTimer);
       ro?.disconnect();
+      if (applyMarginFnRef.current === applyMargin) applyMarginFnRef.current = null;
     };
 
   }, [scrollRef, count, mobileThread]);
@@ -226,13 +290,17 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
           if (!row) return;
 
-          scrollEl.scrollTop = Math.max(0, row.start + scrollMarginRef.current - prevOffsetInViewport);
+          const margin = anchor.margin ?? scrollMarginRef.current;
+
+          scrollEl.scrollTop = Math.max(0, row.start + margin - prevOffsetInViewport);
 
         };
 
 
 
         apply();
+
+        requestAnimationFrame(apply);
 
         requestAnimationFrame(apply);
 
@@ -255,6 +323,14 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     let scrollEndTimer = 0;
 
     const flushResizeAfterScroll = () => {
+
+      if (pendingScrollMarginRef.current != null) {
+
+        applyMarginFnRef.current?.(pendingScrollMarginRef.current);
+
+        pendingScrollMarginRef.current = null;
+
+      }
 
       if (!resizeAfterScrollRef.current || !onVirtualContentResize) return;
 

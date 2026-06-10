@@ -288,6 +288,7 @@ function ConversaViewBody() {
   /** Enquanto o utilizador arrasta o thread (touch), bloqueia reancoragem programática. */
   const userScrollLockRef = useRef(false);
   const userScrollUnlockTimerRef = useRef(0);
+  const cancelOpenSnapPendingRef = useRef(null);
   const messagesScrollPreserveSnapRef = useRef(null);
   const [allTags, setAllTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -881,6 +882,7 @@ function ConversaViewBody() {
     mensagensCount: Array.isArray(mensagens) ? mensagens.length : 0,
     suppressAutoScrollRef,
     userScrollLockRef,
+    cancelOpenSnapPendingRef,
   });
 
   useLayoutEffect(() => {
@@ -1071,8 +1073,9 @@ function ConversaViewBody() {
     const prevTop = messagesLastScrollTopRef.current;
     if (top < prevTop - 1) {
       shouldStickToBottomRef.current = false;
+      cancelOpenSnapPendingRef.current?.();
       lockUserScroll();
-      scheduleUserScrollUnlock(headerCompact ? 220 : 160);
+      scheduleUserScrollUnlock(headerCompact ? 320 : 240);
     } else {
       shouldStickToBottomRef.current = isNearBottom(el, 120);
     }
@@ -1112,6 +1115,7 @@ function ConversaViewBody() {
       touchStartY = e.touches?.[0]?.clientY ?? 0;
       lockUserScroll();
       releaseStickToBottom();
+      cancelOpenSnapPendingRef.current?.();
     };
     const onTouchMove = (e) => {
       if (!touchActive) return;
@@ -1131,7 +1135,8 @@ function ConversaViewBody() {
       if (e.deltaY < 0) {
         lockUserScroll();
         releaseStickToBottom();
-        scheduleUserScrollUnlock(120);
+        cancelOpenSnapPendingRef.current?.();
+        scheduleUserScrollUnlock(180);
       }
     };
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -1162,6 +1167,7 @@ function ConversaViewBody() {
     const el = messagesContainerRef.current;
 
     const restore = () => {
+      lockUserScroll();
       if (anchor && prepended > 0 && virtualThreadRef.current?.restoreAfterPrepend) {
         virtualThreadRef.current.restoreAfterPrepend(anchor, prepended);
       } else if (el && fallback.height > 0) {
@@ -1170,6 +1176,7 @@ function ConversaViewBody() {
       }
       loadMoreAnchorRef.current = null;
       loadMoreScrollRef.current = { top: 0, height: 0 };
+      scheduleUserScrollUnlock(headerCompact ? 280 : 220);
     };
 
     requestAnimationFrame(() => requestAnimationFrame(restore));

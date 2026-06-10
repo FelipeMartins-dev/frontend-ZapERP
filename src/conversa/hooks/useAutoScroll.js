@@ -117,6 +117,7 @@ export function useAutoScroll({
   mensagensCount = 0,
   suppressAutoScrollRef,
   userScrollLockRef,
+  cancelOpenSnapPendingRef,
 }) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
@@ -136,6 +137,21 @@ export function useAutoScroll({
       ...extra,
     };
   }
+
+  function cancelOpenSnapPending() {
+    pendingJumpToBottomRef.current = false;
+    anchorLatestUntilMsgsRef.current = false;
+    openSnapInProgressRef.current = false;
+  }
+
+  useLayoutEffect(() => {
+    if (cancelOpenSnapPendingRef) {
+      cancelOpenSnapPendingRef.current = cancelOpenSnapPending;
+    }
+    return () => {
+      if (cancelOpenSnapPendingRef) cancelOpenSnapPendingRef.current = null;
+    };
+  }, [cancelOpenSnapPendingRef]);
 
   useLayoutEffect(() => {
     if (suppressAutoScrollRef?.current) return;
@@ -229,10 +245,18 @@ export function useAutoScroll({
       (becameReady && mensagensCount > 0);
 
     if (!shouldSnapLatest) return;
-    if (isUserScrollLocked()) return;
     if (mensagensCount === 0) return;
 
     const container = messagesContainerRef?.current;
+    const userReadingHistory =
+      container &&
+      (isUserScrollLocked() || !isNearBottom(container, 200));
+
+    if (userReadingHistory) {
+      cancelOpenSnapPending();
+      return;
+    }
+
     if (pendingJumpToBottomRef.current) pendingJumpToBottomRef.current = false;
     anchorLatestUntilMsgsRef.current = false;
 
@@ -354,5 +378,6 @@ export function useAutoScroll({
     virtualListRef,
     suppressAutoScrollRef,
     userScrollLockRef,
+    cancelOpenSnapPendingRef,
   ]);
 }
