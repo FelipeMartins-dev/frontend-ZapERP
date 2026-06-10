@@ -12,7 +12,7 @@
   --cl-space-4: 16px;
   --cl-space-5: 20px;
   --cl-space-6: 24px;
-  --cl-chat-row-gap: 2px;
+  --cl-chat-row-gap: 1px;
 
   /* Paleta — neutra corporativa + verde elegante */
   --cl-bg: #edf2f7;
@@ -937,7 +937,7 @@ a { color: inherit; text-decoration: none; }
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  padding: 6px 10px 10px;
+  padding: 4px 8px 8px;
   gap: var(--cl-chat-row-gap);
   overflow-anchor: none;
   scroll-behavior: auto;
@@ -1148,8 +1148,8 @@ a { color: inherit; text-decoration: none; }
   max-width: 100%;
   margin: 0;
   display: flex;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 11px;
+  padding: 13px 14px;
   background: transparent;
   border: none;
   border-bottom: 1px solid rgba(0, 0, 0, 0.07);
@@ -1157,11 +1157,11 @@ a { color: inherit; text-decoration: none; }
   text-align: left;
   cursor: pointer;
   position: relative;
-  min-height: 68px;
+  min-height: 76px;
   align-items: center;
   box-shadow: none;
   content-visibility: auto;
-  contain-intrinsic-size: auto 68px;
+  contain-intrinsic-size: auto 76px;
   contain: layout style paint;
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
@@ -1170,12 +1170,12 @@ a { color: inherit; text-decoration: none; }
 /* Card distinto na lista (neutro + borda visível) — classe zap-conversation-card no JSX */
 .chat-list-row.zap-conversation-card {
   background: var(--cl-surface);
-  border: 1px solid rgba(11, 20, 26, 0.14);
-  border-bottom: 1px solid rgba(11, 20, 26, 0.14);
-  border-radius: 12px;
+  border: 1px solid rgba(11, 20, 26, 0.12);
+  border-bottom: 1px solid rgba(11, 20, 26, 0.12);
+  border-radius: 11px;
   box-shadow:
-    0 1px 2px rgba(11, 20, 26, 0.07),
-    0 2px 6px rgba(11, 20, 26, 0.05);
+    0 1px 2px rgba(11, 20, 26, 0.06),
+    0 1px 4px rgba(11, 20, 26, 0.04);
 }
 
 .chat-list-row.zap-conversation-card:not(.chat-list-row--atendimento-calm):not(.chat-list-row--atendimento-alerta):not(
@@ -1207,8 +1207,8 @@ a { color: inherit; text-decoration: none; }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card {
   background: rgba(32, 44, 51, 0.92);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
 }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card.is-active {
@@ -1219,12 +1219,12 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 640px) {
   .chat-list-row.zap-conversation-card {
     padding-right: 46px;
-    min-height: 76px;
+    min-height: 82px;
     border-width: 1px;
-    border-color: rgba(11, 20, 26, 0.16);
+    border-color: rgba(11, 20, 26, 0.14);
     box-shadow:
-      0 1px 3px rgba(11, 20, 26, 0.1),
-      0 2px 8px rgba(11, 20, 26, 0.06);
+      0 1px 2px rgba(11, 20, 26, 0.08),
+      0 1px 5px rgba(11, 20, 26, 0.05);
   }
 
   .chat-list-row.zap-conversation-card:active:not(.is-active) {
@@ -3141,9 +3141,9 @@ a { color: inherit; text-decoration: none; }
 .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-badge-await),
 .chat-list-row:has(.chat-list-setor):has(.chat-list-statusRow--await-solo),
 .chat-list-row:has(.chat-list-setor):has(.chat-list-status-tech--await-client) {
-  min-height: 72px;
-  padding-top: calc(var(--cl-space-3) + 1px);
-  padding-bottom: calc(var(--cl-space-3) + 1px);
+  min-height: 80px;
+  padding-top: calc(var(--cl-space-3) + 2px);
+  padding-bottom: calc(var(--cl-space-3) + 2px);
 }
 
 .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client) .chat-list-statusRow,
@@ -3489,15 +3489,15 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-scroll {
-    padding: 6px 8px 10px;
+    padding: 4px 8px 8px;
     gap: var(--cl-chat-row-gap);
     scroll-padding-bottom: 8px;
   }
 
   .chat-list-row {
-    gap: 10px;
+    gap: 11px;
     padding: 13px 11px;
-    min-height: 68px;
+    min-height: 74px;
     border-radius: 11px;
   }
 
@@ -3563,7 +3563,7 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-badge-await),
   .chat-list-row:has(.chat-list-setor):has(.chat-list-statusRow--await-solo),
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status-tech--await-client) {
-    min-height: 76px;
+    min-height: 80px;
     padding-top: 14px;
     padding-bottom: 14px;
   }
@@ -3601,8 +3601,8 @@ a { color: inherit; text-decoration: none; }
     padding-right: var(--cl-space-3);
   }
   .chat-list-row {
-    padding: var(--cl-space-2) var(--cl-space-3);
-    min-height: 72px;
+    padding: 10px 12px;
+    min-height: 76px;
   }
   .chat-list-avatar {
     width: 52px;
@@ -3661,14 +3661,15 @@ a { color: inherit; text-decoration: none; }
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     gap: var(--cl-chat-row-gap);
+    padding: 4px 8px 8px;
   }
 
   /* Balões no telefone: flex-start evita “nome colado no topo” quando a coluna
      direita (hora + status em 2 linhas) fica mais alta que o bloco do nome. */
   .chat-list-row {
-    gap: 12px;
-    padding: 18px 14px;
-    min-height: 88px;
+    gap: 11px;
+    padding: 15px 12px;
+    min-height: 84px;
     align-items: flex-start;
     touch-action: pan-y;
     content-visibility: visible;
@@ -3684,9 +3685,9 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-statusRow--await-solo),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--staff),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--await-client) {
-    min-height: 104px;
-    padding-top: 19px;
-    padding-bottom: 19px;
+    min-height: 96px;
+    padding-top: 16px;
+    padding-bottom: 16px;
   }
 
   .chat-list-row-main {
