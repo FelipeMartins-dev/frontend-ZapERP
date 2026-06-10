@@ -30,14 +30,24 @@ function cancelFrame(id) {
   }
 }
 
+function canRunProgrammaticSnap(opts = {}) {
+  if (typeof opts.canSnap === "function" && !opts.canSnap()) return false;
+  return true;
+}
+
 export function snapThreadToBottom(container, virtualListRef, opts = {}) {
+  if (!canRunProgrammaticSnap(opts)) return;
+
   const min = opts.min === true;
   const gentle = opts.gentle === true && !min;
   const nearThreshold = opts.nearThreshold ?? 120;
   const alreadyNear = container && isNearBottom(container, nearThreshold);
   const hasVirtualEnd =
     virtualListRef?.current && typeof virtualListRef.current.scrollToEnd === "function";
+  const followUpFrame = opts.followUpFrame !== false;
+
   const scrollContainerToBottom = () => {
+    if (!canRunProgrammaticSnap(opts)) return;
     if (!container) return;
     try {
       container.scrollTop = container.scrollHeight;
@@ -46,6 +56,7 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
     }
   };
   const scrollVirtualToEnd = () => {
+    if (!canRunProgrammaticSnap(opts)) return;
     if (!hasVirtualEnd) return;
     try {
       virtualListRef.current.scrollToEnd({ align: "end", behavior: "auto" });
@@ -54,14 +65,14 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
     }
   };
 
-  /** Envio otimista no fim: um único sync — mantém viewport na última mensagem sem cadeia agressiva. */
+  /** Envio otimista / abertura: um sync (+ opcional 1 rAF para medição do virtualizer). */
   if (min) {
     if (hasVirtualEnd) {
       scrollVirtualToEnd();
-      scheduleFrame(scrollVirtualToEnd);
+      if (followUpFrame) scheduleFrame(scrollVirtualToEnd);
     } else {
       scrollContainerToBottom();
-      scheduleFrame(scrollContainerToBottom);
+      if (followUpFrame) scheduleFrame(scrollContainerToBottom);
     }
     return;
   }
@@ -74,12 +85,13 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
 
   if (hasVirtualEnd) {
     scrollVirtualToEnd();
-    if (!gentle) scheduleFrame(scrollVirtualToEnd);
+    if (!gentle && followUpFrame) scheduleFrame(scrollVirtualToEnd);
     return;
   }
 
   if (container) {
     const apply = () => {
+      if (!canRunProgrammaticSnap(opts)) return;
       try {
         container.scrollTop = container.scrollHeight;
       } catch {
@@ -87,7 +99,7 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
       }
     };
     apply();
-    if (!gentle) {
+    if (!gentle && followUpFrame) {
       scheduleFrame(apply);
     }
   }
@@ -102,32 +114,29 @@ export function useAutoScroll({
   messagesContainerRef,
   shouldStickToBottomRef,
   virtualListRef,
-  /** Contagem bruta no store — quando passa de 0 a N após o load, força novo snap até às mensagens mais recentes. */
   mensagensCount = 0,
-  /** Quando true (ex.: Assumir), não reancora o scroll — a tela permanece onde estava. */
   suppressAutoScrollRef,
-  /** true enquanto o dedo está no thread — bloqueia snap programático que “puxa” o scroll de volta. */
   userScrollLockRef,
 }) {
   const prevConversaIdRef = useRef(null);
   const prevLastKeyRef = useRef(null);
-  /** Após `carregarConversa`, o painel de mensagens só tem altura real quando `loading` vira false — scroll antes disso não chega ao fim. */
   const pendingJumpToBottomRef = useRef(false);
-  /** Segundo passe quando a lista ainda estava vazia no 1º snap (virtualizer mede altura só depois). */
   const anchorLatestUntilMsgsRef = useRef(false);
   const prevLoadingForSnapRef = useRef(loading);
   const prevSnapConversaKeyRef = useRef(null);
   const openSnapInProgressRef = useRef(false);
-  const initialAnchorDoneRef = useRef(false);
 
   function isUserScrollLocked() {
     return userScrollLockRef?.current === true;
   }
 
-  // useLayoutEffect síncrono: ancora o scroll na base ANTES do browser pintar.
-  // Isso elimina a "animação visível" (smooth scroll que jogava a tela pra cima
-  // quando o usuário enviava uma mensagem). Para mensagens próprias / stick-to-bottom
-  // a nova bolha simplesmente aparece colada no fundo — sem movimento perceptível.
+  function snapGuardOpts(extra = {}) {
+    return {
+      canSnap: () => !isUserScrollLocked() && !suppressAutoScrollRef?.current,
+      ...extra,
+    };
+  }
+
   useLayoutEffect(() => {
     if (suppressAutoScrollRef?.current) return;
     const conversaIdAtual = conversaId ? String(conversaId) : null;
@@ -139,11 +148,9 @@ export function useAutoScroll({
       pendingJumpToBottomRef.current = false;
       anchorLatestUntilMsgsRef.current = false;
       openSnapInProgressRef.current = false;
-      initialAnchorDoneRef.current = false;
       return;
     }
 
-    // primeira conversa / primeira seleção desta sessão no painel
     if (!prevConversaIdRef.current) {
       prevConversaIdRef.current = conversaIdAtual;
       prevLastKeyRef.current = lastMsgKey;
@@ -151,11 +158,9 @@ export function useAutoScroll({
       pendingJumpToBottomRef.current = true;
       anchorLatestUntilMsgsRef.current = true;
       openSnapInProgressRef.current = false;
-      initialAnchorDoneRef.current = false;
       return;
     }
 
-    // troca de conversa
     if (prevConversaIdRef.current !== conversaIdAtual) {
       prevConversaIdRef.current = conversaIdAtual;
       prevLastKeyRef.current = lastMsgKey;
@@ -163,11 +168,9 @@ export function useAutoScroll({
       pendingJumpToBottomRef.current = true;
       anchorLatestUntilMsgsRef.current = true;
       openSnapInProgressRef.current = false;
-      initialAnchorDoneRef.current = false;
       return;
     }
 
-    // novas mensagens (mesma conversa)
     if (lastMsgKey && lastMsgKey !== prevLastKeyRef.current) {
       if (openSnapInProgressRef.current || isUserScrollLocked()) {
         prevLastKeyRef.current = lastMsgKey;
@@ -179,14 +182,17 @@ export function useAutoScroll({
         (myUserId != null && lastMsg?.autor_usuario_id != null && String(lastMsg.autor_usuario_id) === String(myUserId));
       const pendingOwn = fromMe && isPendingOutgoingTemp(lastMsg);
       const shouldAutoScroll = Boolean(shouldStickToBottomRef.current || fromMe);
-      if (shouldAutoScroll && container) {
+      if (shouldAutoScroll && container && !isUserScrollLocked()) {
         const near = isNearBottom(container, 200);
+        const guard = snapGuardOpts({ followUpFrame: !pendingOwn });
         if (pendingOwn && near) {
-          snapThreadToBottom(container, virtualListRef, { min: true });
-        } else {
+          snapThreadToBottom(container, virtualListRef, { min: true, ...guard });
+        } else if (shouldStickToBottomRef.current || (fromMe && near)) {
           snapThreadToBottom(container, virtualListRef, {
             gentle: Boolean(fromMe && near),
             nearThreshold: 200,
+            followUpFrame: false,
+            ...guard,
           });
         }
       }
@@ -205,8 +211,6 @@ export function useAutoScroll({
     userScrollLockRef,
   ]);
 
-  // Ao abrir/trocar conversa: ancora nas últimas mensagens UMA vez ao ficar pronto (não reexecuta a cada nova msg).
-  // Menos rAF/timers no mobile = scroll tátil mais livre depois de entrar.
   useLayoutEffect(() => {
     if (suppressAutoScrollRef?.current) return;
     if (!conversaId) return;
@@ -226,8 +230,6 @@ export function useAutoScroll({
 
     if (!shouldSnapLatest) return;
     if (isUserScrollLocked()) return;
-
-    /* Lista ainda vazia: mantém flags para reancorar quando as mensagens chegarem do GET/merge. */
     if (mensagensCount === 0) return;
 
     const container = messagesContainerRef?.current;
@@ -240,77 +242,98 @@ export function useAutoScroll({
       typeof window.matchMedia === "function" &&
       window.matchMedia("(max-width: 640px)").matches;
 
-    const snap = () => {
-      if (!shouldStickToBottomRef.current || isUserScrollLocked()) return;
-      snapThreadToBottom(container, virtualListRef);
+    openSnapInProgressRef.current = true;
+    let cancelled = false;
+    let rafChain = 0;
+    let rafStick = 0;
+    let rafOnce = 0;
+    let t1 = 0;
+    let t2 = 0;
+    let t3 = 0;
+    let finished = false;
+
+    const finishOpenSnap = () => {
+      if (finished || cancelled) return;
+      finished = true;
+      openSnapInProgressRef.current = false;
     };
 
-    /* Mobile: um snap + um rAF — timers extras puxavam o scroll de volta e travavam o arraste para cima. */
+    const guard = snapGuardOpts();
+    const snap = () => {
+      if (cancelled || isUserScrollLocked()) return;
+      if (!shouldStickToBottomRef.current) return;
+      snapThreadToBottom(container, virtualListRef, { followUpFrame: false, ...guard });
+    };
+
     if (mobileLike) {
-      openSnapInProgressRef.current = true;
       const snapHard = () => {
-        if (!shouldStickToBottomRef.current || isUserScrollLocked()) return;
-        snapThreadToBottom(container, virtualListRef, { min: true });
+        if (cancelled || isUserScrollLocked()) return;
+        if (!shouldStickToBottomRef.current) return;
+        snapThreadToBottom(container, virtualListRef, { min: true, followUpFrame: false, ...guard });
       };
       snapHard();
-      const rafOnce = scheduleFrame(() => {
+      rafOnce = scheduleFrame(() => {
         snapHard();
-        openSnapInProgressRef.current = false;
-        initialAnchorDoneRef.current = true;
+        finishOpenSnap();
       });
       return () => {
+        cancelled = true;
         cancelFrame(rafOnce);
         openSnapInProgressRef.current = false;
       };
     }
 
-    openSnapInProgressRef.current = true;
-
-    const rafCap = 10;
-    const stickMax = 18;
-
-    let cancelled = false;
+    const rafCap = 6;
+    const stickMax = 12;
+    let n = 0;
 
     snap();
-    let rafChain = 0;
-    let n = 0;
     const chain = () => {
       if (cancelled) return;
       n += 1;
       snap();
       if (n < rafCap) {
         rafChain = scheduleFrame(chain);
+      } else {
+        finishOpenSnap();
       }
     };
     rafChain = scheduleFrame(chain);
 
-    const t1 = window.setTimeout(() => {
+    t1 = window.setTimeout(() => {
       if (!cancelled) snap();
     }, 0);
-    const t2 = window.setTimeout(() => {
+    t2 = window.setTimeout(() => {
       if (!cancelled) snap();
     }, 120);
-    const t3 = window.setTimeout(() => {
-      if (!cancelled) snap();
+    t3 = window.setTimeout(() => {
+      if (!cancelled) {
+        snap();
+        finishOpenSnap();
+      }
     }, 380);
 
-    let rafStick = 0;
     let stickAttempts = 0;
     const tryStickOpen = () => {
-      if (cancelled) return;
+      if (cancelled || finished) return;
       const c = messagesContainerRef?.current;
       stickAttempts += 1;
-      if (!c || stickAttempts > stickMax) return;
-      if (!shouldStickToBottomRef.current) return;
-      if (!isNearBottom(c, 200)) {
-        snap();
-        rafStick = scheduleFrame(tryStickOpen);
+      if (!c || stickAttempts > stickMax) {
+        finishOpenSnap();
+        return;
       }
+      if (!shouldStickToBottomRef.current || isUserScrollLocked()) {
+        finishOpenSnap();
+        return;
+      }
+      if (isNearBottom(c, 200)) {
+        finishOpenSnap();
+        return;
+      }
+      snap();
+      rafStick = scheduleFrame(tryStickOpen);
     };
     rafStick = scheduleFrame(tryStickOpen);
-
-    initialAnchorDoneRef.current = true;
-    openSnapInProgressRef.current = false;
 
     return () => {
       cancelled = true;
@@ -319,6 +342,7 @@ export function useAutoScroll({
       window.clearTimeout(t3);
       cancelFrame(rafChain);
       cancelFrame(rafStick);
+      cancelFrame(rafOnce);
       openSnapInProgressRef.current = false;
     };
   }, [

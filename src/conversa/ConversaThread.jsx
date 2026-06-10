@@ -7,6 +7,10 @@ import ThreadRow from "./ThreadRow";
 import { messageRowVisualSignature } from "./threadRowCompare";
 import ClosedAttendancePanel from "./ClosedAttendancePanel";
 
+const EMPTY_SET = new Set();
+const EMPTY_OBJECT = Object.freeze({});
+const EMPTY_ARRAY = Object.freeze([]);
+
 function firstFilled(...values) {
   for (const value of values) {
     const text = value == null ? "" : String(value).trim();
@@ -86,9 +90,21 @@ export default function ConversaThread({
 }) {
   const threadConversaId = scrollThreadId ?? conversaId;
   /** Igual ao ConversaView anterior: chave React da bolha usa conversaId carregado, não só selectedId. */
-  const messageKeyConversaId = conversaId;
+  const messageKeyConversaId = conversaId ?? threadConversaId;
 
-  const threadRowCount = mensagensComSeparadores.length;
+  const safeMensagensComSeparadores = Array.isArray(mensagensComSeparadores)
+    ? mensagensComSeparadores
+    : EMPTY_ARRAY;
+  const safeMensagens = Array.isArray(mensagens) ? mensagens : EMPTY_ARRAY;
+  const safeSelectedSet = selectedSet instanceof Set ? selectedSet : EMPTY_SET;
+  const safePinnedSet = pinnedSet instanceof Set ? pinnedSet : EMPTY_SET;
+  const safeStarredSet = starredSet instanceof Set ? starredSet : EMPTY_SET;
+  const safeLocalReactions =
+    localReactions && typeof localReactions === "object" ? localReactions : EMPTY_OBJECT;
+  const safeReactionLoading =
+    reactionLoading && typeof reactionLoading === "object" ? reactionLoading : EMPTY_OBJECT;
+
+  const threadRowCount = safeMensagensComSeparadores.length;
 
   const renderItem = useCallback(
     (item, index) => {
@@ -155,11 +171,11 @@ export default function ConversaThread({
           peerAvatarUrl={avatarUrl}
           peerName={nome}
           selectMode={selectMode}
-          isSelected={selectedSet.has(String(messageKey))}
-          isPinned={pinnedSet.has(String(messageKey))}
-          isStarred={starredSet.has(String(messageKey))}
-          reactionForMessage={localReactions[String(messageKey)] || item.__reaction}
-          reactionLoadingForMessage={Boolean(reactionLoading[String(messageKey)])}
+          isSelected={safeSelectedSet.has(String(messageKey))}
+          isPinned={safePinnedSet.has(String(messageKey))}
+          isStarred={safeStarredSet.has(String(messageKey))}
+          reactionForMessage={safeLocalReactions[String(messageKey)] || item.__reaction}
+          reactionLoadingForMessage={Boolean(safeReactionLoading[String(messageKey)])}
           currentUserId={myUserId}
           mostrarNomeAoCliente={mostrarNomeAoCliente}
           swipeReplyEnabled={swipeReplyEnabled}
@@ -194,11 +210,11 @@ export default function ConversaThread({
       avatarUrl,
       nome,
       selectMode,
-      selectedSet,
-      pinnedSet,
-      starredSet,
-      localReactions,
-      reactionLoading,
+      safeSelectedSet,
+      safePinnedSet,
+      safeStarredSet,
+      safeLocalReactions,
+      safeReactionLoading,
       myUserId,
       mostrarNomeAoCliente,
       swipeReplyEnabled,
@@ -230,11 +246,11 @@ export default function ConversaThread({
         conversa?.protocolo_atendimento,
         conversa?.atendimento_protocolo,
         conversa?.ultimo_protocolo
-      ) || extractProtocolFromMessages(mensagens);
+      ) || extractProtocolFromMessages(safeMensagens);
     const setor =
       firstFilled(conversa?.setor, conversa?.departamento?.nome, conversa?.departamentos?.nome) || "Sem setor";
     return { atendenteNome, protocolo, setor };
-  }, [conversa, mensagens]);
+  }, [conversa, safeMensagens]);
 
   const statusAtendimento = String(getStatusAtendimentoEffective(conversa) ?? "").toLowerCase();
   const isClosedConversation = isClosedAttendanceStatus(statusAtendimento);
@@ -268,7 +284,7 @@ export default function ConversaThread({
     );
   }
 
-  if (loading && mensagensComSeparadores.length === 0) {
+  if (loading && safeMensagensComSeparadores.length === 0) {
     return (
       <>
         {closedBanner}
@@ -281,7 +297,7 @@ export default function ConversaThread({
     );
   }
 
-  if (mensagensComSeparadores.length === 0) {
+  if (safeMensagensComSeparadores.length === 0) {
     return (
       <>
         {closedBanner}
@@ -307,7 +323,7 @@ export default function ConversaThread({
   return (
     <>
       {closedBanner}
-      {!conversa?.mensagens_bloqueadas && Array.isArray(mensagens) && mensagens.length > 0 && !loading ? (
+      {!conversa?.mensagens_bloqueadas && safeMensagens.length > 0 && !loading ? (
         <div className="wa-loadOlderHistory">
           {hasMore && cursor ? (
             <button
@@ -337,10 +353,10 @@ export default function ConversaThread({
         key={`wa-thread-${String(threadConversaId ?? "")}`}
         ref={virtualThreadRef}
         scrollRef={messagesContainerRef}
-        overscan={headerCompact ? 8 : 10}
+        overscan={headerCompact ? 5 : 10}
         mobileThread={headerCompact}
         conversaId={threadConversaId}
-        items={mensagensComSeparadores}
+        items={safeMensagensComSeparadores}
         onVirtualContentResize={onVirtualContentResize}
         renderItem={renderItem}
       />

@@ -662,14 +662,35 @@ function ConversaViewBody() {
     if (!shouldStickToBottomRef.current) return;
     const list = useConversaStore.getState().mensagens || [];
     const last = list.length ? list[list.length - 1] : null;
-    shouldStickToBottomRef.current = true;
+    const guard = {
+      canSnap: () => !userScrollLockRef.current && shouldStickToBottomRef.current,
+      followUpFrame: false,
+    };
     if (last && isPendingOutgoingTemp(last)) {
-      snapThreadToBottom(c, virtualThreadRef, { min: true });
+      snapThreadToBottom(c, virtualThreadRef, { min: true, ...guard });
       return;
     }
     if (!isNearBottom(c, 200)) return;
-    snapThreadToBottom(c, virtualThreadRef, { gentle: true, nearThreshold: 200 });
+    snapThreadToBottom(c, virtualThreadRef, { gentle: true, nearThreshold: 200, ...guard });
   }, [loadingMore]);
+
+  const snapOptimisticSendToBottom = useCallback(() => {
+    if (userScrollLockRef.current) return;
+    const c = messagesContainerRef.current;
+    if (!c) return;
+    const guard = {
+      canSnap: () => !userScrollLockRef.current,
+      followUpFrame: !headerCompact,
+    };
+    snapThreadToBottom(c, virtualThreadRef, { min: true, ...guard });
+    if (!headerCompact && typeof window !== "undefined") {
+      window.requestAnimationFrame?.(() => {
+        if (!userScrollLockRef.current) {
+          snapThreadToBottom(c, virtualThreadRef, { min: true, followUpFrame: false, ...guard });
+        }
+      });
+    }
+  }, [headerCompact]);
 
   /** Evita animação zapAnimateIn na bolha otimista (parece “pulo” ao enviar). */
   const markOptimisticSeen = useCallback(
@@ -680,23 +701,12 @@ function ConversaViewBody() {
     [conversaId]
   );
 
-  const snapOptimisticSendToBottom = useCallback(() => {
-    const snap = () => {
-      const c = messagesContainerRef.current;
-      if (!c) return;
-      snapThreadToBottom(c, virtualThreadRef, { min: true });
-    };
-    snap();
-    if (typeof window !== "undefined") {
-      window.requestAnimationFrame?.(snap);
-      window.setTimeout?.(snap, 80);
-    }
-  }, []);
-
   const appendOutgoingOptimisticMessage = useCallback(
     (optimisticMsg, opts = {}) => {
       if (!optimisticMsg) return;
-      shouldStickToBottomRef.current = true;
+      if (!userScrollLockRef.current) {
+        shouldStickToBottomRef.current = true;
+      }
       markOptimisticSeen(optimisticMsg);
       try {
         flushSync(() => anexarMensagemImediata(optimisticMsg));
@@ -1047,6 +1057,10 @@ function ConversaViewBody() {
     window.clearTimeout(userScrollUnlockTimerRef.current);
     userScrollUnlockTimerRef.current = window.setTimeout(() => {
       userScrollLockRef.current = false;
+      const el = messagesContainerRef.current;
+      if (el) {
+        shouldStickToBottomRef.current = isNearBottom(el, 120);
+      }
     }, delayMs);
   }, []);
 
@@ -1055,9 +1069,10 @@ function ConversaViewBody() {
     if (!el) return;
     const top = el.scrollTop;
     const prevTop = messagesLastScrollTopRef.current;
-    /* Qualquer arraste para cima libera o auto-scroll — evita “travar” ao ler histórico. */
     if (top < prevTop - 1) {
       shouldStickToBottomRef.current = false;
+      lockUserScroll();
+      scheduleUserScrollUnlock(headerCompact ? 220 : 160);
     } else {
       shouldStickToBottomRef.current = isNearBottom(el, 120);
     }
@@ -1068,7 +1083,7 @@ function ConversaViewBody() {
       tryLoadOlderMessages,
       headerCompact ? 200 : 140
     );
-  }, [tryLoadOlderMessages, headerCompact]);
+  }, [tryLoadOlderMessages, headerCompact, lockUserScroll, scheduleUserScrollUnlock]);
 
   useEffect(() => {
     messagesLastScrollTopRef.current = 0;
@@ -1106,7 +1121,11 @@ function ConversaViewBody() {
     };
     const onTouchEnd = () => {
       touchActive = false;
-      scheduleUserScrollUnlock(180);
+      const el = messagesContainerRef.current;
+      if (el) {
+        shouldStickToBottomRef.current = isNearBottom(el, 120);
+      }
+      scheduleUserScrollUnlock(headerCompact ? 200 : 160);
     };
     const onWheel = (e) => {
       if (e.deltaY < 0) {
@@ -2043,10 +2062,11 @@ function ConversaViewBody() {
 
   const scrollToMsg = useCallback((msgId) => {
     if (!msgId) return;
+    const scrollBehavior = headerCompact ? "auto" : "smooth";
     const list = mensagensComSeparadoresRef.current;
     const idx = list.findIndex((it) => it && it.__type === "msg" && String(it.id) === String(msgId));
     if (idx >= 0 && virtualThreadRef.current?.scrollToIndex) {
-      virtualThreadRef.current.scrollToIndex(idx, { align: "center", behavior: "smooth" });
+      virtualThreadRef.current.scrollToIndex(idx, { align: "center", behavior: scrollBehavior });
       window.setTimeout(() => flashMessageById(msgId), 260);
       return;
     }
@@ -2055,9 +2075,9 @@ function ConversaViewBody() {
         ? CSS.escape(String(msgId))
         : String(msgId).replace(/"/g, '\\"');
     const el = document.querySelector(`[data-msg-id="${escaped}"]`);
-    el?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    el?.scrollIntoView?.({ behavior: scrollBehavior, block: "center" });
     window.setTimeout(() => flashMessageById(msgId), 260);
-  }, [flashMessageById]);
+  }, [flashMessageById, headerCompact]);
 
   const handleSelectMessageSearchResult = useCallback(
     async (msg) => {

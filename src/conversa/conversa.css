@@ -1613,6 +1613,12 @@
   -webkit-overflow-scrolling: touch;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .wa-messages .wa-bubble.zap-message-enter {
+    animation: none !important;
+  }
+}
+
 @media (max-width: 640px) {
   .wa-messages {
     padding: 8px 12px 12px;

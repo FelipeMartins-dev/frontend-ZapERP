@@ -110,14 +110,21 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
 
 
-    const syncMargin = () => {
+    let marginTimer = 0;
 
-      const next = Math.max(0, Math.round(root.offsetTop));
-
+    const applyMargin = (next) => {
       scrollMarginRef.current = next;
-
       setScrollMargin((prev) => (prev === next ? prev : next));
+    };
 
+    const syncMargin = () => {
+      const next = Math.max(0, Math.round(root.offsetTop));
+      if (mobileThread) {
+        window.clearTimeout(marginTimer);
+        marginTimer = window.setTimeout(() => applyMargin(next), 48);
+        return;
+      }
+      applyMargin(next);
     };
 
 
@@ -128,7 +135,10 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     ro?.observe(scrollEl);
 
-    return () => ro?.disconnect();
+    return () => {
+      window.clearTimeout(marginTimer);
+      ro?.disconnect();
+    };
 
   }, [scrollRef, count, mobileThread]);
 
@@ -349,7 +359,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
         const now = Date.now();
 
-        if (now - resizeThrottleRef.current < 240) return;
+        if (now - resizeThrottleRef.current < 320) return;
 
         resizeThrottleRef.current = now;
 
