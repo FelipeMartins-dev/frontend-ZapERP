@@ -603,7 +603,16 @@ function TagMini({ tag }) {
 
 function isReabertaPorFaltaInteracao(chat) {
   if (chat?.reaberta_por_falta_interacao === true) return true;
-  return Boolean(chat?.reaberta_falta_interacao_em);
+  if (chat?.reaberta_falta_interacao_em) return true;
+  const tags = Array.isArray(chat?.tags) ? chat.tags : [];
+  return tags.some((tag) => {
+    const nome = String(tag?.nome || "")
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase();
+    if (!nome) return false;
+    return /reabert/.test(nome) && /falta|resposta|interac|inativid/.test(nome);
+  });
 }
 
 function ReabertaFaltaInteracaoBadge({ sub = false }) {
