@@ -157,9 +157,22 @@ function areLikelySameMessageBubble(prev, incoming) {
   if (
     textoCompareP &&
     textoCompareI &&
-    textoCompareP.toLowerCase() === textoCompareI.toLowerCase()
+    textoCompareP.toLowerCase() === textoCompareI.toLowerCase() &&
+    isTipoTextoParaReconciliarPorConteudo(prev) &&
+    isTipoTextoParaReconciliarPorConteudo(incoming)
   ) {
-    return isTipoTextoParaReconciliarPorConteudo(prev) && isTipoTextoParaReconciliarPorConteudo(incoming)
+    if (matchesClientTempCorrelation(prev, incoming)) return true
+    const prevPersist = hasPersistedMessageIdentity(prev)
+    const incPersist = hasPersistedMessageIdentity(incoming)
+    /* Dois otimistas com o mesmo texto são envios distintos — não colapsar no prune/merge. */
+    if (!prevPersist && !incPersist) return false
+    if (prevPersist && incPersist) {
+      const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
+      const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
+      return !!(pid && iid && pid === iid)
+    }
+    /* Confirmado + outro otimista com texto igual: só a mesma bolha com client_temp_id explícito. */
+    return matchesClientTempCorrelation(prev, incoming)
   }
   const tipoP = String(prev.tipo || "").toLowerCase().trim()
   const tipoI = String(incoming.tipo || "").toLowerCase().trim()
@@ -176,7 +189,11 @@ function areLikelySameMessageBubble(prev, incoming) {
           (incoming?.file_last_modified != null && Number.isFinite(Number(incoming.file_last_modified)))
         return hasLm && sameMediaStrongHint(prev, incoming)
       }
-      return true
+      if (matchesClientTempCorrelation(prev, incoming)) return true
+      const prevPersist = hasPersistedMessageIdentity(prev)
+      const incPersist = hasPersistedMessageIdentity(incoming)
+      if (!prevPersist && !incPersist) return false
+      return sameMediaStrongHint(prev, incoming)
     }
   }
   if (isOutgoingMediaReconcilePair(prev, incoming)) return true
@@ -932,18 +949,24 @@ function applyAnexarOneToList(list, convId, msg) {
     if (candidates.length === 1) {
       replaceIdx = candidates[0].i
     } else if (candidates.length > 1) {
-      const tsIn = toMillis(msg?.criado_em)
-      let best = candidates[0]
-      for (const c of candidates) {
-        if (!Number.isFinite(tsIn)) {
-          if (c.ts < best.ts || (c.ts === best.ts && c.seq < best.seq)) best = c
-        } else {
-          const d = Math.abs(c.ts - tsIn)
-          const bd = Math.abs(best.ts - tsIn)
-          if (d < bd || (d === bd && c.seq < best.seq)) best = c
+      const clientTempId = resolveClientTempId(msg)
+      if (clientTempId) {
+        const byClient = candidates.filter((c) => {
+          const row = list[c.i]
+          return row?.tempId && String(row.tempId) === clientTempId
+        })
+        if (byClient.length === 1) {
+          replaceIdx = byClient[0].i
         }
       }
-      replaceIdx = best.i
+      if (replaceIdx < 0) {
+        /* FIFO: primeiro otimista pendente com o mesmo texto (envios rápidos em sequência). */
+        let best = candidates[0]
+        for (const c of candidates) {
+          if (c.seq < best.seq || (c.seq === best.seq && c.i < best.i)) best = c
+        }
+        replaceIdx = best.i
+      }
     }
     if (replaceIdx >= 0) {
       const existing = list[replaceIdx]

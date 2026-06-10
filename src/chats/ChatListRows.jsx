@@ -106,11 +106,11 @@ const ChatListRows = memo(function ChatListRows({
     count: chatsFiltrados.length,
     getScrollElement: () => scrollRef.current,
     /* Cards com badge/status/preview quebra linha — subestimar causa sobreposição absoluta. */
-    estimateSize: () => (isMobileLayout ? 140 : 120),
-    gap: 8,
+    estimateSize: () => (isMobileLayout ? 132 : 112),
+    gap: 4,
     overscan: isMobileLayout ? 6 : 10,
-    scrollPaddingStart: 8,
-    scrollPaddingEnd: 12,
+    scrollPaddingStart: 4,
+    scrollPaddingEnd: 8,
     /* Mobile: adia remeasure após o dedo soltar — reduz thrash sem desativar medição real. */
     isScrollingResetDelay: isMobileLayout ? 220 : 150,
     getItemKey: (index) => {
