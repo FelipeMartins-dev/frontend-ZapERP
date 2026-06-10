@@ -115,22 +115,10 @@ const ChatListRows = memo(function ChatListRows({
     },
   });
 
-  const virtualizerRef = useRef(virtualizer);
-  virtualizerRef.current = virtualizer;
-
   useLayoutEffect(() => {
     if (!useVirtual) return;
-    virtualizerRef.current.measure();
-  }, [chatsFiltrados, useVirtual, minuteTick]);
-
-  /* Badges/etiquetas mudam altura do card — remede após paint quando lista virtual está ativa. */
-  useEffect(() => {
-    if (!useVirtual) return;
-    const id = requestAnimationFrame(() => {
-      virtualizerRef.current.measure();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [chatsFiltrados, useVirtual, minuteTick]);
+    virtualizer.measure();
+  }, [chatsFiltrados, useVirtual]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;

@@ -1003,11 +1003,6 @@ export function initSocket(token) {
       for (const k of ausenciaKeys) {
         if (k in payload) next[k] = payload[k]
       }
-      const reabertaFaltaKeys = ["reaberta_por_falta_interacao", "reaberta_falta_interacao_em"]
-      for (const k of reabertaFaltaKeys) {
-        if (k in payload) next[k] = payload[k]
-      }
-      if ("tags" in payload && Array.isArray(payload.tags)) next.tags = payload.tags
       const prevSt = String(cur?.status_atendimento_real ?? cur?.status_atendimento ?? '').toLowerCase()
       const nextSt = String(payload?.status_atendimento ?? next.status_atendimento ?? '').toLowerCase()
       const mot = String(cur?.finalizacao_motivo ?? '').toLowerCase()

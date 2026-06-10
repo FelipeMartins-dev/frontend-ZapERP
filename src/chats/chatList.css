@@ -953,7 +953,6 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  align-items: stretch;
 }
 
 /* Mobile: ocultar linhas sem desmontar — clique e volta à lista ficam instantâneos. */
@@ -1004,14 +1003,15 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-row-virtual-slot {
   box-sizing: border-box;
+  contain: layout style;
   backface-visibility: hidden;
   overflow: visible;
   min-height: 72px;
-  flex-shrink: 0;
 }
 
 .chat-list-row-virtual-slot .chat-list-row {
-  width: 100%;
+  content-visibility: visible;
+  contain: none;
 }
 
 @media (max-width: 640px) {
@@ -1030,7 +1030,13 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row {
+    content-visibility: visible;
+    contain: layout style;
     touch-action: pan-y;
+  }
+
+  .chat-list-rows--virtual .chat-list-row {
+    content-visibility: visible;
   }
 
   .chat-list-row.zap-conversation-card {
@@ -1153,8 +1159,9 @@ a { color: inherit; text-decoration: none; }
   min-height: 72px;
   align-items: center;
   box-shadow: none;
-  /* Sem content-visibility/contain fixo: badges dinâmicos (socket) precisam recalcular altura. */
-  flex-shrink: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+  contain: layout style paint;
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
 }
@@ -3663,6 +3670,8 @@ a { color: inherit; text-decoration: none; }
     min-height: 88px;
     align-items: flex-start;
     touch-action: pan-y;
+    content-visibility: visible;
+    contain: layout style;
   }
 
   .chat-list-row:has(.chat-list-setor):has(.chat-list-status.in):has(.chat-list-status.awaiting-client),
@@ -3673,9 +3682,7 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-badge-await),
   .chat-list-row:has(.chat-list-statusRow--await-solo),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--staff),
-  .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--await-client),
-  .chat-list-row:has(.chat-list-statusRow--reaberta-falta),
-  .chat-list-row--reaberta-falta-card {
+  .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--await-client) {
     min-height: 104px;
     padding-top: 19px;
     padding-bottom: 19px;
@@ -3769,54 +3776,9 @@ a { color: inherit; text-decoration: none; }
    * Aguardando cliente (mobile): grid na linha superior — nome/setor + hora na 1ª linha;
    * etiqueta inteira na 2ª linha (sem cortar bordas/texto e sem sobrepor setor).
    */
-  .chat-list-row:has(.chat-list-status-tech--await-client),
-  .chat-list-row:has(.chat-list-statusRow--reaberta-falta) {
+  .chat-list-row:has(.chat-list-status-tech--await-client) {
+    contain: layout;
     overflow: visible;
-  }
-
-  .chat-list-row-top:has(.chat-list-statusRow--reaberta-falta) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "title time"
-      "badge badge";
-    column-gap: 8px;
-    row-gap: 5px;
-    align-items: start;
-  }
-
-  .chat-list-row-top:has(.chat-list-statusRow--reaberta-falta) .chat-list-row-title-wrap {
-    grid-area: title;
-    flex: unset;
-    max-width: none;
-    min-width: 0;
-    padding-right: 0;
-  }
-
-  .chat-list-row-top:has(.chat-list-statusRow--reaberta-falta) .chat-list-row-meta {
-    display: contents;
-    max-width: none !important;
-    flex-shrink: 0;
-    min-width: 0;
-    overflow: visible;
-  }
-
-  .chat-list-row-top:has(.chat-list-statusRow--reaberta-falta) .chat-list-time {
-    grid-area: time;
-    justify-self: end;
-    align-self: start;
-    white-space: nowrap;
-  }
-
-  .chat-list-row-top:has(.chat-list-statusRow--reaberta-falta) .chat-list-statusRow {
-    grid-area: badge;
-    justify-self: end;
-    align-self: start;
-    width: max-content;
-    max-width: calc(100% - 34px);
-    min-width: min-content;
-    overflow: visible;
-    flex-shrink: 0;
   }
 
   .chat-list-row-top:has(.chat-list-status-tech--await-client) {
@@ -3895,6 +3857,7 @@ a { color: inherit; text-decoration: none; }
    * pill única (rótulo + minutos) na 2ª, sem brilho pesado nem minutos soltos.
    */
   .chat-list-row:has(.chat-list-status-tech--staff) {
+    contain: layout;
     overflow: visible;
   }
 
