@@ -1080,6 +1080,19 @@ function ChatRow({
     Boolean(esperaMinutosAnchor) && !aguardandoFuncionarioVisivelRow;
   const staffPremiumRowClass = aguardandoFuncionarioVisivelRow ? " chat-list-row--await-staff-premium" : "";
   const reabertaFaltaRowClass = isReabertaPorFaltaInteracao(chat) ? " chat-list-row--reaberta-falta-card" : "";
+  const somenteAbertaRowClass =
+    !semConversa &&
+    !isGroup &&
+    chat?.exibir_badge_aberta === true &&
+    !isReabertaPorFaltaInteracao(chat) &&
+    !aguardandoFuncionarioVisivelRow &&
+    !aguardandoClienteAutomaticoRow &&
+    statusEff !== "aguardando_cliente" &&
+    !cobrancaFinanceiraRow &&
+    statusEff !== "fechada" &&
+    statusEff !== "mensagem_disparada"
+      ? " chat-list-row--somente-aberta-card"
+      : "";
   const awaitClientCardClass =
     !aguardandoFuncionarioVisivelRow &&
     (aguardandoClienteAutomaticoRow ||
@@ -1226,7 +1239,7 @@ function ChatRow({
   return (
     <div
       tabIndex={0}
-      className={`chat-list-row zap-conversation-card ${active || opening ? "is-active" : ""} ${opening ? "is-opening" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${reabertaFaltaRowClass}${awaitClientCardClass}`.trim()}
+      className={`chat-list-row zap-conversation-card ${active || opening ? "is-active" : ""} ${opening ? "is-opening" : ""} ${semConversa ? "chat-list-row-sem-conversa" : ""} ${unread > 0 ? "has-unread" : ""} ${atendimentoRowClass} ${atendimentoTechClass}${staffPremiumRowClass}${reabertaFaltaRowClass}${somenteAbertaRowClass}${awaitClientCardClass}`.trim()}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
