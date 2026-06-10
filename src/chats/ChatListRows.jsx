@@ -107,7 +107,7 @@ const ChatListRows = memo(function ChatListRows({
     getScrollElement: () => scrollRef.current,
     /* Cards com badge/status/preview quebra linha — subestimar causa sobreposição absoluta. */
     estimateSize: () => (isMobileLayout ? 132 : 112),
-    gap: 4,
+    gap: 2,
     overscan: isMobileLayout ? 6 : 10,
     scrollPaddingStart: 4,
     scrollPaddingEnd: 8,

@@ -155,4 +155,22 @@ list = mergeMessageIntoListForTest(list, CONV, {
 assert(list.length === 2, `2 imagens após confirmar 1ª: esperado 2, obteve ${list.length}`);
 assert(list.some((m) => m.tempId === "i2" && !m.id), "2ª imagem otimista intacta");
 
-console.log("OK — regressão de mensagens sequenciais passou (5 cenários).");
+// 6) Eco socket com prefixo *nome* funde no otimista (sem duplicar)
+list = [txtTemp("w1", "uy", 0)];
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 601,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "texto",
+  texto: "*Wagner*\nuy",
+  conteudo: "*Wagner*\nuy",
+  remetente_nome: "Wagner",
+  status: "delivered",
+  status_mensagem: "delivered",
+  criado_em: list[0].criado_em,
+});
+assert(list.length === 1, `prefixo *nome*: esperado 1, obteve ${list.length}`);
+assert(String(list[0].id) === "601", "mensagem confirmada fundida");
+assert(list[0].tempId === "w1", "tempId da bolha otimista preservado");
+
+console.log("OK — regressão de mensagens sequenciais passou (6 cenários).");

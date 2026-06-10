@@ -12,6 +12,7 @@
   --cl-space-4: 16px;
   --cl-space-5: 20px;
   --cl-space-6: 24px;
+  --cl-chat-row-gap: 2px;
 
   /* Paleta — neutra corporativa + verde elegante */
   --cl-bg: #edf2f7;
@@ -937,7 +938,7 @@ a { color: inherit; text-decoration: none; }
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   padding: 6px 10px 10px;
-  gap: 4px;
+  gap: var(--cl-chat-row-gap);
   overflow-anchor: none;
   scroll-behavior: auto;
 }
@@ -952,7 +953,7 @@ a { color: inherit; text-decoration: none; }
 .chat-list-rows {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cl-chat-row-gap);
 }
 
 /* Mobile: ocultar linhas sem desmontar — clique e volta à lista ficam instantâneos. */
@@ -3489,7 +3490,7 @@ a { color: inherit; text-decoration: none; }
 
   .chat-list-scroll {
     padding: 6px 8px 10px;
-    gap: 6px;
+    gap: var(--cl-chat-row-gap);
     scroll-padding-bottom: 8px;
   }
 
@@ -3659,7 +3660,7 @@ a { color: inherit; text-decoration: none; }
   .chat-list-scroll {
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
-    gap: 8px;
+    gap: var(--cl-chat-row-gap);
   }
 
   /* Balões no telefone: flex-start evita “nome colado no topo” quando a coluna
