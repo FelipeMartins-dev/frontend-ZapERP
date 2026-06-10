@@ -279,6 +279,8 @@ function normalizeNovaMensagemPayload(raw) {
       else if (t === "video") normalized.tipo = "video"
       else if (t === "document" || t === "file") normalized.tipo = "arquivo"
       else if (t === "audio") normalized.tipo = "audio"
+      else if (t === "voice") normalized.tipo = "voice"
+      else if (t === "ptt") normalized.tipo = "ptt"
       else if (t === "sticker") normalized.tipo = "sticker"
       else if (t === "location") normalized.tipo = "location"
       else if (t === "contact") normalized.tipo = "contact"
@@ -1001,6 +1003,11 @@ export function initSocket(token) {
       for (const k of ausenciaKeys) {
         if (k in payload) next[k] = payload[k]
       }
+      const reabertaFaltaKeys = ["reaberta_por_falta_interacao", "reaberta_falta_interacao_em"]
+      for (const k of reabertaFaltaKeys) {
+        if (k in payload) next[k] = payload[k]
+      }
+      if ("tags" in payload && Array.isArray(payload.tags)) next.tags = payload.tags
       const prevSt = String(cur?.status_atendimento_real ?? cur?.status_atendimento ?? '').toLowerCase()
       const nextSt = String(payload?.status_atendimento ?? next.status_atendimento ?? '').toLowerCase()
       const mot = String(cur?.finalizacao_motivo ?? '').toLowerCase()
