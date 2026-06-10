@@ -283,6 +283,14 @@ export const useChatStore = create((set, get) => ({
       merged.lida = false
     }
     if (partial.exibir_badge_aberta !== undefined) merged.exibir_badge_aberta = !!partial.exibir_badge_aberta
+    if ("reaberta_por_falta_interacao" in partial) {
+      merged.reaberta_por_falta_interacao = partial.reaberta_por_falta_interacao === true
+    }
+    if ("reaberta_falta_interacao_em" in partial) {
+      merged.reaberta_falta_interacao_em = partial.reaberta_falta_interacao_em ?? null
+      merged.reaberta_por_falta_interacao = Boolean(partial.reaberta_falta_interacao_em)
+    }
+    if (Array.isArray(partial.tags)) merged.tags = partial.tags
     if ("tem_novas_mensagens_em_atendimento" in partial) {
       merged.tem_novas_mensagens_em_atendimento = partial.tem_novas_mensagens_em_atendimento
     }

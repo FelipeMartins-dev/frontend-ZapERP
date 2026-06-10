@@ -589,13 +589,34 @@ function PreviewLine({ chat, audioDurationSec }) {
 
 function TagMini({ tag }) {
   if (!tag) return null;
+  const cor = String(tag?.cor || "").trim();
   return (
     <span
-      className="chat-list-tag-mini"
+      className={`chat-list-tag-mini${cor ? " chat-list-tag-mini--colored" : ""}`}
       title={tag?.nome}
-      style={{ background: tag?.cor || "#64748b" }}
+      style={cor ? { background: cor, color: "#fff" } : undefined}
     >
       {tag?.nome}
+    </span>
+  );
+}
+
+function isReabertaPorFaltaInteracao(chat) {
+  if (chat?.reaberta_por_falta_interacao === true) return true;
+  return Boolean(chat?.reaberta_falta_interacao_em);
+}
+
+function ReabertaFaltaInteracaoBadge({ sub = false }) {
+  return (
+    <span
+      className={
+        "chat-list-status-tech chat-list-status-tech--reaberta-falta zap-badge-reaberta-falta" +
+        (sub ? " chat-list-status-tech--reaberta-falta-sub" : "")
+      }
+      title="Reaberta automaticamente por falta de resposta do atendente"
+    >
+      <span className="chat-list-status-tech-reaberta-dot zap-dot" aria-hidden="true" />
+      <span className="chat-list-status-tech-reaberta-label">Reaberta por falta de interação</span>
     </span>
   );
 }
@@ -867,6 +888,7 @@ function StatusPill({
   const reabertoHint =
     typeof chat?.ui_hint_reaberto_ausencia_cliente === "number" &&
     Date.now() - chat.ui_hint_reaberto_ausencia_cliente < 120000;
+  const reabertaFaltaInteracao = isReabertaPorFaltaInteracao(chat);
 
   if (ausenciaFechada) {
     return (
@@ -991,13 +1013,20 @@ function StatusPill({
   // Aberta ou vazio: usar exibir_badge_aberta para decidir se mostra "Aberta"
   if (exibirBadgeAberta === true) {
     return (
-      <span className="chat-list-statusRow">
-        <span className="chat-list-status open chat-list-status--hud-open" title="Aberta">
-          <span className="chat-list-status-hud-prefix chat-list-status-hud-prefix--aberta" aria-hidden>
-            ▶
+      <span className={`chat-list-statusRow${reabertaFaltaInteracao ? " chat-list-statusRow--reaberta-falta" : ""}`}>
+        <span className="chat-list-statusRow-primary">
+          <span className="chat-list-status open chat-list-status--hud-open" title="Aberta">
+            <span className="chat-list-status-hud-prefix chat-list-status-hud-prefix--aberta" aria-hidden>
+              ▶
+            </span>
+            <span className="chat-list-status-hud-text">Aberta</span>
           </span>
-          <span className="chat-list-status-hud-text">Aberta</span>
         </span>
+        {reabertaFaltaInteracao ? (
+          <span className="chat-list-statusRow-sub">
+            <ReabertaFaltaInteracaoBadge sub />
+          </span>
+        ) : null}
         {reabertoHint ? (
           <span className="chat-list-status-note" title="Cliente voltou a enviar mensagem após encerramento por ausência">
             Reaberto pelo cliente
