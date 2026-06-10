@@ -2217,7 +2217,7 @@ function SecaoAlertasAtendimento() {
               </div>
               <div className="sla-preview-message sla-preview-message--manager">
                 <strong>Gestor</strong>
-                <p>🚨 Atendimento sem resposta no ZapERP<br />Cliente: Carlos Almeida<br />Atendente: Joao<br />Tempo sem resposta: {previewManager} minutos<br />Status: {cfg.reabrir_conversa_automaticamente ? "conversa reaberta por falta de resposta" : "gestor notificado; conversa permanece com o atendente"}<br />{cfg.reabrir_conversa_automaticamente ? "A conversa foi liberada para outro atendente ou gestor assumir." : "A conversa permanece atribuida ao atendente atual para acompanhamento do gestor."}</p>
+                <p>🚨 ZapERP — Atendimento sem resposta<br /><br />Cliente: Carlos Almeida<br />Atendente: Joao<br />Tempo sem resposta: {previewManager}min<br /><br />Status: {cfg.reabrir_conversa_automaticamente ? "conversa reaberta e liberada para novo atendimento." : "gestor notificado; conversa permanece com o atendente atual."}</p>
               </div>
             </div>
           </div>
