@@ -283,14 +283,16 @@ export function useAutoScroll({
     const snap = () => {
       if (cancelled || isUserScrollLocked()) return;
       if (!shouldStickToBottomRef.current) return;
-      snapThreadToBottom(container, virtualListRef, { followUpFrame: false, ...guard });
+      const c = messagesContainerRef?.current;
+      snapThreadToBottom(c, virtualListRef, { followUpFrame: false, ...guard });
     };
 
     if (mobileLike) {
       const snapHard = () => {
         if (cancelled || isUserScrollLocked()) return;
         if (!shouldStickToBottomRef.current) return;
-        snapThreadToBottom(container, virtualListRef, { min: true, followUpFrame: false, ...guard });
+        const c = messagesContainerRef?.current;
+        snapThreadToBottom(c, virtualListRef, { min: true, followUpFrame: false, ...guard });
       };
       snapHard();
       rafOnce = scheduleFrame(() => {
