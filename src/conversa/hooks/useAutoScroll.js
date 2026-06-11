@@ -188,14 +188,14 @@ export function useAutoScroll({
     }
 
     if (lastMsgKey && lastMsgKey !== prevLastKeyRef.current) {
+      if (openSnapInProgressRef.current || isUserScrollLocked()) {
+        prevLastKeyRef.current = lastMsgKey;
+        return;
+      }
       const fromMe =
         isOutgoingMessage(lastMsg) ||
         lastMsg?.fromMe === true ||
         (myUserId != null && lastMsg?.autor_usuario_id != null && String(lastMsg.autor_usuario_id) === String(myUserId));
-      if ((openSnapInProgressRef.current && !fromMe) || isUserScrollLocked()) {
-        prevLastKeyRef.current = lastMsgKey;
-        return;
-      }
       const pendingOwn = fromMe && isPendingOutgoingTemp(lastMsg);
       const shouldAutoScroll = Boolean(shouldStickToBottomRef.current || fromMe);
       if (shouldAutoScroll && container && !isUserScrollLocked()) {

@@ -1661,143 +1661,94 @@ function ConversaViewBody() {
 
   const handleCloseTimeline = useCallback(() => setShowTimeline(false), []);
 
-  const outboundTextQueueRef = useRef([]);
-  const outboundTextDrainActiveRef = useRef(false);
-  const outboundOptimisticSeqRef = useRef(0);
+  const enviarTextoEmAndamentoRef = useRef(false);
 
-  useEffect(() => {
-    outboundOptimisticSeqRef.current = 0;
-    outboundTextQueueRef.current = [];
-    outboundTextDrainActiveRef.current = false;
-  }, [conversaId]);
+  const handleEnviar = useCallback(async (forcedText) => {
+    if (!conversaId) return;
+    if (enviarTextoEmAndamentoRef.current) return;
+    if (!podeEnviar) {
+      showToast({
+        type: "warning",
+        title: "Conversa não assumida",
+        message: "Clique em Assumir para enviar mensagens.",
+      });
+      return;
+    }
 
-  const processOutboundTextQueue = useCallback(async () => {
-    if (outboundTextDrainActiveRef.current) return;
-    outboundTextDrainActiveRef.current = true;
+    const forcedLooksLikeEvent =
+      forcedText &&
+      typeof forcedText === "object" &&
+      ("nativeEvent" in forcedText || "preventDefault" in forcedText || "currentTarget" in forcedText);
+    const t = safeString(forcedLooksLikeEvent ? undefined : forcedText).trim();
+    if (!t) return;
+    const socket = getSocket();
+    if (socket?.connected) socket.emit("typing_stop", { conversa_id: conversaId });
+    const chatParaNome = fromChat ?? conversa;
+    const replyMeta = buildReplyMetaForPersist(replyTo, nome, chatParaNome);
+
+    const optimisticMsg = buildOptimisticOutgoingMessage({
+      conversaId,
+      texto: t,
+      replyMeta: replyMeta || undefined,
+    });
+    const tempId = optimisticMsg.tempId;
+    const revertOutgoingStatus = applyOutgoingStatusOptimistic();
+    appendOutgoingOptimisticMessage(optimisticMsg);
+    setReplyTo(null);
+
+    let envioFalhou = false;
+    enviarTextoEmAndamentoRef.current = true;
     setSendingTracked(true);
-    let lastJobSucceeded = true;
     try {
-      while (outboundTextQueueRef.current.length > 0) {
-        const job = outboundTextQueueRef.current[0];
-        if (!job) {
-          outboundTextQueueRef.current.shift();
-          continue;
-        }
-        let envioFalhou = false;
-        try {
-          const res = await enviarMensagem(job.conversaId, job.texto, job.replyMeta || undefined);
-          const resMsgId = res?.mensagem?.id ?? res?.id;
-          const realMsg = normalizeArquivoApiToMessage(res, job.conversaId);
-          if (realMsg?.id != null || realMsg?.whatsapp_id) {
-            reconciliarMensagem(job.tempId, realMsg);
-          }
-          if (res?.mensagem?.id && job.replyMeta) {
-            saveReplyMeta(job.conversaId, res.mensagem.id, job.replyMeta);
-          }
-          if (res?.ok === false && (resMsgId == null || resMsgId === "")) {
-            marcarMensagemTempErro(job.tempId);
-          }
-        } catch (err) {
-          envioFalhou = true;
-          lastJobSucceeded = false;
-          job.revertOutgoingStatus?.();
-          console.error("Erro ao enviar mensagem:", err);
-          const is403 = err?.response?.status === 403;
-          const apiMsg = err?.response?.data?.error;
-          marcarMensagemTempErro(job.tempId, { erro_mensagem: apiMsg || err?.message });
-          composerRef.current?.setText?.(job.texto);
-          if (job.capturedReplyTo) setReplyTo(job.capturedReplyTo);
-          showToast({
-            type: "error",
-            title: is403 ? "Acesso restrito" : "Falha ao enviar",
-            message:
-              apiMsg ||
-              (is403
-                ? "Assuma a conversa antes de enviar mensagens."
-                : "Não foi possível enviar a mensagem. Verifique sua conexão."),
-          });
-          focusMessageInput();
-        } finally {
-          outboundTextQueueRef.current.shift();
-        }
-        if (envioFalhou) break;
+      const res = await enviarMensagem(conversaId, t, replyMeta || undefined);
+      const resMsgId = res?.mensagem?.id ?? res?.id;
+      const realMsg = normalizeArquivoApiToMessage(res, conversaId);
+      if (realMsg?.id != null || realMsg?.whatsapp_id) {
+        reconciliarMensagem(tempId, realMsg);
       }
+      if (res?.mensagem?.id && replyMeta) {
+        saveReplyMeta(conversaId, res.mensagem.id, replyMeta);
+      }
+      if (res?.ok === false && (resMsgId == null || resMsgId === "")) {
+        marcarMensagemTempErro(tempId);
+      }
+    } catch (err) {
+      envioFalhou = true;
+      revertOutgoingStatus?.();
+      console.error("Erro ao enviar mensagem:", err);
+      const is403 = err?.response?.status === 403;
+      const apiMsg = err?.response?.data?.error;
+      marcarMensagemTempErro(tempId, { erro_mensagem: apiMsg || err?.message });
+      composerRef.current?.setText?.(t);
+      if (replyTo) setReplyTo(replyTo);
+      showToast({
+        type: "error",
+        title: is403 ? "Acesso restrito" : "Falha ao enviar",
+        message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar a mensagem. Verifique sua conexão."),
+      });
+      focusMessageInput();
     } finally {
-      outboundTextDrainActiveRef.current = false;
-      if (outboundTextQueueRef.current.length > 0) {
-        void processOutboundTextQueue();
-      } else {
-        setSendingTracked(false);
-        if (lastJobSucceeded) focusMessageInput();
-      }
+      enviarTextoEmAndamentoRef.current = false;
+      setSendingTracked(false);
+    }
+    if (!envioFalhou) {
+      focusMessageInput();
     }
   }, [
+    conversaId,
+    replyTo,
+    showToast,
+    appendOutgoingOptimisticMessage,
+    applyOutgoingStatusOptimistic,
     reconciliarMensagem,
     marcarMensagemTempErro,
-    showToast,
+    nome,
+    conversa,
+    fromChat,
+    podeEnviar,
     focusMessageInput,
     setSendingTracked,
-    setReplyTo,
   ]);
-
-  const handleEnviar = useCallback(
-    (forcedText) => {
-      if (!conversaId) return;
-      if (!podeEnviar) {
-        showToast({
-          type: "warning",
-          title: "Conversa não assumida",
-          message: "Clique em Assumir para enviar mensagens.",
-        });
-        return;
-      }
-
-      const forcedLooksLikeEvent =
-        forcedText &&
-        typeof forcedText === "object" &&
-        ("nativeEvent" in forcedText || "preventDefault" in forcedText || "currentTarget" in forcedText);
-      const t = safeString(forcedLooksLikeEvent ? undefined : forcedText).trim();
-      if (!t) return;
-      const socket = getSocket();
-      if (socket?.connected) socket.emit("typing_stop", { conversa_id: conversaId });
-      const chatParaNome = fromChat ?? conversa;
-      const replyMeta = buildReplyMetaForPersist(replyTo, nome, chatParaNome);
-      const capturedReplyTo = replyTo;
-
-      const optimisticMsg = buildOptimisticOutgoingMessage({
-        conversaId,
-        texto: t,
-        replyMeta: replyMeta || undefined,
-        insertIndex: outboundOptimisticSeqRef.current++,
-      });
-      const revertOutgoingStatus = applyOutgoingStatusOptimistic();
-      appendOutgoingOptimisticMessage(optimisticMsg);
-      setReplyTo(null);
-
-      outboundTextQueueRef.current.push({
-        conversaId,
-        texto: t,
-        tempId: optimisticMsg.tempId,
-        replyMeta: replyMeta || undefined,
-        revertOutgoingStatus,
-        capturedReplyTo,
-      });
-      void processOutboundTextQueue();
-    },
-    [
-      conversaId,
-      replyTo,
-      showToast,
-      appendOutgoingOptimisticMessage,
-      applyOutgoingStatusOptimistic,
-      nome,
-      conversa,
-      fromChat,
-      podeEnviar,
-      processOutboundTextQueue,
-      setReplyTo,
-    ]
-  );
 
   const {
     pixModalOpen,
