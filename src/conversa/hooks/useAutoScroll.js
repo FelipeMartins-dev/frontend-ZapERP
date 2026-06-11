@@ -247,10 +247,7 @@ export function useAutoScroll({
     if (!shouldSnapLatest) return;
     if (mensagensCount === 0) return;
 
-    const container = messagesContainerRef?.current;
-    const userReadingHistory =
-      container &&
-      (isUserScrollLocked() || !isNearBottom(container, 200));
+    const userReadingHistory = isUserScrollLocked();
 
     if (userReadingHistory) {
       cancelOpenSnapPending();

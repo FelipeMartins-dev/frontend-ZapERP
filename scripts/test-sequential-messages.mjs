@@ -155,4 +155,63 @@ list = mergeMessageIntoListForTest(list, CONV, {
 assert(list.length === 2, `2 imagens após confirmar 1ª: esperado 2, obteve ${list.length}`);
 assert(list.some((m) => m.tempId === "i2" && !m.id), "2ª imagem otimista intacta");
 
-console.log("OK — regressão de mensagens sequenciais passou (5 cenários).");
+// 6) Inbound áudio: socket republica mesma mensagem com URL (sem duplicar)
+const inAudioTs = new Date().toISOString();
+list = [];
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 701,
+  whatsapp_id: "wa-in-audio-1",
+  conversa_id: CONV,
+  direcao: "in",
+  tipo: "audio",
+  texto: "(áudio)",
+  criado_em: inAudioTs,
+});
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 701,
+  whatsapp_id: "wa-in-audio-1",
+  conversa_id: CONV,
+  direcao: "in",
+  tipo: "audio",
+  texto: "(áudio)",
+  nome_arquivo: "voice.ogg",
+  tamanho: 12000,
+  criado_em: inAudioTs,
+  url: "/uploads/in-701.ogg",
+});
+assert(
+  list.filter((m) => String(m.id) === "701").length === 1,
+  "inbound áudio com mesmo id não deve duplicar"
+);
+assert(
+  list.find((m) => String(m.id) === "701")?.url === "/uploads/in-701.ogg",
+  "URL da mídia inbound deve fundir na bolha existente"
+);
+
+// 7) Inbound imagem: placeholder depois URL completa (mesmo whatsapp_id)
+const inImgTs = new Date().toISOString();
+list = mergeMessageIntoListForTest(list, CONV, {
+  whatsapp_id: "wa-in-img-1",
+  conversa_id: CONV,
+  direcao: "in",
+  tipo: "imagem",
+  texto: "(imagem)",
+  criado_em: inImgTs,
+});
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 702,
+  whatsapp_id: "wa-in-img-1",
+  conversa_id: CONV,
+  direcao: "in",
+  tipo: "imagem",
+  texto: "(imagem)",
+  nome_arquivo: "photo-in.jpg",
+  criado_em: inImgTs,
+  url: "/uploads/in-702.jpg",
+});
+assert(
+  list.filter((m) => String(m.whatsapp_id) === "wa-in-img-1").length === 1,
+  "inbound imagem com mesmo whatsapp_id não deve duplicar"
+);
+
+console.log("OK — regressão de mensagens sequenciais passou (7 cenários).");

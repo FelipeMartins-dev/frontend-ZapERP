@@ -635,14 +635,14 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const handleSendFromComposer = useCallback(
     (textToSend) => {
-      if (sending || !conversaId || !podeEnviar) return;
+      if (!conversaId || !podeEnviar) return;
       const t = safeString(textToSend).trim();
       if (!t) return;
       resetAutocorrectTracking();
       setTexto("");
       onSendMessage?.(t);
     },
-    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking, sending]
+    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking]
   );
 
   const handleKeyDownInput = useCallback(
@@ -1327,12 +1327,12 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                       e.preventDefault();
                     }}
                     onClick={() => handleSendFromComposer(texto)}
-                    disabled={sending || !hasDraft || !conversaId || !podeEnviar}
+                    disabled={!hasDraft || !conversaId || !podeEnviar}
                     className="wa-sendBtn"
                     title="Enviar"
                     aria-label="Enviar mensagem"
                   >
-                    {sending ? <span className="wa-spinner" aria-hidden="true" /> : <IconSend />}
+                    <IconSend />
                   </button>
                 ) : (
                   <button
@@ -1365,12 +1365,12 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                       e.preventDefault();
                     }}
                     onClick={() => handleSendFromComposer(texto)}
-                    disabled={sending || !hasDraft || !conversaId || !podeEnviar}
+                    disabled={!hasDraft || !conversaId || !podeEnviar}
                     className="wa-sendBtn"
                     title="Enviar"
                     aria-label="Enviar mensagem"
                   >
-                    {sending ? <span className="wa-spinner" aria-hidden="true" /> : <IconSend />}
+                    <IconSend />
                   </button>
                 </>
               )}

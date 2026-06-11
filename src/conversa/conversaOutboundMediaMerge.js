@@ -138,11 +138,25 @@ function canMergeDedupeEntries(prev, incoming) {
   return areLikelySameMessageBubble(prev, incoming)
 }
 
-/** id/whatsapp_id iguais só indicam a mesma bolha se o conteúdo (ou temp) também bater. */
+/** id/whatsapp_id iguais: inbound sempre funde; outbound exige conteúdo/temp compatível. */
 function persistedIdentityMarksSameBubble(prev, incoming) {
   if (!prev || !incoming) return false
   if (matchesClientTempCorrelation(prev, incoming)) return true
   if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
+
+  const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
+  const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
+  const pwa =
+    prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== ""
+      ? String(prev.whatsapp_id)
+      : null
+  const iwa =
+    incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== ""
+      ? String(incoming.whatsapp_id)
+      : null
+  const inboundPair = !isOutgoingLike(prev) && !isOutgoingLike(incoming)
+  if (inboundPair && pid && iid && pid === iid) return true
+  if (inboundPair && pwa && iwa && pwa === iwa) return true
 
   const textoP = (prev.texto || prev.conteudo || "").toString().trim()
   const textoI = (incoming.texto || incoming.conteudo || "").toString().trim()
@@ -164,6 +178,8 @@ function persistedIdentityMarksSameBubble(prev, incoming) {
     return sameMediaStrongHint(prev, incoming)
   }
 
+  if (inboundPair && isIncomingClientMediaReconcilePair(prev, incoming)) return true
+
   return false
 }
 
@@ -174,11 +190,15 @@ function shouldMergeExistingMessages(existing, msg) {
   const clientTempId = resolveClientTempId(msg)
   if (clientTempId && existing.tempId && String(existing.tempId) === clientTempId) return true
   if (msg.id != null && String(msg.id).trim() !== "" && existing.id != null && String(existing.id) === String(msg.id)) {
-    return persistedIdentityMarksSameBubble(existing, msg)
+    if (existing.tempId && msg.tempId && String(existing.tempId) !== String(msg.tempId)) return false
+    return true
   }
   const waId = msg.whatsapp_id || null
   if (waId && existing.whatsapp_id != null && String(existing.whatsapp_id) === String(waId)) {
     return persistedIdentityMarksSameBubble(existing, msg)
+  }
+  if (!isOutgoingLike(existing) && !isOutgoingLike(msg)) {
+    return isIncomingClientMediaReconcilePair(existing, msg)
   }
   return false
 }
@@ -209,6 +229,9 @@ function areLikelySameMessageBubble(prev, incoming) {
   const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
   const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
   if (pid && iid && pid === iid) return persistedIdentityMarksSameBubble(prev, incoming)
+  if (!isOutgoingLike(prev) && !isOutgoingLike(incoming)) {
+    return isIncomingClientMediaReconcilePair(prev, incoming)
+  }
   if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
   const recentMs = 90_000
   const now = Date.now()
@@ -419,8 +442,9 @@ function pruneRedundantOutgoingMediaEchoes(list) {
 function finalizeMensagensList(list) {
   const beforePrune = list.length
   const afterTemps = pruneRedundantOutgoingTemps(list)
-  const afterEchoes = pruneRedundantOutgoingMediaEchoes(afterTemps)
-  const afterIdentityDedupe = dedupeListByPersistedIdentity(afterEchoes)
+  const afterOutgoingEchoes = pruneRedundantOutgoingMediaEchoes(afterTemps)
+  const afterIncomingEchoes = pruneRedundantIncomingClientMediaEchoes(afterOutgoingEchoes)
+  const afterIdentityDedupe = dedupeListByPersistedIdentity(afterIncomingEchoes)
   const final = sortMensagensChronological(afterIdentityDedupe)
   
   // Debug para detectar remoções inesperadas de áudios
@@ -676,6 +700,20 @@ function sameMediaStrongHint(prev, incoming) {
   return false
 }
 
+function sameMediaNameAndSizeHint(prev, incoming) {
+  const prevName = mediaFileBaseName(prev)
+  const incomingName = mediaFileBaseName(incoming)
+  if (!prevName || !incomingName || prevName !== incomingName) return false
+  const prevSize = prev?.tamanho ?? prev?.tamanho_bytes ?? null
+  const incomingSize = incoming?.tamanho ?? incoming?.tamanho_bytes ?? null
+  return (
+    prevSize != null &&
+    incomingSize != null &&
+    Number.isFinite(Number(prevSize)) &&
+    Number(prevSize) === Number(incomingSize)
+  )
+}
+
 /**
  * Áudio outbound confirmado (socket/API) sem client_temp_id: funde no otimista pendente
  * mais próximo no tempo — evita bolha duplicada quando nome/tipo divergem (webm vs voice).
@@ -705,6 +743,9 @@ function findClosestPendingOutgoingAudioIndex(list, msg, recentMs = 90_000) {
   const withHint = pending.filter((p) => sameMediaStrongHint(p.m, msg))
   if (withHint.length === 1) return withHint[0].i
   if (withHint.length > 1) return pickClosestPendingMediaCandidate(withHint, msg)?.i ?? -1
+  const withNameAndSize = pending.filter((p) => sameMediaNameAndSizeHint(p.m, msg))
+  if (withNameAndSize.length === 1) return withNameAndSize[0].i
+  if (withNameAndSize.length > 1) return pickClosestPendingMediaCandidate(withNameAndSize, msg)?.i ?? -1
   return -1
 }
 
@@ -828,6 +869,128 @@ function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
   if (cid) return matchesClientTempCorrelation(prev, incoming)
   if (sameMediaStrongHint(prev, incoming)) return true
   return opts.allowLoose === true
+}
+
+/** Só fotos e áudios recebidos do cliente — eco duplo do socket (placeholder → URL). */
+const INCOMING_CLIENT_MEDIA_RECONCILE_MS = 20_000
+
+function isIncomingClientMediaFamily(fam) {
+  return fam === "audio" || fam === "imagem"
+}
+
+function resolveInboundAudioDurationSec(m) {
+  const raw =
+    m?.audio_duracao_sec ??
+    m?.audioDuracaoSec ??
+    m?.duracao_segundos ??
+    m?.duration ??
+    m?.audio_duration ??
+    null
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+/**
+ * Duas bolhas inbound da mesma mídia (ex.: nova_mensagem sem URL + nova_mensagem com /uploads/).
+ * Não aplica a mensagens enviadas pelo atendente.
+ */
+function isIncomingClientMediaReconcilePair(prev, incoming) {
+  if (!prev || !incoming) return false
+  if (isOutgoingLike(prev) || isOutgoingLike(incoming)) return false
+
+  const fam = mediaFamilyFromMsg(prev)
+  const famI = mediaFamilyFromMsg(incoming)
+  if (!fam || fam !== famI || !isIncomingClientMediaFamily(fam)) return false
+
+  const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
+  const iwa =
+    incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== ""
+      ? String(incoming.whatsapp_id)
+      : null
+  if (pwa && iwa && pwa === iwa) return true
+
+  const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
+  const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
+  if (pid && iid && pid === iid) return true
+  if (pid && iid && pid !== iid) return false
+
+  const tsP = toMillis(prev?.criado_em)
+  const tsI = toMillis(incoming?.criado_em)
+  if (!Number.isFinite(tsP) || !Number.isFinite(tsI)) return false
+  if (Math.abs(tsP - tsI) > INCOMING_CLIENT_MEDIA_RECONCILE_MS) return false
+
+  if (sameMediaStrongHint(prev, incoming)) return true
+
+  const durP = resolveInboundAudioDurationSec(prev)
+  const durI = resolveInboundAudioDurationSec(incoming)
+  if (fam === "audio" && durP != null && durI != null && durP === durI) return true
+
+  const prevPersist = hasPersistedMessageIdentity(prev)
+  const incPersist = hasPersistedMessageIdentity(incoming)
+  if (prevPersist && incPersist) return false
+
+  const hasUrlP = hasRenderableUrl(prev)
+  const hasUrlI = hasRenderableUrl(incoming)
+  if (hasUrlP !== hasUrlI) return true
+
+  return false
+}
+
+function incomingClientMediaDedupeScore(m) {
+  let score = 0
+  if (hasPersistedMessageIdentity(m)) score += 10
+  if (hasRenderableUrl(m)) score += 5
+  if (isLocalUploadMediaMessage(m)) score += 2
+  return score
+}
+
+function findIncomingClientMediaMergeIndex(list, msg) {
+  if (!msg || isOutgoingLike(msg)) return -1
+  if (!isIncomingClientMediaFamily(mediaFamilyFromMsg(msg))) return -1
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (isIncomingClientMediaReconcilePair(list[i], msg)) return i
+  }
+  return -1
+}
+
+function mergeIncomingClientMediaAtIndex(list, convId, mergeIdx, msg) {
+  const existing = list[mergeIdx]
+  const merged = preserveLocalMediaFields(existing, { ...existing, ...msg })
+  if (convId) merged.conversa_id = convId
+  if (msg.id && !existing.id) merged.id = msg.id
+  if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
+  if (msg.status != null) merged.status = msg.status
+  if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
+  merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
+  const next = [...list]
+  next[mergeIdx] = finalizeMergedMessageRow(existing, merged)
+  if (hasPersistedMessageIdentity(merged)) {
+    return dedupeRowsByPersistedIdentity(next, mergeIdx)
+  }
+  return next
+}
+
+/** Remove ecos inbound duplicados (foto/áudio recebidos) após rajadas do socket. */
+function pruneRedundantIncomingClientMediaEchoes(list) {
+  if (!Array.isArray(list) || list.length < 2) return list
+  const remove = new Set()
+  for (let i = 0; i < list.length; i++) {
+    if (remove.has(i)) continue
+    for (let j = i + 1; j < list.length; j++) {
+      if (remove.has(j)) continue
+      const a = list[i]
+      const b = list[j]
+      if (!a || !b || isOutgoingLike(a) || isOutgoingLike(b)) continue
+      if (!isIncomingClientMediaReconcilePair(a, b)) continue
+      const scoreA = incomingClientMediaDedupeScore(a)
+      const scoreB = incomingClientMediaDedupeScore(b)
+      if (scoreA > scoreB) remove.add(j)
+      else if (scoreB > scoreA) remove.add(i)
+      else remove.add(Math.max(i, j))
+    }
+  }
+  if (!remove.size) return list
+  return list.filter((_, idx) => !remove.has(idx))
 }
 
 function dedupeRowsByPersistedIdentity(list, keepIdx) {
@@ -1039,6 +1202,11 @@ function applyAnexarOneToList(list, convId, msg) {
     if (mergeIdx >= 0) return mergePendingMediaAt(mergeIdx)
   }
 
+  if (!isFromMe && isIncomingClientMediaFamily(mediaFamilyFromMsg(msg))) {
+    const inIdx = findIncomingClientMediaMergeIndex(list, msg)
+    if (inIdx >= 0) return mergeIncomingClientMediaAtIndex(list, convId, inIdx, msg)
+  }
+
   if (isFromMe && textoIn && isTipoTextoParaReconciliarPorConteudo(msg)) {
     const clientTempIdEarly = resolveClientTempId(msg)
     if (clientTempIdEarly) {
@@ -1193,7 +1361,9 @@ function applyAnexarOneToList(list, convId, msg) {
   const crossIdx =
     isOutgoingLike(candNew) && mediaFamilyFromMsg(candNew) === "audio"
       ? findAudioCrossMergeIndex()
-      : list.findIndex((m, i) => {
+      : !isOutgoingLike(candNew) && isIncomingClientMediaFamily(mediaFamilyFromMsg(candNew))
+        ? findIncomingClientMediaMergeIndex(list, candNew)
+        : list.findIndex((m, i) => {
           if (i === dupIdx) return false
           if (matchesClientTempCorrelation(m, candNew)) return true
           const pid = m?.id != null && String(m.id).trim() !== "" ? String(m.id) : null
