@@ -1,11 +1,51 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useConversaStore } from "../conversa/conversaStore";
+import { getStatusAtendimentoEffective } from "../utils/conversaUtils";
 import { chatRowListStoreKey } from "./chatListStoreCompare";
 import MemoChatRow from "./ChatListRow";
 
 /** A partir deste tamanho, lista virtualizada (crítico na aba Todas no mobile). */
 export const CHAT_LIST_VIRTUAL_THRESHOLD = 48;
+
+/** Deve bater com `--cl-chat-row-gap` em chatList.css */
+const CHAT_LIST_VIRTUAL_GAP = 1;
+
+function rowHasComplexStatusLayout(chat) {
+  if (!chat) return false;
+  const status = String(getStatusAtendimentoEffective(chat) ?? "").toLowerCase();
+  const setor = chat?.setor || chat?.departamento?.nome || chat?.departamentos?.nome;
+  if (!setor) return false;
+  return (
+    status.includes("atendimento") ||
+    status.includes("aguardando") ||
+    status.includes("aberta") ||
+    Boolean(chat?.aguardando_cliente_desde)
+  );
+}
+
+/** Estimativa alinhada ao min-height real dos cards — evita “vão” até o measureElement rodar. */
+function estimateChatRowSize(chat, isMobileLayout) {
+  const complex = rowHasComplexStatusLayout(chat);
+  if (isMobileLayout) return complex ? 98 : 86;
+  return complex ? 84 : 78;
+}
+
+function scheduleVirtualRemeasure(virtualizerRef) {
+  const run = () => virtualizerRef.current?.measure?.();
+  run();
+  const raf1 = requestAnimationFrame(() => {
+    run();
+    requestAnimationFrame(run);
+  });
+  const t0 = window.setTimeout(run, 0);
+  const t1 = window.setTimeout(run, 48);
+  return () => {
+    cancelAnimationFrame(raf1);
+    window.clearTimeout(t0);
+    window.clearTimeout(t1);
+  };
+}
 
 function renderChatListRow(c, selectedId, props) {
   const id = c?.id;
@@ -105,13 +145,13 @@ const ChatListRows = memo(function ChatListRows({
   const virtualizer = useVirtualizer({
     count: chatsFiltrados.length,
     getScrollElement: () => scrollRef.current,
-    /* Cards com badge/status/preview quebra linha — subestimar causa sobreposição absoluta. */
-    estimateSize: () => (isMobileLayout ? 132 : 112),
-    gap: 2,
+    estimateSize: (index) =>
+      estimateChatRowSize(chatsFiltrados[index], isMobileLayout),
+    gap: CHAT_LIST_VIRTUAL_GAP,
     overscan: isMobileLayout ? 6 : 10,
     scrollPaddingStart: 4,
     scrollPaddingEnd: 8,
-    /* Mobile: adia remeasure após o dedo soltar — reduz thrash sem desativar medição real. */
+    useAnimationFrameWithResizeObserver: true,
     isScrollingResetDelay: isMobileLayout ? 220 : 150,
     getItemKey: (index) => {
       const c = chatsFiltrados[index];
@@ -125,15 +165,20 @@ const ChatListRows = memo(function ChatListRows({
   virtualizerRef.current = virtualizer;
 
   useLayoutEffect(() => {
-    if (!useVirtual) return;
-    const remeasure = () => virtualizerRef.current?.measure?.();
-    remeasure();
-    const raf1 = requestAnimationFrame(() => {
-      remeasure();
-      requestAnimationFrame(remeasure);
+    if (!useVirtual) return undefined;
+    return scheduleVirtualRemeasure(virtualizerRef);
+  }, [chatsLayoutKey, chatsFiltrados.length, useVirtual, isMobileLayout]);
+
+  useEffect(() => {
+    if (!useVirtual) return undefined;
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => virtualizerRef.current?.measure?.());
     });
-    return () => cancelAnimationFrame(raf1);
-  }, [chatsLayoutKey, chatsFiltrados.length, useVirtual]);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [useVirtual, scrollRef, chatsLayoutKey]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
