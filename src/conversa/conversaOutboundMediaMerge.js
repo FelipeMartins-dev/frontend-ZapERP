@@ -70,55 +70,6 @@ function normalizeOutboundTextForCompare(msg) {
   return stripWhatsappBoldNamePrefix(msg?.texto ?? msg?.conteudo ?? "", msg)
 }
 
-/** Texto outbound equivalente (ignora prefixo *nome* do WhatsApp). */
-function outboundTextsMatchForReconcile(prev, incoming) {
-  const rawP = (prev?.texto || prev?.conteudo || "").toString().trim()
-  const rawI = (incoming?.texto || incoming?.conteudo || "").toString().trim()
-  if (!rawP || !rawI) return false
-  if (!isTipoTextoParaReconciliarPorConteudo(prev) || !isTipoTextoParaReconciliarPorConteudo(incoming)) {
-    return false
-  }
-  const normP = normalizeOutboundTextForCompare(prev)
-  const normI = normalizeOutboundTextForCompare(incoming)
-  return normP.toLowerCase() === normI.toLowerCase()
-}
-
-function findClosestPendingTextToConfirmed(list, confirmed) {
-  const pendingSame = list.filter(
-    (p) =>
-      isPendingOutgoingTemp(p) &&
-      isTipoTextoParaReconciliarPorConteudo(p) &&
-      outboundTextsMatchForReconcile(p, confirmed)
-  )
-  if (!pendingSame.length) return null
-  const tsC = toMillis(confirmed?.criado_em)
-  if (!Number.isFinite(tsC)) return pickEarliestPendingTextMatch(list, confirmed)
-
-  let best = pendingSame[0]
-  let bestDist = Math.abs(toMillis(best?.criado_em) - tsC)
-  for (let i = 1; i < pendingSame.length; i++) {
-    const p = pendingSame[i]
-    const tsP = toMillis(p?.criado_em)
-    if (!Number.isFinite(tsP)) continue
-    const dist = Math.abs(tsP - tsC)
-    if (dist < bestDist) {
-      best = p
-      bestDist = dist
-    }
-  }
-  return best
-}
-
-function pendingTextShouldPruneAgainstConfirmed(temp, confirmed, list) {
-  if (!isPendingOutgoingTemp(temp) || !hasPersistedMessageIdentity(confirmed)) return false
-  if (!outboundTextsMatchForReconcile(temp, confirmed)) return false
-  if (matchesClientTempCorrelation(temp, confirmed)) return true
-  // Bolha já fundida in-place (tempId + id) — não usar para podar outro envio com o mesmo texto.
-  if (confirmed?.tempId && String(confirmed.tempId) !== String(temp.tempId)) return false
-  const closest = findClosestPendingTextToConfirmed(list, confirmed)
-  return closest != null && String(temp.tempId) === String(closest.tempId)
-}
-
 function isOutgoingLike(msg) {
   const dir = String(msg?.direcao || "").toLowerCase().trim()
   if (dir === "out") return true
@@ -298,10 +249,7 @@ function pruneRedundantOutgoingTemps(list) {
       })
     }
     
-    return !confirmed.some((c) => {
-      if (areLikelySameMessageBubble(m, c)) return true
-      return pendingTextShouldPruneAgainstConfirmed(m, c, list)
-    })
+    return !confirmed.some((c) => areLikelySameMessageBubble(m, c))
   })
 }
 
@@ -993,7 +941,8 @@ function applyAnexarOneToList(list, convId, msg) {
       if (!isTipoTextoParaReconciliarPorConteudo(m)) continue
       const ts = toMillis(m?.criado_em)
       if (!Number.isFinite(ts) || now - ts >= recentMs) continue
-      if (!outboundTextsMatchForReconcile(m, msg)) continue
+      const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoIn
+      if (!textoMatch) continue
       candidates.push({ i, ts, seq: Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity })
     }
     let replaceIdx = -1
@@ -1045,8 +994,8 @@ function applyAnexarOneToList(list, convId, msg) {
       if (m?.tempId) continue
       const ts = toMillis(m?.criado_em)
       if (!Number.isFinite(ts) || nowC3 - ts > recentMsC3) break
-      if (!outboundTextsMatchForReconcile(m, msg)) continue
-      if (m.whatsapp_id && !m.id) {
+      const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
+      if (m.whatsapp_id && !m.id && textoMatch) {
         const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
         if (isOutgoingLike(m) && isOutgoingLike(msg)) merged.criado_em = pickLaterCriadoEmIso(m, msg)
         const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
