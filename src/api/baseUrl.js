@@ -8,7 +8,17 @@
 export const FALLBACK_API_URL =
   "https://zaperpapi.wmsistemas.inf.br"
 
-export const LOCAL_DEV_API_URL = "http://localhost:3000"
+const DEFAULT_LOCAL_BACKEND_PORT = "3000"
+
+function resolveLocalDevApiUrl() {
+  const fromEnv = normalizeBaseUrl(import.meta.env.VITE_API_URL)
+  if (fromEnv) return fromEnv
+  const port = String(import.meta.env.VITE_BACKEND_PORT || DEFAULT_LOCAL_BACKEND_PORT).trim()
+  return `http://localhost:${port}`
+}
+
+/** Fallback documentado; em runtime use `getApiBaseUrl()` ou `resolveLocalDevApiUrl()` via dev. */
+export const LOCAL_DEV_API_URL = `http://localhost:${DEFAULT_LOCAL_BACKEND_PORT}`
 
 function normalizeBaseUrl(raw) {
   const s = String(raw || "").trim()
@@ -35,7 +45,7 @@ export function getApiBaseUrl() {
   let url = fromEnv
 
   if (!url && import.meta.env.DEV && isLocalFrontendHost()) {
-    url = normalizeBaseUrl(LOCAL_DEV_API_URL)
+    url = normalizeBaseUrl(resolveLocalDevApiUrl())
   }
 
   if (!url) {

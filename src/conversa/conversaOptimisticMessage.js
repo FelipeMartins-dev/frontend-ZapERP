@@ -151,7 +151,6 @@ function pickFileLastModified(row) {
   return v;
 }
 
-/** Não revoga blob no merge do store — evita “aparece e vira ?” ao reconciliar com a API/socket. */
 export function cleanupOptimisticBlobFields(merged) {
   return merged;
 }
@@ -194,6 +193,7 @@ export function normalizeTextSendApiToMessage(data, conversaId) {
   if (!data || typeof data !== "object") return null;
   const m = data.mensagem && typeof data.mensagem === "object" ? data.mensagem : data;
   if (!m || typeof m !== "object") return null;
+  
   const row = {
     ...m,
     conversa_id: m.conversa_id ?? data.conversa_id ?? conversaId,
@@ -206,19 +206,9 @@ export function normalizeTextSendApiToMessage(data, conversaId) {
     status: m.status ?? m.status_mensagem ?? data.status,
     status_mensagem: m.status_mensagem ?? m.status ?? data.status_mensagem ?? data.status,
   };
-  const built = buildArquivoReconcileRow(row, conversaId);
-  if (built) return built;
-  const clientTempId = pickClientTempId(row);
-  if (!clientTempId && !row.whatsapp_id) return null;
-  return {
-    conversa_id: row.conversa_id ?? conversaId,
-    direcao: row.direcao ?? "out",
-    status: row.status ?? row.status_mensagem ?? "pending",
-    status_mensagem: row.status_mensagem ?? row.status ?? "pending",
-    ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
-    ...(row.whatsapp_id ? { whatsapp_id: row.whatsapp_id } : {}),
-    ...(clientTempId ? { client_temp_id: clientTempId } : {}),
-  };
+  
+  // ⭐ OTIMIZAÇÃO: buildArquivoReconcileRow já lida com todas as propriedades necessárias ou retorna null.
+  return buildArquivoReconcileRow(row, conversaId);
 }
 
 /** Normaliza corpo da API POST /chats/:id/arquivo para reconciliação. */
@@ -248,10 +238,10 @@ export function normalizeArquivoApiToMessage(data, conversaId) {
 export function extractArquivoApiReconciliations(data, conversaId, tempIds = []) {
   if (!data || typeof data !== "object") return [];
   const out = [];
-  const results = Array.isArray(data.results) ? data.results : null;
 
-  if (results?.length) {
-    results.forEach((row, idx) => {
+  // ⭐ CORREÇÃO: Verifica explicitamente se a estrutura é um Lote através da chave .results
+  if (Array.isArray(data.results)) {
+    data.results.forEach((row, idx) => {
       if (!row?.ok) return;
       const realMsg = buildArquivoReconcileRow(row, conversaId);
       if (!realMsg) return;
@@ -260,9 +250,8 @@ export function extractArquivoApiReconciliations(data, conversaId, tempIds = [])
         (Array.isArray(tempIds) && tempIds[idx] != null ? tempIds[idx] : null);
       if (tempId) out.push({ tempId, realMsg });
     });
-  }
-
-  if (!out.length) {
+  } else {
+    // Se não houver a propriedade results, cai de forma segura no tratamento de objeto único
     const single = normalizeArquivoApiToMessage(data, conversaId);
     if (single) {
       const tempId =
@@ -313,8 +302,11 @@ export function buildOptimisticForwardMessages(destConversaId, sourceMsgs) {
     const tipoRaw = String(src?.tipo || "texto").toLowerCase();
     const tipo = tipoRaw === "vídeo" ? "video" : tipoRaw;
     const isText = tipo === "texto" || !tipo;
-    const body = isText ? forwardBodyFromSource(src) : previewLabelForTipo(tipo, null, forwardBodyFromSource(src));
+    
+    // ⭐ OTIMIZAÇÃO: Removido previewLabelForTipo redundante visto que o body já é gerado em texto simples aqui
+    const body = forwardBodyFromSource(src);
     const criado_em = new Date(baseMs + idx).toISOString();
+    
     const out = {
       tempId,
       client_temp_id: tempId,
@@ -384,6 +376,7 @@ export function bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, con
   const chatStore = useChatStore.getState();
   const chats = chatStore.chats || [];
   const jaNaLista = chats.some((c) => String(c?.id) === String(conversaId));
+  
   if (!jaNaLista && conversaMeta) {
     const nome =
       conversaMeta?.contato_nome ||
@@ -396,11 +389,13 @@ export function bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, con
       foto_perfil: conversaMeta?.foto_perfil,
       ultima_mensagem: optimisticMsg,
     });
-  }
-  if (typeof chatStore.setUltimaMensagemEBump === "function") {
-    chatStore.setUltimaMensagemEBump(conversaId, optimisticMsg);
   } else {
-    chatStore.setUltimaMensagem(conversaId, optimisticMsg);
-    chatStore.bumpChatToTop(conversaId);
+    // ⭐ CORREÇÃO: Colocado no else para evitar dupla mutação no Zustand se o chat acabou de ser criado pelo addChat
+    if (typeof chatStore.setUltimaMensagemEBump === "function") {
+      chatStore.setUltimaMensagemEBump(conversaId, optimisticMsg);
+    } else {
+      chatStore.setUltimaMensagem(conversaId, optimisticMsg);
+      chatStore.bumpChatToTop(conversaId);
+    }
   }
 }

@@ -32,6 +32,20 @@ function toMillis(value) {
   return Number.isFinite(ms) ? ms : NaN
 }
 
+/** ISO/string → ms; número ou dígitos puros: < 1e11 = segundos Unix, senão ms. */
+function resolveTimestampToMillis(value) {
+  if (value == null || value === "") return NaN
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 1e11 ? value * 1000 : value
+  }
+  const raw = String(value).trim()
+  if (/^\d+$/.test(raw)) {
+    const n = Number(raw)
+    if (Number.isFinite(n)) return n < 1e11 ? n * 1000 : n
+  }
+  return toMillis(value)
+}
+
 /** Reconciliação por texto só para bolhas de chat — evita fundir "(áudio)"/mídia na mensagem de texto errada. */
 function isTipoTextoParaReconciliarPorConteudo(msg) {
   const t = String(msg?.tipo ?? "").toLowerCase().trim()
@@ -393,6 +407,8 @@ function pruneRedundantOutgoingMediaEchoes(list) {
       else if (oLocal && !mLocal) remove.add(i)
       else if (m?.tempId && !o?.tempId) remove.add(i)
       else if (o?.tempId && !m?.tempId) remove.add(j)
+      // Empate total: mantém o de índice menor (inserção anterior) e remove o mais recente
+      else remove.add(Math.max(i, j))
       break
     }
   }
@@ -417,7 +433,9 @@ function finalizeMensagensList(list) {
         depois: audiosAfter,
         totalAntes: beforePrune,
         totalDepois: final.length,
-        removidos: list.filter(m => isAudioFamilyTipo(m?.tipo) && !final.some(f => f.tempId === m.tempId && f.id === m.id))
+        removidos: list.filter(m => isAudioFamilyTipo(m?.tipo) && !final.some(f =>
+          (f.tempId && f.tempId === m.tempId) || (f.id != null && f.id === m.id) || (f.whatsapp_id != null && f.whatsapp_id === m.whatsapp_id)
+        ))
       })
     }
   }
@@ -468,9 +486,8 @@ function normalizeMsgForStore(msg) {
     if (wa != null && String(wa).trim() !== "") n.whatsapp_id = wa
   }
   const altTs = n.created_at ?? n.timestamp ?? n.data_criacao ?? n.ts
-  let ms = toMillis(n.criado_em)
-  if (!Number.isFinite(ms)) ms = toMillis(altTs)
-  if (!Number.isFinite(ms) && typeof altTs === "number" && Number.isFinite(altTs)) ms = altTs
+  let ms = resolveTimestampToMillis(n.criado_em)
+  if (!Number.isFinite(ms)) ms = resolveTimestampToMillis(altTs)
   if (!Number.isFinite(ms)) {
     n.criado_em = new Date().toISOString()
   } else if (!n.criado_em || !String(n.criado_em).trim()) {
@@ -1061,10 +1078,12 @@ function applyAnexarOneToList(list, convId, msg) {
       const tsIn = toMillis(msg?.criado_em)
       if (Number.isFinite(tsIn)) {
         let bestDist = Infinity
+        let bestSeq = Infinity
         for (const c of candidates) {
           const dist = Math.abs(c.ts - tsIn)
-          if (dist < bestDist || (dist === bestDist && c.seq < (candidates.find((x) => x.i === replaceIdx)?.seq ?? Infinity))) {
+          if (dist < bestDist || (dist === bestDist && c.seq < bestSeq)) {
             bestDist = dist
+            bestSeq = c.seq
             replaceIdx = c.i
           }
         }
@@ -1092,9 +1111,8 @@ function applyAnexarOneToList(list, convId, msg) {
     }
   }
 
-  const isFromMeAlt = isOutgoingLike(msg)
   const textoParaCenarioId = (msg.texto || msg.conteudo || "").toString().trim()
-  if (msg.id && isFromMeAlt && textoParaCenarioId && isTipoTextoParaReconciliarPorConteudo(msg)) {
+  if (msg.id && isFromMe && textoParaCenarioId && isTipoTextoParaReconciliarPorConteudo(msg)) {
     const recentMsC3 = 90_000
     const nowC3 = Date.now()
     for (let i = list.length - 1; i >= 0; i--) {
@@ -1102,7 +1120,7 @@ function applyAnexarOneToList(list, convId, msg) {
       if (!isOutgoingLike(m)) continue
       if (m?.tempId) continue
       const ts = toMillis(m?.criado_em)
-      if (!Number.isFinite(ts) || nowC3 - ts > recentMsC3) break
+      if (!Number.isFinite(ts) || nowC3 - ts > recentMsC3) continue
       const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
       if (m.whatsapp_id && !m.id && textoMatch) {
         const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })

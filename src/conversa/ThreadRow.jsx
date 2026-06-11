@@ -45,21 +45,32 @@ function ThreadRow({
   onConversarContact,
   onAdicionarGrupoContact,
 }) {
+  if (!item) return null;
+
   if (item.__type === "day") {
     return <DaySeparator label={item.label} />;
   }
+
+  if (!BubbleComponent) return null;
+
+  const seenMsgKeys = zapSeenMsgKeysRef?.current;
+  const isInitialPass = zapMsgsInitialPassRef?.current === true;
 
   let zapAnimateIn = false;
   /* Só anima mensagens novas no fim do thread — histórico revelado no scroll não anima (evita jank). */
   if (
     allowEnterAnimation &&
     !mobileMessageChrome &&
-    !zapMsgsInitialPassRef.current &&
-    !zapSeenMsgKeysRef.current.has(messageKey)
+    !isInitialPass &&
+    seenMsgKeys &&
+    messageKey != null &&
+    !seenMsgKeys.has(messageKey)
   ) {
     zapAnimateIn = true;
   }
-  zapSeenMsgKeysRef.current.add(messageKey);
+  if (seenMsgKeys && messageKey != null) {
+    seenMsgKeys.add(messageKey);
+  }
 
   return (
     <BubbleComponent

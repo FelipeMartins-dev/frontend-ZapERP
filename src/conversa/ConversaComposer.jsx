@@ -176,6 +176,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const audioChunksRef = useRef([]);
   const recordingCanceledRef = useRef(false);
   const recordingTimerRef = useRef(null);
+  const lastConversaIdRef = useRef(conversaId);
   const prevTextLenRef = useRef(0);
   const prevTextConversaRef = useRef(null);
 
@@ -294,6 +295,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         /* ignore */
       }
       mediaRecorderRef.current = null;
+      audioChunksRef.current = [];
       setIsRecording(false);
       setRecordingSeconds(0);
       if (recordingTimerRef.current) {
@@ -302,6 +304,33 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
     }
   }, [isRecording]);
+
+  useEffect(() => {
+    if (String(lastConversaIdRef.current ?? "") !== String(conversaId ?? "") && mediaRecorderRef.current) {
+      handleCancelRecording();
+    }
+    lastConversaIdRef.current = conversaId;
+  }, [conversaId, handleCancelRecording]);
+
+  useEffect(() => {
+    return () => {
+      if (!mediaRecorderRef.current) return;
+      recordingCanceledRef.current = true;
+      try {
+        if (mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {
+        /* ignore */
+      }
+      mediaRecorderRef.current = null;
+      audioChunksRef.current = [];
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useImperativeHandle(
     ref,
@@ -606,13 +635,14 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const handleSendFromComposer = useCallback(
     (textToSend) => {
-      const t = safeString(textToSend);
+      if (sending || !conversaId || !podeEnviar) return;
+      const t = safeString(textToSend).trim();
       if (!t) return;
       resetAutocorrectTracking();
       setTexto("");
       onSendMessage?.(t);
     },
-    [onSendMessage, resetAutocorrectTracking]
+    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking, sending]
   );
 
   const handleKeyDownInput = useCallback(
@@ -840,7 +870,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     [recentStickers, stickerQuery]
   );
 
-  const hasDraft = Boolean(safeString(texto));
+  const hasDraft = Boolean(safeString(texto).trim());
 
   const placeholderText = podeEnviar
     ? "Digite uma mensagem"
