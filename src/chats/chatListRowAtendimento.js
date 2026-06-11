@@ -207,3 +207,34 @@ export function getEsperaMinutosAnchorIso(c, pendentesIdSet) {
 export function esperaMinutosAnchorKey(c, pendentesIdSet) {
   return getEsperaMinutosAnchorIso(c, pendentesIdSet);
 }
+
+/** Espaço vertical entre cards na lista (espelha --cl-chat-row-gap). */
+export const CHAT_LIST_ROW_GAP = 1;
+
+/**
+ * Altura estimada do card na lista virtualizada — alinhada aos min-height do chatList.css.
+ * Subestimar causa sobreposição; superestimar deixa “buracos” até o measureElement rodar.
+ */
+export function estimateChatListRowSize(chat, isMobileLayout, pendentesIdSet = null) {
+  const base = isMobileLayout ? 86 : 78;
+  const tall = isMobileLayout ? 98 : 82;
+
+  if (!chat) return base;
+
+  const status = getStatusAtendimentoEffective(chat);
+  const hasSetor = !isGroupConversation(chat) && chat?.departamento_id != null;
+  const awaitClient =
+    status === "aguardando_cliente" || isConversaAguardandoCliente(chat);
+  const awaitStaff = isConversaAguardandoFuncionario(chat, pendentesIdSet);
+  const emAtendimento = status === "em_atendimento" && chat?.atendente_id != null;
+  const reabertoHint =
+    typeof chat?.ui_hint_reaberto_ausencia_cliente === "number" &&
+    Date.now() - chat.ui_hint_reaberto_ausencia_cliente < 120000;
+  const pagamentoStack = status === "pagamento_pendente" || status === "em_atraso";
+
+  if (awaitClient || awaitStaff || pagamentoStack) return tall;
+  if (hasSetor && emAtendimento) return tall;
+  if (emAtendimento && reabertoHint) return tall;
+
+  return base;
+}
