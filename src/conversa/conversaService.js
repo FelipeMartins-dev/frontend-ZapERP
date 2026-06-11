@@ -87,9 +87,12 @@ export async function buscarMensagensNaConversa(conversaId, opts = {}) {
   return data;
 }
 
-export async function enviarMensagem(conversaId, texto, reply_meta) {
+export async function enviarMensagem(conversaId, texto, reply_meta, client_temp_id) {
   const body = { texto };
   if (reply_meta && typeof reply_meta === "object") body.reply_meta = reply_meta;
+  if (client_temp_id != null && String(client_temp_id).trim() !== "") {
+    body.client_temp_id = String(client_temp_id).trim();
+  }
   const { data } = await api.post(`/chats/${conversaId}/mensagens`, body);
   return data;
 }

@@ -127,29 +127,6 @@ const ChatListRows = memo(function ChatListRows({
     },
   });
 
-  const virtualizerRef = useRef(virtualizer);
-  virtualizerRef.current = virtualizer;
-
-  useLayoutEffect(() => {
-    if (!useVirtual) return;
-    let cancelled = false;
-    const remeasure = () => {
-      if (!cancelled) virtualizerRef.current?.measure?.();
-    };
-    remeasure();
-    const raf1 = requestAnimationFrame(() => {
-      remeasure();
-      requestAnimationFrame(remeasure);
-    });
-    const t = window.setTimeout(remeasure, 120);
-    document.fonts?.ready?.then(remeasure);
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(raf1);
-      window.clearTimeout(t);
-    };
-  }, [chatsLayoutKey, chatsFiltrados.length, useVirtual, isMobileLayout]);
-
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -210,13 +187,13 @@ const ChatListRows = memo(function ChatListRows({
               <div
                 key={rowKey}
                 data-index={virtualRow.index}
-                ref={virtualizer.measureElement}
                 className="chat-list-row-virtual-slot"
                 style={{
                   position: "absolute",
                   top: 0,
                   left: 0,
                   width: "100%",
+                  height: virtualRow.size,
                   transform: `translate3d(0, ${virtualRow.start}px, 0)`,
                 }}
               >

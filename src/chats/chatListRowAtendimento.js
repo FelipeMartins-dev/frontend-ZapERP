@@ -4,6 +4,7 @@ import {
   isAguardandoClienteManual,
   isCobrancaFinanceiraStatus,
 } from "../utils/conversaUtils";
+import { getContactDisplay } from "./chatListDisplay";
 
 /** Preferências por item (API pode enviar `silenciada` ou `silenciado`). */
 export function rowPrefs(c) {
@@ -211,30 +212,131 @@ export function esperaMinutosAnchorKey(c, pendentesIdSet) {
 /** Espaço vertical entre cards na lista (espelha --cl-chat-row-gap). */
 export const CHAT_LIST_ROW_GAP = 1;
 
-/**
- * Altura estimada do card na lista virtualizada — alinhada aos min-height do chatList.css.
- * Subestimar causa sobreposição; superestimar deixa “buracos” até o measureElement rodar.
- */
-export function estimateChatListRowSize(chat, isMobileLayout, pendentesIdSet = null) {
-  const base = isMobileLayout ? 86 : 78;
-  const tall = isMobileLayout ? 98 : 82;
+/** Métricas espelhadas do chatList.css — lista virtual usa altura fixa por item (sem measureElement). */
+const VIRTUAL_ROW_METRICS = {
+  desktop: {
+    padY: 26,
+    avatar: 48,
+    titleLine: 17.5,
+    setor: 15,
+    empresa: 15,
+    preview: 17,
+    mainGap: 2,
+    badgeGridExtra: 0,
+    statusSubLine: 18,
+    minRow: 76,
+    titleWrapWidth: 210,
+  },
+  mobile: {
+    padY: 30,
+    avatar: 56,
+    titleLine: 19.5,
+    setor: 15,
+    empresa: 15,
+    preview: 20,
+    mainGap: 6,
+    badgeGridExtra: 33,
+    statusSubLine: 20,
+    minRow: 84,
+    titleWrapWidth: 168,
+  },
+};
 
-  if (!chat) return base;
+function estimateTitleLineCount(name, extraInlinePx, titleWrapWidth) {
+  const text = String(name || "").trim();
+  if (!text) return 1;
+  const usable = Math.max(96, titleWrapWidth - extraInlinePx);
+  const charsPerLine = Math.max(10, Math.floor(usable / 7.4));
+  return Math.min(2, Math.ceil(text.length / charsPerLine));
+}
 
+function chatRowUsesMobileBadgeGrid(chat, pendentesIdSet) {
   const status = getStatusAtendimentoEffective(chat);
-  const hasSetor = !isGroupConversation(chat) && chat?.departamento_id != null;
   const awaitClient =
     status === "aguardando_cliente" || isConversaAguardandoCliente(chat);
   const awaitStaff = isConversaAguardandoFuncionario(chat, pendentesIdSet);
-  const emAtendimento = status === "em_atendimento" && chat?.atendente_id != null;
-  const reabertoHint =
+  return awaitClient || awaitStaff;
+}
+
+function estimateMetaColumnHeight(chat, pendentesIdSet, isMobileLayout) {
+  if (isMobileLayout && chatRowUsesMobileBadgeGrid(chat, pendentesIdSet)) return 0;
+
+  const status = getStatusAtendimentoEffective(chat);
+  let badge = 22;
+  if (
+    status === "aguardando_cliente" ||
+    isConversaAguardandoCliente(chat) ||
+    isConversaAguardandoFuncionario(chat, pendentesIdSet)
+  ) {
+    badge = 28;
+  } else if (status === "pagamento_pendente" || status === "em_atraso") {
+    badge = 40;
+  } else if (status === "fechada" && String(chat?.finalizacao_motivo) === "ausencia_cliente") {
+    badge = 26;
+  }
+
+  return 14 + 4 + badge;
+}
+
+/**
+ * Altura fixa por card na virtualização — calculada pelo conteúdo (título até 2 linhas, setor, badges).
+ * Deve ser >= altura real; measureElement fica desligado para o layout não “pular” após abrir/atualizar.
+ */
+export function estimateChatListRowSize(chat, isMobileLayout, pendentesIdSet = null) {
+  const m = isMobileLayout ? VIRTUAL_ROW_METRICS.mobile : VIRTUAL_ROW_METRICS.desktop;
+  if (!chat) return m.minRow;
+
+  const { displayName, isGroup } = getContactDisplay(chat);
+  const prefs = rowPrefs(chat);
+  let inlineExtra = 0;
+  if (prefs.silenciado) inlineExtra += 18;
+  if (prefs.fixada) inlineExtra += 18;
+  if (prefs.favorita) inlineExtra += 18;
+  if (isGroup || chat?.tags?.[0]) inlineExtra += 44;
+
+  const titleLines = estimateTitleLineCount(displayName, inlineExtra, m.titleWrapWidth);
+  const hasSetor =
+    !isGroup && chat?.departamento_id != null
+      ? Boolean(
+          String(chat.setor ?? chat?.departamento?.nome ?? chat?.departamentos?.nome ?? "").trim()
+        )
+      : false;
+  const hasEmpresa = !isGroup
+    ? Boolean(String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim())
+    : false;
+
+  let titleBlock = titleLines * m.titleLine;
+  if (hasSetor) titleBlock += m.setor;
+  if (hasEmpresa) titleBlock += m.empresa;
+
+  const metaCol = estimateMetaColumnHeight(chat, pendentesIdSet, isMobileLayout);
+  const mobileBadgeGrid = isMobileLayout && chatRowUsesMobileBadgeGrid(chat, pendentesIdSet);
+  let topBlock = titleBlock;
+  if (mobileBadgeGrid) {
+    topBlock = titleLines * m.titleLine + (hasSetor ? m.setor : 0) + (hasEmpresa ? m.empresa : 0) + m.badgeGridExtra;
+  } else if (metaCol > 0) {
+    topBlock = Math.max(titleBlock, metaCol);
+  }
+
+  let mainBlock = topBlock + m.mainGap + m.preview;
+
+  const status = getStatusAtendimentoEffective(chat);
+  if (
+    status === "em_atendimento" &&
     typeof chat?.ui_hint_reaberto_ausencia_cliente === "number" &&
-    Date.now() - chat.ui_hint_reaberto_ausencia_cliente < 120000;
-  const pagamentoStack = status === "pagamento_pendente" || status === "em_atraso";
+    Date.now() - chat.ui_hint_reaberto_ausencia_cliente < 120000 &&
+    !mobileBadgeGrid
+  ) {
+    mainBlock += m.statusSubLine;
+  }
 
-  if (awaitClient || awaitStaff || pagamentoStack) return tall;
-  if (hasSetor && emAtendimento) return tall;
-  if (emAtendimento && reabertoHint) return tall;
+  let rowHeight = Math.max(m.avatar, mainBlock) + m.padY;
+  rowHeight = Math.max(rowHeight, m.minRow);
 
-  return base;
+  if (mobileBadgeGrid) rowHeight = Math.max(rowHeight, isMobileLayout ? 96 : 80);
+  if (hasSetor && status === "em_atendimento" && chat?.atendente_id != null) {
+    rowHeight = Math.max(rowHeight, isMobileLayout ? 96 : 80);
+  }
+
+  return Math.ceil(rowHeight) + 3;
 }

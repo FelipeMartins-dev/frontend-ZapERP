@@ -1662,10 +1662,10 @@ function ConversaViewBody() {
   const handleCloseTimeline = useCallback(() => setShowTimeline(false), []);
 
   const enviarTextoEmAndamentoRef = useRef(false);
+  const enviarTextoQueueRef = useRef(Promise.resolve());
 
   const handleEnviar = useCallback(async (forcedText) => {
     if (!conversaId) return;
-    if (enviarTextoEmAndamentoRef.current) return;
     if (!podeEnviar) {
       showToast({
         type: "warning",
@@ -1696,44 +1696,51 @@ function ConversaViewBody() {
     appendOutgoingOptimisticMessage(optimisticMsg);
     setReplyTo(null);
 
-    let envioFalhou = false;
-    enviarTextoEmAndamentoRef.current = true;
-    setSendingTracked(true);
-    try {
-      const res = await enviarMensagem(conversaId, t, replyMeta || undefined);
-      const resMsgId = res?.mensagem?.id ?? res?.id;
-      const realMsg = normalizeArquivoApiToMessage(res, conversaId);
-      if (realMsg?.id != null || realMsg?.whatsapp_id) {
-        reconciliarMensagem(tempId, realMsg);
+    const runSend = async () => {
+      let envioFalhou = false;
+      enviarTextoEmAndamentoRef.current = true;
+      setSendingTracked(true);
+      try {
+        const res = await enviarMensagem(conversaId, t, replyMeta || undefined, tempId);
+        const resMsgId = res?.mensagem?.id ?? res?.id;
+        const realMsg = normalizeArquivoApiToMessage(res, conversaId);
+        if (realMsg?.id != null || realMsg?.whatsapp_id) {
+          reconciliarMensagem(tempId, realMsg);
+        }
+        if (res?.mensagem?.id && replyMeta) {
+          saveReplyMeta(conversaId, res.mensagem.id, replyMeta);
+        }
+        if (res?.ok === false && (resMsgId == null || resMsgId === "")) {
+          marcarMensagemTempErro(tempId);
+        }
+      } catch (err) {
+        envioFalhou = true;
+        revertOutgoingStatus?.();
+        console.error("Erro ao enviar mensagem:", err);
+        const is403 = err?.response?.status === 403;
+        const apiMsg = err?.response?.data?.error;
+        marcarMensagemTempErro(tempId, { erro_mensagem: apiMsg || err?.message });
+        composerRef.current?.setText?.(t);
+        if (replyTo) setReplyTo(replyTo);
+        showToast({
+          type: "error",
+          title: is403 ? "Acesso restrito" : "Falha ao enviar",
+          message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar a mensagem. Verifique sua conexão."),
+        });
+        focusMessageInput();
+      } finally {
+        enviarTextoEmAndamentoRef.current = false;
+        setSendingTracked(false);
       }
-      if (res?.mensagem?.id && replyMeta) {
-        saveReplyMeta(conversaId, res.mensagem.id, replyMeta);
+      if (!envioFalhou) {
+        focusMessageInput();
       }
-      if (res?.ok === false && (resMsgId == null || resMsgId === "")) {
-        marcarMensagemTempErro(tempId);
-      }
-    } catch (err) {
-      envioFalhou = true;
-      revertOutgoingStatus?.();
-      console.error("Erro ao enviar mensagem:", err);
-      const is403 = err?.response?.status === 403;
-      const apiMsg = err?.response?.data?.error;
-      marcarMensagemTempErro(tempId, { erro_mensagem: apiMsg || err?.message });
-      composerRef.current?.setText?.(t);
-      if (replyTo) setReplyTo(replyTo);
-      showToast({
-        type: "error",
-        title: is403 ? "Acesso restrito" : "Falha ao enviar",
-        message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar a mensagem. Verifique sua conexão."),
-      });
-      focusMessageInput();
-    } finally {
-      enviarTextoEmAndamentoRef.current = false;
-      setSendingTracked(false);
-    }
-    if (!envioFalhou) {
-      focusMessageInput();
-    }
+    };
+
+    enviarTextoQueueRef.current = enviarTextoQueueRef.current
+      .catch(() => {})
+      .then(runSend);
+    await enviarTextoQueueRef.current;
   }, [
     conversaId,
     replyTo,

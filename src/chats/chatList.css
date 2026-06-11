@@ -1004,17 +1004,20 @@ a { color: inherit; text-decoration: none; }
 
 .chat-list-row-virtual-slot {
   box-sizing: border-box;
-  /* contain:layout impedia ResizeObserver/measureElement de ver altura real após nova msg */
   contain: none;
   backface-visibility: hidden;
-  overflow: visible;
-  min-height: 76px;
+  overflow: hidden;
 }
 
 .chat-list-row-virtual-slot .chat-list-row {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  box-sizing: border-box;
   content-visibility: visible;
   contain: none;
   contain-intrinsic-size: unset;
+  overflow: hidden;
 }
 
 @media (max-width: 640px) {

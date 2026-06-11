@@ -294,10 +294,26 @@ function normalizeNovaMensagemPayload(raw) {
       normalized.mensagem_id ?? normalized.message_id ?? normalized.messageId ?? normalized.msg_id
     if (mid != null && String(mid).trim() !== "") normalized.id = mid
   }
+
   const waMissing = normalized.whatsapp_id == null || String(normalized.whatsapp_id).trim() === ""
   if (waMissing) {
     const wa = normalized.wamid ?? normalized.wa_message_id ?? normalized.whatsapp_message_id
     if (wa != null && String(wa).trim() !== "") normalized.whatsapp_id = wa
+  }
+
+  if (
+    normalized.conversa_id != null &&
+    normalized.id != null &&
+    String(normalized.id).trim() !== "" &&
+    String(normalized.id) === String(normalized.conversa_id)
+  ) {
+    delete normalized.id
+  }
+
+  const clientTempId =
+    normalized.client_temp_id ?? normalized.clientTempId ?? normalized.temp_id ?? null
+  if (clientTempId != null && String(clientTempId).trim() !== "") {
+    normalized.client_temp_id = String(clientTempId).trim()
   }
 
   return normalized

@@ -12,6 +12,18 @@ export function createOptimisticTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+const OPTIMISTIC_INSERT_SEQ_BASE = 10_000_000;
+let optimisticOrderCounter = 0;
+
+/** Timestamp + seq monotônicos — envios rápidos não colidem na ordenação/dedupe. */
+function nextOptimisticInsertTiming() {
+  const ord = optimisticOrderCounter++;
+  return {
+    criado_em: new Date(Date.now() + ord).toISOString(),
+    _stableInsertSeq: OPTIMISTIC_INSERT_SEQ_BASE + ord,
+  };
+}
+
 function normalizeOptimisticConversaId(conversaId) {
   if (typeof conversaId === "number" && Number.isFinite(conversaId)) return conversaId;
   const raw = String(conversaId ?? "").trim();
@@ -50,8 +62,7 @@ export function buildOptimisticOutgoingMessage(params) {
   const conversaId = params?.conversaId;
   const normalizedConversaId = normalizeOptimisticConversaId(conversaId);
   const tempId = params?.tempId || createOptimisticTempId();
-  const insertIndex = Number.isFinite(Number(params?.insertIndex)) ? Number(params.insertIndex) : 0;
-  const criado_em = new Date(Date.now() + insertIndex).toISOString();
+  const timing = nextOptimisticInsertTiming();
   const base = {
     tempId,
     client_temp_id: tempId,
@@ -59,7 +70,8 @@ export function buildOptimisticOutgoingMessage(params) {
     direcao: "out",
     status: "pending",
     status_mensagem: "pending",
-    criado_em,
+    criado_em: timing.criado_em,
+    _stableInsertSeq: timing._stableInsertSeq,
     reply_meta: params?.replyMeta || undefined,
   };
 
