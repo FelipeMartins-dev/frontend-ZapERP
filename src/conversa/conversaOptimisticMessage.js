@@ -158,16 +158,22 @@ export function cleanupOptimisticBlobFields(merged) {
 
 function buildArquivoReconcileRow(row, conversaId) {
   if (!row || typeof row !== "object") return null;
-  const id = row.id ?? row.mensagem_id ?? row.message_id;
-  if (id == null || String(id).trim() === "") return null;
+  const convId = row.conversa_id ?? conversaId;
+  let id = row.id ?? row.mensagem_id ?? row.message_id;
+  if (id != null && convId != null && String(id) === String(convId)) {
+    const alt = row.mensagem_id ?? row.message_id;
+    id = alt != null && String(alt).trim() !== "" && String(alt) !== String(convId) ? alt : null;
+  }
+  const clientTempId = pickClientTempId(row);
+  const wa = row.whatsapp_id;
+  if ((id == null || String(id).trim() === "") && !wa && !clientTempId) return null;
 
   const trustedUrl = pickTrustedMediaUrl(row);
-  const clientTempId = pickClientTempId(row);
   const fileLastModified = pickFileLastModified(row);
 
   return {
-    id,
-    conversa_id: row.conversa_id ?? conversaId,
+    ...(id != null && String(id).trim() !== "" ? { id } : {}),
+    conversa_id: convId,
     direcao: row.direcao ?? "out",
     status: row.status ?? row.status_mensagem ?? "pending",
     status_mensagem: row.status_mensagem ?? row.status ?? "pending",
@@ -175,11 +181,43 @@ function buildArquivoReconcileRow(row, conversaId) {
     ...(trustedUrl ? { url: trustedUrl, url_absoluta: trustedUrl } : {}),
     ...(row.nome_arquivo ? { nome_arquivo: row.nome_arquivo } : {}),
     ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
-    ...(row.whatsapp_id ? { whatsapp_id: row.whatsapp_id } : {}),
+    ...(wa ? { whatsapp_id: wa } : {}),
     ...(clientTempId ? { client_temp_id: clientTempId } : {}),
     ...(row.tamanho != null ? { tamanho: row.tamanho } : {}),
     ...(row.tamanho_bytes != null ? { tamanho_bytes: row.tamanho_bytes } : {}),
     ...(fileLastModified != null ? { file_last_modified: fileLastModified } : {}),
+  };
+}
+
+/** Normaliza corpo da API POST /chats/:id/mensagens (texto) para reconciliação. */
+export function normalizeTextSendApiToMessage(data, conversaId) {
+  if (!data || typeof data !== "object") return null;
+  const m = data.mensagem && typeof data.mensagem === "object" ? data.mensagem : data;
+  if (!m || typeof m !== "object") return null;
+  const row = {
+    ...m,
+    conversa_id: m.conversa_id ?? data.conversa_id ?? conversaId,
+    direcao: m.direcao ?? data.direcao ?? "out",
+    texto: m.texto ?? m.conteudo ?? data.texto,
+    conteudo: m.conteudo ?? m.texto ?? data.texto,
+    client_temp_id: m.client_temp_id ?? data.client_temp_id ?? data.clientTempId,
+    whatsapp_id: m.whatsapp_id ?? data.whatsapp_id,
+    id: m.id ?? data.id,
+    status: m.status ?? m.status_mensagem ?? data.status,
+    status_mensagem: m.status_mensagem ?? m.status ?? data.status_mensagem ?? data.status,
+  };
+  const built = buildArquivoReconcileRow(row, conversaId);
+  if (built) return built;
+  const clientTempId = pickClientTempId(row);
+  if (!clientTempId && !row.whatsapp_id) return null;
+  return {
+    conversa_id: row.conversa_id ?? conversaId,
+    direcao: row.direcao ?? "out",
+    status: row.status ?? row.status_mensagem ?? "pending",
+    status_mensagem: row.status_mensagem ?? row.status ?? "pending",
+    ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
+    ...(row.whatsapp_id ? { whatsapp_id: row.whatsapp_id } : {}),
+    ...(clientTempId ? { client_temp_id: clientTempId } : {}),
   };
 }
 

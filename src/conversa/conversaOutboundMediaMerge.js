@@ -118,19 +118,71 @@ function mapDedupeKey(m, conversaId) {
 
 /** Duas linhas com o mesmo `mapDedupeKey` devem fundir só se forem a mesma mensagem lógica (UPSERT). */
 function canMergeDedupeEntries(prev, incoming) {
-  if (!prev || !incoming) return true
+  if (!prev || !incoming) return false
   if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
-  const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
-  const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
-  if (pid && iid) return pid === iid
-  const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
-  const iwa = incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== "" ? String(incoming.whatsapp_id) : null
-  if (pwa && iwa) return pwa === iwa
-  if (iid && !pid) return true
-  if (pid && !iid) return true
-  if (iwa && !pwa) return true
-  if (pwa && !iwa) return true
+  if (matchesClientTempCorrelation(prev, incoming)) return true
+  return areLikelySameMessageBubble(prev, incoming)
+}
+
+/** id/whatsapp_id iguais só indicam a mesma bolha se o conteúdo (ou temp) também bater. */
+function persistedIdentityMarksSameBubble(prev, incoming) {
+  if (!prev || !incoming) return false
+  if (matchesClientTempCorrelation(prev, incoming)) return true
+  if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
+
+  const textoP = (prev.texto || prev.conteudo || "").toString().trim()
+  const textoI = (incoming.texto || incoming.conteudo || "").toString().trim()
+  if (
+    textoP &&
+    textoI &&
+    isTipoTextoParaReconciliarPorConteudo(prev) &&
+    isTipoTextoParaReconciliarPorConteudo(incoming)
+  ) {
+    return (
+      normalizeOutboundTextForCompare(prev).toLowerCase() ===
+      normalizeOutboundTextForCompare(incoming).toLowerCase()
+    )
+  }
+
+  const famP = mediaFamilyFromMsg(prev)
+  const famI = mediaFamilyFromMsg(incoming)
+  if (famP && famI && famP === famI) {
+    return sameMediaStrongHint(prev, incoming)
+  }
+
   return false
+}
+
+function shouldMergeExistingMessages(existing, msg) {
+  if (!existing || !msg) return false
+  if (matchesClientTempCorrelation(existing, msg)) return true
+  if (existing.tempId && msg.tempId && String(existing.tempId) === String(msg.tempId)) return true
+  const clientTempId = resolveClientTempId(msg)
+  if (clientTempId && existing.tempId && String(existing.tempId) === clientTempId) return true
+  if (msg.id != null && String(msg.id).trim() !== "" && existing.id != null && String(existing.id) === String(msg.id)) {
+    return persistedIdentityMarksSameBubble(existing, msg)
+  }
+  const waId = msg.whatsapp_id || null
+  if (waId && existing.whatsapp_id != null && String(existing.whatsapp_id) === String(waId)) {
+    return persistedIdentityMarksSameBubble(existing, msg)
+  }
+  return false
+}
+
+/** Evita propagar `id` persistido que já pertence a outra bolha distinta na lista. */
+function stripPersistedIdIfConflictsWithList(list, keepIdx, msg) {
+  if (!msg?.id || !Array.isArray(list)) return msg
+  const conflict = list.some(
+    (m, i) =>
+      i !== keepIdx &&
+      m?.id != null &&
+      String(m.id) === String(msg.id) &&
+      !shouldMergeExistingMessages(m, msg)
+  )
+  if (!conflict) return msg
+  const next = { ...msg }
+  delete next.id
+  return next
 }
 
 /** Mesma bolha lógica com chaves diferentes (ex.: otimista temp-* vs socket id-*). */
@@ -139,10 +191,10 @@ function areLikelySameMessageBubble(prev, incoming) {
   if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
   const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
   const iwa = incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== "" ? String(incoming.whatsapp_id) : null
-  if (pwa && iwa && pwa === iwa) return true
+  if (pwa && iwa && pwa === iwa) return persistedIdentityMarksSameBubble(prev, incoming)
   const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
   const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
-  if (pid && iid && pid === iid) return true
+  if (pid && iid && pid === iid) return persistedIdentityMarksSameBubble(prev, incoming)
   if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
   const recentMs = 90_000
   const now = Date.now()
@@ -298,25 +350,23 @@ function dedupeListByPersistedIdentity(list) {
         : null
     if (id && bestById.has(id) && bestById.get(id).idx !== idx) {
       const kept = bestById.get(id).m
-      const sameAudioFamily =
-        isAudioFamilyTipo(kept?.tipo) && isAudioFamilyTipo(m?.tipo)
       const distinctTempIds =
         m?.tempId &&
         kept?.tempId &&
         String(m.tempId) !== String(kept.tempId)
+      if (distinctTempIds) return
       const sameBubble = areLikelySameMessageBubble(kept, m)
-      if (!(sameAudioFamily && distinctTempIds) && sameBubble) drop.add(idx)
+      if (sameBubble) drop.add(idx)
     }
     if (wa && bestByWa.has(wa) && bestByWa.get(wa).idx !== idx) {
       const kept = bestByWa.get(wa).m
-      const sameAudioFamily =
-        isAudioFamilyTipo(kept?.tipo) && isAudioFamilyTipo(m?.tipo)
       const distinctTempIds =
         m?.tempId &&
         kept?.tempId &&
         String(m.tempId) !== String(kept.tempId)
+      if (distinctTempIds) return
       const sameBubble = areLikelySameMessageBubble(kept, m)
-      if (!(sameAudioFamily && distinctTempIds) && sameBubble) drop.add(idx)
+      if (sameBubble) drop.add(idx)
     }
   })
   if (!drop.size) return list
@@ -572,7 +622,15 @@ function sameMediaStrongHint(prev, incoming) {
       Number.isFinite(Number(prevSize)) &&
       Number(prevSize) === Number(incomingSize)
     ) {
-      return true
+      if (
+        prevLm != null &&
+        incomingLm != null &&
+        Number.isFinite(Number(prevLm)) &&
+        Number.isFinite(Number(incomingLm))
+      ) {
+        return Number(prevLm) === Number(incomingLm)
+      }
+      return prevLm == null && incomingLm == null
     }
     if (
       prevLm != null &&
@@ -742,7 +800,6 @@ function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
   if (prevFamily === "audio") {
     const cid = resolveClientTempId(incoming) || resolveClientTempId(prev)
     if (cid) return matchesClientTempCorrelation(prev, incoming)
-    // Sem client_temp_id: exige file_last_modified — nome+tamanho sem LM é insuficiente para áudios.
     const hasLm =
       (prev?.file_last_modified != null && Number.isFinite(Number(prev.file_last_modified))) ||
       (incoming?.file_last_modified != null && Number.isFinite(Number(incoming.file_last_modified)))
@@ -750,8 +807,9 @@ function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
     return sameMediaStrongHint(prev, incoming)
   }
 
+  const cid = resolveClientTempId(incoming) || resolveClientTempId(prev)
+  if (cid) return matchesClientTempCorrelation(prev, incoming)
   if (sameMediaStrongHint(prev, incoming)) return true
-  if (matchesClientTempCorrelation(prev, incoming)) return true
   return opts.allowLoose === true
 }
 
@@ -769,6 +827,7 @@ function dedupeRowsByPersistedIdentity(list, keepIdx) {
     if (i === keepIdx) return true
 
     if (id && m?.id != null && String(m.id) === id) {
+      if (row.tempId && m.tempId && String(row.tempId) !== String(m.tempId)) return true
       const sameBubble = areLikelySameMessageBubble(row, m)
       if (!sameBubble) return true
       if (isDebugRuntime() && typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
@@ -777,6 +836,7 @@ function dedupeRowsByPersistedIdentity(list, keepIdx) {
       return false
     }
     if (wa && m?.whatsapp_id != null && String(m.whatsapp_id) === wa) {
+      if (row.tempId && m.tempId && String(row.tempId) !== String(m.tempId)) return true
       const sameBubble = areLikelySameMessageBubble(row, m)
       if (!sameBubble) return true
       if (isDebugRuntime() && typeof window !== "undefined" && isAudioFamilyTipo(m?.tipo)) {
@@ -891,19 +951,6 @@ function applyAnexarOneToList(list, convId, msg) {
   if (!msg || !convId) return list
 
   const findExisting = () => {
-    if (msg.id != null && String(msg.id).trim() !== "") {
-      const byId = list.findIndex((m) => String(m.id) === String(msg.id))
-      if (byId >= 0) return byId
-    }
-    const waId = msg.whatsapp_id || null
-    if (waId && convId) {
-      const byWa = list.findIndex(
-        (m) =>
-          (m.conversa_id == null || String(m.conversa_id) === String(convId)) &&
-          String(m.whatsapp_id || "") === String(waId)
-      )
-      if (byWa >= 0) return byWa
-    }
     if (msg.tempId) {
       const byTemp = list.findIndex((m) => String(m.tempId) === String(msg.tempId))
       if (byTemp >= 0) return byTemp
@@ -912,6 +959,20 @@ function applyAnexarOneToList(list, convId, msg) {
     if (clientTempId) {
       const byClient = list.findIndex((m) => m?.tempId && String(m.tempId) === clientTempId)
       if (byClient >= 0) return byClient
+    }
+    if (msg.id != null && String(msg.id).trim() !== "") {
+      const byId = list.findIndex((m) => shouldMergeExistingMessages(m, msg))
+      if (byId >= 0) return byId
+    }
+    const waId = msg.whatsapp_id || null
+    if (waId && convId) {
+      const byWa = list.findIndex(
+        (m) =>
+          (m.conversa_id == null || String(m.conversa_id) === String(convId)) &&
+          String(m.whatsapp_id || "") === String(waId) &&
+          shouldMergeExistingMessages(m, msg)
+      )
+      if (byWa >= 0) return byWa
     }
     return -1
   }
@@ -1097,13 +1158,13 @@ function applyAnexarOneToList(list, convId, msg) {
       if (matchesClientTempCorrelation(m, candNew)) return true
       const pid = m?.id != null && String(m.id).trim() !== "" ? String(m.id) : null
       const iid = candNew?.id != null && String(candNew.id).trim() !== "" ? String(candNew.id) : null
-      if (pid && iid && pid === iid) return true
+      if (pid && iid && pid === iid) return persistedIdentityMarksSameBubble(m, candNew)
       const pwa = m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "" ? String(m.whatsapp_id) : null
       const iwa =
         candNew?.whatsapp_id != null && String(candNew.whatsapp_id).trim() !== ""
           ? String(candNew.whatsapp_id)
           : null
-      if (pwa && iwa && pwa === iwa) return true
+      if (pwa && iwa && pwa === iwa) return persistedIdentityMarksSameBubble(m, candNew)
       const prevPersist = hasPersistedMessageIdentity(m)
       const incPersist = hasPersistedMessageIdentity(candNew)
       if (prevPersist && incPersist) return false
@@ -1119,13 +1180,13 @@ function applyAnexarOneToList(list, convId, msg) {
           if (matchesClientTempCorrelation(m, candNew)) return true
           const pid = m?.id != null && String(m.id).trim() !== "" ? String(m.id) : null
           const iid = candNew?.id != null && String(candNew.id).trim() !== "" ? String(candNew.id) : null
-          if (pid && iid && pid === iid) return true
+          if (pid && iid && pid === iid) return persistedIdentityMarksSameBubble(m, candNew)
           const pwa = m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "" ? String(m.whatsapp_id) : null
           const iwa =
             candNew?.whatsapp_id != null && String(candNew.whatsapp_id).trim() !== ""
               ? String(candNew.whatsapp_id)
               : null
-          if (pwa && iwa && pwa === iwa) return true
+          if (pwa && iwa && pwa === iwa) return persistedIdentityMarksSameBubble(m, candNew)
           if (isTipoTextoParaReconciliarPorConteudo(m) && isTipoTextoParaReconciliarPorConteudo(candNew)) {
             return false
           }
@@ -1221,4 +1282,6 @@ export {
   isOutgoingLike,
   toMillis,
   stripTempIdWhenPersisted,
+  shouldMergeExistingMessages,
+  stripPersistedIdIfConflictsWithList,
 }

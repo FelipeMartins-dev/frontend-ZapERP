@@ -30,12 +30,12 @@ import {
   preserveLocalMediaFields,
   mergeMsgPreferringTombstone,
   mergeStableSeq,
-  dedupeRowsByPersistedIdentity,
   finalizeMergedMessageRow,
   hasRenderableUrl,
   isOutgoingLike,
   toMillis,
   stripTempIdWhenPersisted,
+  stripPersistedIdIfConflictsWithList,
 } from "./conversaOutboundMediaMerge.js"
 
 export { stableSyntheticMessageKey, mapDedupeKey, getMessageListReactKey, isPendingOutgoingTemp }
@@ -902,6 +902,7 @@ export const useConversaStore = create((set, get) => {
         const mergedRec = normalizeMsgForStore({ ...realMsg, conversa_id: state.conversa?.id })
         const prevRow = list[idx]
         let flat = preserveLocalMediaFields(prevRow, { ...prevRow, ...mergedRec })
+        flat = stripPersistedIdIfConflictsWithList(list, idx, flat)
         if (!flat.tipo && prevRow.tipo) flat.tipo = prevRow.tipo
         if (!hasRenderableUrl(flat) && hasRenderableUrl(prevRow)) {
           flat = preserveLocalMediaFields(prevRow, flat)
@@ -913,7 +914,7 @@ export const useConversaStore = create((set, get) => {
         let tomb = mergeMsgPreferringTombstone(prevRow, flat)
         tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
         next[idx] = finalizeMergedMessageRow(prevRow, tomb)
-        return { mensagens: finalizeMensagensList(dedupeRowsByPersistedIdentity(next, idx)) }
+        return { mensagens: finalizeMensagensList(next) }
       }
       return state
     })

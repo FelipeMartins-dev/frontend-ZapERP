@@ -42,6 +42,7 @@ import {
   extractArquivoApiFailures,
   extractArquivoApiReconciliations,
   normalizeArquivoApiToMessage,
+  normalizeTextSendApiToMessage,
 } from "./conversaOptimisticMessage";
 import {
   isNearBottom,
@@ -1456,7 +1457,7 @@ function ConversaViewBody() {
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f, insertIndex: i });
+        const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f });
         tempIds.push(optimisticMsg.tempId);
         appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
       }
@@ -1703,8 +1704,8 @@ function ConversaViewBody() {
       try {
         const res = await enviarMensagem(conversaId, t, replyMeta || undefined, tempId);
         const resMsgId = res?.mensagem?.id ?? res?.id;
-        const realMsg = normalizeArquivoApiToMessage(res, conversaId);
-        if (realMsg?.id != null || realMsg?.whatsapp_id) {
+        const realMsg = normalizeTextSendApiToMessage(res, conversaId);
+        if (realMsg) {
           reconciliarMensagem(tempId, realMsg);
         }
         if (res?.mensagem?.id && replyMeta) {
