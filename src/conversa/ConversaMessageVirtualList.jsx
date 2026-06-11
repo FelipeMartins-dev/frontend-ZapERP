@@ -110,8 +110,6 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) => {
 
-      if (isScrollingRef.current || instance.isScrolling) return false;
-
       const scrollEl = scrollRef?.current;
 
       if (!scrollEl) return false;
@@ -126,17 +124,14 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
       const readingHistory = distanceToBottom > 120;
 
-      if (readingHistory) {
+      /* Colado ao fundo (envio rápido): mantém âncora mesmo durante scroll programático. */
+      if (!readingHistory) return true;
 
-        const itemBottom = item.end + margin;
+      if (isScrollingRef.current || instance.isScrolling) return false;
 
-        return itemBottom <= scrollTop;
+      const itemBottom = item.end + margin;
 
-      }
-
-      const offset = instance.scrollOffset ?? scrollTop;
-
-      return item.start < offset + (instance.scrollAdjustments ?? 0);
+      return itemBottom <= scrollTop;
 
     };
 
@@ -384,6 +379,44 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     prevCountRef.current = count;
 
+    const scrollEl = scrollRef?.current;
+
+    const nearBottom =
+      scrollEl &&
+      scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 240;
+
+    if (count > prev && nearBottom) {
+
+      try {
+
+        virtualizer.measure?.();
+
+      } catch {
+
+        /* ignore */
+
+      }
+
+      requestAnimationFrame(() => {
+
+        if (count <= 0) return;
+
+        try {
+
+          virtualizer.scrollToIndex(count - 1, { align: "end", behavior: "auto" });
+
+          virtualizer.measure?.();
+
+        } catch {
+
+          /* ignore */
+
+        }
+
+      });
+
+    }
+
     /* Mobile: useAutoScroll já ancora ao abrir — evita 2º scrollToIndex competindo com o dedo. */
     if (mobileThread) return;
 
@@ -399,7 +432,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
     }
 
-  }, [count, virtualizer, mobileThread]);
+  }, [count, virtualizer, mobileThread, scrollRef]);
 
 
 
