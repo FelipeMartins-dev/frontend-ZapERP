@@ -375,6 +375,14 @@ function ConversaViewBody() {
     if (!shell || !header) return;
 
     const mq = window.matchMedia("(max-width: 640px)");
+    const syncComposerHeight = () => {
+      const stack = shell.querySelector(".wa-composerStack");
+      if (!mq.matches || !stack) {
+        shell.style.removeProperty("--wa-composer-stack-h");
+        return;
+      }
+      shell.style.setProperty("--wa-composer-stack-h", `${Math.ceil(stack.getBoundingClientRect().height)}px`);
+    };
     const syncMobileInputFocusClass = () => {
       const isFocused = Boolean(input && document.activeElement === input);
       shell.classList.toggle("wa-mobile-input-focused", mq.matches && isFocused);
@@ -386,6 +394,7 @@ function ConversaViewBody() {
         shell.style.removeProperty("--wa-vv-top");
         shell.style.removeProperty("--wa-keyboard-inset");
         shell.style.removeProperty("--wa-visual-height");
+        shell.style.removeProperty("--wa-composer-stack-h");
         shell.classList.remove("wa-mobile-input-focused");
         shell.classList.remove("wa-keyboard-visible");
         return;
@@ -404,6 +413,7 @@ function ConversaViewBody() {
         shell.style.removeProperty("--wa-visual-height");
         shell.classList.remove("wa-keyboard-visible");
       }
+      syncComposerHeight();
       syncMobileInputFocusClass();
     };
 
@@ -411,6 +421,9 @@ function ConversaViewBody() {
 
     const ro = new ResizeObserver(syncHeaderLayout);
     ro.observe(header);
+    const composerStack = shell.querySelector(".wa-composerStack");
+    const composerRo = composerStack ? new ResizeObserver(syncHeaderLayout) : null;
+    composerRo?.observe(composerStack);
 
     const onMqChange = () => syncHeaderLayout();
     if (mq.addEventListener) mq.addEventListener("change", onMqChange);
@@ -431,6 +444,7 @@ function ConversaViewBody() {
 
     return () => {
       ro.disconnect();
+      composerRo?.disconnect();
       if (mq.removeEventListener) mq.removeEventListener("change", onMqChange);
       else mq.removeListener(onMqChange);
       if (vv) {
@@ -447,6 +461,7 @@ function ConversaViewBody() {
       shell.style.removeProperty("--wa-vv-top");
       shell.style.removeProperty("--wa-keyboard-inset");
       shell.style.removeProperty("--wa-visual-height");
+      shell.style.removeProperty("--wa-composer-stack-h");
     };
   }, [conversaId]);
 
@@ -3036,7 +3051,7 @@ function ConversaViewBody() {
             reopenClosedBusy={reopenClosedBusy}
             onReopenClosed={handleReopenClosed}
             onLoadOlderMessagesClick={handleLoadOlderMessagesClick}
-            onVirtualContentResize={headerCompact ? undefined : snapIfStickBottom}
+            onVirtualContentResize={snapIfStickBottom}
             BubbleComponent={Bubble}
             zapSeenMsgKeysRef={zapSeenMsgKeysRef}
             zapMsgsInitialPassRef={zapMsgsInitialPassRef}

@@ -9434,12 +9434,29 @@ main.main-content--crm .wa-mediaPreview-composer {
 
   .wa-shell.wa-keyboard-visible .wa-messages,
   .wa-shell.wa-mobile-input-focused .wa-messages {
-    padding-bottom: 64px;
+    flex: 0 0 auto;
+    height: max(
+      140px,
+      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
+    );
+    max-height: max(
+      140px,
+      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
+    );
+    padding-bottom: 12px;
   }
 
   .wa-shell.wa-keyboard-visible:has(.wa-replyBar) .wa-messages,
   .wa-shell.wa-mobile-input-focused:has(.wa-replyBar) .wa-messages {
-    padding-bottom: 118px;
+    height: max(
+      120px,
+      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
+    );
+    max-height: max(
+      120px,
+      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
+    );
+    padding-bottom: 12px;
   }
 
   .main-content:has(.wa-shell.wa-keyboard-visible),

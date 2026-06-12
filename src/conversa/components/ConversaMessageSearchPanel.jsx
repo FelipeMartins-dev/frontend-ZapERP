@@ -71,6 +71,17 @@ function ConversaMessageSearchPanel({ open, conversaId, onClose, onSelectResult 
   }, [open]);
 
   useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onClose?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  useEffect(() => {
     if (!open) {
       abortRef.current?.abort?.();
       setQuery("");

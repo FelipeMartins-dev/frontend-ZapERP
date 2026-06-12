@@ -1098,6 +1098,19 @@ function pickLaterCriadoEmIso(existing, incoming) {
   return new Date(Math.max(te, ti)).toISOString()
 }
 
+function hasRuntimeLocalOrder(msg) {
+  if (!msg) return false
+  if (msg.tempId || msg.client_temp_id || msg.clientTempId) return true
+  const seq = Number(msg._stableInsertSeq)
+  return Number.isFinite(seq) && seq >= RUNTIME_INSERT_SEQ_BASE
+}
+
+/** Mantém a âncora visual local em rajadas outbound enquanto socket/API reconciliam fora de ordem. */
+function pickOutgoingMergedCriadoEmIso(existing, incoming) {
+  if (hasRuntimeLocalOrder(existing) && existing?.criado_em) return existing.criado_em
+  return pickLaterCriadoEmIso(existing, incoming)
+}
+
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
 function sortMensagensChronological(arr) {
   return [...(arr || [])].sort((a, b) => {
@@ -1167,7 +1180,7 @@ function applyAnexarOneToList(list, convId, msg) {
     if (msg.status != null) merged.status = msg.status
     if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
     if (isOutgoingLike(existing) && isOutgoingLike(msg)) {
-      merged.criado_em = pickLaterCriadoEmIso(existing, msg)
+      merged.criado_em = pickOutgoingMergedCriadoEmIso(existing, msg)
     }
     merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
     const next = [...list]
@@ -1188,7 +1201,7 @@ function applyAnexarOneToList(list, convId, msg) {
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
       if (msg.status != null) merged.status = msg.status
       if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-      merged.criado_em = pickLaterCriadoEmIso(m, msg)
+      merged.criado_em = pickOutgoingMergedCriadoEmIso(m, msg)
       merged._stableInsertSeq = mergeStableSeq(m, msg, null)
       const next = [...list]
       next[i] = finalizeMergedMessageRow(m, merged)
@@ -1220,7 +1233,7 @@ function applyAnexarOneToList(list, convId, msg) {
         if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
         if (msg.status != null) merged.status = msg.status
         if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-        merged.criado_em = pickLaterCriadoEmIso(existing, msg)
+        merged.criado_em = pickOutgoingMergedCriadoEmIso(existing, msg)
         merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
         const next = [...list]
         next[byClientOnly] = finalizeMergedMessageRow(existing, merged)
@@ -1243,26 +1256,13 @@ function applyAnexarOneToList(list, convId, msg) {
     if (candidates.length === 1) {
       replaceIdx = candidates[0].i
     } else if (candidates.length > 1) {
-      const tsIn = toMillis(msg?.criado_em)
-      if (Number.isFinite(tsIn)) {
-        let bestDist = Infinity
-        let bestSeq = Infinity
-        for (const c of candidates) {
-          const dist = Math.abs(c.ts - tsIn)
-          if (dist < bestDist || (dist === bestDist && c.seq < bestSeq)) {
-            bestDist = dist
-            bestSeq = c.seq
-            replaceIdx = c.i
-          }
-        }
+      // Sem client_temp_id não há identidade forte para textos repetidos.
+      // Usar timestamp do servidor embaralha rajadas iguais; FIFO preserva a ordem local.
+      let best = candidates[0]
+      for (const c of candidates) {
+        if (c.seq < best.seq || (c.seq === best.seq && c.i < best.i)) best = c
       }
-      if (replaceIdx < 0) {
-        let best = candidates[0]
-        for (const c of candidates) {
-          if (c.seq < best.seq || (c.seq === best.seq && c.i < best.i)) best = c
-        }
-        replaceIdx = best.i
-      }
+      replaceIdx = best.i
     }
     if (replaceIdx >= 0) {
       const existing = list[replaceIdx]
@@ -1271,7 +1271,7 @@ function applyAnexarOneToList(list, convId, msg) {
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
       if (msg.status != null) merged.status = msg.status
       if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-      merged.criado_em = pickLaterCriadoEmIso(existing, msg)
+      merged.criado_em = pickOutgoingMergedCriadoEmIso(existing, msg)
       merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
       const next = [...list]
       next[replaceIdx] = finalizeMergedMessageRow(existing, merged)
@@ -1292,7 +1292,7 @@ function applyAnexarOneToList(list, convId, msg) {
       const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
       if (m.whatsapp_id && !m.id && textoMatch) {
         const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
-        if (isOutgoingLike(m) && isOutgoingLike(msg)) merged.criado_em = pickLaterCriadoEmIso(m, msg)
+        if (isOutgoingLike(m) && isOutgoingLike(msg)) merged.criado_em = pickOutgoingMergedCriadoEmIso(m, msg)
         const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
         const mVal = order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
         const msgVal = order[String(msg?.status_mensagem || msg?.status || "").toLowerCase()] ?? 0
@@ -1329,7 +1329,7 @@ function applyAnexarOneToList(list, convId, msg) {
         mergeMsgPreferringTombstone(prevRow, { ...prevRow, ...candNew })
       )
       if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
-        mergedNew.criado_em = pickLaterCriadoEmIso(prevRow, candNew)
+        mergedNew.criado_em = pickOutgoingMergedCriadoEmIso(prevRow, candNew)
       }
       mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
       const next = [...list]
@@ -1387,7 +1387,7 @@ function applyAnexarOneToList(list, convId, msg) {
       mergeMsgPreferringTombstone(prevRow, { ...prevRow, ...candNew })
     )
     if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
-      mergedNew.criado_em = pickLaterCriadoEmIso(prevRow, candNew)
+      mergedNew.criado_em = pickOutgoingMergedCriadoEmIso(prevRow, candNew)
     }
     mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
     const next = [...list]
@@ -1410,7 +1410,7 @@ function mergeDedupeRows(prev, incoming, ord) {
   const cand = prev ? { ...prev, ...incoming } : incoming
   let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
   if (prev && isOutgoingLike(prev) && isOutgoingLike(incoming)) {
-    merged.criado_em = pickLaterCriadoEmIso(prev, incoming)
+    merged.criado_em = pickOutgoingMergedCriadoEmIso(prev, incoming)
   }
   merged._stableInsertSeq = mergeStableSeq(prev || null, incoming, ord)
   return prev ? finalizeMergedMessageRow(prev, merged) : stripTempIdWhenPersisted(merged)
