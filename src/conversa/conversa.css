@@ -9412,18 +9412,18 @@ main.main-content--crm .wa-mediaPreview-composer {
    * Mensagens em flex:1 — não altura fixa que deixava o histórico “flutuando” acima.
    */
   .atendimento-layout.conversation-open .atendimento-chat-area:has(.wa-shell.wa-keyboard-visible) {
-    height: var(--wa-visual-height, 100dvh);
-    max-height: var(--wa-visual-height, 100dvh);
+    height: 100%;
+    max-height: none;
     min-height: 0;
     overflow: hidden;
   }
 
   .wa-shell.wa-keyboard-visible {
-    height: var(--wa-visual-height, 100dvh);
-    max-height: var(--wa-visual-height, 100dvh);
+    height: 100%;
+    max-height: none;
     min-height: 0;
     overflow: hidden;
-    padding-bottom: var(--wa-composer-stack-h, 64px);
+    padding-bottom: 0;
     box-sizing: border-box;
   }
 
@@ -9449,10 +9449,16 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   .wa-shell.wa-keyboard-visible .wa-messages {
-    flex: 1 1 auto;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: calc(var(--wa-vv-top, 0px) + var(--wa-mobile-header-h, 92px));
+    bottom: calc(var(--wa-keyboard-inset, 0px) + var(--wa-composer-stack-h, 64px));
+    z-index: 1;
+    flex: none;
     min-height: 0;
-    height: auto;
-    max-height: none;
+    height: auto !important;
+    max-height: none !important;
     padding-bottom: 12px;
     overflow-y: auto;
   }
