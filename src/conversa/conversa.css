@@ -3133,6 +3133,8 @@
   margin: 0;
   width: fit-content;
   max-width: min(420px, calc(100vw - 72px));
+  background: rgba(11, 20, 26, 0.06);
+  contain: layout paint;
 }
 
 /* Só imagem: cantos arredondados iguais ao cartão */
@@ -3154,6 +3156,20 @@
   object-fit: contain;
   object-position: center;
   vertical-align: bottom;
+}
+
+.wa-bubble.image-message .wa-bubble-img.is-loading {
+  min-width: min(240px, calc(100vw - 96px));
+  min-height: 220px;
+  background: rgba(11, 20, 26, 0.06);
+}
+
+[data-theme="dark"] .wa-bubble.image-message .wa-bubble-imgLink {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .wa-bubble.image-message .wa-bubble-img.is-loading {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .wa-bubble-caption {
@@ -10411,6 +10427,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     max-width: min(420px, calc(100vw - 24px));
   }
 
+  .wa-bubble.image-message .wa-bubble-img.is-loading {
+    min-width: min(230px, calc(100vw - 56px));
+    min-height: 210px;
+  }
+
   .wa-bubble.image-message .wa-bubble-img {
     max-width: min(420px, calc(100vw - 24px));
     max-height: min(480px, 68vh);
@@ -10819,6 +10840,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-bubble.image-message .wa-bubble-img,
   .wa-bubble.image-message .wa-bubble-caption {
     max-width: min(calc(100vw - 14px), 420px);
+  }
+
+  .wa-bubble.image-message .wa-bubble-img.is-loading {
+    min-width: min(calc(100vw - 44px), 230px);
+    min-height: 200px;
   }
 
   .wa-bubble-meta { font-size: 10px; gap: 2px; padding: 0 8px; }

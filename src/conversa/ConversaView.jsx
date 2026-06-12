@@ -757,7 +757,7 @@ function ConversaViewBody() {
       snapThreadToBottom(c, virtualThreadRef, { min: true, ...guard });
       return;
     }
-    snapThreadToBottom(c, virtualThreadRef, { gentle: true, nearThreshold: 200, ...guard });
+    snapThreadToBottom(c, virtualThreadRef, { followUpFrame: false, ...guard });
   }, [loadingMore]);
 
   const snapOptimisticSendToBottom = useCallback(() => {

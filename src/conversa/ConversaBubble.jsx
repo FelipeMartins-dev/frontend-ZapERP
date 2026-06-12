@@ -46,10 +46,12 @@ function BubbleImage({ msg, alt, className }) {
   ]);
   const [idx, setIdx] = useState(0);
   const [exhausted, setExhausted] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setIdx(0);
     setExhausted(false);
+    setLoaded(false);
   }, [candidates.join("\u0001")]);
 
   const src = candidates[idx] || "";
@@ -59,11 +61,13 @@ function BubbleImage({ msg, alt, className }) {
     <img
       src={src}
       alt={alt}
-      className={className}
+      className={`${className || ""} ${loaded ? "is-loaded" : "is-loading"}`.trim()}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
+      onLoad={() => setLoaded(true)}
       onError={() => {
+        setLoaded(false);
         setIdx((cur) => {
           if (cur + 1 < candidates.length) return cur + 1;
           setExhausted(true);
