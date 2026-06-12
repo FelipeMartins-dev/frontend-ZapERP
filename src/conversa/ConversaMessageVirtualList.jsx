@@ -565,4 +565,137 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
 });
 
+function getStaticItemKey(item, index, conversaId) {
+  if (!item) return `row-${index}`;
+  if (item.__type === "day") return `day-${item.id}-${index}`;
+  if (conversaId != null && conversaId !== "") return getMessageListReactKey(item, conversaId);
+  const id = item.id ?? item.tempId ?? item.whatsapp_id ?? index;
+  return `msg-${String(id)}-${index}`;
+}
+
+/**
+ * Lista natural para mobile: evita transforms/medição dinâmica da virtualização durante toque.
+ * O lote atual é pequeno o bastante para render direto e o scroll nativo fica mais previsível.
+ */
+export const ConversaMessageStaticList = forwardRef(function ConversaMessageStaticList(
+  { items, scrollRef, renderItem, onVirtualContentResize, conversaId },
+  ref
+) {
+  const rootRef = useRef(null);
+  const count = Array.isArray(items) ? items.length : 0;
+
+  const getRowByIndex = (index) => rootRef.current?.querySelector?.(`[data-index="${index}"]`) ?? null;
+  const getRowByKey = (key) => {
+    if (!key || !rootRef.current) return null;
+    return Array.from(rootRef.current.children || []).find(
+      (row) => row.getAttribute("data-row-key") === String(key)
+    ) ?? null;
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToIndex: (index, options = {}) => {
+        const scrollEl = scrollRef?.current;
+        const root = rootRef.current;
+        const row = getRowByIndex(index);
+        if (!scrollEl || !root || !row) return;
+        const align = options?.align || "start";
+        const rowTop = row.offsetTop - root.offsetTop;
+        let top = rowTop;
+        if (align === "end") {
+          top = rowTop + row.offsetHeight - scrollEl.clientHeight;
+        } else if (align === "center") {
+          top = rowTop - (scrollEl.clientHeight - row.offsetHeight) / 2;
+        }
+        try {
+          scrollEl.scrollTo({ top: Math.max(0, top), behavior: options?.behavior || "auto" });
+        } catch {
+          scrollEl.scrollTop = Math.max(0, top);
+        }
+      },
+      scrollToEnd: () => {
+        const scrollEl = scrollRef?.current;
+        if (!scrollEl) return;
+        try {
+          scrollEl.scrollTop = scrollEl.scrollHeight;
+        } catch {
+          /* ignore */
+        }
+      },
+      getScrollAnchor: () => {
+        const scrollEl = scrollRef?.current;
+        const root = rootRef.current;
+        if (!scrollEl || !root) return null;
+        const viewport = scrollEl.getBoundingClientRect();
+        const rows = Array.from(root.children || []);
+        const first =
+          rows.find((row) => row.getBoundingClientRect().bottom >= viewport.top + 1) ??
+          rows[0];
+        if (!first) return null;
+        return {
+          index: Number(first.getAttribute("data-index")) || 0,
+          key: first.getAttribute("data-row-key") || null,
+          offset: first.getBoundingClientRect().top - viewport.top,
+          scrollTop: scrollEl.scrollTop,
+          scrollHeight: scrollEl.scrollHeight,
+        };
+      },
+      restoreAfterPrepend: (anchor, prependedCount) => {
+        const scrollEl = scrollRef?.current;
+        if (!scrollEl || !anchor || prependedCount <= 0) return;
+        const newIndex = anchor.index + prependedCount;
+        if (newIndex < 0 || newIndex >= count) return;
+
+        const apply = () => {
+          const row = getRowByKey(anchor.key) || getRowByIndex(newIndex);
+          if (!row) return;
+          const viewport = scrollEl.getBoundingClientRect();
+          const currentOffset = row.getBoundingClientRect().top - viewport.top;
+          scrollEl.scrollTop += currentOffset - (anchor.offset ?? 0);
+        };
+
+        apply();
+        requestAnimationFrame(apply);
+        requestAnimationFrame(apply);
+      },
+    }),
+    [count, scrollRef]
+  );
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || !onVirtualContentResize || typeof ResizeObserver === "undefined") return undefined;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        onVirtualContentResize();
+      });
+    });
+    ro.observe(root);
+    return () => {
+      ro.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [onVirtualContentResize, count]);
+
+  if (count === 0) return null;
+
+  return (
+    <div ref={rootRef} className="wa-messages-static-root">
+      {items.map((item, index) => (
+        <div
+          key={getStaticItemKey(item, index, conversaId)}
+          data-index={index}
+          data-row-key={getStaticItemKey(item, index, conversaId)}
+          className="wa-messages-static-row"
+        >
+          {renderItem(item, index)}
+        </div>
+      ))}
+    </div>
+  );
+});
 

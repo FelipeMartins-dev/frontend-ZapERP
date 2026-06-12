@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { Archive } from "lucide-react";
 import { getMessageListReactKey } from "./conversaStore";
 import { getStatusAtendimentoEffective, isClosedAttendanceStatus } from "../utils/conversaUtils";
-import { ConversaMessageVirtualList } from "./ConversaMessageVirtualList";
+import { ConversaMessageStaticList, ConversaMessageVirtualList } from "./ConversaMessageVirtualList";
 import ThreadRow from "./ThreadRow";
 import { messageRowVisualSignature } from "./threadRowCompare";
 import ClosedAttendancePanel from "./ClosedAttendancePanel";
@@ -347,17 +347,29 @@ export default function ConversaThread({
           <span className="wa-historyLoading-bar" />
         </div>
       ) : null}
-      <ConversaMessageVirtualList
-        key={`wa-thread-${String(threadConversaId ?? "")}`}
-        ref={virtualThreadRef}
-        scrollRef={messagesContainerRef}
-        overscan={headerCompact ? 5 : 10}
-        mobileThread={headerCompact}
-        conversaId={threadConversaId}
-        items={safeMensagensComSeparadores}
-        onVirtualContentResize={onVirtualContentResize}
-        renderItem={renderItem}
-      />
+      {headerCompact ? (
+        <ConversaMessageStaticList
+          key={`wa-thread-static-${String(threadConversaId ?? "")}`}
+          ref={virtualThreadRef}
+          scrollRef={messagesContainerRef}
+          conversaId={threadConversaId}
+          items={safeMensagensComSeparadores}
+          onVirtualContentResize={onVirtualContentResize}
+          renderItem={renderItem}
+        />
+      ) : (
+        <ConversaMessageVirtualList
+          key={`wa-thread-${String(threadConversaId ?? "")}`}
+          ref={virtualThreadRef}
+          scrollRef={messagesContainerRef}
+          overscan={10}
+          mobileThread={false}
+          conversaId={threadConversaId}
+          items={safeMensagensComSeparadores}
+          onVirtualContentResize={onVirtualContentResize}
+          renderItem={renderItem}
+        />
+      )}
     </>
   );
 }
