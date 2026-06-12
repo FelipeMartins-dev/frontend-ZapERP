@@ -9437,11 +9437,11 @@ main.main-content--crm .wa-mediaPreview-composer {
     flex: 0 0 auto;
     height: max(
       140px,
-      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
+      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
     );
     max-height: max(
       140px,
-      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
+      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
     );
     padding-bottom: 12px;
   }
@@ -9450,11 +9450,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-shell.wa-mobile-input-focused:has(.wa-replyBar) .wa-messages {
     height: max(
       120px,
-      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
+      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
     );
     max-height: max(
       120px,
-      calc(var(--wa-visual-height, 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
+      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
     );
     padding-bottom: 12px;
   }

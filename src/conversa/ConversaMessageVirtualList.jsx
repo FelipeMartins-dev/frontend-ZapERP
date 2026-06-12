@@ -256,7 +256,13 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
         if (!scrollEl || !virtualItems.length) return null;
 
-        const first = virtualItems[0];
+        const margin = scrollMarginRef.current;
+
+        const scrollTop = scrollEl.scrollTop;
+
+        const first =
+          virtualItems.find((item) => item.end + margin >= scrollTop + 1) ??
+          virtualItems[0];
 
         return {
 
@@ -266,7 +272,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
           itemStart: first.start,
 
-          margin: scrollMarginRef.current,
+          margin,
 
         };
 

@@ -372,10 +372,10 @@ function ConversaViewBody() {
   useLayoutEffect(() => {
     const shell = waShellRef.current;
     const header = waHeaderRef.current;
-    const input = composerRef.current?.getInputElement?.() ?? null;
     if (!shell || !header) return;
 
     const mq = window.matchMedia("(max-width: 640px)");
+    const getComposerInput = () => composerRef.current?.getInputElement?.() ?? null;
     const syncComposerHeight = () => {
       const stack = shell.querySelector(".wa-composerStack");
       if (!mq.matches || !stack) {
@@ -385,6 +385,7 @@ function ConversaViewBody() {
       shell.style.setProperty("--wa-composer-stack-h", `${Math.ceil(stack.getBoundingClientRect().height)}px`);
     };
     const syncMobileInputFocusClass = () => {
+      const input = getComposerInput();
       const isFocused = Boolean(input && document.activeElement === input);
       shell.classList.toggle("wa-mobile-input-focused", mq.matches && isFocused);
     };
@@ -418,7 +419,23 @@ function ConversaViewBody() {
       syncMobileInputFocusClass();
     };
 
-    syncHeaderLayout();
+    const syncTimers = new Set();
+    const scheduleTimer = (delay) => {
+      const id = window.setTimeout(() => {
+        syncTimers.delete(id);
+        syncHeaderLayout();
+      }, delay);
+      syncTimers.add(id);
+    };
+    const scheduleSyncHeaderLayout = () => {
+      syncHeaderLayout();
+      window.requestAnimationFrame?.(syncHeaderLayout);
+      scheduleTimer(80);
+      scheduleTimer(220);
+      scheduleTimer(420);
+    };
+
+    scheduleSyncHeaderLayout();
 
     const ro = new ResizeObserver(syncHeaderLayout);
     ro.observe(header);
@@ -426,22 +443,20 @@ function ConversaViewBody() {
     const composerRo = composerStack ? new ResizeObserver(syncHeaderLayout) : null;
     composerRo?.observe(composerStack);
 
-    const onMqChange = () => syncHeaderLayout();
+    const onMqChange = () => scheduleSyncHeaderLayout();
     if (mq.addEventListener) mq.addEventListener("change", onMqChange);
     else mq.addListener(onMqChange);
 
     const vv = window.visualViewport;
-    const onVv = () => syncHeaderLayout();
+    const onVv = () => scheduleSyncHeaderLayout();
     if (vv) {
       vv.addEventListener("resize", onVv);
       vv.addEventListener("scroll", onVv);
     }
 
-    const onInputFocusBlur = () => requestAnimationFrame(syncHeaderLayout);
-    if (input) {
-      input.addEventListener("focus", onInputFocusBlur);
-      input.addEventListener("blur", onInputFocusBlur);
-    }
+    const onInputFocusBlur = () => scheduleSyncHeaderLayout();
+    document.addEventListener("focusin", onInputFocusBlur);
+    document.addEventListener("focusout", onInputFocusBlur);
 
     return () => {
       ro.disconnect();
@@ -452,10 +467,10 @@ function ConversaViewBody() {
         vv.removeEventListener("resize", onVv);
         vv.removeEventListener("scroll", onVv);
       }
-      if (input) {
-        input.removeEventListener("focus", onInputFocusBlur);
-        input.removeEventListener("blur", onInputFocusBlur);
-      }
+      document.removeEventListener("focusin", onInputFocusBlur);
+      document.removeEventListener("focusout", onInputFocusBlur);
+      syncTimers.forEach((id) => window.clearTimeout(id));
+      syncTimers.clear();
       shell.classList.remove("wa-mobile-input-focused");
       shell.classList.remove("wa-keyboard-visible");
       shell.style.removeProperty("--wa-mobile-header-h");
@@ -1187,12 +1202,21 @@ function ConversaViewBody() {
         scheduleUserScrollUnlock(180);
       }
     };
+    const onPointerDown = (e) => {
+      if (e.pointerType && e.pointerType !== "touch") return;
+      userInterruptedOpenSnapRef.current = true;
+      lockUserScroll();
+      releaseStickToBottom();
+      cancelOpenSnapPendingRef.current?.();
+    };
+    el.addEventListener("pointerdown", onPointerDown, { passive: true });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: true });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     el.addEventListener("touchcancel", onTouchEnd, { passive: true });
     el.addEventListener("wheel", onWheel, { passive: true });
     return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
