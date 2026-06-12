@@ -91,16 +91,16 @@
 
   /* ---- Chat background premium (LIGHT) — visual refinado, neutro e corporativo ---- */
   --ds-chat-bg:
-    linear-gradient(135deg, rgba(0, 168, 132, 0.045) 0%, transparent 34%),
-    linear-gradient(225deg, rgba(37, 99, 235, 0.055) 0%, transparent 38%),
-    linear-gradient(180deg, #fbfcfd 0%, #f5f8fb 30%, #edf3f8 64%, #f8fafc 100%);
+    radial-gradient(circle at 18% 8%, rgba(0, 168, 132, 0.075) 0%, transparent 30%),
+    radial-gradient(circle at 86% 18%, rgba(14, 165, 233, 0.065) 0%, transparent 34%),
+    linear-gradient(145deg, #fbfcfd 0%, #f5f8fb 42%, #eef4f8 72%, #f8fafc 100%);
   --ds-bg-base: #eef3f7;
-  --wa-pattern-opacity: 0.06;
-  --wa-pattern-size: 340px 340px;
-  --wa-glow-opacity: 0.78;
-  --wa-glow-1: linear-gradient(120deg, rgba(0, 168, 132, 0.08) 0%, rgba(0, 168, 132, 0.025) 22%, transparent 48%);
-  --wa-glow-2: linear-gradient(245deg, rgba(37, 99, 235, 0.07) 0%, rgba(37, 99, 235, 0.018) 26%, transparent 52%);
-  --wa-glow-3: linear-gradient(180deg, rgba(255, 255, 255, 0.46) 0%, transparent 36%, rgba(15, 23, 42, 0.035) 100%);
+  --wa-pattern-opacity: 0.035;
+  --wa-pattern-size: 420px 420px;
+  --wa-glow-opacity: 0.68;
+  --wa-glow-1: radial-gradient(circle at 16% 12%, rgba(0, 168, 132, 0.1) 0%, rgba(0, 168, 132, 0.035) 25%, transparent 52%);
+  --wa-glow-2: radial-gradient(circle at 88% 18%, rgba(14, 165, 233, 0.09) 0%, rgba(14, 165, 233, 0.025) 28%, transparent 56%);
+  --wa-glow-3: linear-gradient(180deg, rgba(255, 255, 255, 0.52) 0%, transparent 40%, rgba(15, 23, 42, 0.035) 100%);
   --wa-pattern-blend: soft-light;
   --ds-bubble-in: #ffffff;
   --ds-bubble-out: #dcf8c6;
@@ -172,19 +172,20 @@
 
   /* ---- Chat específico (DARK) — premium, profundidade, acentos sutis ---- */
   --ds-chat-bg:
-    linear-gradient(135deg, rgba(0, 168, 132, 0.085) 0%, transparent 34%),
-    linear-gradient(225deg, rgba(59, 130, 246, 0.07) 0%, transparent 40%),
-    linear-gradient(180deg, #071017 0%, #0a151d 30%, #0d1b24 62%, #081118 100%);
+    radial-gradient(circle at 18% 8%, rgba(0, 168, 132, 0.16) 0%, rgba(0, 168, 132, 0.045) 28%, transparent 50%),
+    radial-gradient(circle at 88% 16%, rgba(14, 165, 233, 0.12) 0%, rgba(14, 165, 233, 0.035) 30%, transparent 56%),
+    radial-gradient(circle at 52% 108%, rgba(15, 118, 110, 0.16) 0%, transparent 42%),
+    linear-gradient(145deg, #050d13 0%, #07151d 36%, #0a1b23 70%, #061017 100%);
   --ds-chat-header: #202c33;
-  --wa-pattern-opacity: 0.055;
-  --wa-pattern-size: 340px 340px;
-  --wa-glow-opacity: 0.72;
-  --wa-glow-1: linear-gradient(120deg, rgba(0, 168, 132, 0.14) 0%, rgba(0, 168, 132, 0.04) 24%, transparent 50%);
-  --wa-glow-2: linear-gradient(245deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.035) 28%, transparent 56%);
-  --wa-glow-3: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, transparent 34%, rgba(0, 0, 0, 0.2) 100%);
+  --wa-pattern-opacity: 0.028;
+  --wa-pattern-size: 430px 430px;
+  --wa-glow-opacity: 0.58;
+  --wa-glow-1: radial-gradient(circle at 14% 10%, rgba(0, 168, 132, 0.2) 0%, rgba(0, 168, 132, 0.055) 27%, transparent 55%);
+  --wa-glow-2: radial-gradient(circle at 88% 16%, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0.04) 30%, transparent 58%);
+  --wa-glow-3: linear-gradient(180deg, rgba(255, 255, 255, 0.026) 0%, transparent 38%, rgba(0, 0, 0, 0.24) 100%);
   --wa-pattern-blend: soft-light;
-  --ds-bubble-in: #202c33;
-  --ds-bubble-out: #005c4b;
+  --ds-bubble-in: #1c2931;
+  --ds-bubble-out: #075e51;
   --ds-input-bg: #2a3942;
 
   /* Variáveis dash para páginas Config/IA */

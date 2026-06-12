@@ -97,6 +97,10 @@
   z-index: 2;
 }
 
+[data-theme="dark"] .atendimento-sidebar {
+  background: #0d1117;
+}
+
 .atendimento-chat-area {
   display: flex;
   flex-direction: column;
@@ -104,6 +108,25 @@
   overflow: hidden;
   background: var(--ds-chat-bg);
   position: relative;
+  isolation: isolate;
+}
+
+.atendimento-chat-area::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(0, 168, 132, 0.12), transparent 32%),
+    radial-gradient(circle at 88% 18%, rgba(14, 165, 233, 0.09), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 38%, rgba(0, 0, 0, 0.18));
+  opacity: 0.62;
+}
+
+.atendimento-chat-area > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Mobile: sidebar e chat-area preenchem 100% da tela fixa */
@@ -470,6 +493,118 @@ body {
   font-weight: 700;
   color: var(--ds-accent);
   background: var(--ds-accent-soft);
+}
+
+/* ==============================
+   SIDEBAR V2 — ZapERP rail (52px, Tabler icons)
+============================== */
+
+.sidebar--v2 {
+  width: 52px;
+  min-width: 52px;
+  background: #0d1017;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 0 8px;
+  gap: 2px;
+}
+
+.sidebar--v2 .sidebar-nav--v2 {
+  gap: 4px;
+}
+
+.sidebar--v2 .sidebar-nav-item,
+.sidebar--v2 .sidebar-logout,
+.sidebar--v2 .sidebar-theme-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: #4e5470;
+  background: transparent;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.sidebar--v2 .sidebar-nav-item:hover,
+.sidebar--v2 .sidebar-logout:hover,
+.sidebar--v2 .sidebar-theme-toggle:hover {
+  background: #1a1e2d;
+  color: #9095ae;
+}
+
+.sidebar--v2 .sidebar-nav-item.active {
+  background: #1b3a3a;
+  color: #2dd4aa;
+}
+
+.sidebar--v2 .sidebar-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+}
+
+.sidebar--v2 .sidebar-nav-icon svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+.sidebar--v2 .sidebar-nav-unreadDot {
+  box-shadow:
+    0 0 0 2px #0d1017,
+    0 2px 6px rgba(45, 212, 170, 0.45);
+}
+
+.sidebar-footer--v2 {
+  width: 100%;
+  border-top: none;
+  padding-top: 0;
+  gap: 4px;
+}
+
+.sidebar-v2-divider {
+  width: calc(100% - 16px);
+  height: 1px;
+  margin: 2px 0 6px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.sidebar--v2 .sidebar-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #2f5af0;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: default;
+}
+
+@media (max-width: 768px) {
+  .app-layout--crm .sidebar--v2 {
+    width: 100%;
+    min-width: 0;
+    background: #0d1017;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: none;
+  }
+
+  .app-layout--crm .sidebar--v2 .sidebar-v2-divider {
+    display: none;
+  }
+
+  .app-layout--crm .sidebar--v2 .sidebar-nav-item.active {
+    background: #1b3a3a;
+    color: #2dd4aa;
+  }
 }
 
 /* ==============================

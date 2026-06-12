@@ -39,7 +39,6 @@ function ConversaHeader({
   badge,
   showPagamentoConcluidoBadge = false,
   encerramentoAusenciaHint,
-  headerSetorBelowStatus,
   setorAtual,
   podeTransferirSetor,
   onOpenTransferirSetor,
@@ -125,13 +124,16 @@ function ConversaHeader({
     ]
   );
 
-  const renderSetorControls = () => {
+  /** Desktop/tablet largo: setor sempre na 2ª linha com divisor (como mock Aberta). */
+  const showSetorBelow = !headerCompact && !isGroup;
+
+  const renderSetorControls = ({ omitSetorPrefix = false } = {}) => {
     if (isGroup) return null;
     if (setorAtual) {
       return (
         <>
           <span className="wa-header-metaItem" title={setorAtual}>
-            Setor: {setorAtual}
+            {omitSetorPrefix ? setorAtual : `Setor: ${setorAtual}`}
           </span>
           {podeTransferirSetor ? (
             <button
@@ -215,7 +217,7 @@ function ConversaHeader({
   return (
     <div
       ref={headerRef}
-      className={`wa-header ${isGroup ? "wa-header--group" : ""} ${headerAtendCompact && !isGroup ? "wa-header--atendMobile" : ""} ${headerAtendCompact && !isGroup && headerCrmAtivoLayout ? "wa-header--crmAtivo" : ""}`}
+      className={`wa-header ${isGroup ? "wa-header--group" : ""} ${showSetorBelow ? "wa-header--setorBelow" : ""} ${headerAtendCompact && !isGroup ? "wa-header--atendMobile" : ""} ${headerAtendCompact && !isGroup && headerCrmAtivoLayout ? "wa-header--crmAtivo" : ""}`}
     >
       <button
         type="button"
@@ -267,12 +269,16 @@ function ConversaHeader({
                   <span className="wa-header-statusStack">
                     {badge ? (
                       <span
-                        className="wa-status-pill wa-status-pill--meta"
-                        style={{
-                          background: badge.bg,
-                          borderColor: badge.border,
-                          color: badge.color,
-                        }}
+                        className={`wa-status-pill wa-status-pill--meta${badge.variant === "aberta" ? " wa-status-pill--aberta" : ""}`}
+                        style={
+                          badge.variant === "aberta"
+                            ? undefined
+                            : {
+                                background: badge.bg,
+                                borderColor: badge.border,
+                                color: badge.color,
+                              }
+                        }
                         title={encerramentoAusenciaHint || badge.text}
                       >
                         {badge.text}
@@ -288,14 +294,6 @@ function ConversaHeader({
                     ) : null}
                   </span>
                 ) : null}
-                {!headerSetorBelowStatus && !headerCompact && !isGroup ? (
-                  <>
-                    {badge || showPagamentoConcluidoBadge ? (
-                      <span className="wa-header-metaSep" aria-hidden="true" />
-                    ) : null}
-                    {renderSetorControls()}
-                  </>
-                ) : null}
                 {isGroup ? (
                   <>
                     {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
@@ -303,11 +301,6 @@ function ConversaHeader({
                   </>
                 ) : null}
               </div>
-              {headerSetorBelowStatus && !headerCompact && !isGroup ? (
-                <div className="wa-header-setorRow" aria-label="Setor da conversa">
-                  {renderSetorControls()}
-                </div>
-              ) : null}
             </div>
           </div>
           {isSomeoneTyping ? (
@@ -416,6 +409,13 @@ function ConversaHeader({
           )}
         </div>
       </div>
+
+      {showSetorBelow ? (
+        <div className="wa-header-setorRow" aria-label="Setor da conversa">
+          <span className="wa-header-setorLabel">Setor</span>
+          {renderSetorControls({ omitSetorPrefix: true })}
+        </div>
+      ) : null}
     </div>
   );
 }

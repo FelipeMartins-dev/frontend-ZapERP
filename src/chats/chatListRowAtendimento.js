@@ -210,7 +210,7 @@ export function esperaMinutosAnchorKey(c, pendentesIdSet) {
 }
 
 /** Espaço vertical entre cards na lista (espelha --cl-chat-row-gap). */
-export const CHAT_LIST_ROW_GAP = 1;
+export const CHAT_LIST_ROW_GAP = 7;
 
 /** Métricas espelhadas do chatList.css — lista virtual usa altura fixa por item (sem measureElement). */
 const VIRTUAL_ROW_METRICS = {

@@ -12,7 +12,7 @@
   --cl-space-4: 16px;
   --cl-space-5: 20px;
   --cl-space-6: 24px;
-  --cl-chat-row-gap: 1px;
+  --cl-chat-row-gap: 7px;
 
   /* Paleta — neutra corporativa + verde elegante */
   --cl-bg: #edf2f7;
@@ -65,7 +65,7 @@
 
 /* Tema escuro — Design System premium (WhatsApp Web) */
 [data-theme="dark"] {
-  --cl-bg: var(--ds-surface-1);
+  --cl-bg: #0d1117;
   --cl-surface: var(--ds-surface-1);
   --cl-surface-elevated: var(--ds-surface-2);
 
@@ -236,6 +236,10 @@ a { color: inherit; text-decoration: none; }
   background: var(--cl-surface);
   border-bottom: 1px solid var(--cl-border);
   flex-shrink: 0;
+}
+
+[data-theme="dark"] .chat-list-header {
+  background: #0d1117;
 }
 
 .chat-list-header-left {

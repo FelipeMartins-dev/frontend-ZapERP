@@ -55,13 +55,14 @@
 }
 
 [data-theme="dark"] {
-  --wa-shadow-bubble: 0 1px 3px rgba(0, 0, 0, 0.25);
-  --wa-glass-surface: color-mix(in srgb, var(--wa-header-bg) 86%, #0b141a 14%);
+  --wa-header-bg: #111821;
+  --wa-shadow-bubble: 0 10px 28px -24px rgba(0, 0, 0, 0.86);
+  --wa-glass-surface: rgba(17, 24, 33, 0.94);
   --wa-glass-strong: color-mix(in srgb, var(--wa-panel) 86%, #24323a 14%);
   --wa-header-shadow: 0 16px 34px -24px rgba(0, 0, 0, 0.72);
   --wa-composer-shadow: 0 -16px 34px -26px rgba(0, 0, 0, 0.78);
-  --wa-bubble-border-in: rgba(255, 255, 255, 0.09);
-  --wa-bubble-border-out: rgba(255, 255, 255, 0.07);
+  --wa-bubble-border-in: rgba(255, 255, 255, 0.075);
+  --wa-bubble-border-out: rgba(16, 185, 129, 0.18);
   --wa-action-blue: #60a5fa;
   --wa-action-blue-soft: rgba(96, 165, 250, 0.16);
   --wa-action-amber: #fbbf24;
@@ -107,7 +108,7 @@
 .wa-shell .wa-header {
   order: 1;
   flex: 0 0 auto;
-  min-height: 56px;
+  min-height: 72px;
 }
 
 @media (max-width: 640px) {
@@ -141,8 +142,8 @@
 
 .wa-header {
   height: auto;
-  min-height: 56px;
-  padding: 0 14px;
+  min-height: 72px;
+  padding: 14px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -158,6 +159,11 @@
   overflow: visible;
   position: relative;
   z-index: 10;
+}
+
+[data-theme="dark"] .wa-header {
+  background: #12151f;
+  backdrop-filter: none;
 }
 
 /* Botão Voltar — visível só no mobile */
@@ -386,6 +392,83 @@
   margin-top: 1px;
 }
 
+/* Linha dedicada de setor — divisor full-width (nome/ações | setor) */
+@media (min-width: 641px) {
+  .wa-header.wa-header--setorBelow {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 0;
+    min-height: 0;
+    padding: 10px 14px 6px;
+  }
+
+  .wa-shell .wa-header.wa-header--setorBelow {
+    min-height: 0;
+  }
+
+  .wa-header.wa-header--setorBelow .wa-header-back {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .wa-header.wa-header--setorBelow .wa-header-left {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    align-self: center;
+  }
+
+  .wa-header.wa-header--setorBelow .wa-header-right {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .wa-header.wa-header--setorBelow > .wa-header-setorRow {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    width: auto;
+    min-height: 28px;
+    margin: 6px -14px 0;
+    padding: 5px 14px 0;
+    border-top: 1px solid color-mix(in srgb, var(--wa-panel-border) 72%, transparent);
+    box-sizing: border-box;
+  }
+
+  [data-theme="dark"] .wa-header.wa-header--setorBelow > .wa-header-setorRow {
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .wa-header.wa-header--setorBelow .wa-header-setorLabel {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--wa-text-muted);
+    flex-shrink: 0;
+    line-height: 1.2;
+  }
+
+  .wa-header.wa-header--setorBelow .wa-header-setorRow .wa-header-metaItem,
+  .wa-header.wa-header--setorBelow .wa-header-setorRow .wa-header-setorBtn {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .wa-header.wa-header--setorBelow .wa-header-setorRow .wa-header-setorBtn {
+    padding: 2px 8px;
+  }
+
+  .wa-header.wa-header--setorBelow .wa-header-setorRow:has(.wa-header-setorBtn) .wa-header-metaItem.wa-muted {
+    display: inline;
+  }
+}
+
 .wa-header-setor {
   font-size: 12px;
   color: var(--wa-text-muted);
@@ -527,6 +610,29 @@
   min-width: min-content;
   overflow: visible;
   white-space: nowrap;
+}
+
+/* Aberta — verde escuro, pill compacta */
+.wa-status-pill--aberta,
+.wa-header-metaStrip .wa-status-pill--meta.wa-status-pill--aberta {
+  min-height: 20px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  background: rgba(6, 95, 70, 0.22);
+  color: #047857;
+  border: 1px solid rgba(6, 95, 70, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .wa-status-pill--aberta,
+[data-theme="dark"] .wa-header-metaStrip .wa-status-pill--meta.wa-status-pill--aberta {
+  background: rgba(6, 78, 59, 0.55);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .wa-header-statusStack {
@@ -1599,7 +1705,11 @@
   min-width: 0;
   position: relative;
   isolation: isolate;
-  background: var(--ds-chat-bg);
+  background: var(--wa-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 42px 84px -78px rgba(255, 255, 255, 0.16),
+    inset 0 -48px 92px -82px rgba(0, 0, 0, 0.46);
   scroll-behavior: auto;
   /* Prioriza rolagem vertical no touch (menos “briga” com gestos / seleção nativa). */
   touch-action: pan-y;
@@ -2158,6 +2268,20 @@
   z-index:2;
 }
 
+[data-theme="dark"] .wa-bubble {
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.28),
+    0 14px 30px -25px rgba(0, 0, 0, 0.92),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+[data-theme="dark"] .wa-bubble:hover {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.28),
+    0 18px 36px -28px rgba(0, 0, 0, 0.96),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
 /* =========================================================
    CORES IN / OUT
 ========================================================= */
@@ -2177,11 +2301,15 @@
 }
 
 [data-theme="dark"] .wa-bubble-in {
-  border-color: rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--wa-bubble-in) 92%, #ffffff 8%), var(--wa-bubble-in));
+  border-color: var(--wa-bubble-border-in);
 }
 
 [data-theme="dark"] .wa-bubble-out {
-  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--wa-bubble-out) 92%, #ffffff 8%), var(--wa-bubble-out));
+  border-color: var(--wa-bubble-border-out);
 }
 
 /* Placeholder “apagada para todos” — texto discreto tipo WhatsApp */
@@ -2444,7 +2572,8 @@
 ========================================================= */
 @media (min-width: 740px) and (max-width: 1024px) {
   .wa-header {
-    padding: 8px 10px 10px;
+    padding: 12px 12px 14px;
+    min-height: 72px;
     gap: 8px;
     align-items: center;
     overflow-x: clip;
@@ -2661,12 +2790,13 @@
   }
 
   /* Cabeçalho compacto (.wa-header--atendMobile via JS) — mesma lógica do mobile, sem voltar/fixed */
-  .wa-header.wa-header--atendMobile {
+  .wa-header.wa-header--atendMobile:not(.wa-header--setorBelow) {
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px 10px;
+    padding: 12px 12px 14px;
+    min-height: 72px;
     overflow: hidden;
     min-width: 0;
   }
@@ -9582,6 +9712,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   [data-theme="dark"] .wa-header {
+    background: #12151f;
     border-bottom-color: var(--wa-panel-border);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 2px 12px rgba(0, 0, 0, 0.22);
   }
@@ -10708,7 +10839,7 @@ main.main-content--crm .wa-mediaPreview-composer {
   }
 
   [data-theme="dark"] .wa-header {
-    background: var(--wa-header-bg);
+    background: #12151f;
     border-bottom-color: var(--wa-panel-border);
   }
 

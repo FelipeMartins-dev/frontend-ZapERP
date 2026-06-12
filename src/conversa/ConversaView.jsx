@@ -642,13 +642,6 @@ function ConversaViewBody() {
     ]
   );
 
-  /** Aberta / finalizada: setor e ação ficam na linha abaixo do pill de status (mobile/desktop). */
-  const headerSetorBelowStatus = useMemo(() => {
-    if (!conversa || isGroupConversation(conversa)) return false;
-    const s = safeString(getStatusAtendimentoEffective(conversa)).toLowerCase();
-    return s === "aberta" || s === "fechada" || s === "mensagem_disparada";
-  }, [conversa]);
-
   /** Mobile: layout compacto em duas linhas + pill menor só em em_atendimento / aguardando_cliente */
   const headerCrmAtivoLayout = useMemo(() => {
     const s = safeString(getStatusAtendimentoEffective(conversa)).toLowerCase();
@@ -2925,7 +2918,6 @@ function ConversaViewBody() {
           badge={badge}
           showPagamentoConcluidoBadge={showPagamentoConcluidoBadge}
           encerramentoAusenciaHint={encerramentoAusenciaHint}
-          headerSetorBelowStatus={headerSetorBelowStatus}
           setorAtual={setorAtual}
           podeTransferirSetor={podeTransferirSetor}
           onOpenTransferirSetor={handleOpenTransferirSetor}

@@ -355,10 +355,11 @@ export function statusBadge(status, exibirBadgeAberta, finalizacaoMotivo) {
   if (exibirBadgeAberta !== true) return null;
   return {
     text: "Aberta",
-    bg: "rgba(34,197,94,0.12)",
-    color: "var(--wa-status-green)",
-    border: "rgba(34,197,94,0.18)",
-    dot: "var(--wa-status-green)",
+    variant: "aberta",
+    bg: "rgba(6, 78, 59, 0.5)",
+    color: "#6ee7b7",
+    border: "rgba(16, 185, 129, 0.22)",
+    dot: "#10b981",
   };
 }
 
