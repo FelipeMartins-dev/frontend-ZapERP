@@ -407,35 +407,6 @@ function ConversaViewBody() {
       });
     };
 
-    const keyboardSnapTimers = new Set();
-    const clearKeyboardSnapTimers = () => {
-      keyboardSnapTimers.forEach((id) => window.clearTimeout(id));
-      keyboardSnapTimers.clear();
-    };
-    const runKeyboardSnap = () => {
-      if (!mq.matches || userScrollLockRef.current || suppressAutoScrollRef.current) return;
-      if (!shouldStickToBottomRef.current) return;
-      const c = messagesContainerRef.current;
-      if (!c) return;
-      snapThreadToBottom(c, virtualThreadRef, {
-        min: true,
-        followUpFrame: false,
-        canSnap: () => !userScrollLockRef.current && !suppressAutoScrollRef.current,
-      });
-    };
-    const scheduleKeyboardSnap = () => {
-      clearKeyboardSnapTimers();
-      runKeyboardSnap();
-      window.requestAnimationFrame?.(runKeyboardSnap);
-      [80, 180, 320, 520].forEach((delay) => {
-        const id = window.setTimeout(() => {
-          keyboardSnapTimers.delete(id);
-          runKeyboardSnap();
-        }, delay);
-        keyboardSnapTimers.add(id);
-      });
-    };
-
     const syncHeaderLayout = () => {
       if (!mq.matches) {
         setViewportCssVars({
@@ -482,11 +453,8 @@ function ConversaViewBody() {
         shell.classList.toggle("wa-keyboard-visible", keyboardOpen);
         mobileKeyboardWasVisibleRef.current = keyboardOpen;
         syncComposerHeight();
-
-        if (keyboardOpen && inputFocused && shouldStickToBottomRef.current) {
-          scheduleKeyboardSnap();
-        } else if (!keyboardOpen || !inputFocused || !wasKeyboard) {
-          clearKeyboardSnapTimers();
+        if (!keyboardOpen || !inputFocused || !wasKeyboard) {
+          shouldStickToBottomRef.current = false;
         }
       } else {
         setViewportCssVars({
@@ -550,7 +518,6 @@ function ConversaViewBody() {
       }
       document.removeEventListener("focusin", onInputFocusBlur);
       document.removeEventListener("focusout", onInputFocusBlur);
-      clearKeyboardSnapTimers();
       syncTimers.forEach((id) => window.clearTimeout(id));
       syncTimers.clear();
       shell.classList.remove("wa-keyboard-visible");
