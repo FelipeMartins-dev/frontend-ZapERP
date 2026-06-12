@@ -235,6 +235,14 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
           ...(options && typeof options === "object" ? options : {}),
 
         });
+        const scrollEl = scrollRef?.current;
+        if (scrollEl) {
+          try {
+            scrollEl.scrollTop = scrollEl.scrollHeight;
+          } catch {
+            /* ignore */
+          }
+        }
 
       },
 
@@ -394,6 +402,14 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
         if (count <= 0) return;
 
         virtualizer.scrollToIndex(count - 1, { align: "end", behavior: "auto" });
+        const scrollEl = scrollRef?.current;
+        if (scrollEl) {
+          try {
+            scrollEl.scrollTop = scrollEl.scrollHeight;
+          } catch {
+            /* ignore */
+          }
+        }
 
       });
 

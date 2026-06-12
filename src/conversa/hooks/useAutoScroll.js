@@ -69,7 +69,13 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
   if (min) {
     if (hasVirtualEnd) {
       scrollVirtualToEnd();
-      if (followUpFrame) scheduleFrame(scrollVirtualToEnd);
+      scrollContainerToBottom();
+      if (followUpFrame) {
+        scheduleFrame(() => {
+          scrollVirtualToEnd();
+          scrollContainerToBottom();
+        });
+      }
     } else {
       scrollContainerToBottom();
       if (followUpFrame) scheduleFrame(scrollContainerToBottom);
@@ -78,14 +84,23 @@ export function snapThreadToBottom(container, virtualListRef, opts = {}) {
   }
 
   if (gentle && alreadyNear) {
-    if (hasVirtualEnd) scrollVirtualToEnd();
+    if (hasVirtualEnd) {
+      scrollVirtualToEnd();
+      scrollContainerToBottom();
+    }
     else scrollContainerToBottom();
     return;
   }
 
   if (hasVirtualEnd) {
     scrollVirtualToEnd();
-    if (!gentle && followUpFrame) scheduleFrame(scrollVirtualToEnd);
+    scrollContainerToBottom();
+    if (!gentle && followUpFrame) {
+      scheduleFrame(() => {
+        scrollVirtualToEnd();
+        scrollContainerToBottom();
+      });
+    }
     return;
   }
 
@@ -126,6 +141,7 @@ export function useAutoScroll({
   const prevLoadingForSnapRef = useRef(loading);
   const prevSnapConversaKeyRef = useRef(null);
   const openSnapInProgressRef = useRef(false);
+  const openSnapUserCancelledRef = useRef(false);
 
   function isUserScrollLocked() {
     return userScrollLockRef?.current === true;
@@ -142,6 +158,7 @@ export function useAutoScroll({
     pendingJumpToBottomRef.current = false;
     anchorLatestUntilMsgsRef.current = false;
     openSnapInProgressRef.current = false;
+    openSnapUserCancelledRef.current = true;
   }
 
   useLayoutEffect(() => {
@@ -174,6 +191,7 @@ export function useAutoScroll({
       pendingJumpToBottomRef.current = true;
       anchorLatestUntilMsgsRef.current = true;
       openSnapInProgressRef.current = false;
+      openSnapUserCancelledRef.current = false;
       return;
     }
 
@@ -184,6 +202,7 @@ export function useAutoScroll({
       pendingJumpToBottomRef.current = true;
       anchorLatestUntilMsgsRef.current = true;
       openSnapInProgressRef.current = false;
+      openSnapUserCancelledRef.current = false;
       return;
     }
 
@@ -271,6 +290,8 @@ export function useAutoScroll({
     let t1 = 0;
     let t2 = 0;
     let t3 = 0;
+    let t4 = 0;
+    let t5 = 0;
     let finished = false;
 
     const finishOpenSnap = () => {
@@ -280,9 +301,10 @@ export function useAutoScroll({
     };
 
     const guard = snapGuardOpts();
-    const snap = () => {
+    const snap = ({ force = false } = {}) => {
       if (cancelled || isUserScrollLocked()) return;
-      if (!shouldStickToBottomRef.current) return;
+      if (force && openSnapUserCancelledRef.current) return;
+      if (!force && !shouldStickToBottomRef.current) return;
       const c = messagesContainerRef?.current;
       snapThreadToBottom(c, virtualListRef, { followUpFrame: false, ...guard });
     };
@@ -335,6 +357,12 @@ export function useAutoScroll({
         finishOpenSnap();
       }
     }, 380);
+    t4 = window.setTimeout(() => {
+      if (!cancelled) snap({ force: true });
+    }, 800);
+    t5 = window.setTimeout(() => {
+      if (!cancelled) snap({ force: true });
+    }, 1400);
 
     let stickAttempts = 0;
     const tryStickOpen = () => {
@@ -363,6 +391,8 @@ export function useAutoScroll({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
+      window.clearTimeout(t4);
+      window.clearTimeout(t5);
       cancelFrame(rafChain);
       cancelFrame(rafStick);
       cancelFrame(rafOnce);

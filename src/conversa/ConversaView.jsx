@@ -289,6 +289,7 @@ function ConversaViewBody() {
   /** Enquanto o utilizador arrasta o thread (touch), bloqueia reancoragem programática. */
   const userScrollLockRef = useRef(false);
   const userScrollUnlockTimerRef = useRef(0);
+  const userInterruptedOpenSnapRef = useRef(false);
   const cancelOpenSnapPendingRef = useRef(null);
   const messagesScrollPreserveSnapRef = useRef(null);
   const [allTags, setAllTags] = useState([]);
@@ -687,7 +688,6 @@ function ConversaViewBody() {
       snapThreadToBottom(c, virtualThreadRef, { min: true, ...guard });
       return;
     }
-    if (!isNearBottom(c, 200)) return;
     snapThreadToBottom(c, virtualThreadRef, { gentle: true, nearThreshold: 200, ...guard });
   }, [loadingMore]);
 
@@ -901,6 +901,33 @@ function ConversaViewBody() {
     cancelOpenSnapPendingRef,
   });
 
+  useEffect(() => {
+    const renderedCount = Array.isArray(mensagens) ? mensagens.length : 0;
+    if (!conversaId || renderedCount <= 0) return undefined;
+    const threadKey = String(conversaId);
+    const run = () => {
+      if (userScrollLockRef.current || userInterruptedOpenSnapRef.current) return;
+      const st = useConversaStore.getState();
+      const activeId = st.selectedId ?? st.conversa?.id ?? null;
+      if (String(activeId ?? "") !== threadKey) return;
+      const c = messagesContainerRef.current;
+      if (!c) return;
+      snapThreadToBottom(c, virtualThreadRef, {
+        min: true,
+        followUpFrame: false,
+        canSnap: () => !userScrollLockRef.current && !userInterruptedOpenSnapRef.current,
+      });
+    };
+    const t1 = window.setTimeout(run, 160);
+    const t2 = window.setTimeout(run, 800);
+    const t3 = window.setTimeout(run, 1500);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [conversaId, mensagens?.length]);
+
   useLayoutEffect(() => {
     zapSeenMsgKeysRef.current = new Set();
     zapMsgsInitialPassRef.current = true;
@@ -1093,7 +1120,9 @@ function ConversaViewBody() {
       lockUserScroll();
       scheduleUserScrollUnlock(headerCompact ? 320 : 240);
     } else {
-      shouldStickToBottomRef.current = isNearBottom(el, 120);
+      if (isNearBottom(el, 120)) {
+        shouldStickToBottomRef.current = true;
+      }
     }
     messagesLastScrollTopRef.current = top;
 
@@ -1107,6 +1136,7 @@ function ConversaViewBody() {
   useEffect(() => {
     messagesLastScrollTopRef.current = 0;
     userScrollLockRef.current = false;
+    userInterruptedOpenSnapRef.current = false;
     window.clearTimeout(userScrollUnlockTimerRef.current);
   }, [scrollThreadId]);
 
@@ -1128,6 +1158,7 @@ function ConversaViewBody() {
 
     const onTouchStart = (e) => {
       touchActive = true;
+      userInterruptedOpenSnapRef.current = true;
       touchStartY = e.touches?.[0]?.clientY ?? 0;
       lockUserScroll();
       releaseStickToBottom();
@@ -1149,6 +1180,7 @@ function ConversaViewBody() {
     };
     const onWheel = (e) => {
       if (e.deltaY < 0) {
+        userInterruptedOpenSnapRef.current = true;
         lockUserScroll();
         releaseStickToBottom();
         cancelOpenSnapPendingRef.current?.();
