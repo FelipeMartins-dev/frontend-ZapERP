@@ -368,55 +368,113 @@ function ConversaViewBody() {
     setMessageSearchOpen(false);
   }, [conversaId]);
 
-  /* Mobile: cabeçalho fixo (viewport) + padding no shell; teclado via visualViewport e foco no input */
+  /* Mobile: cabeçalho fixo (viewport) + padding no shell; teclado via visualViewport */
+  const mobileFullViewportHeightRef = useRef(0);
+  const mobileKeyboardWasVisibleRef = useRef(false);
+
   useLayoutEffect(() => {
     const shell = waShellRef.current;
     const header = waHeaderRef.current;
     if (!shell || !header) return;
 
+    mobileFullViewportHeightRef.current = 0;
+    mobileKeyboardWasVisibleRef.current = false;
+
     const mq = window.matchMedia("(max-width: 640px)");
+    const root = document.documentElement;
     const getComposerInput = () => composerRef.current?.getInputElement?.() ?? null;
+
+    const setViewportCssVars = (vars) => {
+      for (const [key, value] of Object.entries(vars)) {
+        if (value == null) {
+          shell.style.removeProperty(key);
+          root.style.removeProperty(key);
+        } else {
+          shell.style.setProperty(key, value);
+          root.style.setProperty(key, value);
+        }
+      }
+    };
+
     const syncComposerHeight = () => {
       const stack = shell.querySelector(".wa-composerStack");
       if (!mq.matches || !stack) {
-        shell.style.removeProperty("--wa-composer-stack-h");
+        setViewportCssVars({ "--wa-composer-stack-h": null });
         return;
       }
-      shell.style.setProperty("--wa-composer-stack-h", `${Math.ceil(stack.getBoundingClientRect().height)}px`);
-    };
-    const syncMobileInputFocusClass = () => {
-      const input = getComposerInput();
-      const isFocused = Boolean(input && document.activeElement === input);
-      shell.classList.toggle("wa-mobile-input-focused", mq.matches && isFocused);
+      setViewportCssVars({
+        "--wa-composer-stack-h": `${Math.ceil(stack.getBoundingClientRect().height)}px`,
+      });
     };
 
     const syncHeaderLayout = () => {
       if (!mq.matches) {
-        shell.style.removeProperty("--wa-mobile-header-h");
-        shell.style.removeProperty("--wa-vv-top");
-        shell.style.removeProperty("--wa-keyboard-inset");
-        shell.style.removeProperty("--wa-visual-height");
-        shell.style.removeProperty("--wa-composer-stack-h");
-        shell.classList.remove("wa-mobile-input-focused");
+        setViewportCssVars({
+          "--wa-mobile-header-h": null,
+          "--wa-vv-top": null,
+          "--wa-keyboard-inset": null,
+          "--wa-visual-height": null,
+          "--wa-composer-stack-h": null,
+        });
         shell.classList.remove("wa-keyboard-visible");
+        mobileKeyboardWasVisibleRef.current = false;
         return;
       }
+
       shell.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
+      root.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
+
       const vvNow = window.visualViewport;
+      const input = getComposerInput();
+      const inputFocused = Boolean(input && document.activeElement === input);
+
       if (vvNow) {
-        shell.style.setProperty("--wa-vv-top", `${vvNow.offsetTop}px`);
         const ih = window.innerHeight;
-        const kbInset = Math.max(0, ih - vvNow.height - vvNow.offsetTop);
-        shell.style.setProperty("--wa-keyboard-inset", `${kbInset}px`);
-        shell.style.setProperty("--wa-visual-height", `${vvNow.height}px`);
-        shell.classList.toggle("wa-keyboard-visible", kbInset > 80);
+        const visibleH = vvNow.height;
+        const kbInset = Math.max(0, ih - visibleH - vvNow.offsetTop);
+        if (!inputFocused && kbInset < 48) {
+          mobileFullViewportHeightRef.current = Math.max(
+            mobileFullViewportHeightRef.current,
+            visibleH,
+            ih
+          );
+        }
+        const baseline = mobileFullViewportHeightRef.current || ih;
+        const keyboardOpen =
+          kbInset > 48 || (inputFocused && visibleH < baseline - 72);
+
+        setViewportCssVars({
+          "--wa-vv-top": `${vvNow.offsetTop}px`,
+          "--wa-keyboard-inset": `${kbInset}px`,
+          "--wa-visual-height": `${visibleH}px`,
+        });
+
+        const wasKeyboard = mobileKeyboardWasVisibleRef.current;
+        shell.classList.toggle("wa-keyboard-visible", keyboardOpen);
+        mobileKeyboardWasVisibleRef.current = keyboardOpen;
+
+        if (keyboardOpen && !wasKeyboard && shouldStickToBottomRef.current) {
+          const c = messagesContainerRef.current;
+          if (c) {
+            const guard = {
+              canSnap: () => !userScrollLockRef.current && !suppressAutoScrollRef.current,
+            };
+            snapThreadToBottom(c, virtualThreadRef, { min: true, followUpFrame: false, ...guard });
+            window.requestAnimationFrame?.(() => {
+              snapThreadToBottom(c, virtualThreadRef, { min: true, followUpFrame: false, ...guard });
+            });
+          }
+        }
       } else {
-        shell.style.removeProperty("--wa-keyboard-inset");
-        shell.style.removeProperty("--wa-visual-height");
+        setViewportCssVars({
+          "--wa-keyboard-inset": null,
+          "--wa-visual-height": null,
+        });
         shell.classList.remove("wa-keyboard-visible");
+        mobileKeyboardWasVisibleRef.current = false;
       }
+
       syncComposerHeight();
-      syncMobileInputFocusClass();
     };
 
     const syncTimers = new Set();
@@ -471,8 +529,13 @@ function ConversaViewBody() {
       document.removeEventListener("focusout", onInputFocusBlur);
       syncTimers.forEach((id) => window.clearTimeout(id));
       syncTimers.clear();
-      shell.classList.remove("wa-mobile-input-focused");
       shell.classList.remove("wa-keyboard-visible");
+      mobileKeyboardWasVisibleRef.current = false;
+      document.documentElement.style.removeProperty("--wa-mobile-header-h");
+      document.documentElement.style.removeProperty("--wa-vv-top");
+      document.documentElement.style.removeProperty("--wa-keyboard-inset");
+      document.documentElement.style.removeProperty("--wa-visual-height");
+      document.documentElement.style.removeProperty("--wa-composer-stack-h");
       shell.style.removeProperty("--wa-mobile-header-h");
       shell.style.removeProperty("--wa-vv-top");
       shell.style.removeProperty("--wa-keyboard-inset");

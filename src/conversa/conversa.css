@@ -9407,9 +9407,27 @@ main.main-content--crm .wa-mediaPreview-composer {
 ========================================================= */
 
 @media (max-width: 640px) {
-  /* Teclado aberto: ancora reply + composer juntos acima do teclado */
-  .wa-shell.wa-keyboard-visible .wa-composerStack,
-  .wa-shell.wa-mobile-input-focused .wa-composerStack {
+  /*
+   * Teclado aberto: encolhe o shell à área visível (evita faixa branca entre header e composer).
+   * Mensagens em flex:1 — não altura fixa que deixava o histórico “flutuando” acima.
+   */
+  .atendimento-layout.conversation-open .atendimento-chat-area:has(.wa-shell.wa-keyboard-visible) {
+    height: var(--wa-visual-height, 100dvh);
+    max-height: var(--wa-visual-height, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .wa-shell.wa-keyboard-visible {
+    height: var(--wa-visual-height, 100dvh);
+    max-height: var(--wa-visual-height, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: var(--wa-composer-stack-h, 64px);
+    box-sizing: border-box;
+  }
+
+  .wa-shell.wa-keyboard-visible .wa-composerStack {
     position: fixed;
     left: 0;
     right: 0;
@@ -9420,54 +9438,31 @@ main.main-content--crm .wa-mediaPreview-composer {
     box-sizing: border-box;
   }
 
-  .wa-shell.wa-keyboard-visible .wa-composerStack .wa-footer,
-  .wa-shell.wa-mobile-input-focused .wa-composerStack .wa-footer {
+  .wa-shell.wa-keyboard-visible .wa-composerStack .wa-footer {
     padding: 6px 12px 2px !important;
     padding-left: calc(12px + env(safe-area-inset-left, 0)) !important;
     padding-right: calc(12px + env(safe-area-inset-right, 0)) !important;
   }
 
-  main.main-content--crm .wa-shell.wa-keyboard-visible .wa-composerStack .wa-footer,
-  main.main-content--crm .wa-shell.wa-mobile-input-focused .wa-composerStack .wa-footer {
+  main.main-content--crm .wa-shell.wa-keyboard-visible .wa-composerStack .wa-footer {
     padding-bottom: 2px !important;
   }
 
-  .wa-shell.wa-keyboard-visible .wa-messages,
-  .wa-shell.wa-mobile-input-focused .wa-messages {
-    flex: 0 0 auto;
-    height: max(
-      140px,
-      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
-    );
-    max-height: max(
-      140px,
-      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 64px))
-    );
+  .wa-shell.wa-keyboard-visible .wa-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    max-height: none;
     padding-bottom: 12px;
-  }
-
-  .wa-shell.wa-keyboard-visible:has(.wa-replyBar) .wa-messages,
-  .wa-shell.wa-mobile-input-focused:has(.wa-replyBar) .wa-messages {
-    height: max(
-      120px,
-      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
-    );
-    max-height: max(
-      120px,
-      calc(min(var(--wa-visual-height, 100dvh), 100dvh) - var(--wa-mobile-header-h, 92px) - var(--wa-composer-stack-h, 118px))
-    );
-    padding-bottom: 12px;
+    overflow-y: auto;
   }
 
   .main-content:has(.wa-shell.wa-keyboard-visible),
-  .main-content:has(.wa-shell.wa-mobile-input-focused),
-  .main-content.main-content--crm:has(.wa-shell.wa-keyboard-visible),
-  .main-content.main-content--crm:has(.wa-shell.wa-mobile-input-focused) {
+  .main-content.main-content--crm:has(.wa-shell.wa-keyboard-visible) {
     padding-bottom: 0 !important;
   }
 
-  .app-layout:has(.wa-shell.wa-keyboard-visible) .main-content,
-  .app-layout:has(.wa-shell.wa-mobile-input-focused) .main-content {
+  .app-layout:has(.wa-shell.wa-keyboard-visible) .main-content {
     padding-bottom: 0 !important;
   }
 
