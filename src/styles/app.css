@@ -500,12 +500,34 @@ body {
 ============================== */
 
 .sidebar--v2 {
+  --sidebar-v2-bg: #f8f9fc;
+  --sidebar-v2-border: rgba(15, 23, 42, 0.08);
+  --sidebar-v2-icon: #5e6478;
+  --sidebar-v2-icon-hover-bg: #eef1f6;
+  --sidebar-v2-icon-hover: #3d4558;
+  --sidebar-v2-active-bg: rgba(0, 168, 132, 0.14);
+  --sidebar-v2-active-color: #059669;
+  --sidebar-v2-divider-color: rgba(15, 23, 42, 0.1);
+  --sidebar-v2-unread-ring: #f8f9fc;
+
   width: 52px;
   min-width: 52px;
-  background: #0d1017;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--sidebar-v2-bg);
+  border-right: 1px solid var(--sidebar-v2-border);
   padding: 10px 0 8px;
   gap: 2px;
+}
+
+[data-theme="dark"] .sidebar--v2 {
+  --sidebar-v2-bg: #0d1017;
+  --sidebar-v2-border: rgba(255, 255, 255, 0.06);
+  --sidebar-v2-icon: #4e5470;
+  --sidebar-v2-icon-hover-bg: #1a1e2d;
+  --sidebar-v2-icon-hover: #9095ae;
+  --sidebar-v2-active-bg: #1b3a3a;
+  --sidebar-v2-active-color: #2dd4aa;
+  --sidebar-v2-divider-color: rgba(255, 255, 255, 0.08);
+  --sidebar-v2-unread-ring: #0d1017;
 }
 
 .sidebar--v2 .sidebar-nav--v2 {
@@ -518,7 +540,7 @@ body {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  color: #4e5470;
+  color: var(--sidebar-v2-icon);
   background: transparent;
   transition: background 0.12s ease, color 0.12s ease;
 }
@@ -526,13 +548,13 @@ body {
 .sidebar--v2 .sidebar-nav-item:hover,
 .sidebar--v2 .sidebar-logout:hover,
 .sidebar--v2 .sidebar-theme-toggle:hover {
-  background: #1a1e2d;
-  color: #9095ae;
+  background: var(--sidebar-v2-icon-hover-bg);
+  color: var(--sidebar-v2-icon-hover);
 }
 
 .sidebar--v2 .sidebar-nav-item.active {
-  background: #1b3a3a;
-  color: #2dd4aa;
+  background: var(--sidebar-v2-active-bg);
+  color: var(--sidebar-v2-active-color);
 }
 
 .sidebar--v2 .sidebar-nav-icon {
@@ -551,7 +573,7 @@ body {
 
 .sidebar--v2 .sidebar-nav-unreadDot {
   box-shadow:
-    0 0 0 2px #0d1017,
+    0 0 0 2px var(--sidebar-v2-unread-ring),
     0 2px 6px rgba(45, 212, 170, 0.45);
 }
 
@@ -567,7 +589,7 @@ body {
   height: 1px;
   margin: 2px 0 6px;
   border: none;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--sidebar-v2-divider-color);
   flex-shrink: 0;
 }
 
@@ -592,18 +614,13 @@ body {
   .app-layout--crm .sidebar--v2 {
     width: 100%;
     min-width: 0;
-    background: #0d1017;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--sidebar-v2-bg);
+    border-top: 1px solid var(--sidebar-v2-border);
     border-right: none;
   }
 
   .app-layout--crm .sidebar--v2 .sidebar-v2-divider {
     display: none;
-  }
-
-  .app-layout--crm .sidebar--v2 .sidebar-nav-item.active {
-    background: #1b3a3a;
-    color: #2dd4aa;
   }
 }
 

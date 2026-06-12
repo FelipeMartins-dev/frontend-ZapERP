@@ -11,6 +11,7 @@ import {
   IconRobot,
   IconSettings,
   IconSparkles,
+  IconMoon,
   IconSun,
   IconUsers,
 } from "@tabler/icons-react";
@@ -221,8 +222,12 @@ export default function MainLayout() {
             title={darkMode ? "Modo claro" : "Modo escuro"}
             aria-label={darkMode ? "Alternar para modo claro" : "Alternar para modo escuro"}
           >
-            <IconSun size={SIDEBAR_ICON_SIZE} stroke={SIDEBAR_ICON_STROKE} aria-hidden />
-            <span className="sidebar-nav-label">{darkMode ? "Claro" : "Tema"}</span>
+            {darkMode ? (
+              <IconSun size={SIDEBAR_ICON_SIZE} stroke={SIDEBAR_ICON_STROKE} aria-hidden />
+            ) : (
+              <IconMoon size={SIDEBAR_ICON_SIZE} stroke={SIDEBAR_ICON_STROKE} aria-hidden />
+            )}
+            <span className="sidebar-nav-label">{darkMode ? "Claro" : "Escuro"}</span>
           </button>
           <div className="sidebar-user-avatar" title={user?.nome || user?.email || "Usuário"} aria-label="Usuário logado">
             {userInitial}
