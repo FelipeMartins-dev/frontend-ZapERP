@@ -407,6 +407,34 @@ function ConversaViewBody() {
       });
     };
 
+    const keyboardScrollTimers = new Set();
+    const clearKeyboardScrollTimers = () => {
+      keyboardScrollTimers.forEach((id) => window.clearTimeout(id));
+      keyboardScrollTimers.clear();
+    };
+    const keepMessagesAtKeyboardBottom = (wasNearBottom) => {
+      if (!wasNearBottom) return;
+      clearKeyboardScrollTimers();
+      const apply = () => {
+        const el = messagesContainerRef.current;
+        if (!el) return;
+        try {
+          el.scrollTop = el.scrollHeight;
+          messagesLastScrollTopRef.current = el.scrollTop;
+        } catch {
+          /* ignore */
+        }
+      };
+      window.requestAnimationFrame?.(apply);
+      [60, 140, 260, 420].forEach((delay) => {
+        const id = window.setTimeout(() => {
+          keyboardScrollTimers.delete(id);
+          apply();
+        }, delay);
+        keyboardScrollTimers.add(id);
+      });
+    };
+
     const syncHeaderLayout = () => {
       if (!mq.matches) {
         setViewportCssVars({
@@ -427,6 +455,8 @@ function ConversaViewBody() {
       const vvNow = window.visualViewport;
       const input = getComposerInput();
       const inputFocused = Boolean(input && document.activeElement === input);
+      const messagesEl = messagesContainerRef.current;
+      const wasNearBottom = messagesEl ? isNearBottom(messagesEl, 220) : false;
 
       if (vvNow) {
         const ih = window.innerHeight;
@@ -453,8 +483,10 @@ function ConversaViewBody() {
         shell.classList.toggle("wa-keyboard-visible", keyboardOpen);
         mobileKeyboardWasVisibleRef.current = keyboardOpen;
         syncComposerHeight();
-        if (!keyboardOpen || !inputFocused || !wasKeyboard) {
-          shouldStickToBottomRef.current = false;
+        if (keyboardOpen && inputFocused) {
+          keepMessagesAtKeyboardBottom(wasNearBottom || !wasKeyboard);
+        } else {
+          clearKeyboardScrollTimers();
         }
       } else {
         setViewportCssVars({
@@ -518,6 +550,7 @@ function ConversaViewBody() {
       }
       document.removeEventListener("focusin", onInputFocusBlur);
       document.removeEventListener("focusout", onInputFocusBlur);
+      clearKeyboardScrollTimers();
       syncTimers.forEach((id) => window.clearTimeout(id));
       syncTimers.clear();
       shell.classList.remove("wa-keyboard-visible");
