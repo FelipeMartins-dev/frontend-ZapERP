@@ -105,6 +105,12 @@ const CONVERSA_MENSAGENS_CACHE_MAX = 48
 const CONVERSA_MENSAGENS_CACHE_TTL_MS = 20 * 60 * 1000
 
 function trimConversaMensagensCache() {
+  const now = Date.now()
+  for (const [key, entry] of conversaMensagensCache) {
+    if (now - (entry.savedAt || 0) > CONVERSA_MENSAGENS_CACHE_TTL_MS) {
+      conversaMensagensCache.delete(key)
+    }
+  }
   while (conversaMensagensCache.size > CONVERSA_MENSAGENS_CACHE_MAX) {
     const oldest = conversaMensagensCache.keys().next().value
     if (oldest == null) break
@@ -413,11 +419,19 @@ export const useConversaStore = create((set, get) => {
     setTyping: (conversa_id, payload) => {
       if (!conversa_id) return
       const id = String(conversa_id)
+      if (!payload) {
+        set((state) => {
+          const next = { ...state.typing }
+          delete next[id]
+          return { typing: next }
+        })
+        return
+      }
       const expiresAt = Date.now() + 5000
       set((state) => ({
         typing: {
           ...state.typing,
-          [id]: payload ? { ...payload, expiresAt } : undefined,
+          [id]: { ...payload, expiresAt },
         },
       }))
     },
@@ -1330,12 +1344,17 @@ export const useConversaStore = create((set, get) => {
       const id = conversaId ?? get().selectedId
       if (!id) return
       set({ atendimentosLoading: true })
-      const data = await listarAtendimentos(id)
-      set({
-        atendimentos: data || [],
-        atendimentosLoading: false,
-        atendimentosLoadedFor: id,
-      })
+      try {
+        const data = await listarAtendimentos(id)
+        set({
+          atendimentos: data || [],
+          atendimentosLoading: false,
+          atendimentosLoadedFor: id,
+        })
+      } catch (err) {
+        console.error("Erro ao carregar histórico de atendimentos:", err)
+        set({ atendimentosLoading: false })
+      }
     },
 
     patchConversa: (partial) => {

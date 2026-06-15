@@ -2252,7 +2252,7 @@ function ConversaViewBody() {
 
       let loaded = (useConversaStore.getState().mensagens || []).some((m) => String(m?.id) === String(msgId));
       let attempts = 0;
-      while (!loaded && attempts < 80) {
+      while (!loaded && attempts < 20) {
         const st = useConversaStore.getState();
         if (String(st.selectedId ?? "") !== String(conversaId)) return;
         if (!st.hasMore || st.loadingMore) break;
