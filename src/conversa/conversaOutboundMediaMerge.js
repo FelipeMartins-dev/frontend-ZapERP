@@ -84,6 +84,80 @@ function normalizeOutboundTextForCompare(msg) {
   return stripWhatsappBoldNamePrefix(msg?.texto ?? msg?.conteudo ?? "", msg)
 }
 
+function normalizeTextForDuplicateCompare(msg) {
+  return String(msg?.texto ?? msg?.conteudo ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim()
+}
+
+function isTextMessageForDuplicateCompare(msg) {
+  if (!msg) return false
+  if (mediaFamilyFromMsg(msg)) return false
+  return isTipoTextoParaReconciliarPorConteudo(msg)
+}
+
+function hasHumanAuthorHint(msg) {
+  const fields = [
+    msg?.usuario_id,
+    msg?.user_id,
+    msg?.atendente_id,
+    msg?.operador_id,
+    msg?.colaborador_id,
+    msg?.sent_by_user_id,
+  ]
+  return fields.some((v) => v != null && String(v).trim() !== "")
+}
+
+function hasAutomationHint(msg) {
+  const flags = msg?.flags && typeof msg.flags === "object" ? msg.flags : null
+  if (flags?.provavel_automatica === true || flags?.automatica === true) return true
+  const raw = [
+    msg?.origem,
+    msg?.source,
+    msg?.fonte,
+    msg?.tipo_origem,
+    msg?.enviado_por,
+    msg?.sender_type,
+    msg?.autor_tipo,
+    msg?.created_by_type,
+  ]
+    .map((v) => String(v || "").toLowerCase())
+    .join(" ")
+  return /\b(chatbot|bot|automacao|automatic|automatica|sistema|system)\b/.test(raw)
+}
+
+function isLikelyChatbotTemplateText(text) {
+  const raw = String(text || "")
+  const compact = raw.trim()
+  if (compact.length >= 80) return true
+  if (compact.includes("\n") && compact.length >= 40) return true
+  return /(^|\n)\s*\d+\s*[-.)]/.test(compact)
+}
+
+function isLikelyDuplicateAutomatedTextEcho(prev, incoming) {
+  if (!prev || !incoming) return false
+  if (!isOutgoingLike(prev) || !isOutgoingLike(incoming)) return false
+  if (!isTextMessageForDuplicateCompare(prev) || !isTextMessageForDuplicateCompare(incoming)) return false
+  if (matchesClientTempCorrelation(prev, incoming)) return true
+  if (prev.tempId || incoming.tempId) return false
+
+  const textPrev = normalizeTextForDuplicateCompare(prev)
+  const textIncoming = normalizeTextForDuplicateCompare(incoming)
+  if (!textPrev || textPrev !== textIncoming) return false
+  if (!isLikelyChatbotTemplateText(textPrev)) return false
+
+  const tsPrev = toMillis(prev?.criado_em)
+  const tsIncoming = toMillis(incoming?.criado_em)
+  if (!Number.isFinite(tsPrev) || !Number.isFinite(tsIncoming)) return false
+  const diffMs = Math.abs(tsPrev - tsIncoming)
+  if (diffMs > 15_000) return false
+
+  if (hasAutomationHint(prev) || hasAutomationHint(incoming)) return true
+  if (!hasHumanAuthorHint(prev) && !hasHumanAuthorHint(incoming) && diffMs <= 5_000) return true
+  return false
+}
+
 function isOutgoingLike(msg) {
   const dir = String(msg?.direcao || "").toLowerCase().trim()
   if (dir === "out") return true
@@ -187,6 +261,7 @@ function shouldMergeExistingMessages(existing, msg) {
   if (!existing || !msg) return false
   if (matchesClientTempCorrelation(existing, msg)) return true
   if (existing.tempId && msg.tempId && String(existing.tempId) === String(msg.tempId)) return true
+  if (isLikelyDuplicateAutomatedTextEcho(existing, msg)) return true
   const clientTempId = resolveClientTempId(msg)
   if (clientTempId && existing.tempId && String(existing.tempId) === clientTempId) return true
   if (msg.id != null && String(msg.id).trim() !== "" && existing.id != null && String(existing.id) === String(msg.id)) {
@@ -223,6 +298,7 @@ function stripPersistedIdIfConflictsWithList(list, keepIdx, msg) {
 function areLikelySameMessageBubble(prev, incoming) {
   if (!prev || !incoming) return false
   if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
+  if (isLikelyDuplicateAutomatedTextEcho(prev, incoming)) return true
   const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
   const iwa = incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== "" ? String(incoming.whatsapp_id) : null
   if (pwa && iwa && pwa === iwa) return persistedIdentityMarksSameBubble(prev, incoming)
@@ -444,7 +520,8 @@ function finalizeMensagensList(list) {
   const afterTemps = pruneRedundantOutgoingTemps(list)
   const afterOutgoingEchoes = pruneRedundantOutgoingMediaEchoes(afterTemps)
   const afterIncomingEchoes = pruneRedundantIncomingClientMediaEchoes(afterOutgoingEchoes)
-  const afterIdentityDedupe = dedupeListByPersistedIdentity(afterIncomingEchoes)
+  const afterAutomatedTextEchoes = pruneRedundantAutomatedTextEchoes(afterIncomingEchoes)
+  const afterIdentityDedupe = dedupeListByPersistedIdentity(afterAutomatedTextEchoes)
   const final = sortMensagensChronological(afterIdentityDedupe)
   
   // Debug para detectar remoções inesperadas de áudios
@@ -987,6 +1064,39 @@ function pruneRedundantIncomingClientMediaEchoes(list) {
       if (scoreA > scoreB) remove.add(j)
       else if (scoreB > scoreA) remove.add(i)
       else remove.add(Math.max(i, j))
+    }
+  }
+  if (!remove.size) return list
+  return list.filter((_, idx) => !remove.has(idx))
+}
+
+function automatedTextEchoScore(m) {
+  let score = 0
+  if (hasAutomationHint(m)) score += 8
+  if (m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") score += 4
+  if (m?.id != null && String(m.id).trim() !== "") score += 2
+  const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
+  score += order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
+  const seq = Number(m?._stableInsertSeq)
+  if (Number.isFinite(seq)) score -= seq / 1e15
+  return score
+}
+
+function pruneRedundantAutomatedTextEchoes(list) {
+  if (!Array.isArray(list) || list.length < 2) return list
+  const remove = new Set()
+  for (let i = 0; i < list.length; i++) {
+    if (remove.has(i)) continue
+    for (let j = i + 1; j < list.length; j++) {
+      if (remove.has(j)) continue
+      const a = list[i]
+      const b = list[j]
+      if (!isLikelyDuplicateAutomatedTextEcho(a, b)) continue
+      const scoreA = automatedTextEchoScore(a)
+      const scoreB = automatedTextEchoScore(b)
+      if (scoreA > scoreB) remove.add(j)
+      else if (scoreB > scoreA) remove.add(i)
+      else remove.add(j)
     }
   }
   if (!remove.size) return list

@@ -214,4 +214,66 @@ assert(
   "inbound imagem com mesmo whatsapp_id não deve duplicar"
 );
 
-console.log("OK — regressão de mensagens sequenciais passou (7 cenários).");
+// 8) Chatbot: dois ecos automaticos identicos em poucos segundos nao devem duplicar visualmente
+const botTs = new Date().toISOString();
+const botMenu = `Opcao invalida. Por favor, responda apenas com o numero do setor desejado.
+
+1 - Suporte
+2 - Comercial
+3 - Financeiro
+4 - Administrativo
+
+Responda com o numero da opcao desejada.`;
+list = [];
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 801,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "texto",
+  origem: "chatbot_triage",
+  texto: botMenu,
+  conteudo: botMenu,
+  status: "sent",
+  criado_em: botTs,
+});
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 802,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "texto",
+  origem: "chatbot_triage",
+  texto: botMenu,
+  conteudo: botMenu,
+  status: "sent",
+  criado_em: new Date(new Date(botTs).getTime() + 1000).toISOString(),
+});
+assert(list.length === 1, `chatbot duplicado: esperado 1, obteve ${list.length}`);
+
+// 9) Manual: duas mensagens humanas iguais continuam sendo duas mensagens reais
+const manualLong = "Mensagem manual longa repetida pelo atendente para confirmar o mesmo procedimento ao cliente.";
+list = [];
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 811,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "texto",
+  usuario_id: 7,
+  texto: manualLong,
+  conteudo: manualLong,
+  status: "sent",
+  criado_em: botTs,
+});
+list = mergeMessageIntoListForTest(list, CONV, {
+  id: 812,
+  conversa_id: CONV,
+  direcao: "out",
+  tipo: "texto",
+  usuario_id: 7,
+  texto: manualLong,
+  conteudo: manualLong,
+  status: "sent",
+  criado_em: new Date(new Date(botTs).getTime() + 1000).toISOString(),
+});
+assert(list.length === 2, `manual repetido: esperado 2, obteve ${list.length}`);
+
+console.log("OK - regressao de mensagens sequenciais passou (9 cenarios).");
