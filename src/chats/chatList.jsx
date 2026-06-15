@@ -69,6 +69,7 @@ import MinhasPendenciasCard from "./MinhasPendenciasCard";
 import { useMinhasPendencias } from "./hooks/useMinhasPendencias";
 import { getClientesPendentesSupervisao, getResumoSupervisao } from "../api/supervisaoService";
 import { clearConversation, deleteConversation } from "./conversationActionsService";
+import { chatRowStableKey } from "./chatRowStableKey";
 
 /** Admin UI (filtro lateral por funcionário): aceita role/perfil legado. */
 function isAppAdmin(user) {
@@ -79,12 +80,7 @@ function countDistinctConversas(list) {
   const arr = Array.isArray(list) ? list : [];
   const byKey = new Set();
   arr.forEach((c) => {
-    const key =
-      c?.id != null
-        ? `conv-${c.id}`
-        : c?.cliente_id != null
-          ? `cliente-${c.cliente_id}`
-          : null;
+    const key = chatRowStableKey(c);
     if (key) byKey.add(String(key));
   });
   return byKey.size;
@@ -114,12 +110,7 @@ function sortChatRowsByOrder(list, order) {
 function dedupeChatRowsByStableKey(list) {
   const byKey = new Map();
   (Array.isArray(list) ? list : []).forEach((c) => {
-    const key =
-      c?.id != null
-        ? `conv-${c.id}`
-        : c?.cliente_id != null
-          ? `cliente-${c.cliente_id}`
-          : `tel-${c?.telefone ?? c?.telefone_exibivel ?? Math.random()}`;
+    const key = chatRowStableKey(c);
     if (!byKey.has(key)) byKey.set(key, c);
   });
   return Array.from(byKey.values());
@@ -129,12 +120,7 @@ function mergeChatRowsPreservingCurrent(current, incoming, order) {
   const byKey = new Map();
   const put = (row, preferIncoming = false) => {
     if (!row) return;
-    const key =
-      row?.id != null
-        ? `conv-${row.id}`
-        : row?.cliente_id != null
-          ? `cliente-${row.cliente_id}`
-          : `tel-${row?.telefone ?? row?.telefone_exibivel ?? Math.random()}`;
+    const key = chatRowStableKey(row);
     const prev = byKey.get(key);
     byKey.set(key, prev && preferIncoming ? { ...prev, ...row } : prev || row);
   };
@@ -1616,10 +1602,10 @@ export default function ChatList() {
     carregarConversa(chatId);
   }, [carregarConversa, isMobileLayout]);
 
-  const handleOpenClienteSemConversa = useCallback(async (cliente_id) => {
+  const handleOpenClienteSemConversa = useCallback(async (cliente_id, whatsapp_instance_id) => {
     if (!cliente_id) return;
     try {
-      const { conversa } = await abrirConversaCliente(cliente_id);
+      const { conversa } = await abrirConversaCliente(cliente_id, whatsapp_instance_id);
       if (conversa?.id) {
         addChat(conversa);
         if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {

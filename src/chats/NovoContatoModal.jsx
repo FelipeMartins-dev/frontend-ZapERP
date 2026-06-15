@@ -11,6 +11,7 @@ import {
   formatBrPhoneDisplay,
   isPlausibleBrPhoneDigits,
 } from "./phoneBrFormat";
+import { fetchWhatsappInstancesAtendimento, whatsappInstanceLabel } from "./whatsappInstancesService";
 import "./novoContatoModal.css";
 
 /**
@@ -28,6 +29,9 @@ export default function NovoContatoModal({ open, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [clientError, setClientError] = useState("");
   const [apiError, setApiError] = useState(null);
+  const [whatsappInstances, setWhatsappInstances] = useState([]);
+  const [selectedInstanceId, setSelectedInstanceId] = useState("");
+  const [loadingInstances, setLoadingInstances] = useState(false);
 
   const telefoneRef = useRef(null);
   const overlayRef = useRef(null);
@@ -37,6 +41,10 @@ export default function NovoContatoModal({ open, onClose, onSuccess }) {
   const telId = `${idBase}-tel`;
   const chkAbrirId = `${idBase}-abrir`;
   const chkAssumirId = `${idBase}-assumir`;
+  const instId = `${idBase}-whatsapp-instance`;
+
+  const needsInstancePicker = whatsappInstances.length > 1;
+  const mustPickInstance = needsInstancePicker && (abrirConversa || assumir);
 
   const resetApiHints = useCallback(() => {
     setApiError(null);
@@ -51,10 +59,37 @@ export default function NovoContatoModal({ open, onClose, onSuccess }) {
     setSubmitting(false);
     setClientError("");
     setApiError(null);
+    setWhatsappInstances([]);
+    setSelectedInstanceId("");
+    setLoadingInstances(false);
     const t = requestAnimationFrame(() => {
       telefoneRef.current?.focus();
     });
     return () => cancelAnimationFrame(t);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoadingInstances(true);
+    fetchWhatsappInstancesAtendimento({ silent: true })
+      .then((list) => {
+        if (cancelled) return;
+        const active = Array.isArray(list) ? list.filter((i) => i && i.ativo !== false) : [];
+        setWhatsappInstances(active);
+        if (active.length === 1) {
+          setSelectedInstanceId(String(active[0].id));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setWhatsappInstances([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingInstances(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -94,6 +129,11 @@ export default function NovoContatoModal({ open, onClose, onSuccess }) {
       return;
     }
 
+    if (mustPickInstance && !selectedInstanceId) {
+      setClientError("Selecione por qual número WhatsApp deseja iniciar a conversa.");
+      return;
+    }
+
     setClientError("");
     setSubmitting(true);
     resetApiHints();
@@ -109,9 +149,19 @@ export default function NovoContatoModal({ open, onClose, onSuccess }) {
       } else if (abrirConversa) {
         payload.abrir_conversa = true;
       }
+      if (selectedInstanceId && (abrirConversa || assumir)) {
+        payload.whatsapp_instance_id = Number(selectedInstanceId);
+      }
 
       const data = await criarCliente(payload);
       const parsed = parsePostClientesResponse(data);
+
+      if (parsed.codigo === "SELECIONE_WHATSAPP_INSTANCE" || data?.codigo === "SELECIONE_WHATSAPP_INSTANCE") {
+        const fromApi = data?.whatsapp_instances ?? parsed.whatsapp_instances;
+        if (Array.isArray(fromApi) && fromApi.length) setWhatsappInstances(fromApi);
+        setClientError("Selecione por qual número WhatsApp deseja iniciar a conversa.");
+        return;
+      }
 
       if (parsed.conversa_aviso) {
         showToast({
@@ -249,6 +299,35 @@ export default function NovoContatoModal({ open, onClose, onSuccess }) {
               <span className="ncm-example">{EXEMPLO_TELEFONE_PADRAO}</span>
             </p>
           </div>
+
+          {mustPickInstance ? (
+            <div className="ncm-field">
+              <label className="ncm-label-row" htmlFor={instId}>
+                Número WhatsApp
+              </label>
+              <select
+                id={instId}
+                className="ncm-input"
+                value={selectedInstanceId}
+                onChange={(e) => {
+                  setSelectedInstanceId(e.target.value);
+                  resetApiHints();
+                }}
+                disabled={submitting || loadingInstances}
+                aria-required="true"
+              >
+                <option value="">
+                  {loadingInstances ? "Carregando números…" : "Selecione o número"}
+                </option>
+                {whatsappInstances.map((inst) => (
+                  <option key={String(inst.id)} value={String(inst.id)}>
+                    {whatsappInstanceLabel(inst) || `WhatsApp #${inst.id}`}
+                  </option>
+                ))}
+              </select>
+              <p className="ncm-help">Este contato pode conversar por mais de um número da empresa.</p>
+            </div>
+          ) : null}
 
           <div className="ncm-field ncm-field--checks" role="group" aria-label="Opções ao salvar">
             <label className="ncm-check" htmlFor={chkAbrirId}>

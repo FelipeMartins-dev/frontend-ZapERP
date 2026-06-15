@@ -6,18 +6,11 @@ import {
   normalizeMensagemStatusKey,
   ultimaMensagemRefsEqual,
 } from "./chatListStoreCompare"
+import { chatRowStableKey } from "./chatRowStableKey"
 
-/** Chave canônica para dedupe: telefone | canonicalPhone | chat_lid */
+/** Chave canônica para dedupe: conv id ou escopo instância + contato */
 function canonicalKey(c) {
-  if (c?.id != null && String(c.id).trim() !== "") return `conv:${String(c.id)}`
-  const instanceId = c?.whatsapp_instance_id ?? c?.whatsappInstanceId ?? c?.whatsapp_instance?.id ?? ""
-  const instanceScope = instanceId != null && String(instanceId).trim() !== "" ? `wi:${String(instanceId).trim()}` : "wi:legacy"
-  const tel = c?.telefone ?? c?.numero ?? c?.phone ?? c?.wa_id ?? ""
-  const canon = c?.canonicalPhone ?? c?.canonical_phone ?? ""
-  const lid = c?.chat_lid ?? c?.chatLid ?? ""
-  const s = String(tel || canon || lid || "").trim()
-  const contactKey = s.toLowerCase().startsWith("lid:") ? `lid:${lid}` : s
-  return `${instanceScope}:${contactKey || "sem-contato"}`
+  return chatRowStableKey(c)
 }
 
 /** Debounce + teto: vários eventos socket seguidos → no máximo um GET /chats por janela */
@@ -160,7 +153,13 @@ export const useChatStore = create((set, get) => ({
         : (existing ? Number(existing.unread_count ?? existing.unread) || 0 : 0)
     const merged = { ...chat, unread_count: unread }
     if (chat.cliente_id != null) {
-      chats = chats.filter(c => !(c.sem_conversa && String(c.cliente_id) === String(chat.cliente_id)))
+      const chatInstance = chat?.whatsapp_instance_id ?? chat?.whatsappInstanceId ?? null
+      chats = chats.filter((c) => {
+        if (!c.sem_conversa || String(c.cliente_id) !== String(chat.cliente_id)) return true
+        if (chatInstance == null) return false
+        const rowInstance = c?.whatsapp_instance_id ?? c?.whatsappInstanceId ?? null
+        return rowInstance != null && String(rowInstance) !== String(chatInstance)
+      })
     }
     const nomeNorm = (v) => (v != null && String(v).trim() !== '' && String(v).trim().toLowerCase() !== 'name' ? String(v).trim() : null)
     const fotoNorm = (v) => (v != null && String(v).trim().startsWith('http') ? String(v).trim() : null)

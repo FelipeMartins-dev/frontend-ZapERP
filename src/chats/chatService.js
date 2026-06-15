@@ -257,10 +257,13 @@ export async function criarComunidade(nome) {
  * Cria ou reutiliza conversa por telefone (BR).
  * Em 400, lança Error com `codigo`, `detalhe`, `formato_esperado`, `exemplos`, `isApiValidation`.
  */
-export async function criarContato(nome, telefone) {
+export async function criarContato(nome, telefone, whatsapp_instance_id) {
   const nomeTrim = nome != null ? String(nome).trim() : "";
   const body = { telefone };
   if (nomeTrim) body.nome = nomeTrim;
+  if (whatsapp_instance_id != null && String(whatsapp_instance_id).trim() !== "") {
+    body.whatsapp_instance_id = Number(whatsapp_instance_id);
+  }
 
   try {
     const { data } = await api.post("/chats/contato", body);
@@ -332,14 +335,23 @@ export function buildTelefoneVariantsForContato(telefone) {
 }
 
 /**
- * Encontra chat na lista cujo telefone bate com alguma variante.
- * @param {any[]} chats
- * @param {string[]} variants — dígitos
+ * Encontra chats na lista cujo telefone bate com alguma variante.
+ * Se whatsapp_instance_id informado, restringe à instância.
+ * Se vários matches e sem instância, retorna null (evita abrir conversa errada).
  */
-function findChatMatchingTelefoneVariants(chats, variants) {
-  if (!Array.isArray(chats) || !variants?.length) return null;
+function findChatsMatchingTelefoneVariants(chats, variants, whatsapp_instance_id) {
+  if (!Array.isArray(chats) || !variants?.length) return [];
   const cores = variants.map((v) => digitsCoreBr(v)).filter(Boolean);
+  const wantInstance =
+    whatsapp_instance_id != null && String(whatsapp_instance_id).trim() !== ""
+      ? String(whatsapp_instance_id).trim()
+      : null;
+  const matches = [];
   for (const c of chats) {
+    if (wantInstance) {
+      const rowInst = c?.whatsapp_instance_id ?? c?.whatsappInstanceId ?? null;
+      if (rowInst == null || String(rowInst) !== wantInstance) continue;
+    }
     const fields = [
       c?.telefone,
       c?.cliente_telefone,
@@ -353,12 +365,20 @@ function findChatMatchingTelefoneVariants(chats, variants) {
       if (!core) continue;
       for (const want of cores) {
         if (want === core || core.endsWith(want) || want.endsWith(core)) {
-          return c;
+          matches.push(c);
+          break;
         }
       }
     }
   }
-  return null;
+  return matches;
+}
+
+function findChatMatchingTelefoneVariants(chats, variants, whatsapp_instance_id) {
+  const matches = findChatsMatchingTelefoneVariants(chats, variants, whatsapp_instance_id);
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1 && !whatsapp_instance_id) return null;
+  return matches[0] || null;
 }
 
 function pickClienteIdFromContatoResponse(created) {
@@ -370,8 +390,12 @@ function pickClienteIdFromContatoResponse(created) {
 }
 
 /** Abre (ou cria) conversa para um cliente da lista — retorna a conversa para abrir no atendimento */
-export async function abrirConversaCliente(cliente_id) {
-  const { data } = await api.post("/chats/abrir-conversa", { cliente_id });
+export async function abrirConversaCliente(cliente_id, whatsapp_instance_id) {
+  const body = { cliente_id };
+  if (whatsapp_instance_id != null && String(whatsapp_instance_id).trim() !== "") {
+    body.whatsapp_instance_id = Number(whatsapp_instance_id);
+  }
+  const { data } = await api.post("/chats/abrir-conversa", body);
   return data;
 }
 
@@ -379,7 +403,7 @@ export async function abrirConversaCliente(cliente_id) {
  * Quando POST /chats/contato falha (ex.: “não cadastrou cliente”), abre pelo mesmo caminho do modal Novo contato:
  * POST /clientes com `abrir_conversa` — encontra ou cria conversa só pelo número (estilo WhatsApp).
  */
-async function abrirConversaViaPostClientes(nome, telefoneBruto, variants) {
+async function abrirConversaViaPostClientes(nome, telefoneBruto, variants, whatsapp_instance_id) {
   const tries = [];
   const raw = String(telefoneBruto ?? "").trim();
   if (raw) tries.push(raw);
@@ -396,6 +420,9 @@ async function abrirConversaViaPostClientes(nome, telefoneBruto, variants) {
       };
       const nomeTrim = nome != null ? String(nome).trim() : "";
       if (nomeTrim) payload.nome = nomeTrim;
+      if (whatsapp_instance_id != null && String(whatsapp_instance_id).trim() !== "") {
+        payload.whatsapp_instance_id = Number(whatsapp_instance_id);
+      }
 
       const rawRes = await criarCliente(payload);
       const parsed = parsePostClientesResponse(rawRes);
@@ -406,7 +433,7 @@ async function abrirConversaViaPostClientes(nome, telefoneBruto, variants) {
 
       const clienteId = parsed.cliente?.id;
       if (clienteId != null) {
-        const opened = await abrirConversaCliente(clienteId);
+        const opened = await abrirConversaCliente(clienteId, whatsapp_instance_id);
         const conv =
           conversaFromContatoResponse(opened) ??
           (opened && typeof opened === "object" ? opened.conversa ?? opened.chat : null) ??
@@ -426,14 +453,14 @@ async function abrirConversaViaPostClientes(nome, telefoneBruto, variants) {
 }
 
 /** Busca ou cria conversa pelo telefone (para cartão de contato compartilhado) */
-export async function abrirConversaPorTelefone(nome, telefone) {
+export async function abrirConversaPorTelefone(nome, telefone, whatsapp_instance_id) {
   const variants = buildTelefoneVariantsForContato(telefone);
   if (!variants.length) throw new Error("Telefone obrigatório");
 
   for (const palavra of variants) {
     try {
       const list = await fetchChats({ palavra, incluir_todos_clientes: true });
-      const chat = findChatMatchingTelefoneVariants(Array.isArray(list) ? list : [], variants);
+      const chat = findChatMatchingTelefoneVariants(Array.isArray(list) ? list : [], variants, whatsapp_instance_id);
       if (chat?.id) return { conversa: chat };
     } catch {
       /* tenta próxima variante na busca */
@@ -443,13 +470,13 @@ export async function abrirConversaPorTelefone(nome, telefone) {
   let lastErr;
   for (const telTry of variants) {
     try {
-      const created = await criarContato(nome || "Contato", telTry);
+      const created = await criarContato(nome || "Contato", telTry, whatsapp_instance_id);
       const convDirect = conversaFromContatoResponse(created);
       if (convDirect?.id) return { conversa: convDirect };
 
       const clienteId = pickClienteIdFromContatoResponse(created);
       if (clienteId != null) {
-        const opened = await abrirConversaCliente(clienteId);
+        const opened = await abrirConversaCliente(clienteId, whatsapp_instance_id);
         const conv =
           conversaFromContatoResponse(opened) ??
           (opened && typeof opened === "object" ? opened.conversa ?? opened.chat : null) ??
@@ -465,7 +492,7 @@ export async function abrirConversaPorTelefone(nome, telefone) {
   }
 
   try {
-    return await abrirConversaViaPostClientes(nome, telefone, variants);
+    return await abrirConversaViaPostClientes(nome, telefone, variants, whatsapp_instance_id);
   } catch (e2) {
     /* Preferir mensagem da rota alternativa; senão mantém o erro de /chats/contato */
     throw e2 || lastErr;

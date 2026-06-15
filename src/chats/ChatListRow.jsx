@@ -1197,7 +1197,8 @@ function ChatRow({
   const activateRow = useCallback(() => {
     if (semConversa && chat?.cliente_id) {
       setOpening(true);
-      onOpenClienteSemConversa?.(chat.cliente_id)
+      const instanceId = chat?.whatsapp_instance_id ?? chat?.whatsappInstanceId ?? null;
+      onOpenClienteSemConversa?.(chat.cliente_id, instanceId)
         .finally(() => setOpening(false));
       return;
     }
