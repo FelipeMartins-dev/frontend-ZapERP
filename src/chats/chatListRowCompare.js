@@ -43,10 +43,12 @@ export function chatRowContactSurfaceKey(c) {
   const tagId = String(tag?.id ?? "");
   const tagNome = String(tag?.nome ?? "");
   const tagCor = String(tag?.cor ?? "");
-  return `${displayName}|${avatarUrl ?? ""}|${phone}|${empresa}|${setor}|${String(c?.departamento_id ?? "")}|${tagId}|${tagNome}|${tagCor}`;
+  const instanceLabel = String(c?.whatsapp_instance_nome ?? c?.whatsapp_instance_display_phone ?? "").trim();
+  return `${displayName}|${avatarUrl ?? ""}|${phone}|${empresa}|${setor}|${String(c?.departamento_id ?? "")}|${tagId}|${tagNome}|${tagCor}|${instanceLabel}`;
 }
 
 export function chatRowPropsAreEqual(prev, next) {
+  if (prev.showWhatsappInstanceUi !== next.showWhatsappInstanceUi) return false;
   const a = prev.chat || {};
   const b = next.chat || {};
   const pa = rowPrefs(a);

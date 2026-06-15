@@ -6,6 +6,7 @@ import "../components/feedback/empty-state.css";
 import "../components/feedback/skeleton.css";
 import { useConversaStore } from "../conversa/conversaStore";
 import { useChatStore } from "../chats/chatsStore";
+import { useWhatsappInstancesStore } from "../chats/whatsappInstancesStore";
 import { applyDocumentTitle } from "../socket/socket";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import { WA_ATENDIMENTO_CHAT_HISTORY_KEY } from "../atendimento/atendimentoMobileHistory";
@@ -154,6 +155,10 @@ export default function Atendimento() {
       navigate("/atendimento", { replace: true, state: {} });
     }
   }, [openConversaId, carregarConversa, navigate]);
+
+  useEffect(() => {
+    useWhatsappInstancesStore.getState().load();
+  }, []);
 
   useEffect(() => {
     const q = searchParams.get("conversa");

@@ -113,6 +113,7 @@ import ConversaHeader from "./components/ConversaHeader";
 import ConversaMessageSearchPanel from "./components/ConversaMessageSearchPanel";
 
 import { useChatStore } from "../chats/chatsStore";
+import { useWhatsappInstancesStore } from "../chats/whatsappInstancesStore";
 import {
   listarTags,
   adicionarTagConversa,
@@ -564,8 +565,10 @@ function ConversaViewBody() {
     [chats, conversaId]
   );
 
+  const showWhatsappInstanceUi = useWhatsappInstancesStore((s) => s.hasMultiple);
+
   const whatsappInstanceLabel = useMemo(() => {
-    if (isGroup) return "";
+    if (!showWhatsappInstanceUi || isGroup) return "";
     const source = conversa ?? fromChat ?? {};
     return String(
       source?.whatsapp_instance_nome ||
@@ -576,7 +579,7 @@ function ConversaViewBody() {
       fromChat?.whatsapp_instance_display_phone ||
       ""
     ).trim();
-  }, [conversa, fromChat, isGroup]);
+  }, [conversa, fromChat, isGroup, showWhatsappInstanceUi]);
 
   // Nome idêntico à lista de conversas: usa getDisplayName do chatList quando disponível
   const nome = useMemo(() => {

@@ -1047,6 +1047,7 @@ function ChatRow({
   onToggleMenu,
   pendentesFuncionarioSet = EMPTY_PENDENTES_SET,
   minuteTick,
+  showWhatsappInstanceUi = false,
 }) {
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
@@ -1161,7 +1162,7 @@ function ChatRow({
     !isGroup && chat?.departamento_id != null
       ? String(chat.setor ?? chat?.departamento?.nome ?? chat?.departamentos?.nome ?? "").trim()
       : "";
-  const whatsappInstanceLabel = !isGroup
+  const whatsappInstanceLabel = !isGroup && showWhatsappInstanceUi
     ? String(
         chat?.whatsapp_instance_nome ||
         chat?.whatsappInstanceNome ||

@@ -4,6 +4,8 @@ import { useConversaStore } from "../conversa/conversaStore";
 import { chatRowListStoreKey } from "./chatListStoreCompare";
 import { CHAT_LIST_ROW_GAP, estimateChatListRowSize } from "./chatListRowAtendimento";
 import MemoChatRow from "./ChatListRow";
+import { useWhatsappInstancesStore } from "./whatsappInstancesStore";
+import { chatRowStableKey } from "./chatRowStableKey";
 
 /** A partir deste tamanho, lista virtualizada (crítico na aba Todas no mobile). */
 export const CHAT_LIST_VIRTUAL_THRESHOLD = 48;
@@ -18,7 +20,7 @@ function renderChatListRow(c, selectedId, props) {
     selectedId != null &&
     String(selectedId) === String(id);
 
-  const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id);
+  const rowKey = chatRowStableKey(c) || (clienteSemConv ? `sem-${c.cliente_id}` : String(id));
 
   return (
     <MemoChatRow
@@ -32,6 +34,7 @@ function renderChatListRow(c, selectedId, props) {
       onToggleMenu={props.onToggleMenu}
       pendentesFuncionarioSet={props.pendentesFuncionarioSet}
       minuteTick={props.minuteTick}
+      showWhatsappInstanceUi={props.showWhatsappInstanceUi}
     />
   );
 }
@@ -50,6 +53,7 @@ const ChatListRows = memo(function ChatListRows({
   onToggleMenu,
   pendentesFuncionarioSet,
 }) {
+  const showWhatsappInstanceUi = useWhatsappInstancesStore((s) => s.hasMultiple);
   const mobileSelectedId = useConversaStore((s) => (isMobileLayout ? s.selectedId : null));
   const selectedIdHighlight = useConversaStore((s) => (isMobileLayout ? null : s.selectedId));
   const mobileConversaAberta = isMobileLayout && mobileSelectedId != null;
@@ -84,6 +88,7 @@ const ChatListRows = memo(function ChatListRows({
       onToggleMenu: stableOnToggleMenu,
       pendentesFuncionarioSet,
       minuteTick,
+      showWhatsappInstanceUi,
     }),
     [
       onSelect,
@@ -93,6 +98,7 @@ const ChatListRows = memo(function ChatListRows({
       stableOnToggleMenu,
       pendentesFuncionarioSet,
       minuteTick,
+      showWhatsappInstanceUi,
     ]
   );
 
@@ -122,8 +128,7 @@ const ChatListRows = memo(function ChatListRows({
     getItemKey: (index) => {
       const c = chatsFiltrados[index];
       if (!c) return `row-${index}`;
-      if (c.sem_conversa && c.cliente_id) return `sem-${c.cliente_id}`;
-      return `chat-${String(c.id ?? index)}`;
+      return chatRowStableKey(c);
     },
   });
 

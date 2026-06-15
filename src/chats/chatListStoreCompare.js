@@ -33,6 +33,8 @@ export function chatRowListStoreKey(c) {
     Boolean(c.tem_novas_mensagens_em_atendimento),
     String(c.atendente_id ?? ""),
     String(c.atendente_nome ?? ""),
+    String(c.whatsapp_instance_id ?? ""),
+    String(c.whatsapp_instance_nome ?? ""),
     String(c.departamento_id ?? ""),
     getLastDirection(c),
     String(c.ultima_atividade ?? ""),
