@@ -240,7 +240,20 @@ function ConversaViewBody() {
     const atendenteId = conversa?.atendente_id ?? null;
     if (atendenteId == null || atendenteId === "") return false;
     return String(atendenteId) === String(user.id);
-  }, [user?.id, conversa, conversa?.atendente_id, conversa?.id, conversa?.mensagens_bloqueadas]);
+  }, [
+    user?.id,
+    conversa?.id,
+    conversa?.remoteJid,
+    conversa?.telefone,
+    conversa?.phone,
+    conversa?.is_group,
+    conversa?.isGroup,
+    conversa?.tipo,
+    conversa?.status_atendimento_real,
+    conversa?.status_atendimento,
+    conversa?.mensagens_bloqueadas,
+    conversa?.atendente_id,
+  ]);
 
   const [showTimeline, setShowTimeline] = useState(false);
   const [messageSearchOpen, setMessageSearchOpen] = useState(false);
@@ -723,7 +736,10 @@ function ConversaViewBody() {
 
   const tempoSemResponder = useMemo(() => {
     const list = Array.isArray(mensagens) ? mensagens : [];
-    const ultimaIn = [...list].reverse().find((m) => m?.direcao === "in");
+    let ultimaIn = null;
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i]?.direcao === "in") { ultimaIn = list[i]; break; }
+    }
     if (!ultimaIn?.criado_em) return null;
     const diffMs = Date.now() - new Date(ultimaIn.criado_em).getTime();
     const diffMin = Math.floor(diffMs / 60000);

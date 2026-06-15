@@ -35,6 +35,12 @@ export default defineConfig(({ mode }) => {
             if (/[/\\]node_modules[/\\](react|react-dom|scheduler)[/\\]/.test(id)) return "vendor-react";
             if (/[/\\]node_modules[/\\]react-router/.test(id)) return "vendor-router";
             if (/[/\\]node_modules[/\\]axios[/\\]/.test(id)) return "vendor-axios";
+            if (/[/\\]node_modules[/\\]socket\.io/.test(id)) return "vendor-socket";
+            if (/[/\\]node_modules[/\\](react-markdown|remark|rehype|unified|micromark|mdast|unist|vfile|bail|trough)[/\\]/.test(id)) return "vendor-markdown";
+            if (/[/\\]node_modules[/\\]@tanstack[/\\]/.test(id)) return "vendor-tanstack";
+            if (/[/\\]node_modules[/\\]@dnd-kit[/\\]/.test(id)) return "vendor-dnd";
+            if (/[/\\]node_modules[/\\](lucide-react|@tabler)[/\\]/.test(id)) return "vendor-icons";
+            if (/[/\\]node_modules[/\\]zustand[/\\]/.test(id)) return "vendor-state";
             return undefined;
           },
         },

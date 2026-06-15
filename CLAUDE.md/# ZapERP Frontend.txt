@@ -1,0 +1,24 @@
+# ZapERP Frontend
+
+Este projeto é o frontend do ZapERP, um sistema profissional de atendimento, WhatsApp, CRM, automações e gestão.
+
+O objetivo é manter o sistema rápido, estável, fluido, moderno, responsivo, seguro e com visual premium.
+
+Sempre priorize:
+- performance
+- estabilidade
+- carregamento rápido
+- navegação fluida
+- visual profissional
+- responsividade mobile
+- chat sem bugs
+- scroll liso
+- código limpo
+- baixa manutenção
+- produção segura
+
+Evite soluções improvisadas, lentas, frágeis, confusas ou com aparência amadora.
+
+Antes de alterar algo importante, entenda o fluxo atual e preserve as regras de negócio existentes.
+
+O padrão esperado é um sistema profissional, veloz, elegante, confiável e pronto para produção.

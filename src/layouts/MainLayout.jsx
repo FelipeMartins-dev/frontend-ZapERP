@@ -5,7 +5,6 @@ import {
   IconFilter,
   IconGridDots,
   IconHeadset,
-  IconLock,
   IconLogout,
   IconMessage2,
   IconRobot,
@@ -140,13 +139,6 @@ export default function MainLayout() {
           title: "IA / Sparkles",
           icon: IconSparkles,
           show: canAccessDashboard_,
-        },
-        {
-          to: "/permissoes",
-          label: "Segurança",
-          title: "Segurança / Permissões",
-          icon: IconLock,
-          show: canAccessUsers,
         },
       ].filter((item) => item.show),
     [

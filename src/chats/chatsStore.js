@@ -187,10 +187,6 @@ export const useChatStore = create((set, get) => ({
         telefone_exibivel: merged.telefone_exibivel !== undefined ? merged.telefone_exibivel : existing.telefone_exibivel,
       }
       next[newIdx] = updated
-      if (chatRowStoreMergeUnchanged(existing, updated)) {
-        const sortedProbe = sortConversasByRecent(dedupeConversas(next))
-        if (chatListsStoreEquivalent(chats, sortedProbe)) return
-      }
       const sorted = sortConversasByRecent(dedupeConversas(next))
       if (chatListsStoreEquivalent(chats, sorted)) return
       set({ chats: sorted })

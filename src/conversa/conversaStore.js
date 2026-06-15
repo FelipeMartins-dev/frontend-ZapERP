@@ -102,7 +102,7 @@ function normalizeConversaId(id) {
 
 const conversaMensagensCache = new Map()
 const CONVERSA_MENSAGENS_CACHE_MAX = 48
-const CONVERSA_MENSAGENS_CACHE_TTL_MS = 45 * 60 * 1000
+const CONVERSA_MENSAGENS_CACHE_TTL_MS = 20 * 60 * 1000
 
 function trimConversaMensagensCache() {
   while (conversaMensagensCache.size > CONVERSA_MENSAGENS_CACHE_MAX) {
@@ -786,19 +786,9 @@ export const useConversaStore = create((set, get) => {
             : null
 
         set((state) => {
-          const atual = state.mensagens || []
-          const map = new Map()
-          let batchOrd = 0
-          const put = (raw) => {
-            if (!raw) return
-            const ord = ++batchOrd
-            putMensagemInDedupeMap(map, raw, selectedId, ord)
-          }
-          ;(mais || []).forEach(put)
-          atual.forEach(put)
-          const sorted = finalizeMensagensList(Array.from(map.values()))
+          const merged = get()._mergeMensagensFromApi(mais || [], state.mensagens || [], selectedId)
           return {
-            mensagens: attachReplyMeta(selectedId, sorted),
+            mensagens: attachReplyMeta(selectedId, merged),
             cursor: nextCursor,
             cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
             hasMore: !!nextCursor,
