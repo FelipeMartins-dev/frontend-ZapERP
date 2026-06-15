@@ -1161,6 +1161,15 @@ function ChatRow({
     !isGroup && chat?.departamento_id != null
       ? String(chat.setor ?? chat?.departamento?.nome ?? chat?.departamentos?.nome ?? "").trim()
       : "";
+  const whatsappInstanceLabel = !isGroup
+    ? String(
+        chat?.whatsapp_instance_nome ||
+        chat?.whatsappInstanceNome ||
+        chat?.whatsapp_instance_display_phone ||
+        chat?.whatsappInstanceDisplayPhone ||
+        ""
+      ).trim()
+    : "";
 
   useEffect(() => {
     setImgError(false);
@@ -1285,6 +1294,11 @@ function ChatRow({
             {!isGroup && setorLabelNome ? (
               <div className="chat-list-setor" title={`Setor: ${setorLabelNome}`}>
                 {setorLabelNome}
+              </div>
+            ) : null}
+            {!isGroup && whatsappInstanceLabel ? (
+              <div className="chat-list-whatsapp-instance" title={`Numero WhatsApp: ${whatsappInstanceLabel}`}>
+                {whatsappInstanceLabel}
               </div>
             ) : null}
             {!isGroup && empresa ? (

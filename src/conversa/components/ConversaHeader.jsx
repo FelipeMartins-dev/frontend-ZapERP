@@ -56,6 +56,7 @@ function ConversaHeader({
   onOpenProdutosPanel,
   onOpenClienteSide,
   onOpenMessageSearch,
+  whatsappInstanceLabel,
 }) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreMenuWrapRef = useRef(null);
@@ -298,6 +299,14 @@ function ConversaHeader({
                   <>
                     {badge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
                     <span className="wa-header-metaItem wa-muted">Grupo</span>
+                  </>
+                ) : null}
+                {!isGroup && whatsappInstanceLabel ? (
+                  <>
+                    {badge || showPagamentoConcluidoBadge ? <span className="wa-header-metaSep" aria-hidden="true" /> : null}
+                    <span className="wa-header-metaItem wa-header-whatsappInstance" title={`Numero WhatsApp: ${whatsappInstanceLabel}`}>
+                      {whatsappInstanceLabel}
+                    </span>
                   </>
                 ) : null}
               </div>

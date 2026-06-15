@@ -564,6 +564,20 @@ function ConversaViewBody() {
     [chats, conversaId]
   );
 
+  const whatsappInstanceLabel = useMemo(() => {
+    if (isGroup) return "";
+    const source = conversa ?? fromChat ?? {};
+    return String(
+      source?.whatsapp_instance_nome ||
+      source?.whatsappInstanceNome ||
+      source?.whatsapp_instance_display_phone ||
+      source?.whatsappInstanceDisplayPhone ||
+      fromChat?.whatsapp_instance_nome ||
+      fromChat?.whatsapp_instance_display_phone ||
+      ""
+    ).trim();
+  }, [conversa, fromChat, isGroup]);
+
   // Nome idêntico à lista de conversas: usa getDisplayName do chatList quando disponível
   const nome = useMemo(() => {
     const chatParaNome = fromChat ?? conversa;
@@ -2951,6 +2965,7 @@ function ConversaViewBody() {
           onOpenProdutosPanel={handleOpenProdutosPanel}
           onOpenClienteSide={handleOpenClienteSide}
           onOpenMessageSearch={() => setMessageSearchOpen(true)}
+          whatsappInstanceLabel={whatsappInstanceLabel}
         />
 
         <ConversaMessageSearchPanel

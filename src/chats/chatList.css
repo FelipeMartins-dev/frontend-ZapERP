@@ -1951,6 +1951,17 @@ a { color: inherit; text-decoration: none; }
   min-width: 0;
 }
 
+.chat-list-whatsapp-instance {
+  margin-top: 1px;
+  font-size: var(--cl-font-size-xs);
+  color: var(--cl-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  opacity: .9;
+}
+
 .chat-list-empresa{
   margin-top: 1px;
   font-size: var(--cl-font-size-xs);

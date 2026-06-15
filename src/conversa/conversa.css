@@ -363,6 +363,11 @@
   max-width: min(100%, 240px);
 }
 
+.wa-header-whatsappInstance {
+  color: var(--wa-accent);
+  font-weight: 700;
+}
+
 /* Desktop: status em uma linha; largura máx. só limita o strip (scroll), não “esprema” o pill */
 @media (min-width: 641px) {
   .wa-status-pill--meta {

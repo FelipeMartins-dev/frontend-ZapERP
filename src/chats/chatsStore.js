@@ -9,11 +9,15 @@ import {
 
 /** Chave canônica para dedupe: telefone | canonicalPhone | chat_lid */
 function canonicalKey(c) {
+  if (c?.id != null && String(c.id).trim() !== "") return `conv:${String(c.id)}`
+  const instanceId = c?.whatsapp_instance_id ?? c?.whatsappInstanceId ?? c?.whatsapp_instance?.id ?? ""
+  const instanceScope = instanceId != null && String(instanceId).trim() !== "" ? `wi:${String(instanceId).trim()}` : "wi:legacy"
   const tel = c?.telefone ?? c?.numero ?? c?.phone ?? c?.wa_id ?? ""
   const canon = c?.canonicalPhone ?? c?.canonical_phone ?? ""
   const lid = c?.chat_lid ?? c?.chatLid ?? ""
   const s = String(tel || canon || lid || "").trim()
-  return s.toLowerCase().startsWith("lid:") ? `lid:${lid}` : s || `id-${c?.id ?? ""}`
+  const contactKey = s.toLowerCase().startsWith("lid:") ? `lid:${lid}` : s
+  return `${instanceScope}:${contactKey || "sem-contato"}`
 }
 
 /** Debounce + teto: vários eventos socket seguidos → no máximo um GET /chats por janela */
