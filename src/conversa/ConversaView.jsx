@@ -280,6 +280,7 @@ function ConversaViewBody() {
   const pendingCaptionRef = useRef(null);
   const mediaPreviewRootRef = useRef(null);
   const pendingBlobUrlRef = useRef(null);
+  const pendingConversaIdRef = useRef(null);
   const confirmSendLockRef = useRef(false);
   /** Evita POST duplicado do mesmo arquivo (double-click / Enter + botão). */
   const arquivoEnvioInFlightRef = useRef(new Set());
@@ -368,6 +369,11 @@ function ConversaViewBody() {
   }, [pendingPreview]);
 
   const conversaId = conversa?.id || null;
+
+  const debugMessageBoundary = useCallback((event, payload = {}) => {
+    if (!import.meta?.env?.DEV) return;
+    console.debug(`[message-boundary] ${event}`, payload);
+  }, []);
 
   /** Enquanto `carregarConversa` limpa `conversa`, `selectedId` mantém o chat — necessário para scroll até à última mensagem não falhar a meio do load. */
   const scrollThreadId =
@@ -1098,13 +1104,14 @@ function ConversaViewBody() {
         URL.revokeObjectURL(pendingPreview);
       } catch {}
     }
+    pendingConversaIdRef.current = null;
     setPendingFile(null);
     setPendingPreview(null);
     setPendingCaption("");
   }, [pendingPreview]);
 
   const openMediaSendPreview = useCallback((file) => {
-    if (!file) return;
+    if (!file || !conversaId) return;
     if (isArquivoBloqueadoWhatsApp(file)) {
       showToast({
         type: "error",
@@ -1113,6 +1120,7 @@ function ConversaViewBody() {
       });
       return;
     }
+    pendingConversaIdRef.current = conversaId;
     setPendingFile(file);
     setPendingCaption("");
     if (isImageFile(file) || isVideoFile(file)) {
@@ -1127,7 +1135,7 @@ function ConversaViewBody() {
     } else {
       setPendingPreview(null);
     }
-  }, [showToast]);
+  }, [conversaId, showToast]);
 
   const onHeaderAvatarClick = useCallback(() => {
     if (showAvatarImg && avatarUrl) {
@@ -1477,6 +1485,13 @@ function ConversaViewBody() {
         forceStickerType: opts.forceStickerType,
       });
       const tempId = optimisticMsg.tempId;
+      debugMessageBoundary("send_media", {
+        conversa_id: conversaId,
+        atendimento_id: conversa?.atendimento_id ?? conversa?.atendimento?.id,
+        cliente_id: conversa?.cliente_id ?? conversa?.cliente?.id,
+        phone: conversa?.phone ?? conversa?.telefone ?? conversa?.cliente_telefone,
+        message_id: tempId,
+      });
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
       appendOutgoingOptimisticMessage(optimisticMsg);
       clearPending();
@@ -1491,6 +1506,10 @@ function ConversaViewBody() {
         formData.append("caption", legenda);
       }
       formData.append("client_temp_id", tempId);
+      formData.append("conversa_id", String(conversaId));
+      if (conversa?.atendimento_id != null) formData.append("atendimento_id", String(conversa.atendimento_id));
+      if (conversa?.cliente_id != null) formData.append("cliente_id", String(conversa.cliente_id));
+      if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
 
       setSendingTracked(true);
       try {
@@ -1545,6 +1564,8 @@ function ConversaViewBody() {
     },
     [
       conversaId,
+      conversa,
+      debugMessageBoundary,
       showToast,
       clearPending,
       podeEnviar,
@@ -1604,6 +1625,13 @@ function ConversaViewBody() {
         const f = files[i];
         const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f });
         tempIds.push(optimisticMsg.tempId);
+        debugMessageBoundary("send_media", {
+          conversa_id: conversaId,
+          atendimento_id: conversa?.atendimento_id ?? conversa?.atendimento?.id,
+          cliente_id: conversa?.cliente_id ?? conversa?.cliente?.id,
+          phone: conversa?.phone ?? conversa?.telefone ?? conversa?.cliente_telefone,
+          message_id: optimisticMsg.tempId,
+        });
         appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
       }
 
@@ -1612,6 +1640,10 @@ function ConversaViewBody() {
         formData.append("file", files[i]);
       }
       formData.append("client_temp_ids", JSON.stringify(tempIds));
+      formData.append("conversa_id", String(conversaId));
+      if (conversa?.atendimento_id != null) formData.append("atendimento_id", String(conversa.atendimento_id));
+      if (conversa?.cliente_id != null) formData.append("cliente_id", String(conversa.cliente_id));
+      if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
       setSendingTracked(true);
       try {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
@@ -1694,6 +1726,8 @@ function ConversaViewBody() {
     },
     [
       conversaId,
+      conversa,
+      debugMessageBoundary,
       podeEnviar,
       showToast,
       focusMessageInput,
@@ -1708,6 +1742,10 @@ function ConversaViewBody() {
 
   const handleConfirmSendFile = useCallback(async () => {
     if (!pendingFile || confirmSendLockRef.current) return;
+    if (pendingConversaIdRef.current && String(pendingConversaIdRef.current) !== String(conversaId)) {
+      clearPending();
+      return;
+    }
     confirmSendLockRef.current = true;
     try {
       const captionToSend = pendingCaption;
@@ -1715,11 +1753,15 @@ function ConversaViewBody() {
     } finally {
       confirmSendLockRef.current = false;
     }
-  }, [pendingFile, pendingCaption, handleEnviarArquivo]);
+  }, [pendingFile, pendingCaption, conversaId, clearPending, handleEnviarArquivo]);
 
   const handleConfirmSendImageMobile = useCallback(
     async ({ sendAsOriginal, croppedAreaPixels, rotation, fileName, mimeType }) => {
       if (!pendingFile || !pendingPreview || confirmSendLockRef.current) return;
+      if (pendingConversaIdRef.current && String(pendingConversaIdRef.current) !== String(conversaId)) {
+        clearPending();
+        return;
+      }
       confirmSendLockRef.current = true;
       try {
         const captionToSend = pendingCaption;
@@ -1739,7 +1781,7 @@ function ConversaViewBody() {
         confirmSendLockRef.current = false;
       }
     },
-    [pendingFile, pendingPreview, pendingCaption, handleEnviarArquivo]
+    [pendingFile, pendingPreview, pendingCaption, conversaId, clearPending, handleEnviarArquivo]
   );
 
   const persistRecentSticker = useCallback(
@@ -2547,6 +2589,14 @@ function ConversaViewBody() {
   useLayoutEffect(() => {
     mensagensComSeparadoresRef.current = mensagensComSeparadores;
   }, [mensagensComSeparadores]);
+
+  useEffect(() => {
+    if (!import.meta?.env?.DEV) return;
+    console.debug("[message-boundary] render_conversation", {
+      conversa_id: conversaId,
+      mensagens_filtradas: Array.isArray(mensagens) ? mensagens.length : 0,
+    });
+  }, [conversaId, mensagens.length]);
 
   const showAssumeEmptyCta = useMemo(() => {
     if (isGroup) return false;

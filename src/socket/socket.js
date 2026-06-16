@@ -236,14 +236,8 @@ function normalizeNovaMensagemPayload(raw) {
   const nested = raw?.data && typeof raw.data === "object" ? raw.data : null
   const normalized = nested ? { ...raw, ...nested } : { ...raw }
 
-  // conversa_id pode vir com alias diferentes dependendo do conector.
-  const chatIdRaw = normalized.chat_id ?? normalized.chatId
-  const chatIdLooksJid = typeof chatIdRaw === "string" && chatIdRaw.includes("@")
-  const hasMessageIdentifiers =
-    normalized.mensagem_id != null ||
-    normalized.message_id != null ||
-    normalized.whatsapp_id != null ||
-    normalized.wamid != null
+  // conversa_id deve vir como ID real da conversa, ainda que em aliases do backend.
+  // Não inferir por `id`, `chat_id`, telefone ou conversa aberta.
   const conversaId =
     normalized.conversa_id ??
     normalized.id_conversa ??
@@ -251,8 +245,7 @@ function normalizeNovaMensagemPayload(raw) {
     normalized.conversationId ??
     normalized.conversa?.id ??
     normalized.chat?.id ??
-    (!chatIdLooksJid ? chatIdRaw : null) ??
-    (!hasMessageIdentifiers ? normalized.id : null)
+    null
   if (conversaId != null && conversaId !== "") normalized.conversa_id = conversaId
 
   // Texto pode vir em campos alternativos para mensagens inbound.
@@ -414,6 +407,18 @@ function logSocketConversaDebug(eventName, payload) {
   })
 }
 
+function logSocketMessageBoundary(eventName, payload) {
+  if (!import.meta?.env?.DEV) return
+  console.debug(`[message-boundary] socket:${eventName}`, {
+    conversa_id: payload?.conversa_id ?? payload?.id_conversa ?? payload?.conversation_id,
+    atendimento_id: payload?.atendimento_id,
+    cliente_id: payload?.cliente_id,
+    phone: payload?.phone ?? payload?.telefone ?? payload?.remetente_telefone ?? payload?.chatId,
+    message_id: payload?.id ?? payload?.mensagem_id ?? payload?.message_id ?? payload?.whatsapp_id,
+    selected_conversation_id: useConversaStore.getState().selectedId,
+  })
+}
+
 let socket = null
 let pushProbeCache = { at: 0, value: false }
 /** Ref para idempotência de join — evita joins duplicados ao reconectar ou trocar conversa */
@@ -507,10 +512,10 @@ function applyStatusMensagemEvent(evt) {
 
   const selectedId = convStore.selectedId
   const isConversaAberta = selectedId != null
-  const conversaIdMatch = !conversa_id || String(conversa_id) === String(selectedId)
+  const conversaIdMatch = conversa_id && String(conversa_id) === String(selectedId)
   if (isConversaAberta && conversaIdMatch) {
     convStore.patchMensagem(mensagem_id, partial, {
-      conversa_id: conversa_id ?? convStore.conversa?.id ?? selectedId,
+      conversa_id,
       whatsapp_id,
     })
   }
@@ -678,6 +683,7 @@ export function initSocket(token) {
   =========================== */
   socket.on(SOCKET_EVENTS.NOVA_MENSAGEM, (rawMsg) => {
     let msg = normalizeNovaMensagemPayload(rawMsg)
+    logSocketMessageBoundary(SOCKET_EVENTS.NOVA_MENSAGEM, msg)
     const conversaId = msg?.conversa_id
     if (!conversaId) return
     if (shouldIgnoreByCompany(msg)) return
@@ -838,12 +844,12 @@ export function initSocket(token) {
     const selectedId = convStore.selectedId
     if (!selectedId) return
     const conversaId = msg?.conversa_id
-    if (conversaId && String(conversaId) !== String(selectedId)) return
+    if (!conversaId || String(conversaId) !== String(selectedId)) return
     convStore.patchMensagem(msg.id, {
       texto: msg.texto ?? msg.conteudo,
       conteudo: msg.conteudo ?? msg.texto,
       editado: true,
-    })
+    }, { conversa_id: conversaId })
   })
 
   /* Mensagem ocultada "pra mim" (somente usuário) */

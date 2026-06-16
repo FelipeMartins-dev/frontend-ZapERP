@@ -157,7 +157,9 @@ export function cleanupOptimisticBlobFields(merged) {
 
 function buildArquivoReconcileRow(row, conversaId) {
   if (!row || typeof row !== "object") return null;
-  const convId = row.conversa_id ?? conversaId;
+  const convId = row.conversa_id ?? row.id_conversa ?? row.conversation_id ?? row.conversationId ?? row.conversa?.id ?? row.chat?.id ?? null;
+  if (convId == null || String(convId).trim() === "") return null;
+  if (conversaId != null && String(convId) !== String(conversaId)) return null;
   let id = row.id ?? row.mensagem_id ?? row.message_id;
   if (id != null && convId != null && String(id) === String(convId)) {
     const alt = row.mensagem_id ?? row.message_id;
@@ -196,7 +198,7 @@ export function normalizeTextSendApiToMessage(data, conversaId) {
   
   const row = {
     ...m,
-    conversa_id: m.conversa_id ?? data.conversa_id ?? conversaId,
+    conversa_id: m.conversa_id ?? data.conversa_id ?? data.id_conversa ?? data.conversation_id ?? data.conversationId,
     direcao: m.direcao ?? data.direcao ?? "out",
     texto: m.texto ?? m.conteudo ?? data.texto,
     conteudo: m.conteudo ?? m.texto ?? data.texto,
@@ -219,7 +221,7 @@ export function normalizeArquivoApiToMessage(data, conversaId) {
   return buildArquivoReconcileRow(
     {
       ...m,
-      conversa_id: m.conversa_id ?? data.conversa_id ?? conversaId,
+      conversa_id: m.conversa_id ?? data.conversa_id ?? data.id_conversa ?? data.conversation_id ?? data.conversationId,
       direcao: m.direcao ?? data.direcao ?? "out",
       client_temp_id: m.client_temp_id ?? data.client_temp_id ?? data.clientTempId ?? data.temp_id ?? data.tempId,
       file_last_modified:

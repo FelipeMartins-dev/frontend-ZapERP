@@ -66,7 +66,7 @@ function mensagensBelongToConversa(mensagens, conversaId) {
   const cid = String(conversaId)
   return (mensagens || []).every((m) => {
     const mid = m?.conversa_id
-    return mid == null || String(mid) === cid
+    return mid != null && String(mid) === cid
   })
 }
 
@@ -83,7 +83,7 @@ function filterMensagensForConversa(mensagens, conversaId) {
   const cid = String(conversaId)
   return (mensagens || []).filter((m) => {
     const mid = m?.conversa_id
-    return mid == null || String(mid) === cid
+    return mid != null && String(mid) === cid
   })
 }
 
@@ -266,16 +266,42 @@ function shallowObjectChanged(prev, next) {
   return false
 }
 
+function debugConversationMessageBoundary(event, payload = {}) {
+  if (!import.meta?.env?.DEV) return
+  console.debug(`[conversa-boundary] ${event}`, payload)
+}
+
+function pickExplicitConversaId(raw) {
+  if (!raw || typeof raw !== "object") return null
+  const id =
+    raw.conversa_id ??
+    raw.id_conversa ??
+    raw.conversation_id ??
+    raw.conversationId ??
+    raw.conversa?.id ??
+    raw.chat?.id ??
+    null
+  return normalizeConversaId(id)
+}
+
 function normalizeIncomingMessageForCurrentConversation(raw, fallbackConversaId) {
   if (!raw || fallbackConversaId == null) return null
   const normalizedFallbackId = normalizeConversaId(fallbackConversaId)
   if (normalizedFallbackId == null) return null
 
   const msg = normalizeMsgForStore({ ...raw })
-  const incomingConversaId = normalizeConversaId(msg?.conversa_id ?? normalizedFallbackId)
+  const incomingConversaId = pickExplicitConversaId(msg)
   if (incomingConversaId == null) return null
 
   if (String(incomingConversaId) !== String(normalizedFallbackId)) {
+    debugConversationMessageBoundary("drop_message_wrong_conversation", {
+      opened_conversa_id: normalizedFallbackId,
+      message_conversa_id: incomingConversaId,
+      atendimento_id: msg?.atendimento_id,
+      cliente_id: msg?.cliente_id,
+      phone: msg?.phone ?? msg?.telefone ?? msg?.remetente_telefone,
+      message_id: msg?.id ?? msg?.mensagem_id ?? msg?.whatsapp_id ?? msg?.tempId,
+    })
     return null
   }
 
@@ -313,10 +339,22 @@ export const useConversaStore = create((set, get) => {
       let list = [...(state.mensagens || [])]
       const before = list.length
       const convFb = state.conversa?.id ?? state.selectedId
+      const activeConversaId = normalizeConversaId(convFb)
       
       if (batch.length === 1) {
         const lone = normalizeMsgForStore({ ...batch[0] })
-        const cid = lone?.conversa_id ?? convFb
+        const cid = normalizeConversaId(lone?.conversa_id)
+        if (cid != null && activeConversaId != null && String(cid) !== String(activeConversaId)) {
+          debugConversationMessageBoundary("drop_pending_batch_wrong_conversation", {
+            opened_conversa_id: activeConversaId,
+            message_conversa_id: cid,
+            atendimento_id: lone?.atendimento_id,
+            cliente_id: lone?.cliente_id,
+            phone: lone?.phone ?? lone?.telefone ?? lone?.remetente_telefone,
+            message_id: lone?.id ?? lone?.mensagem_id ?? lone?.whatsapp_id ?? lone?.tempId,
+          })
+          return state
+        }
         if (cid && isPendingOutgoingTemp(lone)) {
           const nextList = applyAnexarOneToList(list, cid, lone)
           const appended =
@@ -332,8 +370,19 @@ export const useConversaStore = create((set, get) => {
       }
       for (const raw of batch) {
         const m = normalizeMsgForStore(raw)
-        const cid = m?.conversa_id ?? convFb
+        const cid = normalizeConversaId(m?.conversa_id)
         if (!cid) continue
+        if (activeConversaId != null && String(cid) !== String(activeConversaId)) {
+          debugConversationMessageBoundary("drop_pending_batch_wrong_conversation", {
+            opened_conversa_id: activeConversaId,
+            message_conversa_id: cid,
+            atendimento_id: m?.atendimento_id,
+            cliente_id: m?.cliente_id,
+            phone: m?.phone ?? m?.telefone ?? m?.remetente_telefone,
+            message_id: m?.id ?? m?.mensagem_id ?? m?.whatsapp_id ?? m?.tempId,
+          })
+          continue
+        }
         list = applyAnexarOneToList(list, cid, m)
       }
       const sorted = finalizeMensagensList(list)
@@ -548,7 +597,19 @@ export const useConversaStore = create((set, get) => {
           const byKey = new Map()
           apiMensagens.forEach((raw, idx) => {
             if (!raw) return
-            const copy = normalizeMsgForStore({ ...raw, conversa_id: normalizedId })
+            const rawConversaId = pickExplicitConversaId(raw)
+            if (rawConversaId == null || String(rawConversaId) !== String(normalizedId)) {
+              debugConversationMessageBoundary("drop_api_message_wrong_conversation", {
+                opened_conversa_id: normalizedId,
+                message_conversa_id: rawConversaId,
+                atendimento_id: raw?.atendimento_id,
+                cliente_id: raw?.cliente_id,
+                phone: raw?.phone ?? raw?.telefone ?? raw?.remetente_telefone,
+                message_id: raw?.id ?? raw?.mensagem_id ?? raw?.whatsapp_id,
+              })
+              return
+            }
+            const copy = normalizeMsgForStore({ ...raw, conversa_id: rawConversaId })
             const k = mapDedupeKey(copy, normalizedId)
             const prev = byKey.get(k)
             const cand = prev ? { ...prev, ...copy } : copy
@@ -668,8 +729,20 @@ export const useConversaStore = create((set, get) => {
       let batchOrd = 0
       const put = (raw) => {
         if (!raw) return
+        const rawConversaId = pickExplicitConversaId(raw)
+        if (rawConversaId == null || String(rawConversaId) !== String(conversaId)) {
+          debugConversationMessageBoundary("drop_merge_message_wrong_conversation", {
+            opened_conversa_id: conversaId,
+            message_conversa_id: rawConversaId,
+            atendimento_id: raw?.atendimento_id,
+            cliente_id: raw?.cliente_id,
+            phone: raw?.phone ?? raw?.telefone ?? raw?.remetente_telefone,
+            message_id: raw?.id ?? raw?.mensagem_id ?? raw?.whatsapp_id ?? raw?.tempId,
+          })
+          return
+        }
         const ord = ++batchOrd
-        putMensagemInDedupeMap(map, raw, conversaId, ord)
+        putMensagemInDedupeMap(map, { ...raw, conversa_id: rawConversaId }, conversaId, ord)
       }
       existing.forEach(put)
       fromApi.forEach(put)
@@ -822,6 +895,13 @@ export const useConversaStore = create((set, get) => {
       const conversaId = get().conversa?.id ?? get().selectedId
       const prepared = normalizeIncomingMessageForCurrentConversation(msg, conversaId)
       if (!prepared) return
+      debugConversationMessageBoundary("insert_message_store", {
+        conversa_id: prepared.conversa_id,
+        atendimento_id: prepared.atendimento_id,
+        cliente_id: prepared.cliente_id,
+        phone: prepared.phone ?? prepared.telefone ?? prepared.remetente_telefone,
+        message_id: prepared.id ?? prepared.mensagem_id ?? prepared.whatsapp_id ?? prepared.tempId,
+      })
       pendingAnexar.push(prepared)
       scheduleAnexarFlush()
     },
@@ -831,6 +911,13 @@ export const useConversaStore = create((set, get) => {
       const conversaId = get().conversa?.id ?? get().selectedId
       const prepared = normalizeIncomingMessageForCurrentConversation(msg, conversaId)
       if (!prepared) return
+      debugConversationMessageBoundary("insert_message_store_immediate", {
+        conversa_id: prepared.conversa_id,
+        atendimento_id: prepared.atendimento_id,
+        cliente_id: prepared.cliente_id,
+        phone: prepared.phone ?? prepared.telefone ?? prepared.remetente_telefone,
+        message_id: prepared.id ?? prepared.mensagem_id ?? prepared.whatsapp_id ?? prepared.tempId,
+      })
       pendingAnexar.push(prepared)
       takeAndApplyAnexarBatch()
     },
@@ -841,11 +928,34 @@ export const useConversaStore = create((set, get) => {
       let replaced = false
       set((state) => {
         const list = state.mensagens || []
-        const idx = list.findIndex((m) => String(m.tempId) === String(tempId))
+        const targetConversaId = pickExplicitConversaId(realMsg)
+        const currentConversaId = normalizeConversaId(state.conversa?.id ?? state.selectedId)
+        if (
+          targetConversaId == null ||
+          currentConversaId == null ||
+          String(targetConversaId) !== String(currentConversaId)
+        ) {
+          debugConversationMessageBoundary("drop_reconcile_wrong_conversation", {
+            opened_conversa_id: currentConversaId,
+            message_conversa_id: targetConversaId,
+            temp_id: tempId,
+            atendimento_id: realMsg?.atendimento_id,
+            cliente_id: realMsg?.cliente_id,
+            phone: realMsg?.phone ?? realMsg?.telefone ?? realMsg?.remetente_telefone,
+            message_id: realMsg?.id ?? realMsg?.mensagem_id ?? realMsg?.whatsapp_id,
+          })
+          return state
+        }
+        const idx = list.findIndex(
+          (m) =>
+            String(m.tempId) === String(tempId) &&
+            m.conversa_id != null &&
+            String(m.conversa_id) === String(targetConversaId)
+        )
         if (idx >= 0) {
           replaced = true
           const next = [...list]
-          const mergedRec = normalizeMsgForStore({ ...realMsg, conversa_id: state.conversa?.id })
+          const mergedRec = normalizeMsgForStore({ ...realMsg, conversa_id: targetConversaId })
           const prevRow = list[idx]
           let flat = preserveLocalMediaFields(prevRow, { ...prevRow, ...mergedRec })
           flat = stripPersistedIdIfConflictsWithList(list, idx, flat)
@@ -859,6 +969,14 @@ export const useConversaStore = create((set, get) => {
           let tomb = mergeMsgPreferringTombstone(prevRow, flat)
           tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
           next[idx] = finalizeMergedMessageRow(prevRow, tomb)
+          debugConversationMessageBoundary("reconcile_message_store", {
+            conversa_id: targetConversaId,
+            atendimento_id: realMsg?.atendimento_id,
+            cliente_id: realMsg?.cliente_id,
+            phone: realMsg?.phone ?? realMsg?.telefone ?? realMsg?.remetente_telefone,
+            message_id: realMsg?.id ?? realMsg?.mensagem_id ?? realMsg?.whatsapp_id,
+            temp_id: tempId,
+          })
           return { mensagens: finalizeMensagensList(next) }
         }
         return state
@@ -874,14 +992,21 @@ export const useConversaStore = create((set, get) => {
       if (!hasIdentifier && !hasStatus) return
       if (!partial || (Object.keys(partial).length === 0)) return
       const { whatsapp_id: optsWhatsappId } = opts
+      const optsConversaId = normalizeConversaId(opts?.conversa_id)
       set((state) => {
         const list = state.mensagens || []
-        const convId = state.conversa?.id ?? state.selectedId
+        const convId = optsConversaId ?? normalizeConversaId(state.conversa?.id ?? state.selectedId)
+        if (optsConversaId != null) {
+          const currentConversaId = normalizeConversaId(state.conversa?.id ?? state.selectedId)
+          if (currentConversaId == null || String(optsConversaId) !== String(currentConversaId)) {
+            return state
+          }
+        }
         const waId = optsWhatsappId ?? partial?.whatsapp_id
 
         const indices = new Set()
         list.forEach((m, i) => {
-          if (convId && m.conversa_id != null && String(m.conversa_id) !== String(convId)) return
+          if (!convId || m.conversa_id == null || String(m.conversa_id) !== String(convId)) return
           if (mensagemId != null && mensagemId !== "" && String(m.id) === String(mensagemId)) indices.add(i)
           else if (waId && String(m.whatsapp_id) === String(waId)) indices.add(i)
           else if (partial?.tempId && String(m.tempId) === String(partial.tempId)) indices.add(i)

@@ -43,7 +43,15 @@ export function normalizeStatusMensagemFromPayload(payload) {
   const p = payload?.data || payload || {};
   const mensagem_id =
     p.mensagem_id ?? p.message_id ?? p.msg_id ?? p.id ?? payload?.mensagem_id ?? payload?.message_id;
-  const conversa_id = p.conversa_id ?? p.chat_id ?? p.chatId ?? payload?.conversa_id ?? payload?.chat_id;
+  const conversa_id =
+    p.conversa_id ??
+    p.id_conversa ??
+    p.conversation_id ??
+    p.conversationId ??
+    payload?.conversa_id ??
+    payload?.id_conversa ??
+    payload?.conversation_id ??
+    payload?.conversationId;
   const status = p.status ?? payload?.status;
   const whatsapp_id =
     p.whatsapp_id ?? p.wamid ?? p.wa_id ?? p.whatsappMessageId ?? payload?.whatsapp_id ?? payload?.wamid;
@@ -112,6 +120,7 @@ export function enqueueStatusMensagemEvent(payload, apply, shouldIgnore) {
   if (shouldIgnore?.(payload)) return;
   const evt = normalizeStatusMensagemFromPayload(payload);
   if (!evt) return;
+  if (evt.conversa_id == null || String(evt.conversa_id).trim() === "") return;
 
   const key = getQueueKey(evt);
   if (!key) {
