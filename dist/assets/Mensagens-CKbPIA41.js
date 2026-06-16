@@ -1,1 +1,0 @@
-import{j as t}from"./vendor-react-Bau932rh.js";import{N as e}from"./vendor-router-C9YBKlNS.js";import"./vendor-markdown-D9eZ31wN.js";function n(){return t.jsx(e,{to:"/atendimento",replace:!0})}export{n as default};

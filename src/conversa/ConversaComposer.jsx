@@ -1142,6 +1142,20 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         className="wa-attachItem"
         role="menuitem"
         onClick={() => {
+          openSavedRepliesPicker();
+        }}
+        disabled={sending || !conversaId || !podeEnviar}
+      >
+        <span className="wa-attachItem-icon wa-attachIcon-savedReplies" aria-hidden="true">
+          <IconSavedReplies />
+        </span>
+        <span>Respostas salvas</span>
+      </button>
+      <button
+        type="button"
+        className="wa-attachItem"
+        role="menuitem"
+        onClick={() => {
           fototecaInputRef.current?.click();
           setAttachMenuOpen(false);
         }}
@@ -1463,25 +1477,6 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                     </div>
                   )
                 : null}
-            </div>
-            <div className="wa-stickerWrap">
-              <button
-                type="button"
-                className={`wa-iconBtn wa-savedRepliesBtn ${savedRepliesOpen && savedRepliesViaPicker ? "isActive" : ""}`}
-                onClick={() => {
-                  if (savedRepliesOpen && savedRepliesViaPicker) {
-                    closeSavedReplies();
-                  } else {
-                    openSavedRepliesPicker();
-                  }
-                }}
-                title="Respostas salvas (ou digite /)"
-                aria-label="Respostas salvas"
-                aria-expanded={savedRepliesOpen && savedRepliesViaPicker}
-                disabled={sending || !conversaId || !podeEnviar}
-              >
-                <IconSavedReplies />
-              </button>
             </div>
             <div className="wa-stickerWrap">
               <button

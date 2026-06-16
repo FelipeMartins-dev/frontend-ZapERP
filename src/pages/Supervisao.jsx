@@ -54,15 +54,33 @@ export default function Supervisao() {
     setRefreshing(true);
     try {
       isFirstLoad = loading;
-      const [resumoData, pendentesData, relatorioData] = await Promise.all([
-        getResumoSupervisao(),
-        getClientesPendentesSupervisao(),
-        getRelatorioDiarioSupervisao(dataRelatorio),
+      const [resumoResult, pendentesResult, relatorioResult] = await Promise.allSettled([
+        getResumoSupervisao({ silent: true }),
+        getClientesPendentesSupervisao({ silent: true }),
+        getRelatorioDiarioSupervisao(dataRelatorio, { silent: true }),
       ]);
-      setResumo(resumoData || {});
-      const pendentesLista = Array.isArray(pendentesData) ? pendentesData : [];
-      setClientesPendentesRaw(pendentesLista.filter((item) => !isGroupConversation(item)));
-      setRelatorioDiario(relatorioData || {});
+      let loadedCount = 0;
+
+      if (resumoResult.status === "fulfilled") {
+        setResumo(resumoResult.value || {});
+        loadedCount += 1;
+      }
+
+      if (pendentesResult.status === "fulfilled") {
+        const pendentesLista = Array.isArray(pendentesResult.value) ? pendentesResult.value : [];
+        setClientesPendentesRaw(pendentesLista.filter((item) => !isGroupConversation(item)));
+        loadedCount += 1;
+      }
+
+      if (relatorioResult.status === "fulfilled") {
+        setRelatorioDiario(relatorioResult.value || {});
+        loadedCount += 1;
+      }
+
+      if (loadedCount === 0) {
+        const firstError = resumoResult.reason || pendentesResult.reason || relatorioResult.reason || null;
+        setError(firstError?.response?.data?.error || "Nao foi possivel carregar a central de supervisao.");
+      }
     } catch (err) {
       setError(err?.response?.data?.error || "Não foi possível carregar a central de supervisão.");
     } finally {

@@ -136,7 +136,10 @@ export function loadChatListFiltersDataOnce({ listarTags, api, scopeKey }) {
   loadPromise = Promise.all([
     listarTags().catch(() => []),
     api.get("/usuarios").then((r) => r.data || []).catch(() => []),
-    api.get("/dashboard/departamentos").then((r) => r.data || []).catch(() => []),
+    api
+      .get("/dashboard/departamentos", { silent: true, skipGlobal500Toast: true })
+      .then((r) => r.data || [])
+      .catch(() => []),
   ])
     .then(([tags, atendentes, departamentos]) => {
       if (scopeAtStart && currentScopeKey && scopeAtStart !== currentScopeKey) {

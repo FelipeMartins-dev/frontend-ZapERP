@@ -3052,6 +3052,12 @@ function ConversaViewBody() {
 
         {showClienteSide ? (
           <Suspense fallback={null}>
+            <button
+              type="button"
+              className="wa-floatingSheet-backdrop wa-floatingSheet-backdrop--cliente"
+              aria-label="Fechar dados do cliente"
+              onClick={() => setShowClienteSide(false)}
+            />
             <SidebarCliente
               open
               onClose={() => setShowClienteSide(false)}

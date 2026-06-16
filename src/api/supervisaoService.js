@@ -10,13 +10,19 @@ import api from "./http";
  * @property {number=} sla_minutos
  */
 
-export async function getResumoSupervisao() {
-  const { data } = await api.get("/api/supervisao/resumo");
+export async function getResumoSupervisao(options = {}) {
+  const { data } = await api.get("/api/supervisao/resumo", {
+    silent: options.silent === true,
+    skipGlobal500Toast: true,
+  });
   return data ?? {};
 }
 
-export async function getClientesPendentesSupervisao() {
-  const { data } = await api.get("/api/supervisao/clientes-pendentes");
+export async function getClientesPendentesSupervisao(options = {}) {
+  const { data } = await api.get("/api/supervisao/clientes-pendentes", {
+    silent: options.silent === true,
+    skipGlobal500Toast: true,
+  });
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(data?.clientes)) return data.clientes;
@@ -28,8 +34,12 @@ export async function getMovimentacaoFuncionarioSupervisao(usuarioId) {
   return data ?? {};
 }
 
-export async function getRelatorioDiarioSupervisao(data) {
+export async function getRelatorioDiarioSupervisao(data, options = {}) {
   const params = data ? { data } : undefined;
-  const response = await api.get("/api/supervisao/relatorio-diario", { params });
+  const response = await api.get("/api/supervisao/relatorio-diario", {
+    params,
+    silent: options.silent === true,
+    skipGlobal500Toast: true,
+  });
   return response?.data ?? {};
 }

@@ -575,7 +575,9 @@ export default function ChatList() {
       }
     } catch (e) {
       if (isAbortError(e)) return;
-      console.error("Erro ao carregar contadores de conversas:", e);
+      if (import.meta.env?.DEV && opts.silent !== true) {
+        console.warn("Contadores de conversas indisponiveis; mantendo valores atuais.", e);
+      }
     }
   }, [
     tagFilter,

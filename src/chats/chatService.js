@@ -77,6 +77,7 @@ export async function fetchChatCounts(params = {}, options = {}) {
   const response = await api.get(`/chats/counts${query ? `?${query}` : ""}`, {
     signal: options.signal,
     silent: options.silent === true,
+    skipGlobal500Toast: true,
   });
   return response.data || {};
 }
