@@ -219,6 +219,7 @@ function persistedIdentityMarksSameBubble(prev, incoming) {
   if (!prev || !incoming) return false
   if (!sameExplicitConversation(prev, incoming)) return false
   if (matchesClientTempCorrelation(prev, incoming)) return true
+  if (hasConflictingClientTempCorrelation(prev, incoming)) return false
   if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
 
   const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
@@ -264,6 +265,7 @@ function shouldMergeExistingMessages(existing, msg) {
   if (!existing || !msg) return false
   if (!sameExplicitConversation(existing, msg)) return false
   if (matchesClientTempCorrelation(existing, msg)) return true
+  if (hasConflictingClientTempCorrelation(existing, msg)) return false
   if (existing.tempId && msg.tempId && String(existing.tempId) === String(msg.tempId)) return true
   if (isLikelyDuplicateAutomatedTextEcho(existing, msg)) return true
   const clientTempId = resolveClientTempId(msg)
@@ -303,6 +305,7 @@ function areLikelySameMessageBubble(prev, incoming) {
   if (!prev || !incoming) return false
   if (!sameExplicitConversation(prev, incoming)) return false
   if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
+  if (hasConflictingClientTempCorrelation(prev, incoming)) return false
   if (isLikelyDuplicateAutomatedTextEcho(prev, incoming)) return true
   const pwa = prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== "" ? String(prev.whatsapp_id) : null
   const iwa = incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== "" ? String(incoming.whatsapp_id) : null
@@ -724,6 +727,23 @@ function matchesClientTempCorrelation(prev, incoming) {
   return false
 }
 
+function clientTempCorrelationKeys(msg) {
+  const keys = []
+  const tempId = msg?.tempId != null && String(msg.tempId).trim() !== "" ? String(msg.tempId).trim() : null
+  const clientTempId = resolveClientTempId(msg)
+  if (tempId) keys.push(tempId)
+  if (clientTempId && clientTempId !== tempId) keys.push(clientTempId)
+  return keys
+}
+
+function hasConflictingClientTempCorrelation(prev, incoming) {
+  if (!sameExplicitConversation(prev, incoming)) return true
+  const prevKeys = clientTempCorrelationKeys(prev)
+  const incomingKeys = clientTempCorrelationKeys(incoming)
+  if (!prevKeys.length || !incomingKeys.length) return false
+  return !prevKeys.some((k) => incomingKeys.includes(k))
+}
+
 function pickClosestPendingMediaCandidate(candidates, msg) {
   if (!candidates?.length) return null
   const tsIn = toMillis(msg?.criado_em)
@@ -959,8 +979,16 @@ function isOutgoingMediaReconcilePair(prev, incoming, opts = {}) {
     return sameMediaStrongHint(prev, incoming)
   }
 
-  const cid = resolveClientTempId(incoming) || resolveClientTempId(prev)
-  if (cid) return matchesClientTempCorrelation(prev, incoming)
+  const prevCid = resolveClientTempId(prev)
+  const incomingCid = resolveClientTempId(incoming)
+  if (prevCid || incomingCid) {
+    if (matchesClientTempCorrelation(prev, incoming)) return true
+    // Se a confirmação trouxe client_temp_id, ela só pode fundir com a bolha exata.
+    if (incomingCid) return false
+    // Alguns ecos do provider/socket chegam sem client_temp_id. Nesse caso, o fallback
+    // frouxo continua limitado a uma única mídia pendente da mesma família.
+    if (opts.allowLoose !== true) return false
+  }
   if (sameMediaStrongHint(prev, incoming)) return true
   return opts.allowLoose === true
 }

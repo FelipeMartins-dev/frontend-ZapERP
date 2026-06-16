@@ -10,6 +10,7 @@
     "generate:pwa-icons": "node scripts/generate-pwa-icons.mjs",
     "test:audio-merge": "node scripts/test-audio-merge.mjs",
     "test:audio-stress": "node scripts/test-audio-stress.mjs",
+    "test:media-merge": "node scripts/test-media-merge.mjs",
     "test:conversation-boundary": "node scripts/test-conversation-boundary.mjs",
     "test:sequential-messages": "node scripts/test-sequential-messages.mjs",
     "test:e2e": "playwright test",
