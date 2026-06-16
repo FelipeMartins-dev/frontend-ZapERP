@@ -140,7 +140,11 @@ export async function removeEmpresaWhatsapp(id) {
 // Clientes (conectado à tabela clientes do banco)
 export async function getClientes(params = {}) {
   const { data } = await api.get('/clientes', { params })
-  return data || []
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.clientes)) return data.clientes
+  if (Array.isArray(data?.items)) return data.items
+  if (Array.isArray(data?.data)) return data.data
+  return []
 }
 
 export async function getClientesComTotal(params = {}) {

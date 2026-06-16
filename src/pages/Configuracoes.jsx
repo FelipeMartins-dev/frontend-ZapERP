@@ -6,7 +6,7 @@ import { useConversaStore } from "../conversa/conversaStore";
 import api from "../api/http";
 import * as cfg from "../api/configService";
 import * as chatService from "../chats/chatService";
-import { canAcessarConfiguracoes, canAcessarUsuarios } from "../auth/permissions";
+import { canAcessarConfiguracoes, canAcessarUsuarios, canGerenciarRespostasSalvas } from "../auth/permissions";
 import { useNotificationStore } from "../notifications/notificationStore";
 import SecaoPermissoes from "./SecaoPermissoes";
 import Breadcrumb from "../components/layout/Breadcrumb";
@@ -38,13 +38,19 @@ export default function Configuracoes() {
   const user = useAuthStore((s) => s.user);
   const canAccessConfig = canAcessarConfiguracoes(user);
   const canAccessUsers = canAcessarUsuarios(user);
+  const canManageRespostas = canGerenciarRespostasSalvas(user);
+  const respostasOnlyMode = !canAccessConfig && canManageRespostas;
 
   const visibleTabs = useMemo(
-    () =>
-      canAccessUsers
+    () => {
+      if (respostasOnlyMode) {
+        return TABS.filter((t) => t.id === "respostas");
+      }
+      return canAccessUsers
         ? TABS
-        : TABS.filter((t) => t.id !== "usuarios" && t.id !== "permissoes"),
-    [canAccessUsers]
+        : TABS.filter((t) => t.id !== "usuarios" && t.id !== "permissoes");
+    },
+    [canAccessUsers, respostasOnlyMode]
   );
 
   const tabFromUrl = searchParams.get("tab");
@@ -65,22 +71,30 @@ export default function Configuracoes() {
   const [usuarioIdPermissoes, setUsuarioIdPermissoes] = useState("");
 
   useEffect(() => {
-    if (!canAccessConfig) {
+    if (!canAccessConfig && !canManageRespostas) {
       navigate("/atendimento");
-      return;
     }
-  }, [canAccessConfig, navigate]);
+  }, [canAccessConfig, canManageRespostas, navigate]);
 
   useEffect(() => {
     const t = searchParams.get("tab");
+    if (respostasOnlyMode) {
+      if (t !== "respostas") {
+        navigate("/configuracoes?tab=respostas", { replace: true });
+        return;
+      }
+      setTab("respostas");
+      return;
+    }
     if ((t === "usuarios" || t === "permissoes") && !canAccessUsers) {
       navigate("/configuracoes?tab=geral", { replace: true });
       return;
     }
     if (t && TABS.some((x) => x.id === t)) setTab(t);
-  }, [searchParams, canAccessUsers, navigate]);
+  }, [searchParams, canAccessUsers, navigate, respostasOnlyMode]);
 
   const setTabAndUrl = useCallback((nextTab) => {
+    if (respostasOnlyMode && nextTab !== "respostas") return;
     setTab(nextTab);
     try {
       const sp = new URLSearchParams(searchParams);
@@ -89,14 +103,23 @@ export default function Configuracoes() {
     } catch {
       // ignore
     }
-  }, [navigate, searchParams]);
+  }, [navigate, respostasOnlyMode, searchParams]);
 
 
   const loadAll = useCallback(async () => {
-    if (!canAccessConfig) return;
+    if (!canAccessConfig && !canManageRespostas) return;
     setLoading(true);
     setErrorMsg(null);
     try {
+      if (respostasOnlyMode) {
+        const [dep, resp] = await Promise.all([
+          cfg.getDepartamentos().catch(() => []),
+          cfg.getRespostasSalvas().catch(() => []),
+        ]);
+        setDepartamentos(dep);
+        setRespostas(resp);
+        return;
+      }
       const [emp, usr, dep, tag, resp, cliRes, plan, aud, ew] = await Promise.all([
         cfg.getEmpresa().catch(() => null),
         cfg.getUsuarios().catch(() => []),
@@ -123,7 +146,7 @@ export default function Configuracoes() {
     } finally {
       setLoading(false);
     }
-  }, [canAccessConfig]);
+  }, [canAccessConfig, canManageRespostas, respostasOnlyMode]);
 
   /** Carrega clientes com filtro opcional (nome ou telefone) */
   const loadClientes = useCallback(async (params = {}) => {
@@ -141,9 +164,9 @@ export default function Configuracoes() {
     loadAll();
   }, [loadAll]);
 
-  if (!canAccessConfig) return null;
+  if (!canAccessConfig && !canManageRespostas) return null;
 
-  if (loading && !empresa) {
+  if (loading && canAccessConfig && !empresa) {
     return (
       <div className="ia-wrap config-wrap">
         <div className="ia-header">
@@ -162,8 +185,12 @@ export default function Configuracoes() {
     <div className="ia-wrap config-wrap">
       <header className="ia-header">
         <Breadcrumb items={[{ label: "Configurações" }]} />
-        <h1 className="ia-title">Configurações</h1>
-        <p className="ia-subtitle">Central de administração — configure 100% do sistema</p>
+        <h1 className="ia-title">{respostasOnlyMode ? "Respostas salvas" : "Configurações"}</h1>
+        <p className="ia-subtitle">
+          {respostasOnlyMode
+            ? "Cadastre modelos pessoais para usar no atendimento com o atalho /"
+            : "Central de administração — configure 100% do sistema"}
+        </p>
       </header>
 
       {errorMsg && (
@@ -994,7 +1021,7 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
   return (
     <div className="ia-section">
       <h4>Respostas salvas</h4>
-      <p className="ia-muted">Modelos prontos para respostas rápidas (por setor ou globais). Você pode editar, copiar e excluir.</p>
+      <p className="ia-muted">Suas respostas pessoais para uso rápido no atendimento (digite <strong>/</strong> na conversa). Setor opcional limita quando a resposta aparece. Só você vê e edita as suas.</p>
       {(errorMsg || okMsg) && (
         <div className={`ia-error-banner ${okMsg ? "is-ok" : ""}`} role="alert" style={{ marginBottom: 12 }}>
           {errorMsg || okMsg}

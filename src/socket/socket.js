@@ -881,8 +881,8 @@ export function initSocket(token) {
   const alertaSemRespostaDedup = new Map()
   const ALERTA_SEM_RESPOSTA_DEDUP_MS = 8_000
 
-  function shouldSkipDuplicateAlertaSemResposta(payload, channel) {
-    const key = `${payload?.conversa_id ?? ""}:${payload?.tipo ?? ""}:${payload?.nivel ?? ""}:${channel}`
+  function shouldSkipDuplicateAlertaSemResposta(payload) {
+    const key = `${payload?.conversa_id ?? ""}:${payload?.tipo ?? ""}:${payload?.nivel ?? ""}`
     const now = Date.now()
     const exp = alertaSemRespostaDedup.get(key)
     if (exp != null && now < exp) return true
@@ -901,7 +901,7 @@ export function initSocket(token) {
         : null
     // Backend emite `alerta_sem_resposta` na sala do atendente e `alerta_sem_resposta_evento` na empresa.
     if (channel === "evento" && atendenteId && myId && atendenteId === myId) return
-    if (shouldSkipDuplicateAlertaSemResposta(payload, channel)) return
+    if (shouldSkipDuplicateAlertaSemResposta(payload)) return
 
     const tipo = String(payload.tipo || "")
     const isCritical = payload.nivel === "critico" || tipo === "alerta_critico"

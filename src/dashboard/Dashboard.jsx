@@ -641,6 +641,9 @@ function DashboardRespostasSalvas() {
 
   return (
     <div className="dash-respostas">
+      <p className="dash-muted" style={{ marginBottom: 12 }}>
+        Respostas pessoais do seu usuário. No atendimento, use <strong>/</strong> ou o botão no composer.
+      </p>
       {(erro || ok) && (
         <div className={`dash-banner ${ok ? 'dash-banner--ok' : 'dash-banner--err'}`} role="alert">
           <span>{erro || ok}</span>

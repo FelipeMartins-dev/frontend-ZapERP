@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { acquireMicStream, invalidateMicStream, isMicSupported, queryMicPermissionState, shouldShowMicPersistenceHint } from "../media/micStreamService";
+import { getRespostasSalvas } from "../api/configService";
 import { getSocket } from "../socket/socket";
 import { getAutocorrectEdit } from "../utils/autocorrectText";
 import {
@@ -21,6 +22,7 @@ import {
   IconMic,
   IconPix,
   IconPlus,
+  IconSavedReplies,
   IconSend,
   IconSticker,
 } from "./conversaComposerIcons";
@@ -40,6 +42,23 @@ const __WA_EMOJIS = [
 
 function safeString(v) {
   return v == null ? "" : String(v);
+}
+
+/** Detecta comando "/" no cursor (início da linha ou após espaço). */
+function getSlashContext(value, cursor) {
+  const s = String(value || "");
+  const pos = typeof cursor === "number" ? cursor : s.length;
+  let i = pos - 1;
+  while (i >= 0 && !/\s/.test(s[i])) {
+    if (s[i] === "/") {
+      if (i === 0 || /\s/.test(s[i - 1])) {
+        return { start: i, end: pos, query: s.slice(i + 1, pos) };
+      }
+      return null;
+    }
+    i -= 1;
+  }
+  return null;
 }
 
 function isImageFile(file) {
@@ -73,6 +92,7 @@ function readRecentStickers(user) {
 
 function composerPropsAreEqual(prev, next) {
   if (prev.conversaId !== next.conversaId) return false;
+  if (prev.departamentoId !== next.departamentoId) return false;
   if (prev.scrollThreadId !== next.scrollThreadId) return false;
   if (prev.loading !== next.loading) return false;
   if (prev.sending !== next.sending) return false;
@@ -101,6 +121,7 @@ function composerPropsAreEqual(prev, next) {
 const ConversaComposer = forwardRef(function ConversaComposer(
   {
     conversaId,
+    departamentoId,
     scrollThreadId,
     loading,
     sending,
@@ -147,6 +168,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const [stickerQuery, setStickerQuery] = useState("");
   const [recentStickers, setRecentStickers] = useState([]);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [savedRepliesOpen, setSavedRepliesOpen] = useState(false);
+  const [savedRepliesQuery, setSavedRepliesQuery] = useState("");
+  const [savedRepliesList, setSavedRepliesList] = useState([]);
+  const [savedRepliesLoading, setSavedRepliesLoading] = useState(false);
+  const [savedRepliesError, setSavedRepliesError] = useState(null);
+  const [savedRepliesIndex, setSavedRepliesIndex] = useState(0);
+  const [savedRepliesViaPicker, setSavedRepliesViaPicker] = useState(false);
   const [attachMenuPortal, setAttachMenuPortal] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia(ATTACH_MENU_PORTAL_MQ).matches;
@@ -154,6 +182,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
 
+  const savedRepliesPanelRef = useRef(null);
+  const savedRepliesCacheRef = useRef({ depKey: null, list: null });
+  const slashCtxRef = useRef(null);
+  const savedRepliesModeRef = useRef("slash");
   const emojiPanelRef = useRef(null);
   const emojiSearchRef = useRef(null);
   const stickerPanelRef = useRef(null);
@@ -265,8 +297,38 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     if (socket?.connected) socket.emit("typing_start", { conversa_id: conversaId });
   }, [conversaId]);
 
+  const closeSavedReplies = useCallback(() => {
+    slashCtxRef.current = null;
+    savedRepliesModeRef.current = "slash";
+    setSavedRepliesViaPicker(false);
+    setSavedRepliesOpen(false);
+    setSavedRepliesQuery("");
+    setSavedRepliesIndex(0);
+    setSavedRepliesError(null);
+  }, []);
+
+  const openSavedRepliesPicker = useCallback(() => {
+    if (!conversaId || !podeEnviar || isRecording) return;
+    setEmojiOpen(false);
+    setEmojiQuery("");
+    setStickerOpen(false);
+    setStickerQuery("");
+    setAttachMenuOpen(false);
+    savedRepliesModeRef.current = "picker";
+    slashCtxRef.current = null;
+    setSavedRepliesViaPicker(true);
+    setSavedRepliesQuery("");
+    setSavedRepliesError(null);
+    setSavedRepliesOpen(true);
+    focusInput();
+  }, [conversaId, focusInput, isRecording, podeEnviar]);
+
   const closePanels = useCallback(() => {
     let closed = false;
+    if (savedRepliesOpen) {
+      closeSavedReplies();
+      closed = true;
+    }
     if (emojiOpen) {
       setEmojiOpen(false);
       setEmojiQuery("");
@@ -282,7 +344,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       closed = true;
     }
     return closed;
-  }, [attachMenuOpen, emojiOpen, stickerOpen]);
+  }, [attachMenuOpen, closeSavedReplies, emojiOpen, savedRepliesOpen, stickerOpen]);
 
   const handleCancelRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -309,8 +371,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     if (String(lastConversaIdRef.current ?? "") !== String(conversaId ?? "") && mediaRecorderRef.current) {
       handleCancelRecording();
     }
+    if (String(lastConversaIdRef.current ?? "") !== String(conversaId ?? "")) {
+      closeSavedReplies();
+    }
     lastConversaIdRef.current = conversaId;
-  }, [conversaId, handleCancelRecording]);
+  }, [conversaId, closeSavedReplies, handleCancelRecording]);
 
   useEffect(() => {
     return () => {
@@ -446,6 +511,62 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
     };
   }, [conversaId, clearTyping]);
+
+  useEffect(() => {
+    if (!savedRepliesOpen || !conversaId) return undefined;
+    const depKey = departamentoId != null ? String(departamentoId) : "none";
+    const cached = savedRepliesCacheRef.current;
+    if (cached.depKey === depKey && Array.isArray(cached.list)) {
+      setSavedRepliesList(cached.list);
+      return undefined;
+    }
+    let cancelled = false;
+    setSavedRepliesLoading(true);
+    setSavedRepliesError(null);
+    getRespostasSalvas(departamentoId ?? null)
+      .then((list) => {
+        if (cancelled) return;
+        const arr = Array.isArray(list) ? list : [];
+        savedRepliesCacheRef.current = { depKey, list: arr };
+        setSavedRepliesList(arr);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSavedRepliesList([]);
+        setSavedRepliesError("Não foi possível carregar respostas salvas.");
+      })
+      .finally(() => {
+        if (!cancelled) setSavedRepliesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [savedRepliesOpen, conversaId, departamentoId]);
+
+  useEffect(() => {
+    savedRepliesCacheRef.current = { depKey: null, list: null };
+  }, [conversaId, departamentoId]);
+
+  useEffect(() => {
+    setSavedRepliesIndex(0);
+  }, [savedRepliesQuery, savedRepliesList]);
+
+  useEffect(() => {
+    if (!savedRepliesOpen) return;
+    const panel = savedRepliesPanelRef.current;
+    const active = panel?.querySelector?.(".wa-savedReplyItem.isActive");
+    active?.scrollIntoView?.({ block: "nearest" });
+  }, [savedRepliesIndex, savedRepliesOpen]);
+
+  const filteredSavedReplies = useMemo(() => {
+    const q = String(savedRepliesQuery || "").trim().toLowerCase();
+    const list = Array.isArray(savedRepliesList) ? savedRepliesList : [];
+    if (!q) return list;
+    return list.filter((r) => {
+      const t = `${r?.titulo || ""} ${r?.texto || ""}`.toLowerCase();
+      return t.includes(q);
+    });
+  }, [savedRepliesList, savedRepliesQuery]);
 
   useEffect(() => {
     if (!emojiOpen) return;
@@ -629,8 +750,22 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
 
       setTexto(nextValue);
+
+      const cursor =
+        typeof e.target.selectionStart === "number" ? e.target.selectionStart : nextValue.length;
+      const slashCtx = getSlashContext(nextValue, cursor);
+      if (slashCtx) {
+        slashCtxRef.current = slashCtx;
+        savedRepliesModeRef.current = "slash";
+        setSavedRepliesViaPicker(false);
+        setSavedRepliesOpen(true);
+        setSavedRepliesQuery(slashCtx.query);
+        setSavedRepliesError(null);
+      } else if (savedRepliesOpen) {
+        closeSavedReplies();
+      }
     },
-    [hasWordWithContext, resetAutocorrectTracking]
+    [closeSavedReplies, hasWordWithContext, resetAutocorrectTracking, savedRepliesOpen]
   );
 
   const handleSendFromComposer = useCallback(
@@ -645,11 +780,92 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking]
   );
 
+  const insertSavedReply = useCallback(
+    (replyText) => {
+      const text = String(replyText || "");
+      if (!text) return;
+      const el = inputRef.current;
+      const mode = savedRepliesModeRef.current;
+
+      if (mode === "slash") {
+        const ctx = slashCtxRef.current;
+        if (!ctx) return;
+        const cur = String(texto || "");
+        const next = cur.slice(0, ctx.start) + text + cur.slice(ctx.end);
+        closeSavedReplies();
+        setTexto(next);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            try {
+              el?.focus({ preventScroll: true });
+              const pos = ctx.start + text.length;
+              el?.setSelectionRange?.(pos, pos);
+            } catch {
+              /* ignore */
+            }
+          });
+        });
+        return;
+      }
+
+      const cur = String(texto || "");
+      const start = typeof el?.selectionStart === "number" ? el.selectionStart : cur.length;
+      const end = typeof el?.selectionEnd === "number" ? el.selectionEnd : cur.length;
+      const next = cur.slice(0, start) + text + cur.slice(end);
+      closeSavedReplies();
+      setTexto(next);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            el?.focus({ preventScroll: true });
+            const pos = start + text.length;
+            el?.setSelectionRange?.(pos, pos);
+          } catch {
+            /* ignore */
+          }
+        });
+      });
+    },
+    [closeSavedReplies, texto]
+  );
+
   const handleKeyDownInput = useCallback(
     (e) => {
       if (e.nativeEvent?.isComposing || e.isComposing) return;
 
       const key = String(e.key || "");
+
+      if (savedRepliesOpen) {
+        const list = filteredSavedReplies;
+        if (key === "Escape") {
+          e.preventDefault();
+          closeSavedReplies();
+          return;
+        }
+        if (key === "ArrowDown" && list.length > 0) {
+          e.preventDefault();
+          setSavedRepliesIndex((i) => Math.min(i + 1, list.length - 1));
+          return;
+        }
+        if (key === "ArrowUp" && list.length > 0) {
+          e.preventDefault();
+          setSavedRepliesIndex((i) => Math.max(i - 1, 0));
+          return;
+        }
+        if (key === "Enter" || key === "Tab") {
+          if (list.length > 0) {
+            const item = list[savedRepliesIndex] || list[0];
+            if (item?.texto) {
+              e.preventDefault();
+              insertSavedReply(item.texto);
+            }
+          } else if (key === "Enter" && !composerEnterInsertsNewline && !e.shiftKey) {
+            e.preventDefault();
+          }
+          return;
+        }
+      }
+
       const punctuationTrigger = key.length === 1 && [".", ",", "!", "?", ";", ":"].includes(key);
       if (key === " " || punctuationTrigger) {
         applyAutocorrectFromEvent(e, key);
@@ -675,7 +891,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         : texto;
       handleSendFromComposer(textToSend);
     },
-    [applyAutocorrectFromEvent, composerEnterInsertsNewline, handleSendFromComposer, texto]
+    [applyAutocorrectFromEvent, closeSavedReplies, composerEnterInsertsNewline, filteredSavedReplies, handleSendFromComposer, insertSavedReply, savedRepliesIndex, savedRepliesOpen, texto]
   );
 
   const insertEmoji = useCallback(
@@ -1077,6 +1293,53 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   return (
     <>
       <div className="wa-composerStack">
+      {savedRepliesOpen && !isRecording ? (
+        <div
+          ref={savedRepliesPanelRef}
+          className="wa-savedRepliesPanel"
+          role="listbox"
+          aria-label="Respostas salvas"
+        >
+          <div className="wa-savedRepliesPanel-head">
+            <span className="wa-savedRepliesPanel-title">Respostas salvas</span>
+            <span className="wa-muted wa-savedRepliesPanel-hint">↑↓ navegar · Enter inserir · Esc fechar</span>
+          </div>
+          <div className="wa-savedRepliesPanel-body">
+            {savedRepliesLoading ? (
+              <div className="wa-muted">Carregando...</div>
+            ) : savedRepliesError ? (
+              <div className="wa-muted" role="status">{savedRepliesError}</div>
+            ) : filteredSavedReplies.length === 0 ? (
+              <div className="wa-muted">
+                {savedRepliesList.length === 0
+                  ? "Nenhuma resposta salva. Cadastre em Configurações > Respostas salvas."
+                  : "Nenhuma resposta encontrada para esta busca."}
+              </div>
+            ) : (
+              <div className="wa-savedRepliesList">
+                {filteredSavedReplies.map((r, idx) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    className={`wa-savedReplyItem ${idx === savedRepliesIndex ? "isActive" : ""}`}
+                    role="option"
+                    aria-selected={idx === savedRepliesIndex ? "true" : "false"}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => insertSavedReply(r.texto)}
+                    title={r.titulo}
+                  >
+                    <strong>{r.titulo}</strong>
+                    <span className="wa-muted wa-savedReplyItem-preview">
+                      {String(r.texto || "").slice(0, 80)}
+                      {(r.texto || "").length > 80 ? "…" : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
       {replyBarPreview && !isRecording ? (
         <div className="wa-replyBar" role="region" aria-label="Respondendo">
           <div className="wa-replyBar-bar" aria-hidden="true" />
@@ -1148,6 +1411,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 type="button"
                 className={`wa-iconBtn wa-attachPlus ${attachMenuOpen ? "isOpen" : ""}`}
                 onClick={() => {
+                  closeSavedReplies();
                   setAttachMenuOpen((v) => !v);
                   setEmojiOpen(false);
                   setStickerOpen(false);
@@ -1194,10 +1458,30 @@ const ConversaComposer = forwardRef(function ConversaComposer(
             </div>
             <div className="wa-stickerWrap">
               <button
+                type="button"
+                className={`wa-iconBtn wa-savedRepliesBtn ${savedRepliesOpen && savedRepliesViaPicker ? "isActive" : ""}`}
+                onClick={() => {
+                  if (savedRepliesOpen && savedRepliesViaPicker) {
+                    closeSavedReplies();
+                  } else {
+                    openSavedRepliesPicker();
+                  }
+                }}
+                title="Respostas salvas (ou digite /)"
+                aria-label="Respostas salvas"
+                aria-expanded={savedRepliesOpen && savedRepliesViaPicker}
+                disabled={sending || !conversaId || !podeEnviar}
+              >
+                <IconSavedReplies />
+              </button>
+            </div>
+            <div className="wa-stickerWrap">
+              <button
                 ref={stickerBtnRef}
                 type="button"
                 className={`wa-iconBtn wa-stickerBtn ${stickerOpen ? "isActive" : ""}`}
                 onClick={() => {
+                  closeSavedReplies();
                   setStickerOpen((v) => !v);
                   setAttachMenuOpen(false);
                   setEmojiOpen(false);
@@ -1292,6 +1576,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 type="button"
                 className={`wa-iconBtn ${emojiOpen ? "isActive" : ""}`}
                 onClick={() => {
+                  closeSavedReplies();
                   setEmojiOpen((v) => !v);
                   setAttachMenuOpen(false);
                   setStickerOpen(false);

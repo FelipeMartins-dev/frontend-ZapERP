@@ -10,12 +10,13 @@ import {
   IconRobot,
   IconSettings,
   IconSparkles,
+  IconTemplate,
   IconMoon,
   IconSun,
   IconUsers,
 } from "@tabler/icons-react";
 import { useAuthStore } from "../auth/authStore";
-import { can, isSupervisorOrAdmin } from "../auth/permissions";
+import { can, canGerenciarRespostasSalvas, isSupervisorOrAdmin } from "../auth/permissions";
 import GlobalNotifications from "../notifications/GlobalNotifications";
 import PushPermissionPrompt from "../push/PushPermissionPrompt";
 import { getOpenConversationNotificationEventName } from "../notifications/desktopNotificationService";
@@ -66,6 +67,7 @@ export default function MainLayout() {
   const internalChatUnreadTotal = useInternalChatNotifyStore(selectInternalChatUnreadTotal);
   const showInternalChatUnreadDot = internalChatUnreadTotal > 0;
   const canAccessConfig = can("config_acessar", user);
+  const canAccessRespostasSalvas = canGerenciarRespostasSalvas(user);
   const canAccessDashboard_ = can("dashboard_acessar", user);
   const canAccessChatbot_ = can("chatbot_acessar", user);
   const canAccessUsers = can("usuarios_acessar", user);
@@ -134,6 +136,13 @@ export default function MainLayout() {
           show: canAccessConfig,
         },
         {
+          to: "/configuracoes?tab=respostas",
+          label: "Respostas",
+          title: "Respostas salvas",
+          icon: IconTemplate,
+          show: !canAccessConfig && canAccessRespostasSalvas,
+        },
+        {
           to: "/dashboard/ia",
           label: "IA",
           title: "IA / Sparkles",
@@ -145,6 +154,7 @@ export default function MainLayout() {
       canAccessChatbot_,
       canAccessConfig,
       canAccessDashboard_,
+      canAccessRespostasSalvas,
       canAccessSupervisao,
       canAccessUsers,
       showAtendimentoUnreadDot,

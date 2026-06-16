@@ -119,7 +119,6 @@ import {
   adicionarTagConversa,
   removerTagConversa,
 } from "../api/tagService";
-import * as cfg from "../api/configService";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import EmptyState from "../components/feedback/EmptyState";
 import ConversaLoadingScreen from "./ConversaLoadingScreen";
@@ -314,9 +313,6 @@ function ConversaViewBody() {
   const [showTransferirSetor, setShowTransferirSetor] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
   const [transferirSetorLoading, setTransferirSetorLoading] = useState(false);
-  const [showRespostasSalvas, setShowRespostasSalvas] = useState(false);
-  const [respostasSalvas, setRespostasSalvas] = useState([]);
-  const [respostasSalvasLoading, setRespostasSalvasLoading] = useState(false);
   const [showProdutosPanel, setShowProdutosPanel] = useState(false);
 
   const chats = useChatStore((s) => s.chats);
@@ -2311,7 +2307,6 @@ function ConversaViewBody() {
     if (tagsOpen) setTagsOpen(false);
     if (pendingFile) clearPending();
     if (showClienteSide) setShowClienteSide(false);
-    if (showRespostasSalvas) setShowRespostasSalvas(false);
     if (showTransferirSetor) setShowTransferirSetor(false);
     if (forwardOpen || selectMode) dismissSelectionOverlay();
     if (msgInfoOpen) {
@@ -2326,7 +2321,6 @@ function ConversaViewBody() {
     pendingFile,
     clearPending,
     showClienteSide,
-    showRespostasSalvas,
     showTransferirSetor,
     dismissSelectionOverlay,
     forwardOpen,
@@ -2656,35 +2650,6 @@ function ConversaViewBody() {
     setShowTransferirSetor(true);
     carregarDepartamentos();
   }, [carregarDepartamentos]);
-
-  const carregarRespostasSalvas = useCallback(async () => {
-    try {
-      setRespostasSalvasLoading(true);
-      const depId = conversa?.departamento_id || null;
-      const list = await cfg.getRespostasSalvas(depId);
-      setRespostasSalvas(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error("Erro ao carregar respostas salvas:", e);
-      setRespostasSalvas([]);
-    } finally {
-      setRespostasSalvasLoading(false);
-    }
-  }, [conversa?.departamento_id]);
-
-  const handleOpenRespostasSalvas = useCallback(() => {
-    setShowRespostasSalvas(true);
-    carregarRespostasSalvas();
-  }, [carregarRespostasSalvas]);
-
-  const handleInserirResposta = useCallback(
-    (textoResposta) => {
-      if (!textoResposta) return;
-      composerRef.current?.appendText?.(textoResposta);
-      setShowRespostasSalvas(false);
-      focusMessageInput();
-    },
-    [focusMessageInput]
-  );
 
   const handleTransferirSetor = useCallback(
     async (departamentoId) => {
@@ -3239,52 +3204,6 @@ function ConversaViewBody() {
           onConfirmSendImageMobile={handleConfirmSendImageMobile}
         />
 
-        {showRespostasSalvas && (
-          <div
-            className="wa-tagsPanel"
-            role="dialog"
-            aria-label="Respostas salvas"
-            style={{ bottom: "100%", left: 0, right: 0, maxHeight: 220 }}
-          >
-            <div className="wa-tagsPanel-head">
-              <span className="wa-tagsPanel-title">Respostas rápidas</span>
-              <button
-                type="button"
-                className="wa-iconBtn"
-                onClick={() => setShowRespostasSalvas(false)}
-                title="Fechar"
-              >
-                <IconClose />
-              </button>
-            </div>
-            <div className="wa-tagsPanel-body" style={{ maxHeight: 160, overflowY: "auto" }}>
-              {respostasSalvasLoading ? (
-                <div className="wa-muted">Carregando...</div>
-              ) : respostasSalvas.length === 0 ? (
-                <div className="wa-muted">Nenhuma resposta salva. Configure em Configurações &gt; Respostas salvas.</div>
-              ) : (
-                <div className="wa-tagsList">
-                  {respostasSalvas.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className="wa-tagItem"
-                      onClick={() => handleInserirResposta(r.texto)}
-                      title={r.titulo}
-                    >
-                      <strong>{r.titulo}</strong>
-                      <span className="wa-muted" style={{ fontSize: 12, marginTop: 2, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {String(r.texto || "").slice(0, 60)}
-                        {(r.texto || "").length > 60 ? "…" : ""}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {forwardOpen && forwardMsgs?.length ? (
           <Suspense fallback={null}>
             <ForwardModal
@@ -3435,6 +3354,7 @@ function ConversaViewBody() {
           <ConversaComposer
             ref={composerRef}
             conversaId={conversaId}
+            departamentoId={conversa?.departamento_id ?? null}
             scrollThreadId={scrollThreadId}
             loading={loading}
             sending={sending}

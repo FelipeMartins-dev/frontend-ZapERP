@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
-import { can, isSupervisorOrAdmin } from "../auth/permissions";
+import { can, canGerenciarRespostasSalvas, isSupervisorOrAdmin } from "../auth/permissions";
 import ProtectedRoute from "./ProtectedRoute";
 
 import Login from "../pages/Login";
@@ -62,6 +62,7 @@ function LazyPage({ children }) {
 export default function AppRoutes() {
   const { token, user } = useAuthStore();
   const canAccessConfig = can("config_acessar", user);
+  const canAccessRespostasSalvas = canGerenciarRespostasSalvas(user);
   const canAccessDashboard_ = can("dashboard_acessar", user);
   const canAccessChatbot_ = can("chatbot_acessar", user);
   const canAccessUsers = can("usuarios_acessar", user);
@@ -158,7 +159,7 @@ export default function AppRoutes() {
           <Route
             path="/configuracoes"
             element={
-              <ProtectedRoute canAccess={canAccessConfig} redirectTo="/atendimento">
+              <ProtectedRoute canAccess={canAccessConfig || canAccessRespostasSalvas} redirectTo="/atendimento">
                 <LazyPage>
                   <Configuracoes />
                 </LazyPage>

@@ -92,3 +92,15 @@ export function IconSticker(props) {
     </svg>
   );
 }
+
+/** Respostas salvas (atalho /) */
+export function IconSavedReplies(props) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" strokeWidth="1.6" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M4 6h16v12H4z" />
+      <path d="M8 10h8" />
+      <path d="M8 14h5" />
+      <path d="M8 6V4h8v2" />
+    </svg>
+  );
+}

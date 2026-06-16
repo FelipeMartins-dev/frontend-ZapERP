@@ -1685,6 +1685,17 @@ function SecaoChatbotTriagem({
 
 function normalizeAlertaSemRespostaFromApi(raw) {
   const s = raw && typeof raw === "object" ? raw : {};
+  const bool = (value, fallback = false) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") {
+      if (value === 1) return true;
+      if (value === 0) return false;
+    }
+    const rawValue = String(value ?? "").trim().toLowerCase();
+    if (["1", "true", "sim", "yes", "on", "ativo"].includes(rawValue)) return true;
+    if (["0", "false", "nao", "n\u00e3o", "no", "off", "inativo"].includes(rawValue)) return false;
+    return fallback;
+  };
   const num = (value, fallback) => {
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
@@ -1692,27 +1703,27 @@ function normalizeAlertaSemRespostaFromApi(raw) {
   const responsaveis = Array.isArray(s.responsaveis_notificacao_ids)
     ? s.responsaveis_notificacao_ids.map(Number).filter((id) => Number.isFinite(id) && id > 0)
     : [];
-  const gestorId = Number(s.gestor_notificado_id);
+  const gestorId = Number(s.gestor_notificado_id ?? responsaveis[0]);
   const gestorClienteId = Number(s.gestor_cliente_id);
   return {
     ...DEFAULT_ALERTA_SEM_RESPOSTA,
     ...s,
-    alerta_sem_resposta_ativo: s.alerta_sem_resposta_ativo === true || s.ativo === true,
+    alerta_sem_resposta_ativo: bool(s.alerta_sem_resposta_ativo, bool(s.ativo, false)),
     tempo_primeiro_alerta_minutos: num(s.tempo_primeiro_alerta_minutos, 2),
     tempo_alerta_critico_minutos: num(s.tempo_alerta_critico_minutos, 10),
     tempo_notificar_gestor_minutos: num(s.tempo_notificar_gestor_minutos, 15),
-    notificar_por_whatsapp: s.notificar_por_whatsapp === true,
-    notificar_por_email: false,
-    notificar_interno: s.notificar_interno !== false,
-    reabrir_conversa_automaticamente: s.reabrir_conversa_automaticamente !== false,
-    aplicar_tag_automatica: s.aplicar_tag_automatica !== false,
+    notificar_por_whatsapp: bool(s.notificar_por_whatsapp, false),
+    notificar_por_email: bool(s.notificar_por_email, false),
+    notificar_interno: bool(s.notificar_interno, true),
+    reabrir_conversa_automaticamente: bool(s.reabrir_conversa_automaticamente, true),
+    aplicar_tag_automatica: bool(s.aplicar_tag_automatica, true),
     nome_tag_automatica: String(s.nome_tag_automatica || DEFAULT_ALERTA_SEM_RESPOSTA.nome_tag_automatica).trim(),
     gestor_notificado_id: Number.isFinite(gestorId) && gestorId > 0 ? gestorId : null,
     gestor_cliente_id: Number.isFinite(gestorClienteId) && gestorClienteId > 0 ? gestorClienteId : null,
     gestor_cliente_nome: String(s.gestor_cliente_nome || "").trim(),
     responsaveis_notificacao_ids: responsaveis,
     telefone_gestor: String(s.telefone_gestor || "").trim(),
-    horario_comercial_ativo: s.horario_comercial_ativo === true,
+    horario_comercial_ativo: bool(s.horario_comercial_ativo, false),
     timezone: String(s.timezone || DEFAULT_ALERTA_SEM_RESPOSTA.timezone).trim(),
   };
 }
@@ -1722,8 +1733,8 @@ function validateAlertaSemResposta(v) {
   const critical = Number(v.tempo_alerta_critico_minutos);
   const manager = Number(v.tempo_notificar_gestor_minutos);
   if (!Number.isFinite(first) || first <= 0) return "Informe um tempo maior que zero para o primeiro alerta.";
-  if (!Number.isFinite(critical) || critical <= first) return "O alerta critico precisa ser maior que o primeiro alerta.";
-  if (!Number.isFinite(manager) || manager <= critical) return "A notificacao ao gestor precisa ser maior que o alerta critico.";
+  if (!Number.isFinite(critical) || critical < first) return "O alerta critico nao pode ser menor que o primeiro alerta.";
+  if (!Number.isFinite(manager) || manager < critical) return "A notificacao ao gestor nao pode ser menor que o alerta critico.";
   if (v.aplicar_tag_automatica && !String(v.nome_tag_automatica || "").trim()) return "Informe o nome da tag automatica.";
   if (v.notificar_por_whatsapp) {
     const clienteId = Number(v.gestor_cliente_id);
@@ -1732,7 +1743,7 @@ function validateAlertaSemResposta(v) {
       return "Para WhatsApp, selecione um contato cadastrado no sistema.";
     }
   }
-  if (!v.notificar_por_whatsapp && !v.notificar_interno) {
+  if (!v.notificar_por_whatsapp && !v.notificar_por_email && !v.notificar_interno) {
     return "Selecione ao menos um canal de notificacao disponivel.";
   }
   return null;
@@ -1747,7 +1758,7 @@ function buildAlertaSemRespostaPayload(v) {
     tempo_alerta_critico_minutos: Math.max(1, Math.floor(Number(v.tempo_alerta_critico_minutos) || 1)),
     tempo_notificar_gestor_minutos: Math.max(1, Math.floor(Number(v.tempo_notificar_gestor_minutos) || 1)),
     notificar_por_whatsapp: v.notificar_por_whatsapp === true,
-    notificar_por_email: false,
+    notificar_por_email: v.notificar_por_email === true,
     notificar_interno: v.notificar_interno !== false,
     reabrir_conversa_automaticamente: v.reabrir_conversa_automaticamente !== false,
     aplicar_tag_automatica: v.aplicar_tag_automatica !== false,
@@ -2081,7 +2092,7 @@ function SecaoAlertasAtendimento() {
               <label className="sla-check-card">
                 <input
                   type="checkbox"
-                  checked={false}
+                  checked={cfg.notificar_por_email}
                   disabled
                   onChange={() => {}}
                 />
@@ -2163,7 +2174,11 @@ function SecaoAlertasAtendimento() {
             {selectedGestor && (
               <p className="chatbot-hint">Responsavel interno: {selectedGestor.nome || selectedGestor.email || `Usuario ${selectedGestor.id}`}</p>
             )}
-            <p className="chatbot-hint">E-mail fica indisponivel ate a configuracao de um provedor SMTP/transacional no servidor.</p>
+            <p className="chatbot-hint">
+              {cfg.notificar_por_email
+                ? "E-mail ativo pelo servidor. A edicao do provedor SMTP/transacional ainda nao esta disponivel nesta tela."
+                : "E-mail fica indisponivel ate a configuracao de um provedor SMTP/transacional no servidor."}
+            </p>
           </div>
 
           <div className="sla-actions">

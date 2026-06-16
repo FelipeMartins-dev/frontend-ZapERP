@@ -65,6 +65,15 @@ export function canTag(user) {
   return ["admin", "supervisor", "atendente"].includes(role(user));
 }
 
+/** Admin, supervisor e atendente podem gerenciar respostas salvas pessoais */
+export function canGerenciarRespostasSalvas(user) {
+  const permissoes = usePermissoesStore.getState().permissoes;
+  if (permissoes != null && Object.prototype.hasOwnProperty.call(permissoes, "atendimentos.respostas_salvas")) {
+    return !!permissoes["atendimentos.respostas_salvas"];
+  }
+  return ["admin", "supervisor", "atendente"].includes(role(user));
+}
+
 /** Supervisor e admin podem acessar Configurações (usa can() para priorizar API) */
 export function canAcessarConfiguracoes(user) {
   return can("config_acessar", user);
