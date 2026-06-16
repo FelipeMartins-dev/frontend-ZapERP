@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
 import { usePermissoesStore } from "../auth/permissoesStore";
 import { canAcessarConfiguracoes } from "../auth/permissions";
@@ -89,7 +89,7 @@ const DEFAULT_ALERTA_SEM_RESPOSTA = {
   gestor_cliente_nome: "",
   responsaveis_notificacao_ids: [],
   telefone_gestor: "",
-  horario_comercial_ativo: false,
+  horario_comercial_ativo: true,
   timezone: "America/Sao_Paulo",
 };
 
@@ -415,188 +415,297 @@ export default function IA() {
 
 function SecaoRespostasAutomaticas({ regras, formRegra, setFormRegra, departamentos, tags, onAdd, onDelete }) {
   return (
-    <div className="ia-section">
-      <h4>3. Respostas automáticas</h4>
-      <p className="ia-muted">Palavra-chave → resposta. Usa respostas_salvas, tags, conversa_tags.</p>
+    <div className="ia-section ia-auto-reply-section">
+      <header className="ia-auto-reply-header">
+        <span className="ia-auto-reply-eyebrow">Automação do bot</span>
+        <h4 className="ia-auto-reply-title">Respostas automáticas</h4>
+        <p className="ia-auto-reply-lead">
+          O sistema responde <strong>sozinho</strong> quando o cliente envia uma palavra-chave na conversa.
+          Ideal para horário, endereço, prazos e mensagens repetitivas.
+        </p>
+      </header>
 
-      <form onSubmit={onAdd}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div className="ia-field">
-            <label>Palavra-chave</label>
-            <input
-              type="text"
-              className="ia-input"
-              value={formRegra.palavra_chave}
-              onChange={(e) => setFormRegra((f) => ({ ...f, palavra_chave: e.target.value }))}
-              placeholder="ex: horário"
-            />
-          </div>
-          <div className="ia-field">
-            <label>Resposta</label>
-            <input
-              type="text"
-              className="ia-input"
-              value={formRegra.resposta}
-              onChange={(e) => setFormRegra((f) => ({ ...f, resposta: e.target.value }))}
-              placeholder="Nosso horário é..."
-            />
-          </div>
+      <div className="ia-callout ia-callout--warn" role="note">
+        <div className="ia-callout-icon" aria-hidden="true">!</div>
+        <div className="ia-callout-body">
+          <p className="ia-callout-title">Isto não aparece no atalho <kbd>/</kbd> do atendimento</p>
+          <p className="ia-callout-text">
+            Regras aqui são do <strong>chatbot</strong> (resposta automática ao cliente).
+            Para o atendente preencher o campo de mensagem com <kbd>/</kbd>, cadastre em{" "}
+            <Link to="/configuracoes?tab=respostas" className="ia-callout-link">
+              Configurações → Respostas salvas
+            </Link>
+            .
+          </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div className="ia-field">
-            <label>Setor (opcional)</label>
-            <select
-              className="ia-select"
-              value={formRegra.departamento_id}
-              onChange={(e) => setFormRegra((f) => ({ ...f, departamento_id: e.target.value }))}
-            >
-              <option value="">Todos</option>
-              {departamentos.map((d) => (
-                <option key={d.id} value={d.id}>{d.nome}</option>
-              ))}
-            </select>
-          </div>
-          <div className="ia-field">
-            <label>Tag a aplicar (opcional)</label>
-            <select
-              className="ia-select"
-              value={formRegra.tag_id}
-              onChange={(e) => setFormRegra((f) => ({ ...f, tag_id: e.target.value }))}
-            >
-              <option value="">Nenhuma</option>
-              {tags.map((t) => (
-                <option key={t.id} value={t.id}>{t.nome}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="ia-checkbox-row">
-          <input
-            type="checkbox"
-            id="aplicar_tag"
-            checked={formRegra.aplicar_tag}
-            onChange={(e) => setFormRegra((f) => ({ ...f, aplicar_tag: e.target.checked }))}
-          />
-          <label htmlFor="aplicar_tag">Aplicar tag automaticamente</label>
-        </div>
-        <div className="ia-checkbox-row">
-          <input
-            type="checkbox"
-            id="horario_comercial"
-            checked={formRegra.horario_comercial_only}
-            onChange={(e) => setFormRegra((f) => ({ ...f, horario_comercial_only: e.target.checked }))}
-          />
-          <label htmlFor="horario_comercial">Apenas em horário comercial</label>
-        </div>
-        <div className="ia-btn-row">
-          <button type="submit" className="ia-btn ia-btn--primary">
-            Salvar regra
-          </button>
-        </div>
-      </form>
+      </div>
 
-      <h4 style={{ marginTop: 24 }}>Regras cadastradas ({regras.length})</h4>
-      {regras.length === 0 ? (
-        <p className="ia-muted">Nenhuma regra cadastrada.</p>
-      ) : (
-        regras.map((r) => (
-          <div key={r.id} className="ia-regra-item">
-            <div className="ia-regra-item-main">
-              <strong>{r.palavra_chave}</strong> → {r.resposta}
-              <br />
-              <span>
-                {r.departamentos?.nome ? `Setor: ${r.departamentos.nome}` : ""}
-                {r.tags?.nome ? ` | Tag: ${r.tags.nome}` : ""}
-                {r.horario_comercial_only ? " | Horário comercial" : ""}
-              </span>
+      <div className="ia-auto-reply-form-card">
+        <h5 className="ia-auto-reply-card-title">Nova regra automática</h5>
+        <p className="ia-muted ia-auto-reply-card-hint">
+          Exemplo: cliente digita &quot;horário&quot; → o bot envia a resposta cadastrada.
+        </p>
+
+        <form onSubmit={onAdd} className="ia-auto-reply-form">
+          <div className="ia-auto-reply-form-grid">
+            <div className="ia-field">
+              <label htmlFor="regra-palavra">Palavra-chave do cliente</label>
+              <input
+                id="regra-palavra"
+                type="text"
+                className="ia-input"
+                value={formRegra.palavra_chave}
+                onChange={(e) => setFormRegra((f) => ({ ...f, palavra_chave: e.target.value }))}
+                placeholder="ex: horário, teste, preço"
+              />
             </div>
-            <button
-              type="button"
-              className="ia-btn ia-btn--outline ia-btn--small"
-              style={{ flexShrink: 0 }}
-              onClick={() => onDelete(r.id)}
-            >
-              Excluir
+            <div className="ia-field ia-field--span2">
+              <label htmlFor="regra-resposta">Resposta que o bot enviará</label>
+              <textarea
+                id="regra-resposta"
+                className="ia-textarea ia-auto-reply-textarea"
+                value={formRegra.resposta}
+                onChange={(e) => setFormRegra((f) => ({ ...f, resposta: e.target.value }))}
+                placeholder="Nosso horário de atendimento é de segunda a sexta, das 9h às 18h."
+                rows={3}
+              />
+            </div>
+            <div className="ia-field">
+              <label htmlFor="regra-setor">Setor ao casar (opcional)</label>
+              <select
+                id="regra-setor"
+                className="ia-select"
+                value={formRegra.departamento_id}
+                onChange={(e) => setFormRegra((f) => ({ ...f, departamento_id: e.target.value }))}
+              >
+                <option value="">Não alterar setor</option>
+                {departamentos.map((d) => (
+                  <option key={d.id} value={d.id}>{d.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ia-field">
+              <label htmlFor="regra-tag">Tag a aplicar (opcional)</label>
+              <select
+                id="regra-tag"
+                className="ia-select"
+                value={formRegra.tag_id}
+                onChange={(e) => setFormRegra((f) => ({ ...f, tag_id: e.target.value }))}
+              >
+                <option value="">Nenhuma</option>
+                {tags.map((t) => (
+                  <option key={t.id} value={t.id}>{t.nome}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="ia-auto-reply-options">
+            <label className="ia-auto-reply-check">
+              <input
+                type="checkbox"
+                checked={formRegra.aplicar_tag}
+                onChange={(e) => setFormRegra((f) => ({ ...f, aplicar_tag: e.target.checked }))}
+              />
+              <span>Aplicar tag automaticamente na conversa</span>
+            </label>
+            <label className="ia-auto-reply-check">
+              <input
+                type="checkbox"
+                checked={formRegra.horario_comercial_only}
+                onChange={(e) => setFormRegra((f) => ({ ...f, horario_comercial_only: e.target.checked }))}
+              />
+              <span>Responder apenas em horário comercial</span>
+            </label>
+          </div>
+
+          <div className="ia-btn-row">
+            <button type="submit" className="ia-btn ia-btn--primary">
+              Salvar regra automática
             </button>
           </div>
-        ))
-      )}
+        </form>
+      </div>
+
+      <div className="ia-auto-reply-rules">
+        <div className="ia-auto-reply-rules-head">
+          <h5 className="ia-auto-reply-card-title">Regras cadastradas</h5>
+          <span className="ia-auto-reply-count">{regras.length}</span>
+        </div>
+
+        {regras.length === 0 ? (
+          <div className="ia-auto-reply-empty">
+            <p>Nenhuma regra automática ainda.</p>
+            <p className="ia-muted">Quando o cliente enviar a palavra-chave, o bot responderá sozinho.</p>
+          </div>
+        ) : (
+          <ul className="ia-auto-reply-list">
+            {regras.map((r) => (
+              <li key={r.id} className="ia-auto-reply-card">
+                <div className="ia-auto-reply-card-top">
+                  <span className="ia-auto-reply-keyword">{r.palavra_chave}</span>
+                  <span className="ia-auto-reply-arrow" aria-hidden="true">→</span>
+                  <p className="ia-auto-reply-response">{r.resposta}</p>
+                </div>
+                <div className="ia-auto-reply-card-meta">
+                  {r.departamentos?.nome ? (
+                    <span className="ia-auto-reply-pill">Setor: {r.departamentos.nome}</span>
+                  ) : null}
+                  {r.tags?.nome ? (
+                    <span className="ia-auto-reply-pill ia-auto-reply-pill--tag">Tag: {r.tags.nome}</span>
+                  ) : null}
+                  {r.horario_comercial_only ? (
+                    <span className="ia-auto-reply-pill ia-auto-reply-pill--muted">Horário comercial</span>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className="ia-btn ia-btn--outline ia-btn--small ia-auto-reply-delete"
+                  onClick={() => onDelete(r.id)}
+                >
+                  Excluir
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
+
+const IA_FEATURE_ITEMS = [
+  {
+    key: "sugerir_respostas",
+    title: "Sugerir respostas para atendente",
+    description: "Exibe sugestões de texto enquanto o atendente digita. Nunca envia mensagem sozinha.",
+    badge: "em breve",
+  },
+  {
+    key: "corrigir_texto",
+    title: "Corrigir texto automaticamente",
+    description: "Correção ortográfica assistida no composer. Hoje o atendente controla isso no ícone de correção da conversa.",
+    badge: "em breve",
+  },
+  {
+    key: "auto_completar",
+    title: "Auto completar mensagens",
+    description: "Completa frases com base no contexto da conversa.",
+    badge: "em breve",
+  },
+  {
+    key: "resumo_conversa",
+    title: "Resumo de conversa",
+    description: "Gera resumo rápido do histórico para o atendente assumir com contexto.",
+    badge: "em breve",
+  },
+  {
+    key: "classificar_intencao",
+    title: "Classificar intenção",
+    description: "Identifica intenção do cliente (dúvida, reclamação, compra, etc.).",
+    badge: "em breve",
+  },
+  {
+    key: "sugerir_tags",
+    title: "Sugerir tags",
+    description: "Recomenda tags para classificar a conversa com um clique.",
+    badge: "em breve",
+  },
+];
 
 function SecaoIA({ config, onSave, saving }) {
   const [v, setV] = useState(config);
   useEffect(() => setV(config), [config]);
 
+  const iaEnabled = !!v.usar_ia;
+
+  const setFeature = useCallback((key, checked) => {
+    setV((c) => ({ ...c, [key]: checked }));
+  }, []);
+
+  const handleMasterToggle = useCallback((checked) => {
+    setV((c) => ({ ...c, usar_ia: checked }));
+  }, []);
+
   return (
-    <div className="ia-section">
-      <h4>4. IA (sugestões inteligentes)</h4>
-      <p className="ia-muted">Assistivo, nunca responde sozinho sem permissão.</p>
+    <div className="ia-section ia-suggest-section">
+      <header className="ia-suggest-header">
+        <span className="ia-auto-reply-eyebrow">Assistência inteligente</span>
+        <h4 className="ia-suggest-title">IA (sugestões inteligentes)</h4>
+        <p className="ia-suggest-lead">
+          Recursos assistivos para o atendente — <strong>nunca respondem sozinhos</strong> ao cliente.
+          Ative a IA principal para liberar as preferências abaixo.
+        </p>
+      </header>
 
-      <div className="ds-switch-row">
-        <Switch checked={v.usar_ia} onChange={(x) => setV((c) => ({ ...c, usar_ia: x }))} />
-        <span>Usar IA</span>
-      </div>
-
-      <div className="ia-checkbox-row">
-        <input
-          type="checkbox"
-          id="sugerir_respostas"
-          checked={v.sugerir_respostas}
-          onChange={(e) => setV((c) => ({ ...c, sugerir_respostas: e.target.checked }))}
-        />
-        <label htmlFor="sugerir_respostas">Sugerir respostas para atendente</label>
-      </div>
-      <div className="ia-checkbox-row">
-        <input
-          type="checkbox"
-          id="corrigir_texto"
-          checked={v.corrigir_texto}
-          onChange={(e) => setV((c) => ({ ...c, corrigir_texto: e.target.checked }))}
-        />
-        <label htmlFor="corrigir_texto">Corrigir texto automaticamente</label>
-      </div>
-      <div className="ia-checkbox-row">
-        <input
-          type="checkbox"
-          id="auto_completar"
-          checked={v.auto_completar}
-          onChange={(e) => setV((c) => ({ ...c, auto_completar: e.target.checked }))}
-        />
-        <label htmlFor="auto_completar">Auto completar mensagens</label>
-      </div>
-      <div className="ia-checkbox-row">
-        <input
-          type="checkbox"
-          id="resumo_conversa"
-          checked={v.resumo_conversa}
-          onChange={(e) => setV((c) => ({ ...c, resumo_conversa: e.target.checked }))}
-        />
-        <label htmlFor="resumo_conversa">Resumo de conversa</label>
-      </div>
-      <div className="ia-checkbox-row">
-        <input
-          type="checkbox"
-          id="classificar_intencao"
-          checked={v.classificar_intencao}
-          onChange={(e) => setV((c) => ({ ...c, classificar_intencao: e.target.checked }))}
-        />
-        <label htmlFor="classificar_intencao">Classificar intenção</label>
-      </div>
-      <div className="ia-checkbox-row">
-        <input
-          type="checkbox"
-          id="sugerir_tags"
-          checked={v.sugerir_tags}
-          onChange={(e) => setV((c) => ({ ...c, sugerir_tags: e.target.checked }))}
-        />
-        <label htmlFor="sugerir_tags">Sugerir tags</label>
+      <div className={`ia-suggest-master ${iaEnabled ? "ia-suggest-master--on" : ""}`}>
+        <div className="ia-suggest-master-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3a7 7 0 0 1 7 7c0 2.5-1.2 4.7-3 6.1V19a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-2.9A7 7 0 0 1 5 10a7 7 0 0 1 7-7z" />
+            <path d="M9.5 17h5" />
+          </svg>
+        </div>
+        <div className="ia-suggest-master-body">
+          <div className="ia-suggest-master-row">
+            <div>
+              <h5 className="ia-suggest-master-title">Usar IA</h5>
+              <p className="ia-suggest-master-desc">
+                Habilita a <strong>IA Analítica</strong> no Dashboard (consultas em linguagem natural).
+              </p>
+            </div>
+            <Switch
+              checked={iaEnabled}
+              onChange={handleMasterToggle}
+              aria-label="Usar IA"
+            />
+          </div>
+          <span className={`ia-suggest-status-pill ${iaEnabled ? "is-on" : ""}`}>
+            {iaEnabled ? "IA Analítica ativa" : "IA desligada — preferências abaixo ficam bloqueadas"}
+          </span>
+        </div>
       </div>
 
-      <div className="ia-btn-row">
-        <button className="ia-btn ia-btn--primary" onClick={() => onSave(v)} disabled={saving}>
-          {saving ? "Salvando..." : "Salvar"}
+      <div className={`ia-suggest-features ${!iaEnabled ? "ia-suggest-features--disabled" : ""}`}>
+        <h5 className="ia-suggest-features-title">Funcionalidades assistivas</h5>
+        <p className="ia-muted ia-suggest-features-hint">
+          Preferências salvas por empresa. Itens marcados como &quot;em breve&quot; ainda não alteram o atendimento em tempo real.
+        </p>
+        <ul className="ia-suggest-list">
+          {IA_FEATURE_ITEMS.map((item) => {
+            const checked = !!v[item.key];
+            return (
+              <li key={item.key} className={`ia-suggest-item ${checked && iaEnabled ? "is-on" : ""}`}>
+                <label className="ia-suggest-item-label">
+                  <input
+                    type="checkbox"
+                    className="ia-suggest-item-check"
+                    checked={checked}
+                    disabled={!iaEnabled || saving}
+                    onChange={(e) => setFeature(item.key, e.target.checked)}
+                  />
+                  <span className="ia-suggest-item-check-ui" aria-hidden="true" />
+                  <span className="ia-suggest-item-text">
+                    <span className="ia-suggest-item-title-row">
+                      <strong>{item.title}</strong>
+                      <span className="ia-suggest-item-badge">{item.badge}</span>
+                    </span>
+                    <span className="ia-suggest-item-desc">{item.description}</span>
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div className="ia-suggest-footer">
+        <button
+          type="button"
+          className="ia-btn ia-btn--primary"
+          onClick={() => onSave(v)}
+          disabled={saving}
+        >
+          {saving ? "Salvando..." : "Salvar configurações de IA"}
         </button>
       </div>
     </div>
@@ -1723,7 +1832,7 @@ function normalizeAlertaSemRespostaFromApi(raw) {
     gestor_cliente_nome: String(s.gestor_cliente_nome || "").trim(),
     responsaveis_notificacao_ids: responsaveis,
     telefone_gestor: String(s.telefone_gestor || "").trim(),
-    horario_comercial_ativo: bool(s.horario_comercial_ativo, false),
+    horario_comercial_ativo: bool(s.horario_comercial_ativo, true),
     timezone: String(s.timezone || DEFAULT_ALERTA_SEM_RESPOSTA.timezone).trim(),
   };
 }
@@ -1966,7 +2075,7 @@ function SecaoAlertasAtendimento() {
       <div className="sla-header">
         <div>
           <h2 className="chatbot-title">Alertas de Atendimento</h2>
-          <p className="chatbot-subtitle">Configure escalonamento quando a ultima mensagem da conversa for do cliente.</p>
+          <p className="chatbot-subtitle">Configure escalonamento quando a ultima mensagem da conversa for do cliente. Os prazos contam dentro do horario comercial.</p>
         </div>
         <span className={`chatbot-badge ${cfg.alerta_sem_resposta_ativo ? "chatbot-badge--on" : "chatbot-badge--off"}`}>
           {cfg.alerta_sem_resposta_ativo ? "Ativo" : "Inativo"}
@@ -1993,7 +2102,7 @@ function SecaoAlertasAtendimento() {
               />
             </div>
             <div className="sla-note">
-              O fluxo roda somente quando esta ativo, a conversa nao esta encerrada e a ultima mensagem foi enviada pelo cliente.
+              O fluxo roda somente quando esta ativo, a conversa nao esta encerrada, a ultima mensagem foi enviada pelo cliente e o atendimento esta dentro do horario comercial.
             </div>
           </div>
 
@@ -2041,6 +2150,7 @@ function SecaoAlertasAtendimento() {
               </div>
             </div>
             {validation && <p className="sla-field-error">{validation}</p>}
+            <p className="chatbot-hint">Quando o horario comercial estiver ativo, os minutos pausam fora do expediente e continuam no proximo periodo de atendimento.</p>
           </div>
 
           <div className="chatbot-card sla-card">
@@ -2216,7 +2326,7 @@ function SecaoAlertasAtendimento() {
               <li>{cfg.reabrir_conversa_automaticamente ? "Conversa reaberta/liberada" : "Conversa permanece com o atendente"}</li>
               <li>Tag: {cfg.aplicar_tag_automatica ? cfg.nome_tag_automatica : "desativada"}</li>
             </ol>
-            <p className="sla-note">Se o atendente responder antes do prazo final, o contador para automaticamente.</p>
+            <p className="sla-note">Se o atendente responder antes do prazo final, o contador para automaticamente. Fora do horario comercial, o contador fica pausado.</p>
           </div>
 
           <div className="chatbot-card sla-card">

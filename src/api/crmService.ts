@@ -3,6 +3,7 @@ import type {
   CreateAtividadePayload,
   CreateLeadPayload,
   CrmAtividade,
+  CrmCampaign,
   CrmKanbanResponse,
   CrmLeadListItem,
   CrmLeadsListResponse,
@@ -10,6 +11,8 @@ import type {
   CrmOrigem,
   CrmPipeline,
   CrmStage,
+  CrmTagRef,
+  CrmTimelineEvent,
   MoveLeadPayload,
 } from "../crm/crmTypes";
 
@@ -107,11 +110,55 @@ export async function updateOrigem(id: number, payload: Partial<CrmOrigem>) {
   return data;
 }
 
+// --- Campanhas ---
+
+export async function listCampaigns(params?: { ativo?: boolean; origem_id?: number }) {
+  const { data } = await api.get<CrmCampaign[]>(`${CRM}/campaigns`, { params });
+  return data;
+}
+
+export async function createCampaign(payload: Partial<CrmCampaign> & { nome: string }) {
+  const { data } = await api.post<CrmCampaign>(`${CRM}/campaigns`, payload);
+  return data;
+}
+
+export async function updateCampaign(id: number, payload: Partial<CrmCampaign>) {
+  const { data } = await api.put<CrmCampaign>(`${CRM}/campaigns/${id}`, payload);
+  return data;
+}
+
+// --- Tags CRM ---
+
+export async function listCrmTags(params?: { ativo?: boolean }) {
+  const { data } = await api.get<CrmTagRef[]>(`${CRM}/tags`, { params });
+  return data;
+}
+
+export async function createCrmTag(payload: { nome: string; cor?: string | null; ativo?: boolean }) {
+  const { data } = await api.post<CrmTagRef>(`${CRM}/tags`, payload);
+  return data;
+}
+
+export async function updateCrmTag(id: number, payload: { nome?: string; cor?: string | null; ativo?: boolean }) {
+  const { data } = await api.put<CrmTagRef>(`${CRM}/tags/${id}`, payload);
+  return data;
+}
+
 // --- Lost reasons ---
 
 export async function listLostReasons() {
   const { data } = await api.get<unknown[]>(`${CRM}/lost-reasons`);
   return Array.isArray(data) ? data : [];
+}
+
+export async function createLostReason(payload: { nome: string; descricao?: string; ativo?: boolean; ordem?: number }) {
+  const { data } = await api.post<unknown>(`${CRM}/lost-reasons`, payload);
+  return data;
+}
+
+export async function updateLostReason(id: number, payload: Record<string, unknown>) {
+  const { data } = await api.put<unknown>(`${CRM}/lost-reasons/${id}`, payload);
+  return data;
 }
 
 // --- Leads ---
@@ -189,6 +236,37 @@ export async function moveLead(id: number, payload: MoveLeadPayload) {
   return data;
 }
 
+export async function winLead(id: number, payload?: { valor_ganho?: number; stage_id?: number; motivo?: string }) {
+  const { data } = await api.post<CrmLeadListItem>(`${CRM}/leads/${id}/win`, payload ?? {});
+  return data;
+}
+
+export async function loseLead(
+  id: number,
+  payload: { motivo_perda?: string; perdido_motivo?: string; motivo_perda_id?: number | null; observacao?: string; stage_id?: number }
+) {
+  const { data } = await api.post<CrmLeadListItem>(`${CRM}/leads/${id}/lose`, payload);
+  return data;
+}
+
+export async function reopenLead(id: number, payload?: { stage_id?: number; pipeline_id?: number; motivo?: string }) {
+  const { data } = await api.post<CrmLeadListItem>(`${CRM}/leads/${id}/reopen`, payload ?? {});
+  return data;
+}
+
+export async function transferLead(id: number, responsavel_id: number | null) {
+  const { data } = await api.post<CrmLeadListItem>(`${CRM}/leads/${id}/transfer`, { responsavel_id });
+  return data;
+}
+
+export async function registerLeadContact(
+  id: number,
+  payload?: { canal?: string; resultado?: string; descricao?: string; data_contato?: string; data_proxima_acao?: string }
+) {
+  const { data } = await api.post<CrmLeadListItem>(`${CRM}/leads/${id}/contact`, payload ?? {});
+  return data;
+}
+
 export async function reorderLeads(body: { stage_id: number; lead_ids: number[] }) {
   const { data } = await api.post<unknown>(`${CRM}/leads/reorder`, body);
   return data;
@@ -196,6 +274,11 @@ export async function reorderLeads(body: { stage_id: number; lead_ids: number[] 
 
 export async function getLeadHistory(id: number) {
   const { data } = await api.get<unknown>(`${CRM}/leads/${id}/history`);
+  return data;
+}
+
+export async function getLeadTimeline(id: number, params?: { tipo?: string; limit?: number }) {
+  const { data } = await api.get<CrmTimelineEvent[]>(`${CRM}/leads/${id}/timeline`, { params });
   return data;
 }
 
@@ -255,7 +338,7 @@ export async function deleteActivity(activityId: number) {
 
 // --- Kanban ---
 
-export async function getKanban(params?: { pipeline_id?: number }) {
+export async function getKanban(params?: LeadsQueryParams & { pipeline_id?: number }) {
   const { data } = await api.get<CrmKanbanResponse>(`${CRM}/kanban`, { params });
   return data;
 }

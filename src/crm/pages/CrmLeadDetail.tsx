@@ -10,16 +10,21 @@ import {
   getGoogleStatus,
   getLead,
   syncGoogleLead,
+  getLeadTimeline,
   listLeadActivities,
   listLeadNotes,
   listLostReasons,
   listStages,
   moveLead,
   patchLead,
+  registerLeadContact,
+  reopenLead,
   updateActivityStatus,
+  winLead,
+  loseLead,
 } from "../../api/crmService";
 import { getTags } from "../../api/configService";
-import type { AtividadeTipo, CrmAtividade, CrmNota } from "../crmTypes";
+import type { AtividadeTipo, CrmAtividade, CrmNota, CrmTimelineEvent } from "../crmTypes";
 
 type TabId = "resumo" | "notas" | "atividades" | "historico";
 
@@ -130,6 +135,7 @@ export default function CrmLeadDetail() {
             </button>
           ) : null}
           <MoveLeadButton lead={lead} leadId={leadId} onDone={load} />
+          <LeadActionButtons lead={lead} leadId={leadId} onDone={load} />
         </div>
       </header>
 
@@ -186,6 +192,71 @@ export default function CrmLeadDetail() {
       )}
       {tab === "historico" && <HistoricoTab lead={lead} leadId={leadId} />}
     </div>
+  );
+}
+
+function LeadActionButtons({
+  lead,
+  leadId,
+  onDone,
+}: {
+  lead: Record<string, unknown> | null;
+  leadId: number;
+  onDone: () => Promise<void>;
+}) {
+  const status = String(lead?.status ?? "ativo");
+  return (
+    <>
+      <button
+        type="button"
+        className="crm-btn crm-btn--outline"
+        onClick={async () => {
+          await registerLeadContact(leadId, { canal: "manual", resultado: "Contato registrado no detalhe" });
+          await onDone();
+        }}
+      >
+        Registrar contato
+      </button>
+      {status !== "ganho" ? (
+        <button
+          type="button"
+          className="crm-btn crm-btn--primary"
+          onClick={async () => {
+            const raw = window.prompt("Valor ganho (opcional)", lead?.valor_estimado != null ? String(lead.valor_estimado) : "");
+            await winLead(leadId, raw && raw.trim() ? { valor_ganho: Number(raw.replace(",", ".")) } : {});
+            await onDone();
+          }}
+        >
+          Marcar ganho
+        </button>
+      ) : null}
+      {status !== "perdido" ? (
+        <button
+          type="button"
+          className="crm-btn crm-btn--danger"
+          onClick={async () => {
+            const motivo = window.prompt("Motivo da perda");
+            if (!motivo?.trim()) return;
+            await loseLead(leadId, { motivo_perda: motivo.trim(), perdido_motivo: motivo.trim() });
+            await onDone();
+          }}
+        >
+          Marcar perdido
+        </button>
+      ) : null}
+      {status === "ganho" || status === "perdido" ? (
+        <button
+          type="button"
+          className="crm-btn crm-btn--outline"
+          onClick={async () => {
+            await reopenLead(leadId);
+            await onDone();
+          }}
+        >
+          Reabrir
+        </button>
+      ) : null}
+    </>
   );
 }
 
@@ -353,6 +424,8 @@ const TIPOS: AtividadeTipo[] = [
   "visita",
   "proposta",
   "demo",
+  "demonstracao",
+  "retorno",
   "outro",
 ];
 
@@ -534,6 +607,58 @@ function ActivityFormModal({
 
 function HistoricoTab({ lead, leadId }: { lead: Record<string, unknown> | null; leadId: number }) {
   const raw = lead?.historico ?? lead?.historico_movimentacoes;
+  const initial = Array.isArray(lead?.timeline) ? (lead.timeline as CrmTimelineEvent[]) : [];
+  const [tipo, setTipo] = useState("");
+  const [items, setItems] = useState<CrmTimelineEvent[]>(initial);
+  const [loading, setLoading] = useState(false);
+
+  async function loadTimeline(nextTipo = tipo) {
+    setLoading(true);
+    try {
+      const data = await getLeadTimeline(leadId, nextTipo ? { tipo: nextTipo } : undefined);
+      setItems(Array.isArray(data) ? data : []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="crm-card">
+      <div className="crm-row-between" style={{ marginBottom: 12 }}>
+        <h3 style={{ margin: 0 }}>Timeline</h3>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            className="crm-input"
+            placeholder="Filtrar por tipo"
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && loadTimeline()}
+          />
+          <button type="button" className="crm-btn crm-btn--outline" onClick={() => loadTimeline()} disabled={loading}>
+            Filtrar
+          </button>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <div className="crm-empty">Nenhum evento na timeline.</div>
+      ) : (
+        <div className="crm-timeline">
+          {items.map((ev) => (
+            <div key={ev.id} className="crm-timeline-item">
+              <div className="crm-timeline-dot" />
+              <div>
+                <div className="crm-timeline-title">{ev.titulo || ev.tipo}</div>
+                <div className="crm-muted" style={{ fontSize: "0.78rem" }}>
+                  {ev.tipo} · {ev.criado_em ? String(ev.criado_em).slice(0, 16).replace("T", " ") : ""}
+                </div>
+                {ev.descricao ? <p style={{ margin: "6px 0 0" }}>{ev.descricao}</p> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
   return (
     <div className="crm-card">
       <h3 style={{ marginTop: 0 }}>Histórico</h3>

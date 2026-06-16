@@ -504,3 +504,206 @@
   color: var(--ds-text-secondary, #475569);
 }
 
+/* ===========================
+   Aba Geral — layout premium
+=========================== */
+.config-geral-section {
+  max-width: 920px;
+}
+
+.config-geral-header {
+  margin-bottom: 20px;
+}
+
+.config-geral-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dash-text, var(--ds-text));
+  margin: 0 0 6px;
+}
+
+.config-geral-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dash-muted, var(--ds-text-secondary));
+}
+
+.config-geral-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.config-geral-card {
+  border: 1px solid var(--dash-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: color-mix(in srgb, var(--dash-bg, #f8fafc) 45%, var(--dash-card, #fff));
+}
+
+[data-theme="dark"] .config-geral-card {
+  background: color-mix(in srgb, var(--dash-card) 92%, #000);
+  border-color: var(--dash-border);
+}
+
+.config-geral-card--wide {
+  grid-column: 1 / -1;
+}
+
+.config-geral-card-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dash-text, var(--ds-text));
+}
+
+.config-geral-card-desc {
+  margin: -8px 0 14px;
+  font-size: 13px;
+  color: var(--dash-muted, var(--ds-text-secondary));
+  line-height: 1.45;
+}
+
+.config-geral-card-divider {
+  height: 1px;
+  margin: 16px 0;
+  background: var(--dash-border, #e2e8f0);
+}
+
+.config-geral-toggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.config-geral-toggle + .config-geral-toggle {
+  border-top: 1px solid color-mix(in srgb, var(--dash-border) 70%, transparent);
+}
+
+.config-geral-toggle-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-geral-toggle-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dash-text, var(--ds-text));
+  margin-bottom: 4px;
+}
+
+.config-geral-toggle-hint {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dash-muted, var(--ds-text-secondary));
+}
+
+.config-geral-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.config-geral-fields--grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.config-geral-fields--grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.config-geral-fields--grid3 {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 14px 16px;
+  align-items: end;
+}
+
+.config-geral-field--span2 {
+  grid-column: span 1;
+}
+
+.config-geral-field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--dash-muted, var(--ds-text-secondary));
+}
+
+.config-geral-color-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.config-geral-color-input {
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  background: var(--dash-card, #fff);
+  cursor: pointer;
+}
+
+.config-geral-color-value {
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+  color: var(--dash-muted);
+}
+
+.config-geral-whatsapp-connect {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dash-blue, #2563eb) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dash-blue) 18%, var(--dash-border));
+}
+
+.config-geral-footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--dash-border);
+}
+
+.config-whatsapp-mappings-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 800px) {
+  .config-geral-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .config-geral-card--wide {
+    grid-column: auto;
+  }
+
+  .config-geral-fields--grid,
+  .config-geral-fields--grid2,
+  .config-geral-fields--grid3 {
+    grid-template-columns: 1fr;
+  }
+
+  .config-geral-toggle {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+

@@ -31,7 +31,7 @@ const MsgInfoModal = lazy(() => import("./components/MsgInfoModal"));
 const CallModal = lazy(() => import("./components/CallModal"));
 const AddToGroupModal = lazy(() => import("./components/AddToGroupModal"));
 const MediaViewerOverlay = lazy(() => import("./components/MediaViewerOverlay"));
-import { abrirConversaPorTelefone, conversaFromContatoResponse } from "../chats/chatService";
+import { abrirConversaPorTelefone, conversaFromContatoResponse, fetchChats } from "../chats/chatService";
 import { getDisplayName } from "../chats/chatListDisplay";
 import { getSocket } from "../socket/socket";
 import { scheduleAfterInitialPaint } from "../chats/scheduleAfterInitialPaint";
@@ -315,7 +315,6 @@ function ConversaViewBody() {
   const [transferirSetorLoading, setTransferirSetorLoading] = useState(false);
   const [showProdutosPanel, setShowProdutosPanel] = useState(false);
 
-  const chats = useChatStore((s) => s.chats);
   const userRole = String(user?.role || user?.perfil || "").toLowerCase();
   const canConsultarProdutos = ["admin", "supervisor", "atendente"].includes(userRole);
   const canVerSyncProdutos = ["admin", "supervisor"].includes(userRole);
@@ -556,9 +555,8 @@ function ConversaViewBody() {
   // Nunca exibir LID (lid:xxx) como nome ou número — identificador interno do WhatsApp
   const isLidValue = (v) => v != null && String(v).trim().toLowerCase().startsWith("lid:");
 
-  const fromChat = useMemo(
-    () => (Array.isArray(chats) ? chats.find((c) => String(c?.id) === String(conversaId)) : null),
-    [chats, conversaId]
+  const fromChat = useChatStore(
+    (s) => (Array.isArray(s.chats) ? (s.chats.find((c) => String(c?.id) === String(conversaId)) ?? null) : null)
   );
 
   const showWhatsappInstanceUi = useWhatsappInstancesStore((s) => s.hasMultiple);
@@ -1017,7 +1015,7 @@ function ConversaViewBody() {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [conversaId, mensagens?.length]);
+  }, [conversaId]);
 
   useLayoutEffect(() => {
     zapSeenMsgKeysRef.current = new Set();
@@ -2042,7 +2040,6 @@ function ConversaViewBody() {
   } = useForwardFlow({
     conversa,
     conversaId,
-    chats,
     user,
     showToast,
     exitSelectMode,
@@ -2416,7 +2413,8 @@ function ConversaViewBody() {
       setAddToGroupLoading(false);
       return;
     }
-    const gruposEmMemoria = (Array.isArray(chats) ? chats : []).filter((c) => isGroupConversation(c));
+    const cachedChats = useChatStore.getState().chats;
+    const gruposEmMemoria = (Array.isArray(cachedChats) ? cachedChats : []).filter((c) => isGroupConversation(c));
     if (gruposEmMemoria.length > 0) {
       setAddToGroupGrupos(gruposEmMemoria);
       setAddToGroupLoading(false);
@@ -2430,7 +2428,7 @@ function ConversaViewBody() {
       })
       .catch(() => setAddToGroupGrupos([]))
       .finally(() => setAddToGroupLoading(false));
-  }, [addToGroupModal?.open, chats]);
+  }, [addToGroupModal?.open]);
 
   useEffect(() => {
     clearPending();

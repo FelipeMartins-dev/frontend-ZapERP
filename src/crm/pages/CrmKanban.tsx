@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { crmApiError, getKanban, moveLead, reorderLeads } from "../../api/crmService";
+import { crmApiError, getKanban, loseLead, moveLead, registerLeadContact, reorderLeads, winLead } from "../../api/crmService";
 import type { CrmKanbanCard, CrmKanbanResponse } from "../crmTypes";
 import CrmPipelinePicker from "../components/CrmPipelinePicker.jsx";
 import { useCrmStore } from "../crmStore";
@@ -59,6 +59,13 @@ function fmtDt(iso?: string | null): string | null {
   }
 }
 
+function daysSince(iso?: string | null): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+}
+
 function priorClass(p?: string | null): string {
   const x = String(p || "").toLowerCase();
   if (x === "urgente") return "crm-kanban-card--p-urgente";
@@ -79,9 +86,10 @@ function buildBoardState(data: CrmKanbanResponse) {
   return { items, cards };
 }
 
-function KanbanCardBody({ card }: { card: CrmKanbanCard }) {
+function KanbanCardBody({ card, onRefresh }: { card: CrmKanbanCard; onRefresh?: () => Promise<void> }) {
   const prox = fmtDt(card.data_proximo_contato ?? null);
-  const ult = fmtDt(card.ultima_interacao_em ?? null);
+  const ult = fmtDt(card.data_ultimo_contato ?? card.ultima_interacao_em ?? null);
+  const parado = daysSince(card.data_entrada_stage ?? card.ultima_interacao_em ?? null);
   const valor =
     card.valor_estimado != null && card.valor_estimado !== ""
       ? Number(card.valor_estimado).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -91,7 +99,18 @@ function KanbanCardBody({ card }: { card: CrmKanbanCard }) {
     <>
       <div className="crm-kanban-card-name">{card.nome}</div>
       {card.empresa ? <div className="crm-muted" style={{ paddingLeft: 6, fontSize: "0.8rem" }}>{card.empresa}</div> : null}
+      <div className="crm-tag-row" style={{ paddingLeft: 6 }}>
+        {card.temperatura ? <span className={`crm-badge crm-badge--${card.temperatura}`}>{card.temperatura}</span> : null}
+        {parado != null ? <span className="crm-badge">{parado}d no estagio</span> : null}
+        {!ult ? <span className="crm-badge crm-badge--warn">sem contato</span> : null}
+        {!prox ? <span className="crm-badge crm-badge--warn">sem proxima acao</span> : null}
+      </div>
       <div className="crm-kanban-card-meta">
+        {card.whatsapp || card.telefone ? (
+          <div>
+            <strong>Contato</strong> · {card.whatsapp || card.telefone}
+          </div>
+        ) : null}
         {prox ? (
           <div>
             <strong>Próximo contato</strong> · {prox}
@@ -103,6 +122,7 @@ function KanbanCardBody({ card }: { card: CrmKanbanCard }) {
           </div>
         ) : null}
       </div>
+      {onRefresh ? <KanbanCardActions card={card} onRefresh={onRefresh} /> : null}
       {Array.isArray(card.tags) && card.tags.length > 0 ? (
         <div className="crm-tag-row" style={{ paddingLeft: 6 }}>
           {card.tags.slice(0, 4).map((t) => (
@@ -126,6 +146,53 @@ function KanbanCardBody({ card }: { card: CrmKanbanCard }) {
   );
 }
 
+function KanbanCardActions({ card, onRefresh }: { card: CrmKanbanCard; onRefresh: () => Promise<void> }) {
+  const stop = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  return (
+    <div className="crm-kanban-actions" onPointerDown={stop} onMouseDown={stop} onClick={(e) => e.stopPropagation()}>
+      <a className="crm-icon-btn" href={`/crm/leads/${card.id}`} title="Abrir lead" aria-label="Abrir lead">
+        Abrir
+      </a>
+      <button
+        type="button"
+        className="crm-icon-btn"
+        onClick={async () => {
+          await registerLeadContact(card.id, { canal: "kanban", resultado: "Contato registrado pelo Kanban" });
+          await onRefresh();
+        }}
+      >
+        Contato
+      </button>
+      <button
+        type="button"
+        className="crm-icon-btn"
+        onClick={async () => {
+          const raw = window.prompt("Valor ganho (opcional)", card.valor_estimado != null ? String(card.valor_estimado) : "");
+          await winLead(card.id, raw && raw.trim() ? { valor_ganho: Number(raw.replace(",", ".")) } : {});
+          await onRefresh();
+        }}
+      >
+        Ganho
+      </button>
+      <button
+        type="button"
+        className="crm-icon-btn crm-icon-btn--danger"
+        onClick={async () => {
+          const motivo = window.prompt("Motivo da perda");
+          if (!motivo?.trim()) return;
+          await loseLead(card.id, { motivo_perda: motivo.trim(), perdido_motivo: motivo.trim() });
+          await onRefresh();
+        }}
+      >
+        Perder
+      </button>
+    </div>
+  );
+}
+
 function ColumnBody({ stageId, children }: { stageId: number; children: ReactNode }) {
   const { setNodeRef } = useDroppable({ id: cKey(stageId) });
   return (
@@ -135,7 +202,7 @@ function ColumnBody({ stageId, children }: { stageId: number; children: ReactNod
   );
 }
 
-function SortableLeadCard({ card }: { card: CrmKanbanCard }) {
+function SortableLeadCard({ card, onRefresh }: { card: CrmKanbanCard; onRefresh: () => Promise<void> }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: lKey(card.id),
   });
@@ -153,7 +220,7 @@ function SortableLeadCard({ card }: { card: CrmKanbanCard }) {
       {...attributes}
       {...listeners}
     >
-      <KanbanCardBody card={card} />
+      <KanbanCardBody card={card} onRefresh={onRefresh} />
     </div>
   );
 }
@@ -167,6 +234,10 @@ export default function CrmKanban() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [activeDrag, setActiveDrag] = useState<CrmKanbanCard | null>(null);
+  const [q, setQ] = useState("");
+  const [temperatura, setTemperatura] = useState("");
+  const [semContato, setSemContato] = useState(false);
+  const [semProxima, setSemProxima] = useState(false);
   const snapshotRef = useRef<string | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -180,7 +251,12 @@ export default function CrmKanban() {
     try {
       setLoading(true);
       setErr("");
-      const params = pipelineId != null ? { pipeline_id: pipelineId } : {};
+      const params: Record<string, string | number | boolean> = {};
+      if (pipelineId != null) params.pipeline_id = pipelineId;
+      if (q.trim()) params.q = q.trim();
+      if (temperatura) params.temperatura = temperatura;
+      if (semContato) params.sem_contato_dias = 1;
+      if (semProxima) params.proximo_vencido = true;
       const data = await getKanban(params);
       setKanban(data);
       const b = buildBoardState(data);
@@ -192,7 +268,7 @@ export default function CrmKanban() {
     } finally {
       setLoading(false);
     }
-  }, [pipelineId]);
+  }, [pipelineId, q, temperatura, semContato, semProxima]);
 
   useEffect(() => {
     load();
@@ -349,6 +425,27 @@ export default function CrmKanban() {
 
       <div className="crm-toolbar crm-toolbar--premium">
         <CrmPipelinePicker />
+        <div className="crm-field">
+          <span className="crm-field-label">Busca</span>
+          <input className="crm-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, telefone, e-mail, CPF/CNPJ" />
+        </div>
+        <div className="crm-field">
+          <span className="crm-field-label">Temperatura</span>
+          <select className="crm-select" value={temperatura} onChange={(e) => setTemperatura(e.target.value)}>
+            <option value="">Todas</option>
+            <option value="frio">Frio</option>
+            <option value="morno">Morno</option>
+            <option value="quente">Quente</option>
+          </select>
+        </div>
+        <label className="crm-check">
+          <input type="checkbox" checked={semContato} onChange={(e) => setSemContato(e.target.checked)} />
+          Sem contato
+        </label>
+        <label className="crm-check">
+          <input type="checkbox" checked={semProxima} onChange={(e) => setSemProxima(e.target.checked)} />
+          Sem proxima acao
+        </label>
         <button type="button" className="crm-btn crm-btn--primary" onClick={load} disabled={loading}>
           {loading ? "Atualizando…" : "Atualizar quadro"}
         </button>
@@ -390,7 +487,7 @@ export default function CrmKanban() {
                         const id = parseL(lid);
                         const card = cards[id];
                         if (!card) return null;
-                        return <SortableLeadCard key={id} card={card} />;
+                        return <SortableLeadCard key={id} card={card} onRefresh={load} />;
                       })}
                     </SortableContext>
                     {list.length === 0 ? <div className="crm-kanban-drop-hint">Solte um lead aqui</div> : null}

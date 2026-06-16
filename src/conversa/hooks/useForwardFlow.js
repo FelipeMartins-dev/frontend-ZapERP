@@ -57,7 +57,7 @@ function buildForwardText(m) {
  * Estado e lógica do fluxo de encaminhamento (modal, destinos, APIs).
  * Seleção múltipla (selectMode) permanece no ConversaView.
  */
-export function useForwardFlow({ conversa, conversaId, chats, user, showToast, exitSelectMode }) {
+export function useForwardFlow({ conversa, conversaId, user, showToast, exitSelectMode }) {
   const [forwardOpen, setForwardOpen] = useState(false);
   const [forwardMsgs, setForwardMsgs] = useState(null);
   const [forwardQuery, setForwardQuery] = useState("");
@@ -74,7 +74,7 @@ export function useForwardFlow({ conversa, conversaId, chats, user, showToast, e
   const forwardJobLockRef = useRef(false);
 
   const forwardCandidates = useMemo(() => {
-    const list = Array.isArray(chats) ? chats : [];
+    const list = Array.isArray(useChatStore.getState().chats) ? useChatStore.getState().chats : [];
     const q = safeString(forwardQuery).toLowerCase();
     const byName = (c) => {
       const n = safeString(c?.contato_nome || c?.nome || c?.cliente?.nome || c?.telefone);
@@ -90,7 +90,7 @@ export function useForwardFlow({ conversa, conversaId, chats, user, showToast, e
       .filter((c) => c?.id != null && String(c.id) !== String(conversaId))
       .filter(byName)
       .slice(0, 80);
-  }, [chats, forwardQuery, conversaId]);
+  }, [forwardQuery, conversaId]);
 
   const forwardColaboradoresFiltered = useMemo(() => {
     const list = Array.isArray(forwardColaboradores) ? forwardColaboradores : [];
@@ -283,10 +283,11 @@ export function useForwardFlow({ conversa, conversaId, chats, user, showToast, e
 
   const resolveDestConversaMeta = useCallback(
     (destConversaId) => {
+      const chats = useChatStore.getState().chats;
       const list = Array.isArray(chats) ? chats : [];
       return list.find((c) => String(c?.id) === String(destConversaId)) || null;
     },
-    [chats]
+    []
   );
 
   const applyForwardOptimisticFor = useCallback(

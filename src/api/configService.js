@@ -124,7 +124,7 @@ export async function excluirRespostaSalva(id) {
 
 // Multi-tenant WhatsApp (phone_number_id → company)
 export async function getEmpresasWhatsapp() {
-  const { data } = await api.get('/config/empresas-whatsapp')
+  const { data } = await api.get('/config/empresas-whatsapp', { skipGlobal500Toast: true })
   return data || []
 }
 

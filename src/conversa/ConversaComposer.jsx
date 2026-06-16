@@ -1310,10 +1310,18 @@ const ConversaComposer = forwardRef(function ConversaComposer(
             ) : savedRepliesError ? (
               <div className="wa-muted" role="status">{savedRepliesError}</div>
             ) : filteredSavedReplies.length === 0 ? (
-              <div className="wa-muted">
-                {savedRepliesList.length === 0
-                  ? "Nenhuma resposta salva. Cadastre em Configurações > Respostas salvas."
-                  : "Nenhuma resposta encontrada para esta busca."}
+              <div className="wa-muted wa-savedRepliesPanel-empty">
+                {savedRepliesList.length === 0 ? (
+                  <>
+                    <p>Nenhuma resposta salva pessoal.</p>
+                    <p className="wa-savedRepliesPanel-empty-hint">
+                      Cadastre em <strong>Configurações → Respostas salvas</strong> (não confundir com
+                      &quot;Respostas automáticas&quot; do Bot em IA).
+                    </p>
+                  </>
+                ) : (
+                  "Nenhuma resposta encontrada para esta busca."
+                )}
               </div>
             ) : (
               <div className="wa-savedRepliesList">

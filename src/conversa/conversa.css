@@ -1574,6 +1574,20 @@
   overflow: hidden;
 }
 
+.wa-savedRepliesPanel-empty {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.wa-savedRepliesPanel-empty p {
+  margin: 0 0 6px;
+}
+
+.wa-savedRepliesPanel-empty-hint {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
 @media (max-width: 640px) {
   .wa-savedRepliesPanel {
     max-height: min(220px, 38vh);

@@ -315,13 +315,18 @@ function getStaticItemKey(item, index, conversaId) {
 /**
  * Lista natural para mobile: evita transforms/medição dinâmica da virtualização durante toque.
  * O lote atual é pequeno o bastante para render direto e o scroll nativo fica mais previsível.
+ * Renderiza no máximo MOBILE_STATIC_MAX itens para evitar acúmulo de nós DOM em sessões longas.
  */
+const MOBILE_STATIC_MAX = 300;
+
 export const ConversaMessageStaticList = forwardRef(function ConversaMessageStaticList(
   { items, scrollRef, renderItem, onVirtualContentResize, conversaId },
   ref
 ) {
   const rootRef = useRef(null);
   const count = Array.isArray(items) ? items.length : 0;
+  const offset = count > MOBILE_STATIC_MAX ? count - MOBILE_STATIC_MAX : 0;
+  const visibleItems = offset > 0 ? items.slice(offset) : items;
 
   const getRowByIndex = (index) => rootRef.current?.querySelector?.(`[data-index="${index}"]`) ?? null;
   const getRowByKey = (key) => {
@@ -422,16 +427,17 @@ export const ConversaMessageStaticList = forwardRef(function ConversaMessageStat
 
   return (
     <div ref={rootRef} className="wa-messages-static-root">
-      {items.map((item, index) => {
-        const rowKey = getStaticItemKey(item, index, conversaId);
+      {visibleItems.map((item, i) => {
+        const absIndex = offset + i;
+        const rowKey = getStaticItemKey(item, absIndex, conversaId);
         return (
           <div
             key={rowKey}
-            data-index={index}
+            data-index={absIndex}
             data-row-key={rowKey}
             className="wa-messages-static-row"
           >
-            {renderItem(item, index)}
+            {renderItem(item, absIndex)}
           </div>
         );
       })}

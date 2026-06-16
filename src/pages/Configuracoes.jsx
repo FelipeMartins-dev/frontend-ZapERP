@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
 import { useChatStore } from "../chats/chatsStore";
 import { useConversaStore } from "../conversa/conversaStore";
@@ -379,166 +379,225 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
   if (!empresa) return <p className="ia-muted">Carregando...</p>;
 
   return (
-    <div className="ia-section">
-      <h4>Meu perfil</h4>
-      <div className="ia-field config-appearance-row">
-        <label>Mostrar meu nome nas mensagens ao cliente</label>
-        <Switch
-          checked={mostrarNomeAoCliente}
-          onChange={handleMostrarNomeToggle}
-          disabled={mostrarNomeLoading}
-          aria-label="Mostrar nome ao cliente"
-        />
-        <span className="ia-muted config-appearance-hint">
-          Quando ativado, o cliente verá seu nome acima das mensagens que você envia no WhatsApp.
-        </span>
-      </div>
+    <div className="config-geral-section">
+      <header className="config-geral-header">
+        <span className="ia-auto-reply-eyebrow">Administração</span>
+        <h4 className="config-geral-title">Configurações gerais</h4>
+        <p className="config-geral-lead">Perfil do atendente, aparência da interface e parâmetros operacionais da empresa.</p>
+      </header>
 
-      <PushNotificationsCard />
-
-      <h4 style={{ marginTop: 24 }}>Aparência</h4>
-      <div className="ia-field config-appearance-row">
-        <label>Modo escuro</label>
-        <Switch checked={darkMode} onChange={handleDarkModeToggle} />
-        <span className="ia-muted config-appearance-hint">Altera apenas cores e contraste da interface.</span>
-      </div>
-
-      <h4 style={{ marginTop: 24 }}>Dados da empresa</h4>
       {msg ? (
-        <div className={`ia-error-banner ${msg.type === "ok" ? "is-ok" : ""}`} role="alert" style={{ marginBottom: 12 }}>
+        <div className={`ia-error-banner ${msg.type === "ok" ? "is-ok" : ""}`} role="alert">
           {msg.text}
-          <button type="button" onClick={() => setMsg(null)}>×</button>
+          <button type="button" onClick={() => setMsg(null)} aria-label="Fechar">×</button>
         </div>
       ) : null}
-      <div className="ia-field">
-        <label>Nome</label>
-        <input
-          className="ia-input"
-          value={v.nome || ""}
-          onChange={(e) => setV((c) => ({ ...c, nome: e.target.value }))}
-        />
-      </div>
-      <div className="ia-field">
-        <label>Ativo</label>
-        <Switch checked={!!v.ativo} onChange={(x) => setV((c) => ({ ...c, ativo: x }))} />
-      </div>
-      <div className="ia-field config-appearance-row" style={{ marginTop: 16 }}>
-        <label>Módulo CRM para a empresa</label>
-        <Switch
-          checked={v.crm_habilitado !== false}
-          onChange={(on) => setV((c) => ({ ...c, crm_habilitado: on }))}
-          aria-label="Módulo CRM ativo para a empresa"
-        />
-        <span className="ia-muted config-appearance-hint">
-          Quando desligado, o botão «Enviar ao CRM» no chat não aparece e as APIs do CRM respondem com acesso negado.
-        </span>
-      </div>
-      <h4 style={{ marginTop: 24 }}>SLA / Limites</h4>
-      <div className="ia-field">
-        <label>Minutos sem resposta para alerta</label>
-        <input
-          type="number"
-          className="ia-input"
-          min={1}
-          max={1440}
-          value={v.sla_minutos_sem_resposta ?? 30}
-          onChange={(e) => setV((c) => ({ ...c, sla_minutos_sem_resposta: Number(e.target.value) || 30 }))}
-        />
-      </div>
-      <div className="ia-field">
-        <label>Limite de chats simultâneos por atendente (0 = sem limite)</label>
-        <input
-          type="number"
-          className="ia-input"
-          min={0}
-          max={100}
-          value={v.limite_chats_por_atendente ?? 10}
-          onChange={(e) => setV((c) => ({ ...c, limite_chats_por_atendente: Math.max(0, Number(e.target.value) || 0) }))}
-        />
-      </div>
-      <div className="ia-field">
-        <label>Timeout inatividade (min) — fecha conversa sem resposta (0 = desativado)</label>
-        <input
-          type="number"
-          className="ia-input"
-          min={0}
-          max={10080}
-          value={v.timeout_inatividade_min ?? 0}
-          onChange={(e) => setV((c) => ({ ...c, timeout_inatividade_min: Math.max(0, Number(e.target.value) || 0) }))}
-        />
-      </div>
-      <h4 style={{ marginTop: 24 }}>Horários</h4>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div className="ia-field">
-          <label>Início</label>
-          <input
-            type="time"
-            className="ia-input"
-            value={v.horario_inicio || "09:00"}
-            onChange={(e) => setV((c) => ({ ...c, horario_inicio: e.target.value }))}
-          />
-        </div>
-        <div className="ia-field">
-          <label>Fim</label>
-          <input
-            type="time"
-            className="ia-input"
-            value={v.horario_fim || "18:00"}
-            onChange={(e) => setV((c) => ({ ...c, horario_fim: e.target.value }))}
-          />
-        </div>
-      </div>
-      <h4 style={{ marginTop: 24 }}>Tema / Logo</h4>
-      <div className="ia-field">
-        <label>Tema</label>
-        <select
-          className="ia-select"
-          value={v.tema || "light"}
-          onChange={(e) => setV((c) => ({ ...c, tema: e.target.value }))}
-        >
-          <option value="light">Claro</option>
-          <option value="dark">Escuro</option>
-        </select>
-      </div>
-      <div className="ia-field">
-        <label>URL do logo</label>
-        <input
-          className="ia-input"
-          value={v.logo_url || ""}
-          onChange={(e) => setV((c) => ({ ...c, logo_url: e.target.value }))}
-          placeholder="https://..."
-        />
-      </div>
-      <div className="ia-field">
-        <label>Cor primária</label>
-        <input
-          type="color"
-          className="ia-input"
-          style={{ height: 40, padding: 4 }}
-          value={v.cor_primaria || "#2563eb"}
-          onChange={(e) => setV((c) => ({ ...c, cor_primaria: e.target.value }))}
-        />
-      </div>
-      <h4 style={{ marginTop: 24 }}>WhatsApp Multi-tenant</h4>
-      <p className="ia-muted">Para webhook rotear por empresa, cadastre o phone_number_id do Meta (em value.metadata do webhook).</p>
-      <SecaoEmpresasWhatsapp lista={empresasWhatsapp} onRefresh={onRefresh} />
-      <div className="zapi-connectHint">
-        <div>
-          <strong>Conexão UltraMSG / WhatsApp</strong>
-          <p className="ia-muted" style={{ margin: "4px 0 0" }}>
-            Use a página dedicada para conectar o WhatsApp via QR Code, como no WhatsApp Web.
+
+      <div className="config-geral-grid">
+        <section className="config-geral-card" aria-labelledby="config-geral-perfil">
+          <h5 id="config-geral-perfil" className="config-geral-card-title">Meu perfil</h5>
+          <div className="config-geral-toggle">
+            <div className="config-geral-toggle-text">
+              <span className="config-geral-toggle-label">Mostrar meu nome nas mensagens ao cliente</span>
+              <span className="config-geral-toggle-hint">
+                Quando ativado, o cliente verá seu nome acima das mensagens que você envia no WhatsApp.
+              </span>
+            </div>
+            <Switch
+              checked={mostrarNomeAoCliente}
+              onChange={handleMostrarNomeToggle}
+              disabled={mostrarNomeLoading}
+              aria-label="Mostrar nome ao cliente"
+            />
+          </div>
+          <div className="config-geral-card-divider" />
+          <PushNotificationsCard />
+        </section>
+
+        <section className="config-geral-card" aria-labelledby="config-geral-aparencia">
+          <h5 id="config-geral-aparencia" className="config-geral-card-title">Aparência</h5>
+          <div className="config-geral-toggle">
+            <div className="config-geral-toggle-text">
+              <span className="config-geral-toggle-label">Modo escuro</span>
+              <span className="config-geral-toggle-hint">Altera apenas cores e contraste da interface neste dispositivo.</span>
+            </div>
+            <Switch checked={darkMode} onChange={handleDarkModeToggle} aria-label="Modo escuro" />
+          </div>
+        </section>
+
+        <section className="config-geral-card config-geral-card--wide" aria-labelledby="config-geral-empresa">
+          <h5 id="config-geral-empresa" className="config-geral-card-title">Dados da empresa</h5>
+          <div className="config-geral-fields">
+            <div className="ia-field">
+              <label htmlFor="empresa-nome">Nome</label>
+              <input
+                id="empresa-nome"
+                className="ia-input"
+                value={v.nome || ""}
+                onChange={(e) => setV((c) => ({ ...c, nome: e.target.value }))}
+              />
+            </div>
+            <div className="config-geral-toggle">
+              <div className="config-geral-toggle-text">
+                <span className="config-geral-toggle-label">Empresa ativa</span>
+                <span className="config-geral-toggle-hint">Desligue apenas para suspender o acesso da empresa ao sistema.</span>
+              </div>
+              <Switch checked={!!v.ativo} onChange={(x) => setV((c) => ({ ...c, ativo: x }))} aria-label="Empresa ativa" />
+            </div>
+            <div className="config-geral-toggle">
+              <div className="config-geral-toggle-text">
+                <span className="config-geral-toggle-label">Módulo CRM para a empresa</span>
+                <span className="config-geral-toggle-hint">
+                  Quando desligado, o botão «Enviar ao CRM» no chat não aparece e as APIs do CRM respondem com acesso negado.
+                </span>
+              </div>
+              <Switch
+                checked={v.crm_habilitado !== false}
+                onChange={(on) => setV((c) => ({ ...c, crm_habilitado: on }))}
+                aria-label="Módulo CRM ativo para a empresa"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="config-geral-card config-geral-card--wide" aria-labelledby="config-geral-sla">
+          <h5 id="config-geral-sla" className="config-geral-card-title">SLA e limites</h5>
+          <div className="config-geral-fields config-geral-fields--grid">
+            <div className="ia-field">
+              <label htmlFor="sla-minutos">Minutos sem resposta para alerta</label>
+              <input
+                id="sla-minutos"
+                type="number"
+                className="ia-input"
+                min={1}
+                max={1440}
+                value={v.sla_minutos_sem_resposta ?? 30}
+                onChange={(e) => setV((c) => ({ ...c, sla_minutos_sem_resposta: Number(e.target.value) || 30 }))}
+              />
+            </div>
+            <div className="ia-field">
+              <label htmlFor="limite-chats">Chats simultâneos por atendente</label>
+              <input
+                id="limite-chats"
+                type="number"
+                className="ia-input"
+                min={0}
+                max={100}
+                value={v.limite_chats_por_atendente ?? 10}
+                onChange={(e) => setV((c) => ({ ...c, limite_chats_por_atendente: Math.max(0, Number(e.target.value) || 0) }))}
+              />
+              <span className="config-geral-field-hint">0 = sem limite</span>
+            </div>
+            <div className="ia-field">
+              <label htmlFor="timeout-inatividade">Timeout inatividade (min)</label>
+              <input
+                id="timeout-inatividade"
+                type="number"
+                className="ia-input"
+                min={0}
+                max={10080}
+                value={v.timeout_inatividade_min ?? 0}
+                onChange={(e) => setV((c) => ({ ...c, timeout_inatividade_min: Math.max(0, Number(e.target.value) || 0) }))}
+              />
+              <span className="config-geral-field-hint">0 = desativado — fecha conversa sem resposta</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="config-geral-card" aria-labelledby="config-geral-horarios">
+          <h5 id="config-geral-horarios" className="config-geral-card-title">Horário comercial</h5>
+          <div className="config-geral-fields config-geral-fields--grid2">
+            <div className="ia-field">
+              <label htmlFor="horario-inicio">Início</label>
+              <input
+                id="horario-inicio"
+                type="time"
+                className="ia-input"
+                value={v.horario_inicio || "09:00"}
+                onChange={(e) => setV((c) => ({ ...c, horario_inicio: e.target.value }))}
+              />
+            </div>
+            <div className="ia-field">
+              <label htmlFor="horario-fim">Fim</label>
+              <input
+                id="horario-fim"
+                type="time"
+                className="ia-input"
+                value={v.horario_fim || "18:00"}
+                onChange={(e) => setV((c) => ({ ...c, horario_fim: e.target.value }))}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="config-geral-card config-geral-card--wide" aria-labelledby="config-geral-tema">
+          <h5 id="config-geral-tema" className="config-geral-card-title">Tema e identidade</h5>
+          <div className="config-geral-fields config-geral-fields--grid3">
+            <div className="ia-field">
+              <label htmlFor="empresa-tema">Tema padrão (sistema)</label>
+              <select
+                id="empresa-tema"
+                className="ia-select"
+                value={v.tema || "light"}
+                onChange={(e) => setV((c) => ({ ...c, tema: e.target.value }))}
+              >
+                <option value="light">Claro</option>
+                <option value="dark">Escuro</option>
+              </select>
+            </div>
+            <div className="ia-field config-geral-field--span2">
+              <label htmlFor="empresa-logo">URL do logo</label>
+              <input
+                id="empresa-logo"
+                className="ia-input"
+                value={v.logo_url || ""}
+                onChange={(e) => setV((c) => ({ ...c, logo_url: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="ia-field">
+              <label htmlFor="empresa-cor">Cor primária</label>
+              <div className="config-geral-color-wrap">
+                <input
+                  id="empresa-cor"
+                  type="color"
+                  className="config-geral-color-input"
+                  value={v.cor_primaria || "#2563eb"}
+                  onChange={(e) => setV((c) => ({ ...c, cor_primaria: e.target.value }))}
+                />
+                <span className="config-geral-color-value">{v.cor_primaria || "#2563eb"}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="config-geral-card config-geral-card--wide" aria-labelledby="config-geral-whatsapp">
+          <h5 id="config-geral-whatsapp" className="config-geral-card-title">WhatsApp</h5>
+          <p className="config-geral-card-desc">
+            Conexão UltraMSG e mapeamento Meta (phone_number_id) para webhook multi-tenant.
           </p>
-        </div>
+          <div className="config-geral-whatsapp-connect">
+            <div>
+              <strong>Conexão UltraMSG / WhatsApp</strong>
+              <p className="config-geral-toggle-hint" style={{ marginTop: 4 }}>
+                Página dedicada para conectar via QR Code, como no WhatsApp Web.
+              </p>
+            </div>
+            <button type="button" className="ia-btn ia-btn--outline" onClick={() => onOpenConnectWhatsapp?.()}>
+              Conectar WhatsApp
+            </button>
+          </div>
+          <div className="config-geral-card-divider" />
+          <p className="config-geral-toggle-hint" style={{ marginBottom: 8 }}>
+            Mapeamentos Meta (opcional): cadastre o phone_number_id recebido no webhook.
+          </p>
+          <SecaoEmpresasWhatsapp lista={empresasWhatsapp} onRefresh={onRefresh} />
+        </section>
+      </div>
+
+      <footer className="config-geral-footer">
         <button
           type="button"
-          className="ia-btn ia-btn--outline"
-          onClick={() => onOpenConnectWhatsapp?.()}
-        >
-          Conectar WhatsApp
-        </button>
-      </div>
-      <div className="ia-btn-row">
-        <button
           className="ia-btn ia-btn--primary"
           onClick={async () => {
             setSaving(true);
@@ -554,9 +613,9 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
           }}
           disabled={saving}
         >
-          {saving ? "Salvando..." : "Salvar"}
+          {saving ? "Salvando..." : "Salvar configurações gerais"}
         </button>
-      </div>
+      </footer>
     </div>
   );
 }
@@ -661,8 +720,8 @@ function SecaoEmpresasWhatsapp({ lista, onRefresh }) {
   };
 
   return (
-    <div className="ia-field" style={{ marginTop: 8 }}>
-      <form onSubmit={handleAdd} style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+    <div className="config-whatsapp-mappings">
+      <form onSubmit={handleAdd} className="config-whatsapp-mappings-form">
         <input
           className="ia-input"
           value={phoneNumberId}
@@ -1021,7 +1080,17 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
   return (
     <div className="ia-section">
       <h4>Respostas salvas</h4>
-      <p className="ia-muted">Suas respostas pessoais para uso rápido no atendimento (digite <strong>/</strong> na conversa). Setor opcional limita quando a resposta aparece. Só você vê e edita as suas.</p>
+      <div className="ia-callout ia-callout--info ia-respostas-salvas-callout" role="note">
+        <div className="ia-callout-icon ia-callout-icon--info" aria-hidden="true">/</div>
+        <div className="ia-callout-body">
+          <p className="ia-callout-title">Para o atalho <kbd>/</kbd> no atendimento</p>
+          <p className="ia-callout-text">
+            Cadastre aqui modelos <strong>pessoais</strong> que você insere na conversa (o cliente não recebe automaticamente).
+            Não confundir com <Link to="/ia?tab=respostas" className="ia-callout-link">IA → Respostas automáticas</Link> do bot.
+          </p>
+        </div>
+      </div>
+      <p className="ia-muted">Setor opcional limita quando a resposta aparece no menu. Só você vê e edita as suas.</p>
       {(errorMsg || okMsg) && (
         <div className={`ia-error-banner ${okMsg ? "is-ok" : ""}`} role="alert" style={{ marginBottom: 12 }}>
           {errorMsg || okMsg}

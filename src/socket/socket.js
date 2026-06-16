@@ -21,7 +21,7 @@ import {
 import { getStatusAtendimentoEffective } from "../utils/conversaUtils"
 
 const TYPING_EXPIRY_MS = 5000
-let typingExpiryTimer = null
+const typingExpiryTimers = new Map()
 
 /** Evita som duplo: após transferência, o destinatário ouve o som de handoff e suprime o beep de nova_mensagem uma vez. */
 const suppressDefaultMessageSoundUntil = new Map()
@@ -619,19 +619,21 @@ export function initSocket(token) {
   =========================== */
   socket.on("typing_start", ({ conversa_id, usuario_id, nome }) => {
     if (!conversa_id) return
+    const _cid = String(conversa_id)
     useConversaStore.getState().setTyping(conversa_id, { usuario_id, nome })
-    if (typingExpiryTimer) clearTimeout(typingExpiryTimer)
-    typingExpiryTimer = setTimeout(() => {
+    if (typingExpiryTimers.has(_cid)) clearTimeout(typingExpiryTimers.get(_cid))
+    typingExpiryTimers.set(_cid, setTimeout(() => {
+      typingExpiryTimers.delete(_cid)
       useConversaStore.getState().clearTyping(conversa_id)
-      typingExpiryTimer = null
-    }, TYPING_EXPIRY_MS)
+    }, TYPING_EXPIRY_MS))
   })
 
   socket.on("typing_stop", ({ conversa_id }) => {
     if (!conversa_id) return
-    if (typingExpiryTimer) {
-      clearTimeout(typingExpiryTimer)
-      typingExpiryTimer = null
+    const _cid = String(conversa_id)
+    if (typingExpiryTimers.has(_cid)) {
+      clearTimeout(typingExpiryTimers.get(_cid))
+      typingExpiryTimers.delete(_cid)
     }
     useConversaStore.getState().clearTyping(conversa_id)
   })
@@ -1297,10 +1299,8 @@ export function disconnectSocket() {
   flushStatusMensagemBatch(applyStatusMensagemEvent)
 
   try {
-    if (typingExpiryTimer) {
-      clearTimeout(typingExpiryTimer)
-      typingExpiryTimer = null
-    }
+    typingExpiryTimers.forEach((id) => clearTimeout(id))
+    typingExpiryTimers.clear()
   } catch (_) {}
 
   resetStatusMensagemBatch()
