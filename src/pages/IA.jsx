@@ -91,6 +91,7 @@ const DEFAULT_ALERTA_SEM_RESPOSTA = {
   telefone_gestor: "",
   horario_comercial_ativo: true,
   timezone: "America/Sao_Paulo",
+  horario_comercial: null,
 };
 
 function normalizeHorarioAdminAlerta(t) {
@@ -1845,6 +1846,13 @@ function validateAlertaSemResposta(v) {
   if (!Number.isFinite(critical) || critical < first) return "O alerta critico nao pode ser menor que o primeiro alerta.";
   if (!Number.isFinite(manager) || manager < critical) return "A notificacao ao gestor nao pode ser menor que o alerta critico.";
   if (v.aplicar_tag_automatica && !String(v.nome_tag_automatica || "").trim()) return "Informe o nome da tag automatica.";
+  if (!v.alerta_sem_resposta_ativo) return null;
+  if (v.notificar_interno) {
+    const gestorId = Number(v.gestor_notificado_id);
+    if (!(Number.isFinite(gestorId) && gestorId > 0)) {
+      return "Selecione um responsavel interno da empresa.";
+    }
+  }
   if (v.notificar_por_whatsapp) {
     const clienteId = Number(v.gestor_cliente_id);
     const manual = String(v.telefone_gestor || "").replace(/\D/g, "");
@@ -1852,6 +1860,7 @@ function validateAlertaSemResposta(v) {
       return "Para WhatsApp, selecione um contato cadastrado no sistema.";
     }
   }
+  if (v.notificar_por_email) return "E-mail esta indisponivel ate a configuracao de SMTP no servidor.";
   if (!v.notificar_por_whatsapp && !v.notificar_por_email && !v.notificar_interno) {
     return "Selecione ao menos um canal de notificacao disponivel.";
   }
@@ -1895,6 +1904,15 @@ function formatAlertaEventoTipo(tipo) {
     email_indisponivel: "E-mail indisponivel",
   };
   return map[tipo] || tipo || "Evento";
+}
+
+function getHorarioComercialResumo(cfg) {
+  const horario = cfg?.horario_comercial && typeof cfg.horario_comercial === "object" ? cfg.horario_comercial : null;
+  if (horario?.resumo) return horario.resumo;
+  if (cfg?.horario_comercial_ativo === false) {
+    return "Contagem ativa: horario comercial desativado. Os minutos contam de forma corrida.";
+  }
+  return "Contagem ativa conforme o horario comercial configurado para a empresa. Fora desse horario, os minutos ficam pausados e continuam no proximo expediente.";
 }
 
 function SecaoAlertasAtendimento() {
@@ -1997,6 +2015,11 @@ function SecaoAlertasAtendimento() {
   const previewFirst = Number(cfg.tempo_primeiro_alerta_minutos) || 2;
   const previewCritical = Number(cfg.tempo_alerta_critico_minutos) || 10;
   const previewManager = Number(cfg.tempo_notificar_gestor_minutos) || 15;
+  const horarioComercialResumo = getHorarioComercialResumo(cfg);
+  const tagResumo =
+    cfg.aplicar_tag_automatica && String(cfg.nome_tag_automatica || "").trim()
+      ? String(cfg.nome_tag_automatica).trim()
+      : "desativada";
   const selectedGestor = responsaveis.find((u) => Number(u.id) === Number(cfg.gestor_notificado_id));
   const selectedGestorContatoId = cfg.gestor_cliente_id ? String(cfg.gestor_cliente_id) : "";
   const gestorContatoSelectOptions = (() => {
@@ -2022,7 +2045,8 @@ function SecaoAlertasAtendimento() {
     setError("");
     try {
       const saved = await iaApi.putAlertaSemRespostaConfig(buildAlertaSemRespostaPayload(cfg));
-      setCfg(normalizeAlertaSemRespostaFromApi(saved));
+      const refreshed = await iaApi.getAlertaSemRespostaConfig().catch(() => saved);
+      setCfg(normalizeAlertaSemRespostaFromApi(refreshed || saved));
       showToast({ type: "success", title: "Salvo", message: "Alertas de atendimento atualizados." });
       const eventos = await iaApi.getAlertaSemRespostaEventos({ limit: 20 }).catch(() => logs);
       setLogs(eventos || []);
@@ -2043,10 +2067,16 @@ function SecaoAlertasAtendimento() {
     try {
       const result = await iaApi.processarAlertaSemResposta(true);
       const total = Number(result?.processadas || 0);
+      const skipped = String(result?.skipped || "");
+      const paused = skipped === "fora_horario";
       showToast({
-        type: "success",
-        title: "Simulacao concluida",
-        message: total ? `${total} conversa(s) elegiveis agora.` : "Nenhuma conversa elegivel neste momento.",
+        type: paused ? "warning" : "success",
+        title: paused ? "Contador pausado" : "Simulacao concluida",
+        message: paused
+          ? `Nenhum alerta dispararia agora porque esta fora do expediente. ${result?.horario_comercial?.resumo || horarioComercialResumo}`
+          : total
+            ? `${total} conversa(s) elegiveis agora.`
+            : "Nenhuma conversa elegivel neste momento.",
       });
     } catch (e) {
       showToast({
@@ -2103,6 +2133,10 @@ function SecaoAlertasAtendimento() {
             </div>
             <div className="sla-note">
               O fluxo roda somente quando esta ativo, a conversa nao esta encerrada, a ultima mensagem foi enviada pelo cliente e o atendimento esta dentro do horario comercial.
+            </div>
+            <div className="sla-schedule-callout">
+              <strong>Contagem do temporizador</strong>
+              <span>{horarioComercialResumo}</span>
             </div>
           </div>
 
@@ -2203,8 +2237,17 @@ function SecaoAlertasAtendimento() {
                 <input
                   type="checkbox"
                   checked={cfg.notificar_por_email}
-                  disabled
-                  onChange={() => {}}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      showToast({
+                        type: "warning",
+                        title: "E-mail indisponivel",
+                        message: "Configure SMTP no servidor antes de ativar notificacao por e-mail.",
+                      });
+                      return;
+                    }
+                    setCfg((c) => ({ ...c, notificar_por_email: false }));
+                  }}
                 />
                 <span>E-mail</span>
               </label>
@@ -2324,9 +2367,9 @@ function SecaoAlertasAtendimento() {
               <li>Apos {previewCritical} min: alerta critico</li>
               <li>Apos {previewManager} min: gestor notificado</li>
               <li>{cfg.reabrir_conversa_automaticamente ? "Conversa reaberta/liberada" : "Conversa permanece com o atendente"}</li>
-              <li>Tag: {cfg.aplicar_tag_automatica ? cfg.nome_tag_automatica : "desativada"}</li>
+              <li>Tag: {tagResumo}</li>
             </ol>
-            <p className="sla-note">Se o atendente responder antes do prazo final, o contador para automaticamente. Fora do horario comercial, o contador fica pausado.</p>
+            <p className="sla-note">{horarioComercialResumo}</p>
           </div>
 
           <div className="chatbot-card sla-card">

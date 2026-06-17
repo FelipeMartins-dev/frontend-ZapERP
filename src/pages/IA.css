@@ -3616,6 +3616,23 @@
   line-height: 1.45;
 }
 
+.sla-schedule-callout {
+  margin-top: 12px;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--ds-accent, #00a884);
+  background: var(--ds-surface-1, rgba(15, 23, 42, 0.02));
+  color: var(--dash-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sla-schedule-callout strong {
+  color: var(--dash-text);
+  font-size: 13px;
+}
+
 .sla-time-grid,
 .sla-manager-grid {
   display: grid;
