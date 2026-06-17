@@ -10,6 +10,20 @@ export async function putEmpresa(payload) {
   return data
 }
 
+export async function uploadLogoEmpresa(file) {
+  const formData = new FormData()
+  formData.append('logo', file)
+  const { data } = await api.post('/config/empresa/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function deleteLogoEmpresa() {
+  const { data } = await api.delete('/config/empresa/logo')
+  return data
+}
+
 export async function getPlanos() {
   const { data } = await api.get('/config/planos')
   return data || []

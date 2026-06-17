@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
+import { useEmpresaStore } from "../auth/empresaStore";
 import { useChatStore } from "../chats/chatsStore";
 import { useConversaStore } from "../conversa/conversaStore";
 import api from "../api/http";
@@ -337,6 +338,8 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null); // { type: "ok"|"err", text }
   const [darkMode, setDarkMode] = useState(() => getStoredTheme() === "dark");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoMsg, setLogoMsg] = useState(null);
 
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
@@ -546,14 +549,103 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
               </select>
             </div>
             <div className="ia-field config-geral-field--span2">
-              <label htmlFor="empresa-logo">URL do logo</label>
-              <input
-                id="empresa-logo"
-                className="ia-input"
-                value={v.logo_url || ""}
-                onChange={(e) => setV((c) => ({ ...c, logo_url: e.target.value }))}
-                placeholder="https://..."
-              />
+              <label>Logo da empresa</label>
+              <div className="config-logo-wrap">
+                {v.logo_url ? (
+                  <div className="config-logo-preview-row">
+                    <div className="config-logo-preview-box">
+                      <img
+                        src={v.logo_url}
+                        alt="Logo da empresa"
+                        className="config-logo-preview-img"
+                        onError={(e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.title = "Imagem não encontrada"; }}
+                      />
+                    </div>
+                    <div className="config-logo-preview-info">
+                      <span className="config-logo-preview-label">Logo atual</span>
+                      <span className="config-logo-preview-url">{v.logo_url}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="config-logo-empty">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+                      <path d="M3 15l5-5 4 4 3-3 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Nenhum logo configurado</span>
+                    <span className="config-logo-hint">Aparecerá no cabeçalho no lugar do ZapERP</span>
+                  </div>
+                )}
+
+                {logoMsg && (
+                  <div className={`config-logo-msg ${logoMsg.type === "ok" ? "is-ok" : "is-err"}`} role="alert">
+                    {logoMsg.text}
+                  </div>
+                )}
+
+                <div className="config-logo-actions">
+                  <label
+                    className={`ia-btn ia-btn--outline config-logo-upload-btn${logoUploading ? " is-loading" : ""}`}
+                    title="Selecionar imagem (PNG, JPG, WebP — máx. 2 MB)"
+                    style={{ cursor: logoUploading ? "default" : "pointer" }}
+                  >
+                    {logoUploading ? "Enviando…" : v.logo_url ? "Trocar logo" : "Fazer upload do logo"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      style={{ display: "none" }}
+                      disabled={logoUploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 2 * 1024 * 1024) {
+                          setLogoMsg({ type: "err", text: "A imagem deve ter no máximo 2 MB." });
+                          e.target.value = "";
+                          return;
+                        }
+                        setLogoUploading(true);
+                        setLogoMsg(null);
+                        try {
+                          const result = await cfg.uploadLogoEmpresa(file);
+                          setV((c) => ({ ...c, logo_url: result.logo_url }));
+                          useEmpresaStore.getState().setLogoUrl(result.logo_url);
+                          setLogoMsg({ type: "ok", text: "Logo enviado com sucesso!" });
+                        } catch (err) {
+                          setLogoMsg({ type: "err", text: err?.response?.data?.error || "Erro ao enviar logo." });
+                        } finally {
+                          setLogoUploading(false);
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                  </label>
+
+                  {v.logo_url && (
+                    <button
+                      type="button"
+                      className="ia-btn ia-btn--ghost"
+                      disabled={logoUploading}
+                      onClick={async () => {
+                        setLogoUploading(true);
+                        setLogoMsg(null);
+                        try {
+                          await cfg.deleteLogoEmpresa();
+                          setV((c) => ({ ...c, logo_url: "" }));
+                          useEmpresaStore.getState().setLogoUrl(null);
+                          setLogoMsg({ type: "ok", text: "Logo removido." });
+                        } catch (err) {
+                          setLogoMsg({ type: "err", text: err?.response?.data?.error || "Erro ao remover logo." });
+                        } finally {
+                          setLogoUploading(false);
+                        }
+                      }}
+                    >
+                      Remover logo
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="ia-field">
               <label htmlFor="empresa-cor">Cor primária</label>
@@ -1216,6 +1308,8 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
   const [syncResult, setSyncResult] = useState(null);
   const [syncingFotos, setSyncingFotos] = useState(false);
   const [syncFotosResult, setSyncFotosResult] = useState(null);
+  const [syncingMensagens, setSyncingMensagens] = useState(false);
+  const [syncMensagensResult, setSyncMensagensResult] = useState(null);
   const [autoSyncSaving, setAutoSyncSaving] = useState(false);
   const [busca, setBusca] = useState("");
   const [searching, setSearching] = useState(false);
@@ -1245,6 +1339,18 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
     window.addEventListener("zapi_sync_contatos", handler);
     return () => window.removeEventListener("zapi_sync_contatos", handler);
   }, [onSyncContacts]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (ev) => {
+      const detail = ev?.detail;
+      if (!detail) return;
+      setSyncMensagensResult(detail);
+      onRefresh?.();
+    };
+    window.addEventListener("whatsapp_sync_mensagens_antigas", handler);
+    return () => window.removeEventListener("whatsapp_sync_mensagens_antigas", handler);
+  }, [onRefresh]);
 
   const autoSyncValue = empresa?.zapi_auto_sync_contatos ?? true;
   const handleToggleAutoSync = async (next) => {
@@ -1288,6 +1394,23 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
       setSyncFotosResult({ error: e.response?.data?.error || e.message || "Erro ao sincronizar fotos." });
     } finally {
       setSyncingFotos(false);
+    }
+  };
+
+  const handleSincronizarMensagensAntigas = async () => {
+    setSyncingMensagens(true);
+    setSyncMensagensResult(null);
+    try {
+      const res = await chatService.sincronizarMensagensAntigas();
+      if (res?.ok === false) {
+        setSyncMensagensResult({ error: res.error || res.message || "Erro ao sincronizar mensagens antigas." });
+        return;
+      }
+      setSyncMensagensResult(res);
+    } catch (e) {
+      setSyncMensagensResult({ error: e.response?.data?.error || e.message || "Erro ao sincronizar mensagens antigas." });
+    } finally {
+      setSyncingMensagens(false);
     }
   };
 
@@ -1411,6 +1534,26 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
               : syncResult.job_id
                 ? (syncResult.mensagem || "Sincronização enfileirada.")
                 : `OK: ${syncResult.total_contatos ?? 0} contatos; ${syncResult.criados ?? 0} novos, ${syncResult.atualizados ?? 0} atualizados.${syncResult.fotos_atualizadas ? ` ${syncResult.fotos_atualizadas} fotos atualizadas.` : ""}`}
+          </p>
+        )}
+      </div>
+      <div className="ia-field" style={{ marginBottom: 16 }}>
+        <p className="ia-muted">Importe o historico de mensagens disponivel no celular conectado da empresa.</p>
+        <button
+          type="button"
+          className="ia-btn ia-btn--outline"
+          disabled={syncingMensagens}
+          onClick={handleSincronizarMensagensAntigas}
+        >
+          {syncingMensagens ? "Sincronizando mensagens..." : "Sincronizar mensagens antigas"}
+        </button>
+        {syncMensagensResult && (
+          <p className="ia-muted" style={{ marginTop: 8 }}>
+            {syncMensagensResult.error
+              ? syncMensagensResult.error
+              : (syncMensagensResult.queued || syncMensagensResult.running)
+                ? (syncMensagensResult.message || "Sincronizacao de mensagens antigas enfileirada.")
+                : `OK: ${syncMensagensResult.mensagens_importadas ?? 0} mensagens importadas; ${syncMensagensResult.mensagens_ignoradas ?? 0} ja existentes/ignoradas em ${syncMensagensResult.chats_processados ?? 0} chats.`}
           </p>
         )}
       </div>

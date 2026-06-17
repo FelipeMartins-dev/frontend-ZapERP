@@ -24,7 +24,7 @@ function tryDesktopNotify(title, body) {
   }
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   try {
-    new Notification(title, { body, icon: "/brand/zaperp-favicon.svg" });
+    new Notification(title, { body, icon: "/brand/pwa-192.png" });
   } catch {
     /* ignore */
   }

@@ -2,7 +2,10 @@
  * Regressão: envios sequenciais (texto, áudio, imagem) não devem sumir da lista.
  * Executar: node scripts/test-sequential-messages.mjs
  */
-import { mergeMessageIntoListForTest } from "../src/conversa/conversaOutboundMediaMerge.js";
+import {
+  mergeMessageIntoListForTest,
+  sortMensagensChronological,
+} from "../src/conversa/conversaOutboundMediaMerge.js";
 
 const CONV = 42;
 
@@ -276,4 +279,16 @@ list = mergeMessageIntoListForTest(list, CONV, {
 });
 assert(list.length === 2, `manual repetido: esperado 2, obteve ${list.length}`);
 
-console.log("OK - regressao de mensagens sequenciais passou (9 cenarios).");
+// 10) Realtime: confirmacoes podem chegar com ids fora da ordem visual local no mesmo timestamp.
+// A ordenacao deve preservar _stableInsertSeq para evitar salto ate atualizar a pagina.
+const sameTs = new Date().toISOString();
+const sortedSameTimestamp = sortMensagensChronological([
+  { id: 902, conversa_id: CONV, direcao: "out", tipo: "texto", texto: "primeira", criado_em: sameTs, _stableInsertSeq: 1 },
+  { id: 901, conversa_id: CONV, direcao: "out", tipo: "texto", texto: "segunda", criado_em: sameTs, _stableInsertSeq: 2 },
+]);
+assert(
+  sortedSameTimestamp.map((m) => m.texto).join("|") === "primeira|segunda",
+  "mensagens com mesmo timestamp devem preservar ordem local estavel mesmo com ids fora de ordem"
+);
+
+console.log("OK - regressao de mensagens sequenciais passou (10 cenarios).");

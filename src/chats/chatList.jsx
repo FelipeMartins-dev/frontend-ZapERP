@@ -1086,9 +1086,7 @@ export default function ChatList() {
         if (loadQueuedRef.current) {
           const queuedOpts = loadQueuedRef.current;
           loadQueuedRef.current = null;
-          if (!queuedOpts.background) {
-            queueMicrotask(() => loadRef.current?.(queuedOpts));
-          }
+          queueMicrotask(() => loadRef.current?.(queuedOpts));
         }
       }
     }
@@ -1259,9 +1257,16 @@ export default function ChatList() {
   const chatListResyncNonce = useChatStore((s) => s.chatListResyncNonce);
   useEffect(() => {
     if (!chatListResyncNonce) return;
-    if (loadInFlightRef.current) return;
+    if (loadInFlightRef.current) {
+      loadQueuedRef.current = { background: true };
+      void refreshChatFilterCounts({ silent: true });
+      return;
+    }
     const hasVisibleChats = (useChatStore.getState().chats?.length ?? 0) > 0;
-    if (hasVisibleChats && Date.now() - lastLoadFinishedAtRef.current < 2500) return;
+    if (hasVisibleChats && Date.now() - lastLoadFinishedAtRef.current < 2500) {
+      void refreshChatFilterCounts({ silent: true });
+      return;
+    }
     loadRef.current?.({ background: true });
     void refreshChatFilterCounts({ silent: true });
   }, [chatListResyncNonce, refreshChatFilterCounts]);

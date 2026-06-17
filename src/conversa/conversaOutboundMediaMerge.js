@@ -1272,6 +1272,9 @@ function sortMensagensChronological(arr) {
     const ta = toMillis(a?.criado_em) || 0
     const tb = toMillis(b?.criado_em) || 0
     if (ta !== tb) return ta - tb
+    const seqa = Number(a?._stableInsertSeq)
+    const seqb = Number(b?._stableInsertSeq)
+    if (Number.isFinite(seqa) && Number.isFinite(seqb) && seqa !== seqb) return seqa - seqb
     const ida = Number(a?.id)
     const idb = Number(b?.id)
     if (Number.isFinite(ida) && Number.isFinite(idb) && ida !== idb) return ida - idb
@@ -1285,9 +1288,6 @@ function sortMensagensChronological(arr) {
     if (fn !== 0) return fn
     const ur = String(a?.url || a?.url_absoluta || "").localeCompare(String(b?.url || b?.url_absoluta || ""))
     if (ur !== 0) return ur
-    const seqa = Number(a?._stableInsertSeq)
-    const seqb = Number(b?._stableInsertSeq)
-    if (Number.isFinite(seqa) && Number.isFinite(seqb) && seqa !== seqb) return seqa - seqb
     const conv = String(a?.conversa_id ?? b?.conversa_id ?? "")
     return stableSyntheticMessageKey(a, conv).localeCompare(stableSyntheticMessageKey(b, conv))
   })

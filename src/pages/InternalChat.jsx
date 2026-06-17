@@ -195,7 +195,7 @@ export default function InternalChat() {
     const name = c?.otherName || "Chat interno";
     const body = (preview || "Nova mensagem").slice(0, 120);
     try {
-      new Notification(`ZapERP — ${name}`, { body, icon: "/brand/zaperp-favicon.svg" });
+      new Notification(`ZapERP — ${name}`, { body, icon: "/brand/pwa-192.png" });
     } catch (_) {}
   }, []);
 

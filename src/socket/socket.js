@@ -113,19 +113,11 @@ function applyRetomadaSeAguardandoPorMensagemRecebida(conversaId, msg) {
 
 // Som de notificação: tenta arquivo MP3, fallback para beep via Web Audio API
 function playNotificationSound() {
-  try {
-    const audio = new Audio("/notification.mp3")
-    audio.volume = 0.6
-    audio.play().catch(() => playFallbackBeep())
-  } catch (_) {
-    playFallbackBeep()
-  }
+  playFallbackBeep()
 }
 
 /** Mapeamento soundId (payload ui.soundId) → URL em /public */
-const NOTIFICATION_SOUND_URL_BY_ID = {
-  "atendimento-transferido": "/sounds/atendimento-transferido.mp3",
-}
+const NOTIFICATION_SOUND_URL_BY_ID = {}
 
 /**
  * @param {string} [soundId]
@@ -384,6 +376,64 @@ function requestChatListResyncIfLateralImpact(payload, listRowChanged) {
   return false
 }
 
+function isGroupPayload(payload) {
+  const tipo = String(payload?.tipo || "").toLowerCase()
+  return payload?.is_group === true || tipo === "grupo" || String(payload?.telefone || "").includes("@g.us")
+}
+
+function shouldBeInMinhaFilaForCurrentUser(payload) {
+  if (!payload || isGroupPayload(payload)) return false
+  const myId = getCurrentUserId()
+  const status = String(
+    payload.status_atendimento_real ?? payload.status_atendimento ?? ""
+  ).toLowerCase()
+  const atendenteId = payload.atendente_id
+
+  if (status === "fechada" || status === "encerrada" || status === "mensagem_disparada") return false
+  if (status === "em_atendimento" || status === "aguardando_cliente" || status === "pagamento_pendente" || status === "em_atraso") {
+    return myId != null && atendenteId != null && String(atendenteId) === String(myId)
+  }
+  if (status === "aberta") {
+    if (atendenteId != null && myId != null && String(atendenteId) !== String(myId)) return false
+    return payload.exibir_badge_aberta !== false
+  }
+  return false
+}
+
+function emitMinhaFilaOptimisticMutation(rawPayload) {
+  const payload = unwrapSocketChatPayload(rawPayload)
+  const id = payload?.id ?? payload?.conversa_id
+  if (id == null || id === "") return
+  if (!payloadImpactaListaLateral(payload)) return
+
+  const myId = getCurrentUserId()
+  const lr = payload?.lista_realtime && typeof payload.lista_realtime === "object" ? payload.lista_realtime : null
+  const motivo = String(lr?.motivo ?? payload?.motivo ?? "")
+  const patch = {
+    ...payload,
+    id,
+    ui_status_optimistic_at: Date.now(),
+  }
+  if (
+    !patch.status_atendimento &&
+    lr?.minha_fila === true &&
+    (motivo === "recebeu_transferencia" || motivo === "transferencia_recebida") &&
+    myId != null
+  ) {
+    patch.status_atendimento = "em_atendimento"
+    patch.status_atendimento_real = "em_atendimento"
+    patch.atendente_id = myId
+  }
+  const inMinhaFila = shouldBeInMinhaFilaForCurrentUser(patch)
+  useChatStore.getState().emitChatListOptimisticMutation({
+    id,
+    patch,
+    removeFromMinhaFila: !inMinhaFila,
+    restoreMinhaFila: inMinhaFila,
+    row: patch,
+  })
+}
+
 function getMessagesScrollMetrics() {
   if (typeof document === "undefined") return null
   const container = document.querySelector(".wa-messages")
@@ -594,6 +644,7 @@ export function initSocket(token) {
   off("alerta_sem_resposta")
   off("alerta_sem_resposta_evento")
   off("zapi_sync_contatos")
+  off("whatsapp_sync_mensagens_antigas")
   off("conversa_atualizada")
   off("conversa_prefs_atualizada")
   off("conversa_apagada")
@@ -958,6 +1009,23 @@ export function initSocket(token) {
     }
   })
 
+  socket.on("whatsapp_sync_mensagens_antigas", (payload) => {
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      try {
+        window.dispatchEvent(new CustomEvent("whatsapp_sync_mensagens_antigas", { detail: payload }))
+      } catch (_) {}
+    }
+    try {
+      useChatStore.getState().requestChatListResync?.()
+    } catch (_) {}
+    try {
+      const convStore = useConversaStore.getState()
+      if (convStore.selectedId && typeof convStore.refresh === "function") {
+        convStore.refresh({ silent: true })
+      }
+    } catch (_) {}
+  })
+
   /* ===========================
      STATUS / AÇÕES DE ATENDIMENTO
      conversa_atualizada: merge defensivo na lista; NUNCA refetchar mensagens do chat aberto
@@ -981,6 +1049,7 @@ export function initSocket(token) {
     if (!id) return
     if (shouldIgnoreByCompany(payload)) return
     logSocketConversaDebug("conversa_atualizada", payload)
+    emitMinhaFilaOptimisticMutation(payload)
     const chatStore = useChatStore.getState()
     const chats = chatStore.chats || []
     const idx = chats.findIndex((c) => String(c.id) === String(id))
@@ -1065,6 +1134,7 @@ export function initSocket(token) {
     if (rawId == null || rawId === "") return false
     const p = { ...payload, id: rawId }
     logSocketConversaDebug("patch_everywhere", p)
+    emitMinhaFilaOptimisticMutation(p)
     const chatStore = useChatStore.getState()
     const chats = chatStore.chats || []
     const idx = chats.findIndex((c) => String(c.id) === String(p.id))
@@ -1192,7 +1262,7 @@ export function initSocket(token) {
           const tag = ui.tag != null && ui.tag !== "" ? String(ui.tag) : `conversa_atribuida_${convId}`
           const n = new Notification(title, {
             body,
-            icon: "/brand/zaperp-favicon.svg",
+            icon: "/brand/pwa-192.png",
             tag,
           })
           n.onclick = () => window.focus()
@@ -1238,6 +1308,7 @@ export function initSocket(token) {
           needsListResync = true
           return
         }
+        emitMinhaFilaOptimisticMutation(chat)
         const wasInList = (chatStore.chats || []).some((c) => String(c.id) === String(id))
         chatStore.addChat(chat)
         const selectedId = useConversaStore.getState().selectedId

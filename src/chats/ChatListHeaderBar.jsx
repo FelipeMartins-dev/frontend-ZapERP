@@ -1,7 +1,8 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { createPortal } from "react-dom";
 import ZapERPLogo from "../brand/ZapERPLogo";
 import { Icon } from "./chatListUiPrimitives";
+import { useEmpresaStore } from "../auth/empresaStore";
 
 function HeaderButton({ title, onClick, children, innerRef, disabled }) {
   return (
@@ -15,6 +16,31 @@ function HeaderButton({ title, onClick, children, innerRef, disabled }) {
     >
       {children}
     </button>
+  );
+}
+
+function CompanyLogo({ logoUrl }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (!logoUrl || imgError) {
+    return (
+      <ZapERPLogo
+        variant="horizontal"
+        size="md"
+        tagline="Atendimento inteligente"
+        title="ZapERP — Atendimento inteligente"
+        interactive={false}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={logoUrl}
+      alt="Logo da empresa"
+      className="chat-list-company-logo"
+      onError={() => setImgError(true)}
+    />
   );
 }
 
@@ -34,16 +60,12 @@ function ChatListHeaderBar({
   canConsultarProdutos,
   onOpenProdutos,
 }) {
+  const logoUrl = useEmpresaStore((s) => s.empresa?.logo_url);
+
   return (
     <header className="chat-list-header">
       <div className="chat-list-header-left">
-        <ZapERPLogo
-          variant="horizontal"
-          size="md"
-          tagline="Atendimento inteligente"
-          title="ZapERP — Atendimento inteligente"
-          interactive={false}
-        />
+        <CompanyLogo logoUrl={logoUrl} />
       </div>
 
       <div className="chat-list-header-actions">

@@ -50,7 +50,7 @@ export function hasDesktopNotificationSupport() {
 
 function toPublicAsset(url) {
   const v = normalize(url)
-  if (!v) return "/brand/zaperp-favicon.svg"
+  if (!v) return "/brand/pwa-192.png"
   if (v.startsWith("http://") || v.startsWith("https://")) return v
   if (v.startsWith("/")) return v
   return `/${v}`

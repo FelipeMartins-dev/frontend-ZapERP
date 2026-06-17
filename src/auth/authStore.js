@@ -6,6 +6,7 @@ import { useChatStore } from "../chats/chatsStore"
 import { useConversaStore } from "../conversa/conversaStore"
 import { usePermissoesStore } from "./permissoesStore"
 import { unsubscribeWebPush, syncPushSubscriptionSilently, resetPushRegistrationDebounce } from "../push/webPushClient"
+import { useEmpresaStore } from "./empresaStore"
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -66,6 +67,8 @@ export const useAuthStore = create((set, get) => ({
 
       get().syncUsuarioMe?.().catch(() => {})
 
+      useEmpresaStore.getState().fetchEmpresa().catch(() => {})
+
       return data
     } catch (err) {
       set({ loading: false })
@@ -83,6 +86,7 @@ export const useAuthStore = create((set, get) => ({
       useChatStore.getState().limpar()
       useConversaStore.getState().limpar()
       usePermissoesStore.getState().clearPermissoes()
+      useEmpresaStore.getState().clear()
     } catch (_) {}
     set({ user: null, token: null })
     if (redirect && typeof window !== "undefined") {
@@ -180,6 +184,7 @@ export const useAuthStore = create((set, get) => ({
             if (!ok) return
             usePermissoesStore.getState().fetchPermissoes().catch(() => {})
             get().syncUsuarioMe?.().catch(() => {})
+            useEmpresaStore.getState().fetchEmpresa().catch(() => {})
           })
           .catch(() => {})
       })

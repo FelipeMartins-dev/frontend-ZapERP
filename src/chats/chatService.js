@@ -512,6 +512,12 @@ export async function sincronizarFotosPerfil() {
   return data;
 }
 
+/** Importa o historico de mensagens disponivel no celular conectado */
+export async function sincronizarMensagensAntigas() {
+  const { data } = await api.post("/integrations/whatsapp/messages/sync-old");
+  return data;
+}
+
 /** Verifica se a instância UltraMSG está conectada ao WhatsApp */
 export async function getZapiStatus() {
   const { data } = await api.get("/chats/zapi-status");
@@ -532,6 +538,7 @@ const chatService = {
   aplicarTag,
   removerTag,
   postFinalizacaoAusenciaLote,
+  sincronizarMensagensAntigas,
 
   // novos
   criarGrupo,
