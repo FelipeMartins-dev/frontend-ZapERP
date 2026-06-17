@@ -536,11 +536,6 @@ function applyStatusMensagemEvent(evt) {
       let targetMsg = null
       if (u && match(u)) targetMsg = u
       else if (lastFromArray && match(lastFromArray)) targetMsg = lastFromArray
-      else if (u && String(u?.direcao || "").toLowerCase() === "out") {
-        const recentMs = 60_000
-        const ts = new Date(u?.criado_em || 0).getTime()
-        if (Date.now() - ts < recentMs) targetMsg = u
-      }
 
       if (targetMsg) {
         const nextUm = { ...targetMsg, status_mensagem: s, status: s }
@@ -559,7 +554,11 @@ function applyStatusMensagemEvent(evt) {
 }
 
 export function initSocket(token) {
-  if (socket) return socket
+  if (socket) {
+    const currentToken = socket.auth?.token
+    if (currentToken === token) return socket
+    disconnectSocket()
+  }
 
   const base = getApiBaseUrl()
 

@@ -29,7 +29,7 @@ function statusRank(s) {
   return STATUS_RANK[raw] ?? 1;
 }
 
-function pickHigherStatus(a, b) {
+export function pickHigherStatus(a, b) {
   if (!a) return b ?? null;
   if (!b) return a;
   return statusRank(b) >= statusRank(a) ? b : a;
@@ -41,8 +41,6 @@ function pickHigherStatus(a, b) {
  */
 export function normalizeStatusMensagemFromPayload(payload) {
   const p = payload?.data || payload || {};
-  const mensagem_id =
-    p.mensagem_id ?? p.message_id ?? p.msg_id ?? p.id ?? payload?.mensagem_id ?? payload?.message_id;
   const conversa_id =
     p.conversa_id ??
     p.id_conversa ??
@@ -52,6 +50,16 @@ export function normalizeStatusMensagemFromPayload(payload) {
     payload?.id_conversa ??
     payload?.conversation_id ??
     payload?.conversationId;
+  let mensagem_id =
+    p.mensagem_id ?? p.message_id ?? p.msg_id ?? p.id ?? payload?.mensagem_id ?? payload?.message_id;
+  if (
+    mensagem_id != null &&
+    conversa_id != null &&
+    String(mensagem_id).trim() !== "" &&
+    String(mensagem_id) === String(conversa_id)
+  ) {
+    mensagem_id = null;
+  }
   const status = p.status ?? payload?.status;
   const whatsapp_id =
     p.whatsapp_id ?? p.wamid ?? p.wa_id ?? p.whatsappMessageId ?? payload?.whatsapp_id ?? payload?.wamid;
@@ -85,7 +93,6 @@ function getQueueKey(evt) {
   if (evt.whatsapp_id != null && String(evt.whatsapp_id).trim() !== "") {
     return `wa:${conv}:${String(evt.whatsapp_id)}`;
   }
-  if (conv) return `fb:${conv}`;
   return null;
 }
 

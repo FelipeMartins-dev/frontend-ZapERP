@@ -2,6 +2,7 @@ import axios from "axios"
 import { getApiBaseUrl } from "./baseUrl"
 import { disconnectSocket } from "../socket/socket"
 import { useNotificationStore } from "../notifications/notificationStore"
+import { clearConversaSessionCaches } from "../conversa/conversaStore"
 
 const baseURL = getApiBaseUrl()
 
@@ -50,6 +51,11 @@ api.interceptors.response.use(
 
       if (!skipLogout && hadAuth) {
         localStorage.removeItem("zap_erp_auth")
+        try {
+          clearConversaSessionCaches?.()
+        } catch (_) {
+          /* ignore */
+        }
         try {
           disconnectSocket?.()
         } catch (_) {

@@ -91,6 +91,10 @@ const DEFAULT_ALERTA_SEM_RESPOSTA = {
   telefone_gestor: "",
   horario_comercial_ativo: true,
   timezone: "America/Sao_Paulo",
+  horarioInicio: "09:00",
+  horarioFim: "18:00",
+  diasSemanaDesativados: [0, 6],
+  datasEspecificasFechadas: [],
   horario_comercial: null,
 };
 
@@ -1815,6 +1819,8 @@ function normalizeAlertaSemRespostaFromApi(raw) {
     : [];
   const gestorId = Number(s.gestor_notificado_id ?? responsaveis[0]);
   const gestorClienteId = Number(s.gestor_cliente_id);
+  const horarioApi = s.horario_comercial && typeof s.horario_comercial === "object" ? s.horario_comercial : null;
+  const janelaApi = Array.isArray(horarioApi?.janelas) && horarioApi.janelas.length ? horarioApi.janelas[0] : null;
   return {
     ...DEFAULT_ALERTA_SEM_RESPOSTA,
     ...s,
@@ -1833,8 +1839,21 @@ function normalizeAlertaSemRespostaFromApi(raw) {
     gestor_cliente_nome: String(s.gestor_cliente_nome || "").trim(),
     responsaveis_notificacao_ids: responsaveis,
     telefone_gestor: String(s.telefone_gestor || "").trim(),
-    horario_comercial_ativo: bool(s.horario_comercial_ativo, true),
-    timezone: String(s.timezone || DEFAULT_ALERTA_SEM_RESPOSTA.timezone).trim(),
+    horario_comercial_ativo: bool(s.alerta_sem_resposta_ativo, bool(s.ativo, false)) ? true : bool(s.horario_comercial_ativo, true),
+    timezone: String(s.timezone || horarioApi?.timezone || DEFAULT_ALERTA_SEM_RESPOSTA.timezone).trim(),
+    horarioInicio: formatTimeForInput(s.horarioInicio || janelaApi?.inicio || "09:00"),
+    horarioFim: formatTimeForInput(s.horarioFim || janelaApi?.fim || "18:00"),
+    diasSemanaDesativados: Array.isArray(s.diasSemanaDesativados)
+      ? s.diasSemanaDesativados.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+      : Array.isArray(horarioApi?.dias_semana_desativados)
+        ? horarioApi.dias_semana_desativados.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+        : [0, 6],
+    datasEspecificasFechadas: Array.isArray(s.datasEspecificasFechadas)
+      ? s.datasEspecificasFechadas.map(String).filter(Boolean)
+      : Array.isArray(horarioApi?.datas_especificas_fechadas)
+        ? horarioApi.datas_especificas_fechadas.map(String).filter(Boolean)
+        : [],
+    horario_comercial: horarioApi,
   };
 }
 
@@ -1870,8 +1889,9 @@ function validateAlertaSemResposta(v) {
 function buildAlertaSemRespostaPayload(v) {
   const gestorId = Number(v.gestor_notificado_id);
   const gestorClienteId = Number(v.gestor_cliente_id);
+  const alertaAtivo = v.alerta_sem_resposta_ativo === true;
   return {
-    alerta_sem_resposta_ativo: v.alerta_sem_resposta_ativo === true,
+    alerta_sem_resposta_ativo: alertaAtivo,
     tempo_primeiro_alerta_minutos: Math.max(1, Math.floor(Number(v.tempo_primeiro_alerta_minutos) || 1)),
     tempo_alerta_critico_minutos: Math.max(1, Math.floor(Number(v.tempo_alerta_critico_minutos) || 1)),
     tempo_notificar_gestor_minutos: Math.max(1, Math.floor(Number(v.tempo_notificar_gestor_minutos) || 1)),
@@ -1886,8 +1906,16 @@ function buildAlertaSemRespostaPayload(v) {
     gestor_cliente_nome: String(v.gestor_cliente_nome || "").trim(),
     responsaveis_notificacao_ids: Number.isFinite(gestorId) && gestorId > 0 ? [gestorId] : [],
     telefone_gestor: String(v.telefone_gestor || "").trim(),
-    horario_comercial_ativo: v.horario_comercial_ativo === true,
+    horario_comercial_ativo: alertaAtivo ? true : v.horario_comercial_ativo !== false,
     timezone: String(v.timezone || "America/Sao_Paulo").trim(),
+    horarioInicio: formatTimeForInput(v.horarioInicio),
+    horarioFim: formatTimeForInput(v.horarioFim),
+    diasSemanaDesativados: Array.isArray(v.diasSemanaDesativados)
+      ? v.diasSemanaDesativados.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+      : [0, 6],
+    datasEspecificasFechadas: Array.isArray(v.datasEspecificasFechadas)
+      ? v.datasEspecificasFechadas.map(String).filter(Boolean)
+      : [],
   };
 }
 
@@ -1930,6 +1958,7 @@ function SecaoAlertasAtendimento() {
   const [gestorContatoBusca, setGestorContatoBusca] = useState("");
   const [gestorContatoOptions, setGestorContatoOptions] = useState([]);
   const [gestorContatoLoading, setGestorContatoLoading] = useState(false);
+  const [novaDataFechadaAlerta, setNovaDataFechadaAlerta] = useState("");
 
   const gestores = usuarios.filter((u) => {
     const perfil = String(u.perfil || u.role || "").toLowerCase();
@@ -2128,7 +2157,13 @@ function SecaoAlertasAtendimento() {
               </div>
               <Switch
                 checked={cfg.alerta_sem_resposta_ativo}
-                onChange={(x) => setCfg((c) => ({ ...c, alerta_sem_resposta_ativo: x }))}
+                onChange={(x) =>
+                  setCfg((c) => ({
+                    ...c,
+                    alerta_sem_resposta_ativo: x,
+                    horario_comercial_ativo: x ? true : c.horario_comercial_ativo,
+                  }))
+                }
               />
             </div>
             <div className="sla-note">
@@ -2138,6 +2173,136 @@ function SecaoAlertasAtendimento() {
               <strong>Contagem do temporizador</strong>
               <span>{horarioComercialResumo}</span>
             </div>
+          </div>
+
+          <div className="chatbot-card sla-card">
+            <div className="sla-card-head">
+              <div>
+                <h3 className="chatbot-card-title">Horario comercial do alerta</h3>
+                <p className="chatbot-card-subtitle">
+                  Defina quando os alertas podem disparar. Fora desse horario, o contador fica pausado e nenhuma acao e executada.
+                </p>
+              </div>
+              <Switch
+                checked={cfg.horario_comercial_ativo !== false}
+                disabled={cfg.alerta_sem_resposta_ativo}
+                onChange={(x) => setCfg((c) => ({ ...c, horario_comercial_ativo: x }))}
+              />
+            </div>
+            <div
+              className="chatbot-fora-horario-fields"
+              style={{
+                opacity: cfg.horario_comercial_ativo !== false ? 1 : 0.55,
+                pointerEvents: cfg.horario_comercial_ativo !== false ? "auto" : "none",
+              }}
+            >
+              <div className="chatbot-subsection">
+                <h4 className="chatbot-subsection-title">Horario de atendimento</h4>
+                <div className="chatbot-time-row">
+                  <div className="ia-field">
+                    <label>Inicio</label>
+                    <input
+                      type="time"
+                      className="ia-input"
+                      value={formatTimeForInput(cfg.horarioInicio) || "09:00"}
+                      onChange={(e) => setCfg((c) => ({ ...c, horarioInicio: e.target.value }))}
+                    />
+                  </div>
+                  <div className="ia-field">
+                    <label>Termino</label>
+                    <input
+                      type="time"
+                      className="ia-input"
+                      value={formatTimeForInput(cfg.horarioFim) || "18:00"}
+                      onChange={(e) => setCfg((c) => ({ ...c, horarioFim: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <p className="chatbot-hint">Horarios que atravessam meia-noite sao suportados (ex: 22:00-06:00).</p>
+              </div>
+
+              <div className="chatbot-subsection">
+                <h4 className="chatbot-subsection-title">Dias da semana em que nao trabalha</h4>
+                <div className="chatbot-dias-row">
+                  {DIAS_SEMANA.map((d) => {
+                    const dias = cfg.diasSemanaDesativados || [0, 6];
+                    const checked = dias.includes(d.num);
+                    return (
+                      <label key={d.num} className="chatbot-dia-check">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const prev = cfg.diasSemanaDesativados || [0, 6];
+                            const next = checked
+                              ? prev.filter((n) => n !== d.num)
+                              : [...prev.filter((n) => n !== d.num), d.num].sort((a, b) => a - b);
+                            setCfg((c) => ({ ...c, diasSemanaDesativados: next.length > 0 ? next : [0, 6] }));
+                          }}
+                        />
+                        <span>{d.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="chatbot-hint">Marcado = nao trabalha. Padrao: Dom e Sab marcados.</p>
+              </div>
+
+              <div className="chatbot-subsection">
+                <h4 className="chatbot-subsection-title">Datas especificas fechadas (feriados, recesso)</h4>
+                <div className="chatbot-datas-row">
+                  <input
+                    type="date"
+                    className="ia-input chatbot-input-date"
+                    value={novaDataFechadaAlerta}
+                    onChange={(e) => setNovaDataFechadaAlerta(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="ia-btn ia-btn--outline"
+                    onClick={() => {
+                      if (!novaDataFechadaAlerta) return;
+                      const datas = cfg.datasEspecificasFechadas || [];
+                      if (!datas.includes(novaDataFechadaAlerta)) {
+                        setCfg((c) => ({
+                          ...c,
+                          datasEspecificasFechadas: [...datas, novaDataFechadaAlerta].sort(),
+                        }));
+                        setNovaDataFechadaAlerta("");
+                      }
+                    }}
+                  >
+                    + Adicionar data
+                  </button>
+                </div>
+                {(cfg.datasEspecificasFechadas || []).length > 0 && (
+                  <ul className="chatbot-datas-list">
+                    {(cfg.datasEspecificasFechadas || []).map((d) => (
+                      <li key={d} className="chatbot-datas-item">
+                        <span>{new Date(`${d}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+                        <button
+                          type="button"
+                          className="chatbot-btn-remove"
+                          onClick={() =>
+                            setCfg((c) => ({
+                              ...c,
+                              datasEspecificasFechadas: (c.datasEspecificasFechadas || []).filter((x) => x !== d),
+                            }))
+                          }
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            {cfg.alerta_sem_resposta_ativo && (
+              <p className="chatbot-hint" style={{ marginTop: 12 }}>
+                Com o alerta ativo, o horario comercial fica sempre ligado para evitar disparos fora do expediente.
+              </p>
+            )}
           </div>
 
           <div className="chatbot-card sla-card">

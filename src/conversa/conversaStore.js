@@ -11,6 +11,7 @@ import {
   retomarAtendimentoChat,
 } from "./conversaService"
 import { getSocket, leaveConversa, joinConversaIfNeeded } from "../socket/socket"
+import { pickHigherStatus } from "../socket/statusMensagemBatch"
 import { useChatStore } from "../chats/chatsStore"
 import { buildPatchAguardandoPagamentoOptimista } from "../utils/pagamentoPrazoFormat"
 import { getStatusAtendimentoEffective } from "../utils/conversaUtils"
@@ -130,6 +131,12 @@ function readConversaMensagensCache(conversaId) {
   if (!entry.mensagens?.length) return null
   if (!mensagensBelongToConversa(entry.mensagens, conversaId)) return null
   return entry
+}
+
+export function clearConversaSessionCaches() {
+  conversaMensagensCache.clear()
+  MEMORY_USER_CACHE = null
+  MEMORY_USER_CACHE_TS = 0
 }
 
 function writeConversaMensagensCache(conversaId, snapshot) {
@@ -982,7 +989,24 @@ export const useConversaStore = create((set, get) => {
         return state
       })
       if (!replaced) {
-        get().anexarMensagem(realMsg)
+        const list = get().mensagens || []
+        const targetConversaId = pickExplicitConversaId(realMsg)
+        const alreadyExists = list.some((m) => {
+          if (targetConversaId == null || m.conversa_id == null) return false
+          if (String(m.conversa_id) !== String(targetConversaId)) return false
+          if (realMsg.id != null && m.id != null && String(m.id) === String(realMsg.id)) return true
+          if (
+            realMsg.whatsapp_id &&
+            m.whatsapp_id &&
+            String(m.whatsapp_id) === String(realMsg.whatsapp_id)
+          ) {
+            return true
+          }
+          const ct = realMsg.client_temp_id ?? realMsg.clientTempId
+          if (ct && m.client_temp_id && String(m.client_temp_id) === String(ct)) return true
+          return false
+        })
+        if (!alreadyExists) get().anexarMensagem(realMsg)
       }
     },
 
@@ -1021,9 +1045,10 @@ export const useConversaStore = create((set, get) => {
             if (!isOutgoingLike(m)) continue
             const ts = toMillis(m?.criado_em)
             if (!Number.isFinite(ts) || now - ts > recentMs) break
-            const hasMatch = (waId && String(m.whatsapp_id) === String(waId)) ||
-              (mensagemId && String(m.id) === String(mensagemId))
-            if (hasMatch || !m.whatsapp_id) {
+            const hasMatch =
+              (waId && String(m.whatsapp_id) === String(waId)) ||
+              (mensagemId != null && mensagemId !== "" && String(m.id) === String(mensagemId))
+            if (hasMatch) {
               fallbackIdx = i
               break
             }
@@ -1047,7 +1072,16 @@ export const useConversaStore = create((set, get) => {
             changed = true
             return
           }
-          const merged = preserveLocalMediaFields(cur, { ...cur, ...partial })
+          let merged = preserveLocalMediaFields(cur, { ...cur, ...partial })
+          if (partial.status != null || partial.status_mensagem != null) {
+            const higher = pickHigherStatus(
+              cur.status_mensagem ?? cur.status,
+              partial.status_mensagem ?? partial.status
+            )
+            if (higher != null) {
+              merged = { ...merged, status: higher, status_mensagem: higher }
+            }
+          }
           if (!mensagemStatusPatchChanges(cur, merged, partial)) return
           next[i] = merged
           changed = true
@@ -1559,6 +1593,7 @@ export const useConversaStore = create((set, get) => {
       cancelCarregarConversaInFlight()
       carregarConversaGeneration += 1
       discardPendingAnexar(null)
+      clearConversaSessionCaches()
       set({
         selectedId: null,
         conversa: null,
