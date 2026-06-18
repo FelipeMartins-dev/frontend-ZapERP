@@ -1298,6 +1298,20 @@ export default function ChatList() {
             : c
         )
       );
+      const currentMinhaFila = Array.isArray(minhaFilaListRef.current) ? minhaFilaListRef.current : null;
+      if (currentMinhaFila?.some((c) => String(c?.id) === id)) {
+        setMinhaFilaList(
+          currentMinhaFila.map((c) =>
+            String(c?.id) === id
+              ? {
+                  ...c,
+                  ...patch,
+                  tags: Array.isArray(patch.tags) ? patch.tags : c.tags,
+                }
+              : c
+          )
+        );
+      }
     }
 
     if (mutation.removeFromMinhaFila) {

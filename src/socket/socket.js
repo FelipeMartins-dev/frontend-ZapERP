@@ -424,13 +424,16 @@ function emitMinhaFilaOptimisticMutation(rawPayload) {
     patch.status_atendimento_real = "em_atendimento"
     patch.atendente_id = myId
   }
-  const inMinhaFila = shouldBeInMinhaFilaForCurrentUser(patch)
+  const chatStore = useChatStore.getState()
+  const existingRow = (chatStore.chats || []).find((c) => String(c?.id) === String(id))
+  const decisionRow = existingRow ? { ...existingRow, ...patch } : patch
+  const inMinhaFila = shouldBeInMinhaFilaForCurrentUser(decisionRow)
   useChatStore.getState().emitChatListOptimisticMutation({
     id,
     patch,
     removeFromMinhaFila: !inMinhaFila,
     restoreMinhaFila: inMinhaFila,
-    row: patch,
+    row: decisionRow,
   })
 }
 
