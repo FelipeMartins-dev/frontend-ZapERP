@@ -1036,6 +1036,15 @@ function isIncomingClientMediaReconcilePair(prev, incoming) {
   if (pid && iid && pid === iid) return true
   if (pid && iid && pid !== iid) return false
 
+  // Se ambos os lados já têm alguma identidade persistida (id ou whatsapp_id) mas não bateram
+  // nas checagens fortes acima, são DUAS mensagens diferentes — não arriscar uma fusão por
+  // heurística fraca (duração igual, nome/tamanho de arquivo parecido, etc.). Isso evita que
+  // duas mídias reais recebidas em sequência (ex.: dois áudios curtos com a mesma duração)
+  // sejam fundidas numa única bolha, fazendo a segunda "desaparecer" da tela.
+  const prevPersist = hasPersistedMessageIdentity(prev)
+  const incPersist = hasPersistedMessageIdentity(incoming)
+  if (prevPersist && incPersist) return false
+
   const tsP = toMillis(prev?.criado_em)
   const tsI = toMillis(incoming?.criado_em)
   if (!Number.isFinite(tsP) || !Number.isFinite(tsI)) return false
@@ -1046,10 +1055,6 @@ function isIncomingClientMediaReconcilePair(prev, incoming) {
   const durP = resolveInboundAudioDurationSec(prev)
   const durI = resolveInboundAudioDurationSec(incoming)
   if (fam === "audio" && durP != null && durI != null && durP === durI) return true
-
-  const prevPersist = hasPersistedMessageIdentity(prev)
-  const incPersist = hasPersistedMessageIdentity(incoming)
-  if (prevPersist && incPersist) return false
 
   const hasUrlP = hasRenderableUrl(prev)
   const hasUrlI = hasRenderableUrl(incoming)

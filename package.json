@@ -13,6 +13,7 @@
     "test:media-merge": "node scripts/test-media-merge.mjs",
     "test:conversation-boundary": "node scripts/test-conversation-boundary.mjs",
     "test:sequential-messages": "node scripts/test-sequential-messages.mjs",
+    "test:inbound-media-sequence": "node scripts/test-inbound-media-sequence.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
