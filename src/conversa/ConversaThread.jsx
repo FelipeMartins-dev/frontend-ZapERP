@@ -362,7 +362,7 @@ export default function ConversaThread({
             </button>
           ) : !hasMore ? (
             <p className="wa-loadOlderEnd" role="status">
-              Todas as mensagens foram carregadas
+              Todas as mensagens salvas foram carregadas
             </p>
           ) : null}
         </div>

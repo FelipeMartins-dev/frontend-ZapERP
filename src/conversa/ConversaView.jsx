@@ -2698,11 +2698,13 @@ function ConversaViewBody() {
       const res = await carregarMensagensAntigasContato(conversaId);
       await refresh({ silent: true });
       const importadas = Number(res?.mensagens_importadas || 0);
+      const atualizadas = Number(res?.mensagens_atualizadas || 0);
+      const alteradas = importadas + atualizadas;
       showToast({
-        type: importadas > 0 ? "success" : "info",
-        title: importadas > 0 ? "Historico carregado" : "Sem mensagens antigas",
-        message: importadas > 0
-          ? `${importadas} mensagem(ns) importada(s) para este contato.`
+        type: alteradas > 0 ? "success" : "info",
+        title: alteradas > 0 ? "Historico carregado" : "Sem mensagens antigas",
+        message: alteradas > 0
+          ? `${importadas} mensagem(ns) importada(s) e ${atualizadas} atualizada(s) para este contato.`
           : (res?.message || "Nenhuma mensagem antiga encontrada para este contato."),
       });
     } catch (e) {
