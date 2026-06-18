@@ -39,6 +39,7 @@ export { getDisplayName } from "./chatListDisplay";
 import {
   getLastMessage,
   isConversaAguardandoCliente,
+  isConversaAguardandoFuncionario,
   isConversaEmAtendimentoBadge,
   isConversaPagamentoPendente,
   isConversaEmAtrasoPagamento,
@@ -165,12 +166,13 @@ function mergeChatRowsPreservingCurrent(current, incoming, order) {
   return sortChatRowsByOrder(Array.from(byKey.values()), order);
 }
 
-const EM_ATENDIMENTO_LIVE_STATUSES = new Set(["em_atendimento", "aguardando_cliente"]);
-
-function rowStillBelongsToEmAtendimentoLiveScope(row, { user, adminAtendenteFilterId }) {
+function rowStillBelongsToEmAtendimentoLiveScope(row, { user, adminAtendenteFilterId, pendentesFuncionarioSet }) {
   if (!row || row.sem_conversa || isGroupConversation(row)) return false;
-  const status = getStatusAtendimentoEffective(row);
-  if (!EM_ATENDIMENTO_LIVE_STATUSES.has(status)) return false;
+  const belongsToEmAtendimento =
+    isConversaAguardandoCliente(row) ||
+    isConversaAguardandoFuncionario(row, pendentesFuncionarioSet) ||
+    isConversaEmAtendimentoBadge(row);
+  if (!belongsToEmAtendimento) return false;
 
   const filtroAtendenteAtivo =
     adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
@@ -1113,6 +1115,7 @@ export default function ChatList() {
           return mergeEmAtendimentoBackgroundRows(arr, merged, order, {
             user,
             adminAtendenteFilterId,
+            pendentesFuncionarioSet,
           });
         }
         if (strictListTabs.has(tab)) return merged;
