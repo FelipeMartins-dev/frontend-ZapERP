@@ -920,11 +920,15 @@ function ConversaViewBody() {
 
     if (getStatusAtendimentoEffective(source) !== "em_atendimento") return null;
 
+    // aguardando_cliente_desde NÃO entra aqui: o backend só marca quando
+    // outboundQualificaParaAguardandoCliente() permite (ex.: não marca para
+    // mensagem de ausência) — adivinhar isso no frontend pode setar um valor
+    // que o backend nunca confirma, e também reseta um aguardando_cliente_desde
+    // real pré-existente para "agora" sem necessidade.
     const patch = {
       id: conversaId,
       status_atendimento: "em_atendimento",
       status_atendimento_real: "em_atendimento",
-      aguardando_cliente_desde: new Date().toISOString(),
       exibir_badge_aberta: false,
       tem_novas_mensagens_em_atendimento: false,
       ui_status_optimistic_at: Date.now(),

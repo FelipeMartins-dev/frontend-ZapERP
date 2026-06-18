@@ -519,6 +519,18 @@ export async function sincronizarMensagensAntigas() {
 }
 
 /** Verifica se a instância UltraMSG está conectada ao WhatsApp */
+/** Consulta se a importacao de mensagens antigas esta ativa */
+export async function statusSincronizarMensagensAntigas() {
+  const { data } = await api.get("/integrations/whatsapp/messages/sync-old/status");
+  return data;
+}
+
+/** Solicita cancelamento seguro da importacao de mensagens antigas */
+export async function cancelarSincronizarMensagensAntigas() {
+  const { data } = await api.post("/integrations/whatsapp/messages/sync-old/cancel");
+  return data;
+}
+
 export async function getZapiStatus() {
   const { data } = await api.get("/chats/zapi-status");
   return data;
@@ -539,6 +551,8 @@ const chatService = {
   removerTag,
   postFinalizacaoAusenciaLote,
   sincronizarMensagensAntigas,
+  statusSincronizarMensagensAntigas,
+  cancelarSincronizarMensagensAntigas,
 
   // novos
   criarGrupo,

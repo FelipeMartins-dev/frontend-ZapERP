@@ -850,6 +850,9 @@ function SecaoDepartamentos({ departamentos, onRefresh }) {
   const [editNome, setEditNome] = useState("");
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [grupoModal, setGrupoModal] = useState(null);
+  const [gruposLoading, setGruposLoading] = useState(false);
+  const [gruposSaving, setGruposSaving] = useState(false);
 
   const handleCriar = async (e) => {
     e.preventDefault();
@@ -899,6 +902,53 @@ function SecaoDepartamentos({ departamentos, onRefresh }) {
     }
   };
 
+  const handleAbrirGrupos = async (departamento) => {
+    setGrupoModal({ departamento, grupos: [], selecionados: [] });
+    setGruposLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await cfg.getDepartamentoGrupos(departamento.id);
+      const grupos = Array.isArray(data?.grupos) ? data.grupos : [];
+      setGrupoModal({
+        departamento: data?.departamento || departamento,
+        grupos,
+        selecionados: grupos.filter((g) => g.vinculado).map((g) => Number(g.id)),
+      });
+    } catch (e) {
+      setGrupoModal(null);
+      setErrorMsg(e?.response?.data?.error || "Erro ao carregar grupos do setor.");
+    } finally {
+      setGruposLoading(false);
+    }
+  };
+
+  const handleToggleGrupo = (grupoId) => {
+    const id = Number(grupoId);
+    setGrupoModal((curr) => {
+      if (!curr) return curr;
+      const exists = curr.selecionados.includes(id);
+      return {
+        ...curr,
+        selecionados: exists ? curr.selecionados.filter((x) => x !== id) : [...curr.selecionados, id],
+      };
+    });
+  };
+
+  const handleSalvarGrupos = async () => {
+    if (!grupoModal?.departamento?.id) return;
+    setGruposSaving(true);
+    setErrorMsg(null);
+    try {
+      await cfg.atualizarDepartamentoGrupos(grupoModal.departamento.id, grupoModal.selecionados);
+      setGrupoModal(null);
+      onRefresh();
+    } catch (e) {
+      setErrorMsg(e?.response?.data?.error || "Erro ao salvar grupos do setor.");
+    } finally {
+      setGruposSaving(false);
+    }
+  };
+
   return (
     <div className="ia-section">
       <h4>Departamentos (Setores)</h4>
@@ -926,6 +976,7 @@ function SecaoDepartamentos({ departamentos, onRefresh }) {
               <>
                 <span>{d.nome}</span>
                 <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" className="ia-btn ia-btn--small ia-btn--outline" onClick={() => handleAbrirGrupos(d)}>Grupos</button>
                   <button type="button" className="ia-btn ia-btn--small ia-btn--outline" onClick={() => handleEditar(d)}>Editar</button>
                   <button type="button" className="ia-btn ia-btn--small ia-btn--outline" onClick={() => handleExcluir(d.id)}>Excluir</button>
                 </div>
@@ -937,6 +988,58 @@ function SecaoDepartamentos({ departamentos, onRefresh }) {
       {departamentos.length === 0 && (
         <p className="ia-muted">Nenhum setor cadastrado. Crie o primeiro acima.</p>
       )}
+      {grupoModal && (
+        <ModalDepartamentoGrupos
+          departamento={grupoModal.departamento}
+          grupos={grupoModal.grupos}
+          selecionados={grupoModal.selecionados}
+          loading={gruposLoading}
+          saving={gruposSaving}
+          onToggle={handleToggleGrupo}
+          onClose={() => !gruposSaving && setGrupoModal(null)}
+          onSave={handleSalvarGrupos}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModalDepartamentoGrupos({ departamento, grupos, selecionados, loading, saving, onToggle, onClose, onSave }) {
+  const selectedSet = new Set((selecionados || []).map(Number));
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
+      <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 520, maxWidth: "92vw", maxHeight: "82vh", overflow: "auto" }} onClick={(e) => e.stopPropagation()}>
+        <h4 style={{ margin: "0 0 8px 0" }}>Grupos do setor</h4>
+        <p className="ia-muted" style={{ marginTop: 0 }}>{departamento?.nome || "Setor"}</p>
+        {loading ? (
+          <p className="ia-muted">Carregando grupos...</p>
+        ) : grupos.length === 0 ? (
+          <p className="ia-muted">Nenhum grupo sincronizado.</p>
+        ) : (
+          <div className="config-departamentos-multiselect" style={{ maxHeight: 360, overflowY: "auto" }}>
+            {grupos.map((g) => {
+              const id = Number(g.id);
+              const checked = selectedSet.has(id);
+              const nome = g.nome_grupo || g.telefone || "Grupo";
+              return (
+                <label key={g.id} className="config-departamento-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={saving}
+                    onChange={() => onToggle(id)}
+                  />
+                  <span>{nome}</span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+        <div className="ia-btn-row" style={{ marginTop: 16 }}>
+          <button type="button" className="ia-btn ia-btn--primary" disabled={saving || loading} onClick={onSave}>{saving ? "Salvando..." : "Salvar"}</button>
+          <button type="button" className="ia-btn ia-btn--outline" disabled={saving} onClick={onClose}>Cancelar</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1310,6 +1413,7 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
   const [syncFotosResult, setSyncFotosResult] = useState(null);
   const [syncingMensagens, setSyncingMensagens] = useState(false);
   const [syncMensagensResult, setSyncMensagensResult] = useState(null);
+  const [cancelingMensagens, setCancelingMensagens] = useState(false);
   const [autoSyncSaving, setAutoSyncSaving] = useState(false);
   const [busca, setBusca] = useState("");
   const [searching, setSearching] = useState(false);
@@ -1317,6 +1421,12 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
   const [excluindoId, setExcluindoId] = useState(null);
   const [excluindoTodos, setExcluindoTodos] = useState(false);
   const [clienteModal, setClienteModal] = useState(null); // { mode: "new"|"edit", data }
+  const syncMensagensAtiva = Boolean(
+    syncMensagensResult?.queued ||
+    syncMensagensResult?.running ||
+    syncMensagensResult?.cancel_requested
+  );
+  const syncMensagensEmAndamento = Boolean(syncingMensagens || syncMensagensAtiva);
 
   useEffect(() => {
     if (!onSearchClientes) return;
@@ -1351,6 +1461,19 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
     window.addEventListener("whatsapp_sync_mensagens_antigas", handler);
     return () => window.removeEventListener("whatsapp_sync_mensagens_antigas", handler);
   }, [onRefresh]);
+
+  useEffect(() => {
+    let active = true;
+    chatService.statusSincronizarMensagensAntigas()
+      .then((res) => {
+        if (!active) return;
+        if (res?.running || res?.queued || res?.cancel_requested) setSyncMensagensResult(res);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const autoSyncValue = empresa?.zapi_auto_sync_contatos ?? true;
   const handleToggleAutoSync = async (next) => {
@@ -1411,6 +1534,19 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
       setSyncMensagensResult({ error: e.response?.data?.error || e.message || "Erro ao sincronizar mensagens antigas." });
     } finally {
       setSyncingMensagens(false);
+    }
+  };
+
+  const handlePararSincronizacaoMensagens = async () => {
+    if (!window.confirm("Parar sincronizacao de mensagens antigas? As mensagens ja importadas permanecerao no banco.")) return;
+    setCancelingMensagens(true);
+    try {
+      const res = await chatService.cancelarSincronizarMensagensAntigas();
+      setSyncMensagensResult(res);
+    } catch (e) {
+      setSyncMensagensResult({ error: e.response?.data?.error || e.message || "Erro ao parar sincronizacao de mensagens antigas." });
+    } finally {
+      setCancelingMensagens(false);
     }
   };
 
@@ -1539,18 +1675,35 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
       </div>
       <div className="ia-field" style={{ marginBottom: 16 }}>
         <p className="ia-muted">Importe o historico de mensagens disponivel no celular conectado da empresa.</p>
-        <button
-          type="button"
-          className="ia-btn ia-btn--outline"
-          disabled={syncingMensagens}
-          onClick={handleSincronizarMensagensAntigas}
-        >
-          {syncingMensagens ? "Sincronizando mensagens..." : "Sincronizar mensagens antigas"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="ia-btn ia-btn--outline"
+            disabled={syncMensagensEmAndamento}
+            onClick={handleSincronizarMensagensAntigas}
+          >
+            {syncingMensagens ? "Sincronizando mensagens..." : "Sincronizar mensagens antigas"}
+          </button>
+          {syncMensagensAtiva && (
+            <button
+              type="button"
+              className="ia-btn ia-btn--outline"
+              style={{ color: "#dc2626", borderColor: "#dc2626" }}
+              disabled={cancelingMensagens || syncMensagensResult?.cancel_requested}
+              onClick={handlePararSincronizacaoMensagens}
+            >
+              {cancelingMensagens ? "Parando..." : "Parar sincronizacao"}
+            </button>
+          )}
+        </div>
         {syncMensagensResult && (
           <p className="ia-muted" style={{ marginTop: 8 }}>
             {syncMensagensResult.error
               ? syncMensagensResult.error
+              : syncMensagensResult.cancelled
+                ? (syncMensagensResult.message || "Sincronizacao de mensagens antigas cancelada.")
+              : syncMensagensResult.cancel_requested
+                ? (syncMensagensResult.message || "Cancelamento solicitado. A sincronizacao vai parar em seguranca.")
               : (syncMensagensResult.queued || syncMensagensResult.running)
                 ? (syncMensagensResult.message || "Sincronizacao de mensagens antigas enfileirada.")
                 : `OK: ${syncMensagensResult.mensagens_importadas ?? 0} mensagens importadas; ${syncMensagensResult.mensagens_ignoradas ?? 0} ja existentes/ignoradas em ${syncMensagensResult.chats_processados ?? 0} chats.`}

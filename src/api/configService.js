@@ -95,6 +95,16 @@ export async function excluirDepartamento(id) {
   await api.delete(`/dashboard/departamentos/${id}`)
 }
 
+export async function getDepartamentoGrupos(id) {
+  const { data } = await api.get(`/dashboard/departamentos/${id}/grupos`)
+  return data || { grupos: [] }
+}
+
+export async function atualizarDepartamentoGrupos(id, conversa_ids) {
+  const { data } = await api.put(`/dashboard/departamentos/${id}/grupos`, { conversa_ids })
+  return data
+}
+
 // Tags
 export async function getTags() {
   const { data } = await api.get('/tags')
