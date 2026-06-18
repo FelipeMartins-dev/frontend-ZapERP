@@ -1,0 +1,223 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/feedback/Toast.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5bfdcc68"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+export default function Toast({
+  title,
+  message,
+  type = "info",
+  onClose,
+  className = "",
+  actionLabel,
+  onAction,
+  ...props
+}) {
+  const v = String(type || "").toLowerCase();
+  const variant = v === "error" ? "error" : v === "warning" ? "warning" : v === "handoff" ? "handoff" : v === "success" || v === "ok" ? "success" : "info";
+  const icons = {
+    error: /* @__PURE__ */ jsxDEV("svg", { width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+      /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "10" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 49,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("line", { x1: "12", y1: "8", x2: "12", y2: "12" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 50,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 51,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+      lineNumber: 48,
+      columnNumber: 5
+    }, this),
+    warning: /* @__PURE__ */ jsxDEV("svg", { width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+      /* @__PURE__ */ jsxDEV("path", { d: "M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 56,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("line", { x1: "12", y1: "9", x2: "12", y2: "13" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 57,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("line", { x1: "12", y1: "17", x2: "12.01", y2: "17" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 58,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+      lineNumber: 55,
+      columnNumber: 5
+    }, this),
+    success: /* @__PURE__ */ jsxDEV("svg", { width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+      /* @__PURE__ */ jsxDEV("path", { d: "M22 11.08V12a10 10 0 1 1-5.93-9.14" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 63,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("polyline", { points: "22 4 12 14.01 9 11.01" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 64,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+      lineNumber: 62,
+      columnNumber: 5
+    }, this),
+    info: /* @__PURE__ */ jsxDEV("svg", { width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+      /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "10" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 69,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("line", { x1: "12", y1: "16", x2: "12", y2: "12" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 70,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("line", { x1: "12", y1: "8", x2: "12.01", y2: "8" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 71,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+      lineNumber: 68,
+      columnNumber: 5
+    }, this),
+    handoff: /* @__PURE__ */ jsxDEV("svg", { width: "20", height: "20", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, children: [
+      /* @__PURE__ */ jsxDEV("path", { d: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 76,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("circle", { cx: "9", cy: "7", r: "4" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 77,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("path", { d: "M23 21v-2a4 4 0 0 0-3-3.87" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 78,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("path", { d: "M16 3.13a4 4 0 0 1 0 7.75" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+        lineNumber: 79,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+      lineNumber: 75,
+      columnNumber: 5
+    }, this)
+  };
+  return /* @__PURE__ */ jsxDEV(
+    "div",
+    {
+      role: "status",
+      "aria-live": "polite",
+      "aria-label": title,
+      className: `ds-toast ds-toast--${variant} ${className}`.trim(),
+      ...props,
+      children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "ds-toast__icon", "aria-hidden": true, children: icons[variant] }, void 0, false, {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+          lineNumber: 92,
+          columnNumber: 7
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "ds-toast__content", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "ds-toast__title", children: title }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+            lineNumber: 94,
+            columnNumber: 9
+          }, this),
+          message ? /* @__PURE__ */ jsxDEV("div", { className: "ds-toast__message", children: message }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+            lineNumber: 95,
+            columnNumber: 20
+          }, this) : null,
+          actionLabel && typeof onAction === "function" ? /* @__PURE__ */ jsxDEV("div", { className: "ds-toast__actions", children: /* @__PURE__ */ jsxDEV("button", { type: "button", className: "ds-toast__action", onClick: onAction, children: actionLabel }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+            lineNumber: 98,
+            columnNumber: 13
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+            lineNumber: 97,
+            columnNumber: 9
+          }, this) : null
+        ] }, void 0, true, {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+          lineNumber: 93,
+          columnNumber: 7
+        }, this),
+        onClose && /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            onClick: onClose,
+            "aria-label": "Fechar",
+            className: "ds-toast__close",
+            children: "×"
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+            lineNumber: 105,
+            columnNumber: 7
+          },
+          this
+        )
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx",
+      lineNumber: 85,
+      columnNumber: 5
+    },
+    this
+  );
+}
+_c = Toast;
+var _c;
+$RefreshReg$(_c, "Toast");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/components/feedback/Toast.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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TUFBSyxVQUFTLFdBQVUsb0JBQW1CLFNBQVNBLFVBQ3pERCx5QkFESDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUVBLEtBSEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxpQkFJQSxJQUNFO0FBQUEsYUFUTjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBVUE7QUFBQSxRQUNDRixXQUNDO0FBQUEsVUFBQztBQUFBO0FBQUEsWUFDQyxNQUFLO0FBQUEsWUFDTCxTQUFTQTtBQUFBQSxZQUNULGNBQVc7QUFBQSxZQUNYLFdBQVU7QUFBQSxZQUFpQjtBQUFBO0FBQUEsVUFKN0I7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLFFBT0E7QUFBQTtBQUFBO0FBQUEsSUEzQko7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLEVBNkJBO0FBRUo7QUFBQ2dCLEtBNUZ1QnBCO0FBQUssSUFBQW9CO0FBQUEsYUFBQUEsSUFBQSIsIm5hbWVzIjpbIlRvYXN0IiwidGl0bGUiLCJtZXNzYWdlIiwidHlwZSIsIm9uQ2xvc2UiLCJjbGFzc05hbWUiLCJhY3Rpb25MYWJlbCIsIm9uQWN0aW9uIiwicHJvcHMiLCJ2IiwiU3RyaW5nIiwidG9Mb3dlckNhc2UiLCJ2YXJpYW50IiwiaWNvbnMiLCJlcnJvciIsIndhcm5pbmciLCJzdWNjZXNzIiwiaW5mbyIsImhhbmRvZmYiLCJ0cmltIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiVG9hc3QuanN4Il0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxyXG4gKiBUb2FzdCDigJQgZmVlZGJhY2sgdmlzdWFsIHBhZHJvbml6YWRvXHJcbiAqIERlc2lnbiBTeXN0ZW0gWmFwRVJQIOKAlCB1c2EgdG9rZW5zICgtLWRzLSopIGUgc3Vwb3J0YSBkYXJrIG1vZGVcclxuICovXHJcbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIFRvYXN0KHtcclxuICB0aXRsZSxcclxuICBtZXNzYWdlLFxyXG4gIHR5cGUgPSBcImluZm9cIixcclxuICBvbkNsb3NlLFxyXG4gIGNsYXNzTmFtZSA9IFwiXCIsXHJcbiAgYWN0aW9uTGFiZWwsXHJcbiAgb25BY3Rpb24sXHJcbiAgLi4ucHJvcHNcclxufSkge1xyXG4gIGNvbnN0IHYgPSBTdHJpbmcodHlwZSB8fCBcIlwiKS50b0xvd2VyQ2FzZSgpO1xyXG4gIGNvbnN0IHZhcmlhbnQgPVxyXG4gICAgdiA9PT0gXCJlcnJvclwiXHJcbiAgICAgID8gXCJlcnJvclwiXHJcbiAgICAgIDogdiA9PT0gXCJ3YXJuaW5nXCJcclxuICAgICAgICA/IFwid2FybmluZ1wiXHJcbiAgICAgICAgOiB2ID09PSBcImhhbmRvZmZcIlxyXG4gICAgICAgICAgPyBcImhhbmRvZmZcIlxyXG4gICAgICAgICAgOiB2ID09PSBcInN1Y2Nlc3NcIiB8fCB2ID09PSBcIm9rXCJcclxuICAgICAgICAgICAgPyBcInN1Y2Nlc3NcIlxyXG4gICAgICAgICAgICA6IFwiaW5mb1wiO1xyXG5cclxuICBjb25zdCBpY29ucyA9IHtcclxuICAgIGVycm9yOiAoXHJcbiAgICAgIDxzdmcgd2lkdGg9XCIyMFwiIGhlaWdodD1cIjIwXCIgdmlld0JveD1cIjAgMCAyNCAyNFwiIGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlV2lkdGg9XCIyXCIgc3Ryb2tlTGluZWNhcD1cInJvdW5kXCIgc3Ryb2tlTGluZWpvaW49XCJyb3VuZFwiIGFyaWEtaGlkZGVuPlxyXG4gICAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiMTBcIiAvPlxyXG4gICAgICAgIDxsaW5lIHgxPVwiMTJcIiB5MT1cIjhcIiB4Mj1cIjEyXCIgeTI9XCIxMlwiIC8+XHJcbiAgICAgICAgPGxpbmUgeDE9XCIxMlwiIHkxPVwiMTZcIiB4Mj1cIjEyLjAxXCIgeTI9XCIxNlwiIC8+XHJcbiAgICAgIDwvc3ZnPlxyXG4gICAgKSxcclxuICAgIHdhcm5pbmc6IChcclxuICAgICAgPHN2ZyB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgZmlsbD1cIm5vbmVcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBzdHJva2VXaWR0aD1cIjJcIiBzdHJva2VMaW5lY2FwPVwicm91bmRcIiBzdHJva2VMaW5lam9pbj1cInJvdW5kXCIgYXJpYS1oaWRkZW4+XHJcbiAgICAgICAgPHBhdGggZD1cIk0xMC4yOSAzLjg2TDEuODIgMThhMiAyIDAgMCAwIDEuNzEgM2gxNi45NGEyIDIgMCAwIDAgMS43MS0zTDEzLjcxIDMuODZhMiAyIDAgMCAwLTMuNDIgMHpcIiAvPlxyXG4gICAgICAgIDxsaW5lIHgxPVwiMTJcIiB5MT1cIjlcIiB4Mj1cIjEyXCIgeTI9XCIxM1wiIC8+XHJcbiAgICAgICAgPGxpbmUgeDE9XCIxMlwiIHkxPVwiMTdcIiB4Mj1cIjEyLjAxXCIgeTI9XCIxN1wiIC8+XHJcbiAgICAgIDwvc3ZnPlxyXG4gICAgKSxcclxuICAgIHN1Y2Nlc3M6IChcclxuICAgICAgPHN2ZyB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgZmlsbD1cIm5vbmVcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBzdHJva2VXaWR0aD1cIjJcIiBzdHJva2VMaW5lY2FwPVwicm91bmRcIiBzdHJva2VMaW5lam9pbj1cInJvdW5kXCIgYXJpYS1oaWRkZW4+XHJcbiAgICAgICAgPHBhdGggZD1cIk0yMiAxMS4wOFYxMmExMCAxMCAwIDEgMS01LjkzLTkuMTRcIiAvPlxyXG4gICAgICAgIDxwb2x5bGluZSBwb2ludHM9XCIyMiA0IDEyIDE0LjAxIDkgMTEuMDFcIiAvPlxyXG4gICAgICA8L3N2Zz5cclxuICAgICksXHJcbiAgICBpbmZvOiAoXHJcbiAgICAgIDxzdmcgd2lkdGg9XCIyMFwiIGhlaWdodD1cIjIwXCIgdmlld0JveD1cIjAgMCAyNCAyNFwiIGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlV2lkdGg9XCIyXCIgc3Ryb2tlTGluZWNhcD1cInJvdW5kXCIgc3Ryb2tlTGluZWpvaW49XCJyb3VuZFwiIGFyaWEtaGlkZGVuPlxyXG4gICAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiMTBcIiAvPlxyXG4gICAgICAgIDxsaW5lIHgxPVwiMTJcIiB5MT1cIjE2XCIgeDI9XCIxMlwiIHkyPVwiMTJcIiAvPlxyXG4gICAgICAgIDxsaW5lIHgxPVwiMTJcIiB5MT1cIjhcIiB4Mj1cIjEyLjAxXCIgeTI9XCI4XCIgLz5cclxuICAgICAgPC9zdmc+XHJcbiAgICApLFxyXG4gICAgaGFuZG9mZjogKFxyXG4gICAgICA8c3ZnIHdpZHRoPVwiMjBcIiBoZWlnaHQ9XCIyMFwiIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiBmaWxsPVwibm9uZVwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIHN0cm9rZVdpZHRoPVwiMlwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj5cclxuICAgICAgICA8cGF0aCBkPVwiTTE3IDIxdi0yYTQgNCAwIDAgMC00LTRINWE0IDQgMCAwIDAtNCA0djJcIiAvPlxyXG4gICAgICAgIDxjaXJjbGUgY3g9XCI5XCIgY3k9XCI3XCIgcj1cIjRcIiAvPlxyXG4gICAgICAgIDxwYXRoIGQ9XCJNMjMgMjF2LTJhNCA0IDAgMCAwLTMtMy44N1wiIC8+XHJcbiAgICAgICAgPHBhdGggZD1cIk0xNiAzLjEzYTQgNCAwIDAgMSAwIDcuNzVcIiAvPlxyXG4gICAgICA8L3N2Zz5cclxuICAgICksXHJcbiAgfTtcclxuXHJcbiAgcmV0dXJuIChcclxuICAgIDxkaXZcclxuICAgICAgcm9sZT1cInN0YXR1c1wiXHJcbiAgICAgIGFyaWEtbGl2ZT1cInBvbGl0ZVwiXHJcbiAgICAgIGFyaWEtbGFiZWw9e3RpdGxlfVxyXG4gICAgICBjbGFzc05hbWU9e2Bkcy10b2FzdCBkcy10b2FzdC0tJHt2YXJpYW50fSAke2NsYXNzTmFtZX1gLnRyaW0oKX1cclxuICAgICAgey4uLnByb3BzfVxyXG4gICAgPlxyXG4gICAgICA8c3BhbiBjbGFzc05hbWU9XCJkcy10b2FzdF9faWNvblwiIGFyaWEtaGlkZGVuPntpY29uc1t2YXJpYW50XX08L3NwYW4+XHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZHMtdG9hc3RfX2NvbnRlbnRcIj5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImRzLXRvYXN0X190aXRsZVwiPnt0aXRsZX08L2Rpdj5cclxuICAgICAgICB7bWVzc2FnZSA/IDxkaXYgY2xhc3NOYW1lPVwiZHMtdG9hc3RfX21lc3NhZ2VcIj57bWVzc2FnZX08L2Rpdj4gOiBudWxsfVxyXG4gICAgICAgIHthY3Rpb25MYWJlbCAmJiB0eXBlb2Ygb25BY3Rpb24gPT09IFwiZnVuY3Rpb25cIiA/IChcclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZHMtdG9hc3RfX2FjdGlvbnNcIj5cclxuICAgICAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgY2xhc3NOYW1lPVwiZHMtdG9hc3RfX2FjdGlvblwiIG9uQ2xpY2s9e29uQWN0aW9ufT5cclxuICAgICAgICAgICAgICB7YWN0aW9uTGFiZWx9XHJcbiAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgKSA6IG51bGx9XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgICB7b25DbG9zZSAmJiAoXHJcbiAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgdHlwZT1cImJ1dHRvblwiXHJcbiAgICAgICAgICBvbkNsaWNrPXtvbkNsb3NlfVxyXG4gICAgICAgICAgYXJpYS1sYWJlbD1cIkZlY2hhclwiXHJcbiAgICAgICAgICBjbGFzc05hbWU9XCJkcy10b2FzdF9fY2xvc2VcIlxyXG4gICAgICAgID5cclxuICAgICAgICAgIMOXXHJcbiAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICl9XHJcbiAgICA8L2Rpdj5cclxuICApO1xyXG59XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvTWlndWVsL0RvY3VtZW50cy93aGF0c2FwcC1wbGF0YWZvcm1hL2Zyb250ZW5kL3NyYy9jb21wb25lbnRzL2ZlZWRiYWNrL1RvYXN0LmpzeCJ9

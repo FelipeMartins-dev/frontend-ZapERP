@@ -1,0 +1,165 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/chats/MinhasPendenciasCard.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5bfdcc68"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=5bfdcc68"; const memo = __vite__cjsImport3_react["memo"];
+import { PENDENCIA_CATEGORIAS } from "/src/chats/minhasPendenciasService.js";
+import "/src/chats/minhasPendencias.css";
+const ITENS = [
+  {
+    key: PENDENCIA_CATEGORIAS.transferidosParaVoce,
+    label: "Transferidos",
+    tone: "blue"
+  },
+  {
+    key: PENDENCIA_CATEGORIAS.aguardandoSuaResposta,
+    label: "Aguardando",
+    tone: "amber"
+  },
+  {
+    key: PENDENCIA_CATEGORIAS.emAtraso,
+    label: "Atraso",
+    tone: "red"
+  }
+];
+function MinhasPendenciasCard({
+  minhasPendencias,
+  pendenciaAtiva,
+  loadingPendencias,
+  loadingPendenciaCategoria,
+  onPendenciaClick
+}) {
+  const resumo = minhasPendencias || {};
+  const todosZero = (resumo.transferidosParaVoce || 0) === 0 && (resumo.aguardandoSuaResposta || 0) === 0 && (resumo.emAtraso || 0) === 0;
+  return /* @__PURE__ */ jsxDEV(
+    "section",
+    {
+      className: `minhas-pendencias-card${todosZero ? " is-all-zero" : ""}${loadingPendencias ? " is-loading" : ""}`,
+      "aria-label": "Minhas pendências",
+      children: [
+        /* @__PURE__ */ jsxDEV("header", { className: "minhas-pendencias-card__header", children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "minhas-pendencias-card__icon", "aria-hidden": "true", children: "🔔" }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+            lineNumber: 61,
+            columnNumber: 9
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { className: "minhas-pendencias-card__title", children: "Minhas Pendências" }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+            lineNumber: 64,
+            columnNumber: 9
+          }, this),
+          loadingPendencias ? /* @__PURE__ */ jsxDEV("span", { className: "minhas-pendencias-card__loading-dot", "aria-hidden": "true" }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+            lineNumber: 66,
+            columnNumber: 9
+          }, this) : null
+        ] }, void 0, true, {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+          lineNumber: 60,
+          columnNumber: 7
+        }, this),
+        /* @__PURE__ */ jsxDEV("ul", { className: "minhas-pendencias-card__list", role: "list", children: ITENS.map((item) => {
+          const count = Number(resumo[item.key]) || 0;
+          const isActive = pendenciaAtiva === item.key;
+          const isZero = count === 0;
+          const hasValue = count > 0;
+          const isBusy = isActive && loadingPendenciaCategoria;
+          return /* @__PURE__ */ jsxDEV("li", { className: "minhas-pendencias-card__item", children: /* @__PURE__ */ jsxDEV(
+            "button",
+            {
+              type: "button",
+              className: `minhas-pendencias-card__btn is-${item.tone}${isActive ? " is-active" : ""}${isZero ? " is-zero" : ""}${hasValue ? " is-has-value" : ""}`,
+              onClick: () => onPendenciaClick(item.key),
+              "aria-pressed": isActive,
+              "aria-busy": isBusy || void 0,
+              title: `${item.label}: ${count}`,
+              children: [
+                /* @__PURE__ */ jsxDEV("span", { className: `minhas-pendencias-card__dot is-${item.tone}`, "aria-hidden": "true" }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+                  lineNumber: 88,
+                  columnNumber: 17
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "minhas-pendencias-card__label", children: item.label }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+                  lineNumber: 89,
+                  columnNumber: 17
+                }, this),
+                /* @__PURE__ */ jsxDEV("span", { className: "minhas-pendencias-card__count", children: count }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+                  lineNumber: 90,
+                  columnNumber: 17
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+              lineNumber: 80,
+              columnNumber: 15
+            },
+            this
+          ) }, item.key, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+            lineNumber: 79,
+            columnNumber: 13
+          }, this);
+        }) }, void 0, false, {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+          lineNumber: 70,
+          columnNumber: 7
+        }, this)
+      ]
+    },
+    void 0,
+    true,
+    {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx",
+      lineNumber: 56,
+      columnNumber: 5
+    },
+    this
+  );
+}
+_c = MinhasPendenciasCard;
+function propsAreEqual(prev, next) {
+  if (prev.pendenciaAtiva !== next.pendenciaAtiva) return false;
+  if (prev.loadingPendencias !== next.loadingPendencias) return false;
+  if (prev.loadingPendenciaCategoria !== next.loadingPendenciaCategoria) return false;
+  if (prev.onPendenciaClick !== next.onPendenciaClick) return false;
+  const a = prev.minhasPendencias || {};
+  const b = next.minhasPendencias || {};
+  return a.transferidosParaVoce === b.transferidosParaVoce && a.aguardandoSuaResposta === b.aguardandoSuaResposta && a.emAtraso === b.emAtraso;
+}
+export default _c2 = memo(MinhasPendenciasCard, propsAreEqual);
+var _c, _c2;
+$RefreshReg$(_c, "MinhasPendenciasCard");
+$RefreshReg$(_c2, "%default%");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/MinhasPendenciasCard.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUE7QUFBQTtBQUFBO0FBQUEsaUJBYUE7QUFBQSxRQUVKLENBQUMsS0F4Qkg7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQXlCQTtBQUFBO0FBQUE7QUFBQSxJQXZDRjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsRUF3Q0E7QUFFSjtBQUFDdUIsS0F4RFFqQjtBQTBEVCxTQUFTa0IsY0FBY0MsTUFBTUMsTUFBTTtBQUNqQyxNQUFJRCxLQUFLakIsbUJBQW1Ca0IsS0FBS2xCLGVBQWdCLFFBQU87QUFDeEQsTUFBSWlCLEtBQUtoQixzQkFBc0JpQixLQUFLakIsa0JBQW1CLFFBQU87QUFDOUQsTUFBSWdCLEtBQUtmLDhCQUE4QmdCLEtBQUtoQiwwQkFBMkIsUUFBTztBQUM5RSxNQUFJZSxLQUFLZCxxQkFBcUJlLEtBQUtmLGlCQUFrQixRQUFPO0FBQzVELFFBQU1nQixJQUFJRixLQUFLbEIsb0JBQW9CLENBQUM7QUFDcEMsUUFBTXFCLElBQUlGLEtBQUtuQixvQkFBb0IsQ0FBQztBQUNwQyxTQUNFb0IsRUFBRTFCLHlCQUF5QjJCLEVBQUUzQix3QkFDN0IwQixFQUFFdkIsMEJBQTBCd0IsRUFBRXhCLHlCQUM5QnVCLEVBQUV0QixhQUFhdUIsRUFBRXZCO0FBRXJCO0FBRUEsZUFBQXdCLE1BQWVoQyxLQUFLUyxzQkFBc0JrQixhQUFhO0FBQUUsSUFBQUQsSUFBQU07QUFBQSxhQUFBTixJQUFBO0FBQUEsYUFBQU0sS0FBQSIsIm5hbWVzIjpbIm1lbW8iLCJQRU5ERU5DSUFfQ0FURUdPUklBUyIsIklURU5TIiwia2V5IiwidHJhbnNmZXJpZG9zUGFyYVZvY2UiLCJsYWJlbCIsInRvbmUiLCJhZ3VhcmRhbmRvU3VhUmVzcG9zdGEiLCJlbUF0cmFzbyIsIk1pbmhhc1BlbmRlbmNpYXNDYXJkIiwibWluaGFzUGVuZGVuY2lhcyIsInBlbmRlbmNpYUF0aXZhIiwibG9hZGluZ1BlbmRlbmNpYXMiLCJsb2FkaW5nUGVuZGVuY2lhQ2F0ZWdvcmlhIiwib25QZW5kZW5jaWFDbGljayIsInJlc3VtbyIsInRvZG9zWmVybyIsIm1hcCIsIml0ZW0iLCJjb3VudCIsIk51bWJlciIsImlzQWN0aXZlIiwiaXNaZXJvIiwiaGFzVmFsdWUiLCJpc0J1c3kiLCJ1bmRlZmluZWQiLCJfYyIsInByb3BzQXJlRXF1YWwiLCJwcmV2IiwibmV4dCIsImEiLCJiIiwiX2MyIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIk1pbmhhc1BlbmRlbmNpYXNDYXJkLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBtZW1vIH0gZnJvbSBcInJlYWN0XCI7XHJcbmltcG9ydCB7IFBFTkRFTkNJQV9DQVRFR09SSUFTIH0gZnJvbSBcIi4vbWluaGFzUGVuZGVuY2lhc1NlcnZpY2VcIjtcclxuaW1wb3J0IFwiLi9taW5oYXNQZW5kZW5jaWFzLmNzc1wiO1xyXG5cclxuY29uc3QgSVRFTlMgPSBbXHJcbiAge1xyXG4gICAga2V5OiBQRU5ERU5DSUFfQ0FURUdPUklBUy50cmFuc2Zlcmlkb3NQYXJhVm9jZSxcclxuICAgIGxhYmVsOiBcIlRyYW5zZmVyaWRvc1wiLFxyXG4gICAgdG9uZTogXCJibHVlXCIsXHJcbiAgfSxcclxuICB7XHJcbiAgICBrZXk6IFBFTkRFTkNJQV9DQVRFR09SSUFTLmFndWFyZGFuZG9TdWFSZXNwb3N0YSxcclxuICAgIGxhYmVsOiBcIkFndWFyZGFuZG9cIixcclxuICAgIHRvbmU6IFwiYW1iZXJcIixcclxuICB9LFxyXG4gIHtcclxuICAgIGtleTogUEVOREVOQ0lBX0NBVEVHT1JJQVMuZW1BdHJhc28sXHJcbiAgICBsYWJlbDogXCJBdHJhc29cIixcclxuICAgIHRvbmU6IFwicmVkXCIsXHJcbiAgfSxcclxuXTtcclxuXHJcbmZ1bmN0aW9uIE1pbmhhc1BlbmRlbmNpYXNDYXJkKHtcclxuICBtaW5oYXNQZW5kZW5jaWFzLFxyXG4gIHBlbmRlbmNpYUF0aXZhLFxyXG4gIGxvYWRpbmdQZW5kZW5jaWFzLFxyXG4gIGxvYWRpbmdQZW5kZW5jaWFDYXRlZ29yaWEsXHJcbiAgb25QZW5kZW5jaWFDbGljayxcclxufSkge1xyXG4gIGNvbnN0IHJlc3VtbyA9IG1pbmhhc1BlbmRlbmNpYXMgfHwge307XHJcbiAgY29uc3QgdG9kb3NaZXJvID1cclxuICAgIChyZXN1bW8udHJhbnNmZXJpZG9zUGFyYVZvY2UgfHwgMCkgPT09IDAgJiZcclxuICAgIChyZXN1bW8uYWd1YXJkYW5kb1N1YVJlc3Bvc3RhIHx8IDApID09PSAwICYmXHJcbiAgICAocmVzdW1vLmVtQXRyYXNvIHx8IDApID09PSAwO1xyXG5cclxuICByZXR1cm4gKFxyXG4gICAgPHNlY3Rpb25cclxuICAgICAgY2xhc3NOYW1lPXtgbWluaGFzLXBlbmRlbmNpYXMtY2FyZCR7dG9kb3NaZXJvID8gXCIgaXMtYWxsLXplcm9cIiA6IFwiXCJ9JHtsb2FkaW5nUGVuZGVuY2lhcyA/IFwiIGlzLWxvYWRpbmdcIiA6IFwiXCJ9YH1cclxuICAgICAgYXJpYS1sYWJlbD1cIk1pbmhhcyBwZW5kw6puY2lhc1wiXHJcbiAgICA+XHJcbiAgICAgIDxoZWFkZXIgY2xhc3NOYW1lPVwibWluaGFzLXBlbmRlbmNpYXMtY2FyZF9faGVhZGVyXCI+XHJcbiAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwibWluaGFzLXBlbmRlbmNpYXMtY2FyZF9faWNvblwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiPlxyXG4gICAgICAgICAg8J+UlFxyXG4gICAgICAgIDwvc3Bhbj5cclxuICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtaW5oYXMtcGVuZGVuY2lhcy1jYXJkX190aXRsZVwiPk1pbmhhcyBQZW5kw6puY2lhczwvc3Bhbj5cclxuICAgICAgICB7bG9hZGluZ1BlbmRlbmNpYXMgPyAoXHJcbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtaW5oYXMtcGVuZGVuY2lhcy1jYXJkX19sb2FkaW5nLWRvdFwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIC8+XHJcbiAgICAgICAgKSA6IG51bGx9XHJcbiAgICAgIDwvaGVhZGVyPlxyXG5cclxuICAgICAgPHVsIGNsYXNzTmFtZT1cIm1pbmhhcy1wZW5kZW5jaWFzLWNhcmRfX2xpc3RcIiByb2xlPVwibGlzdFwiPlxyXG4gICAgICAgIHtJVEVOUy5tYXAoKGl0ZW0pID0+IHtcclxuICAgICAgICAgIGNvbnN0IGNvdW50ID0gTnVtYmVyKHJlc3Vtb1tpdGVtLmtleV0pIHx8IDA7XHJcbiAgICAgICAgICBjb25zdCBpc0FjdGl2ZSA9IHBlbmRlbmNpYUF0aXZhID09PSBpdGVtLmtleTtcclxuICAgICAgICAgIGNvbnN0IGlzWmVybyA9IGNvdW50ID09PSAwO1xyXG4gICAgICAgICAgY29uc3QgaGFzVmFsdWUgPSBjb3VudCA+IDA7XHJcbiAgICAgICAgICBjb25zdCBpc0J1c3kgPSBpc0FjdGl2ZSAmJiBsb2FkaW5nUGVuZGVuY2lhQ2F0ZWdvcmlhO1xyXG5cclxuICAgICAgICAgIHJldHVybiAoXHJcbiAgICAgICAgICAgIDxsaSBrZXk9e2l0ZW0ua2V5fSBjbGFzc05hbWU9XCJtaW5oYXMtcGVuZGVuY2lhcy1jYXJkX19pdGVtXCI+XHJcbiAgICAgICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXHJcbiAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2BtaW5oYXMtcGVuZGVuY2lhcy1jYXJkX19idG4gaXMtJHtpdGVtLnRvbmV9JHtpc0FjdGl2ZSA/IFwiIGlzLWFjdGl2ZVwiIDogXCJcIn0ke2lzWmVybyA/IFwiIGlzLXplcm9cIiA6IFwiXCJ9JHtoYXNWYWx1ZSA/IFwiIGlzLWhhcy12YWx1ZVwiIDogXCJcIn1gfVxyXG4gICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gb25QZW5kZW5jaWFDbGljayhpdGVtLmtleSl9XHJcbiAgICAgICAgICAgICAgICBhcmlhLXByZXNzZWQ9e2lzQWN0aXZlfVxyXG4gICAgICAgICAgICAgICAgYXJpYS1idXN5PXtpc0J1c3kgfHwgdW5kZWZpbmVkfVxyXG4gICAgICAgICAgICAgICAgdGl0bGU9e2Ake2l0ZW0ubGFiZWx9OiAke2NvdW50fWB9XHJcbiAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPXtgbWluaGFzLXBlbmRlbmNpYXMtY2FyZF9fZG90IGlzLSR7aXRlbS50b25lfWB9IGFyaWEtaGlkZGVuPVwidHJ1ZVwiIC8+XHJcbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtaW5oYXMtcGVuZGVuY2lhcy1jYXJkX19sYWJlbFwiPntpdGVtLmxhYmVsfTwvc3Bhbj5cclxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cIm1pbmhhcy1wZW5kZW5jaWFzLWNhcmRfX2NvdW50XCI+e2NvdW50fTwvc3Bhbj5cclxuICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgPC9saT5cclxuICAgICAgICAgICk7XHJcbiAgICAgICAgfSl9XHJcbiAgICAgIDwvdWw+XHJcbiAgICA8L3NlY3Rpb24+XHJcbiAgKTtcclxufVxyXG5cclxuZnVuY3Rpb24gcHJvcHNBcmVFcXVhbChwcmV2LCBuZXh0KSB7XHJcbiAgaWYgKHByZXYucGVuZGVuY2lhQXRpdmEgIT09IG5leHQucGVuZGVuY2lhQXRpdmEpIHJldHVybiBmYWxzZTtcclxuICBpZiAocHJldi5sb2FkaW5nUGVuZGVuY2lhcyAhPT0gbmV4dC5sb2FkaW5nUGVuZGVuY2lhcykgcmV0dXJuIGZhbHNlO1xyXG4gIGlmIChwcmV2LmxvYWRpbmdQZW5kZW5jaWFDYXRlZ29yaWEgIT09IG5leHQubG9hZGluZ1BlbmRlbmNpYUNhdGVnb3JpYSkgcmV0dXJuIGZhbHNlO1xyXG4gIGlmIChwcmV2Lm9uUGVuZGVuY2lhQ2xpY2sgIT09IG5leHQub25QZW5kZW5jaWFDbGljaykgcmV0dXJuIGZhbHNlO1xyXG4gIGNvbnN0IGEgPSBwcmV2Lm1pbmhhc1BlbmRlbmNpYXMgfHwge307XHJcbiAgY29uc3QgYiA9IG5leHQubWluaGFzUGVuZGVuY2lhcyB8fCB7fTtcclxuICByZXR1cm4gKFxyXG4gICAgYS50cmFuc2Zlcmlkb3NQYXJhVm9jZSA9PT0gYi50cmFuc2Zlcmlkb3NQYXJhVm9jZSAmJlxyXG4gICAgYS5hZ3VhcmRhbmRvU3VhUmVzcG9zdGEgPT09IGIuYWd1YXJkYW5kb1N1YVJlc3Bvc3RhICYmXHJcbiAgICBhLmVtQXRyYXNvID09PSBiLmVtQXRyYXNvXHJcbiAgKTtcclxufVxyXG5cclxuZXhwb3J0IGRlZmF1bHQgbWVtbyhNaW5oYXNQZW5kZW5jaWFzQ2FyZCwgcHJvcHNBcmVFcXVhbCk7XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvTWlndWVsL0RvY3VtZW50cy93aGF0c2FwcC1wbGF0YWZvcm1hL2Zyb250ZW5kL3NyYy9jaGF0cy9NaW5oYXNQZW5kZW5jaWFzQ2FyZC5qc3gifQ==

@@ -1,0 +1,32 @@
+[0618/003925.647:ERROR:components\os_crypt\sync\os_crypt_win.cc:106] Failed to decrypt: Chave inválida para uso no estado especificado. (0x8009000B)
+[0618/003925.957:ERROR:content\browser\network_sandbox.cc:385] Failed to grant sandbox access to cache directory C:\Users\Miguel\Documents\whatsapp-plataforma\frontend\.tmp-zaperp-audit-profile\Default\Cache\Cache_Data: Acesso negado. (0x5)
+[0618/003925.957:ERROR:content\browser\network_sandbox.cc:318] Failed to grant sandbox access to NoVarySearch directory C:\Users\Miguel\Documents\whatsapp-plataforma\frontend\.tmp-zaperp-audit-profile\Default\Cache\No_Vary_Search: Acesso negado. (0x5)
+[0618/003925.968:ERROR:content\browser\network_sandbox.cc:318] Failed to grant sandbox access to SharedDictionary directory C:\Users\Miguel\Documents\whatsapp-plataforma\frontend\.tmp-zaperp-audit-profile\Default\Shared Dictionary: Acesso negado. (0x5)
+[0618/003925.970:ERROR:content\browser\network_sandbox.cc:490] Failed to grant sandbox access to network context data directory C:\Users\Miguel\Documents\whatsapp-plataforma\frontend\.tmp-zaperp-audit-profile\Default\Network: Acesso negado. (0x5)
+[0618/003925.979:ERROR:content\browser\network_service_instance_impl.cc:333] Encountered error while migrating network context data or granting sandbox access for C:\Users\Miguel\Documents\whatsapp-plataforma\frontend\.tmp-zaperp-audit-profile\Default\Network. Result: 11: A operação foi concluída com êxito. (0x0)
+[0618/003926.192:INFO:CONSOLE:495] "[vite] connecting...", source: http://localhost:5173/@vite/client (495)
+[0618/003926.249:INFO:CONSOLE:618] "[vite] connected.", source: http://localhost:5173/@vite/client (618)
+[0618/003926.473:INFO:CONSOLE:21551] "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold", source: http://localhost:5173/node_modules/.vite/deps/chunk-NUMECXU6.js?v=5bfdcc68 (21551)
+[0618/003926.527:INFO:CONSOLE:521] "Warning: React does not recognize the `%s` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `%s` instead. If you accidentally passed it from a parent component, remove it from the DOM element.%s isActive isactive 
+    at a
+    at LinkWithRef (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68:5378:5)
+    at NavLinkWithRef (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68:5442:21)
+    at SidebarNavItem (http://localhost:5173/src/layouts/MainLayout.jsx:350:27)
+    at nav
+    at aside
+    at div
+    at MainLayout (http://localhost:5173/src/layouts/MainLayout.jsx:69:20)
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68:4122:5)
+    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68:4592:5)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68:4535:15)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68:5273:5)
+    at AppRoutes (http://localhost:5173/src/routes/AppRoutes.jsx:114:27)
+    at ErrorBoundary (http://localhost:5173/src/components/ErrorBoundary.jsx:5:16)", source: http://localhost:5173/node_modules/.vite/deps/chunk-NUMECXU6.js?v=5bfdcc68 (521)
+[0618/003926.742:INFO:CONSOLE:4427] "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.", source: http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68 (4427)
+[0618/003926.742:INFO:CONSOLE:4427] "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.", source: http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68 (4427)
+[0618/003927.286:INFO:CONSOLE:205] "[DEPRECATED] Use `createWithEqualityFn` instead of `create` or use `useStoreWithEqualityFn` instead of `useStore`. They can be imported from 'zustand/traditional'. https://github.com/pmndrs/zustand/discussions/1937", source: http://localhost:5173/node_modules/.vite/deps/zustand.js?v=5bfdcc68 (205)
+[0618/003927.438:INFO:CONSOLE:1018] "Erro ao carregar conversas: AxiosError: Network Error", source: http://localhost:5173/src/chats/chatList.jsx (1018)
+[0618/003927.445:INFO:CONSOLE:554] "Contadores de conversas indisponiveis; mantendo valores atuais. AxiosError: Network Error", source: http://localhost:5173/src/chats/chatList.jsx (554)
+[0618/003928.945:INFO:CONSOLE:1018] "Erro ao carregar conversas: AxiosError: Network Error", source: http://localhost:5173/src/chats/chatList.jsx (1018)
+[0618/003932.220:INFO:CONSOLE:554] "Contadores de conversas indisponiveis; mantendo valores atuais. AxiosError: Network Error", source: http://localhost:5173/src/chats/chatList.jsx (554)
+[0618/003932.222:INFO:CONSOLE:1018] "Erro ao carregar conversas: AxiosError: Network Error", source: http://localhost:5173/src/chats/chatList.jsx (1018)

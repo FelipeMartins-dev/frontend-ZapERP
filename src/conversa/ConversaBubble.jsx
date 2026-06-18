@@ -790,12 +790,17 @@ const Bubble = memo(function Bubble({
   const isContact = !!contactBubbleMeta;
   const isLocation = tipoMsg === "location";
   const textoRaw = safeString(msg?.texto);
+  const textoRawNorm = String(textoRaw || "").trim().toLowerCase();
+  const isGenericMessagePlaceholder = textoRawNorm === "(mensagem)" || textoRawNorm === "(mensagem vazia)";
   const texto =
-    isApagadaParaTodos && !textoRaw ? "Esta mensagem foi apagada para todos." : textoRaw;
+    isApagadaParaTodos && !textoRaw
+      ? "Esta mensagem foi apagada para todos."
+      : (isGenericMessagePlaceholder ? "" : textoRaw);
   const hasText = !!texto;
   const remetente = showRemetente && !out && (msg?.remetente_nome || msg?.remetente_telefone);
   const isPlaceholderCaption =
     !texto ||
+    isGenericMessagePlaceholder ||
     texto === "(mídia)" ||
     texto === "(mensagem vazia)" ||
     texto === "(imagem)" ||
@@ -1315,7 +1320,7 @@ const Bubble = memo(function Bubble({
                   <span className="wa-bubble-text">{renderTextWithLinks(texto)}</span>
                 )
               ) : (
-                <span className="wa-bubble-text wa-muted">(mídia)</span>
+                <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? "Sem conteudo" : "(mídia)"}</span>
               )}
             </div>
           ) : isImg || isSticker ? (
@@ -1422,7 +1427,7 @@ const Bubble = memo(function Bubble({
               <span className="wa-bubble-text">{renderTextWithLinks(texto)}</span>
             )
           ) : (
-            <span className="wa-bubble-text wa-muted">(mensagem vazia)</span>
+            <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? "Sem conteudo" : "(mensagem vazia)"}</span>
           )}
         </div>
         {!isCall ? (

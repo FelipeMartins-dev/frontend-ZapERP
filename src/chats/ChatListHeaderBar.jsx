@@ -1,6 +1,6 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { createPortal } from "react-dom";
-import ZapERPLogo from "../brand/ZapERPLogo";
+import CompanyBrand from "../brand/CompanyBrand";
 import { Icon } from "./chatListUiPrimitives";
 import { useEmpresaStore } from "../auth/empresaStore";
 
@@ -19,33 +19,9 @@ function HeaderButton({ title, onClick, children, innerRef, disabled }) {
   );
 }
 
-function CompanyLogo({ logoUrl }) {
-  const [imgError, setImgError] = useState(false);
-
-  if (!logoUrl || imgError) {
-    return (
-      <ZapERPLogo
-        variant="horizontal"
-        size="md"
-        tagline="Atendimento inteligente"
-        title="ZapERP — Atendimento inteligente"
-        interactive={false}
-      />
-    );
-  }
-
-  return (
-    <img
-      src={logoUrl}
-      alt="Logo da empresa"
-      className="chat-list-company-logo"
-      onError={() => setImgError(true)}
-    />
-  );
-}
-
 /**
- * Cabeçalho fixo da lista (logo + ações) — não assina `chats`.
+ * Cabeçalho fixo da lista (marca da empresa + ações).
+ * Não assina `chats`; lê empresa do empresaStore globalmente.
  */
 function ChatListHeaderBar({
   novoBtnRef,
@@ -60,12 +36,14 @@ function ChatListHeaderBar({
   canConsultarProdutos,
   onOpenProdutos,
 }) {
-  const logoUrl = useEmpresaStore((s) => s.empresa?.logo_url);
+  const logoUrl   = useEmpresaStore((s) => s.empresa?.logo_url);
+  const nome      = useEmpresaStore((s) => s.empresa?.nome);
+  const nomeFonte = useEmpresaStore((s) => s.empresa?.nome_fonte);
 
   return (
     <header className="chat-list-header">
       <div className="chat-list-header-left">
-        <CompanyLogo logoUrl={logoUrl} />
+        <CompanyBrand logoUrl={logoUrl} nome={nome} nomeFonte={nomeFonte} />
       </div>
 
       <div className="chat-list-header-actions">

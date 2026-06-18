@@ -1,0 +1,412 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/atendimento/AguardarPagamentoModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5bfdcc68"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=5bfdcc68"; const useCallback = __vite__cjsImport3_react["useCallback"]; const useEffect = __vite__cjsImport3_react["useEffect"]; const useState = __vite__cjsImport3_react["useState"];
+import __vite__cjsImport4_reactDom from "/node_modules/.vite/deps/react-dom.js?v=5bfdcc68"; const createPortal = __vite__cjsImport4_reactDom["createPortal"];
+import "/src/atendimento/aguardarPagamento.css";
+const OPCOES = [
+  {
+    id: "hoje",
+    label: "Hoje",
+    hint: "Até o fim do dia",
+    icon: /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", "aria-hidden": true, fill: "none", stroke: "currentColor", strokeWidth: "1.75", children: [
+      /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+        lineNumber: 31,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("path", { d: "M12 7v5l3 2", strokeLinecap: "round" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+        lineNumber: 32,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+      lineNumber: 30,
+      columnNumber: 3
+    }, this)
+  },
+  {
+    id: "amanha",
+    label: "Amanhã",
+    hint: "Até o fim de amanhã",
+    icon: /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", "aria-hidden": true, fill: "none", stroke: "currentColor", strokeWidth: "1.75", children: [
+      /* @__PURE__ */ jsxDEV("rect", { x: "4", y: "5", width: "16", height: "15", rx: "2" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+        lineNumber: 42,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("path", { d: "M8 3v4M16 3v4M4 10h16", strokeLinecap: "round" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+        lineNumber: 43,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+      lineNumber: 41,
+      columnNumber: 3
+    }, this)
+  },
+  {
+    id: "4h",
+    label: "Em 4 horas",
+    hint: "Prazo curto",
+    icon: /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", "aria-hidden": true, fill: "none", stroke: "currentColor", strokeWidth: "1.75", children: /* @__PURE__ */ jsxDEV("path", { d: "M13 2L4 14h7l-1 8 10-14h-7l1-6z", strokeLinejoin: "round" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+      lineNumber: 53,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+      lineNumber: 52,
+      columnNumber: 3
+    }, this)
+  },
+  {
+    id: "data",
+    label: "Data específica",
+    hint: "Escolha o dia",
+    icon: /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", "aria-hidden": true, fill: "none", stroke: "currentColor", strokeWidth: "1.75", children: /* @__PURE__ */ jsxDEV("path", { d: "M6 4v4M18 4v4M4 9h16M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z", strokeLinecap: "round" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+      lineNumber: 63,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+      lineNumber: 62,
+      columnNumber: 3
+    }, this)
+  }
+];
+function IconClose() {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "18", height: "18", "aria-hidden": true, fill: "none", stroke: "currentColor", strokeWidth: "2", children: /* @__PURE__ */ jsxDEV("path", { d: "M6 6l12 12M18 6L6 18", strokeLinecap: "round" }, void 0, false, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+    lineNumber: 72,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+    lineNumber: 71,
+    columnNumber: 5
+  }, this);
+}
+_c = IconClose;
+export default function AguardarPagamentoModal({ open, busy, onClose, onConfirm }) {
+  _s();
+  const [prazo, setPrazo] = useState("hoje");
+  const [data, setData] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    setPrazo("hoje");
+    setData("");
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => {
+      if (e.key === "Escape" && !busy) onClose?.();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, busy, onClose]);
+  const handleConfirm = useCallback(() => {
+    if (busy) return;
+    onConfirm?.({ prazo, data: prazo === "data" ? data : void 0 });
+  }, [busy, onConfirm, prazo, data]);
+  if (!open) return null;
+  const dataInvalida = prazo === "data" && !/^\d{4}-\d{2}-\d{2}$/.test(String(data || "").trim());
+  const minDate = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  return createPortal(
+    /* @__PURE__ */ jsxDEV(
+      "div",
+      {
+        className: "zap-pg-overlay",
+        role: "presentation",
+        onMouseDown: (e) => {
+          if (e.target === e.currentTarget && !busy) onClose?.();
+        },
+        children: /* @__PURE__ */ jsxDEV(
+          "div",
+          {
+            className: "zap-pg-modal",
+            role: "dialog",
+            "aria-modal": "true",
+            "aria-labelledby": "zap-pg-title",
+            onMouseDown: (e) => e.stopPropagation(),
+            children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "zap-pg-modal__glow", "aria-hidden": "true" }, void 0, false, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                lineNumber: 126,
+                columnNumber: 9
+              }, this),
+              /* @__PURE__ */ jsxDEV("header", { className: "zap-pg-header", children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "zap-pg-header__brand", children: [
+                  /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-header__icon", "aria-hidden": "true", children: /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "22", height: "22", fill: "none", stroke: "currentColor", strokeWidth: "1.75", children: [
+                    /* @__PURE__ */ jsxDEV("rect", { x: "3", y: "6", width: "18", height: "14", rx: "2" }, void 0, false, {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 132,
+                      columnNumber: 17
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("path", { d: "M3 10h18M8 6V4M16 6V4", strokeLinecap: "round" }, void 0, false, {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 133,
+                      columnNumber: 17
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                    lineNumber: 131,
+                    columnNumber: 15
+                  }, this) }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                    lineNumber: 130,
+                    columnNumber: 13
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("div", { children: [
+                    /* @__PURE__ */ jsxDEV("h2", { id: "zap-pg-title", className: "zap-pg-title", children: "Aguardar pagamento" }, void 0, false, {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 137,
+                      columnNumber: 15
+                    }, this),
+                    /* @__PURE__ */ jsxDEV("p", { className: "zap-pg-subtitle", children: "Defina quando a cobrança deve ser quitada. A conversa ficará como pagamento pendente." }, void 0, false, {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 140,
+                      columnNumber: 15
+                    }, this)
+                  ] }, void 0, true, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                    lineNumber: 136,
+                    columnNumber: 13
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                  lineNumber: 129,
+                  columnNumber: 11
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "button",
+                  {
+                    type: "button",
+                    className: "zap-pg-close",
+                    onClick: () => !busy && onClose?.(),
+                    disabled: busy,
+                    "aria-label": "Fechar",
+                    children: /* @__PURE__ */ jsxDEV(IconClose, {}, void 0, false, {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 152,
+                      columnNumber: 13
+                    }, this)
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                    lineNumber: 145,
+                    columnNumber: 11
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                lineNumber: 128,
+                columnNumber: 9
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "zap-pg-body", children: [
+                /* @__PURE__ */ jsxDEV("p", { className: "zap-pg-section-label", children: "Prazo de acompanhamento" }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                  lineNumber: 157,
+                  columnNumber: 11
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "zap-pg-grid", role: "radiogroup", "aria-label": "Prazo do pagamento", children: OPCOES.map((op) => {
+                  const selected = prazo === op.id;
+                  return /* @__PURE__ */ jsxDEV(
+                    "button",
+                    {
+                      type: "button",
+                      role: "radio",
+                      "aria-checked": selected,
+                      className: `zap-pg-card${selected ? " is-selected" : ""}`,
+                      disabled: busy,
+                      onClick: () => setPrazo(op.id),
+                      children: [
+                        /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-card__radio", "aria-hidden": "true", children: /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-card__radio-dot" }, void 0, false, {
+                          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                          lineNumber: 172,
+                          columnNumber: 21
+                        }, this) }, void 0, false, {
+                          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                          lineNumber: 171,
+                          columnNumber: 19
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-card__icon", children: op.icon }, void 0, false, {
+                          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                          lineNumber: 174,
+                          columnNumber: 19
+                        }, this),
+                        /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-card__text", children: [
+                          /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-card__label", children: op.label }, void 0, false, {
+                            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                            lineNumber: 176,
+                            columnNumber: 21
+                          }, this),
+                          /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-card__hint", children: op.hint }, void 0, false, {
+                            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                            lineNumber: 177,
+                            columnNumber: 21
+                          }, this)
+                        ] }, void 0, true, {
+                          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                          lineNumber: 175,
+                          columnNumber: 19
+                        }, this)
+                      ]
+                    },
+                    op.id,
+                    true,
+                    {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 162,
+                      columnNumber: 17
+                    },
+                    this
+                  );
+                }) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                  lineNumber: 158,
+                  columnNumber: 11
+                }, this),
+                prazo === "data" ? /* @__PURE__ */ jsxDEV("div", { className: "zap-pg-date-wrap", children: [
+                  /* @__PURE__ */ jsxDEV("label", { className: "zap-pg-date-label", htmlFor: "zap-pg-date-input", children: "Data limite do pagamento" }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                    lineNumber: 186,
+                    columnNumber: 15
+                  }, this),
+                  /* @__PURE__ */ jsxDEV(
+                    "input",
+                    {
+                      id: "zap-pg-date-input",
+                      type: "date",
+                      className: "zap-pg-date-input",
+                      value: data,
+                      min: minDate,
+                      onChange: (e) => setData(e.target.value),
+                      disabled: busy
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 189,
+                      columnNumber: 15
+                    },
+                    this
+                  )
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                  lineNumber: 185,
+                  columnNumber: 11
+                }, this) : null
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                lineNumber: 156,
+                columnNumber: 9
+              }, this),
+              /* @__PURE__ */ jsxDEV("footer", { className: "zap-pg-footer", children: [
+                /* @__PURE__ */ jsxDEV("button", { type: "button", className: "zap-pg-btn zap-pg-btn--ghost", disabled: busy, onClick: () => onClose?.(), children: "Cancelar" }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                  lineNumber: 203,
+                  columnNumber: 11
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "button",
+                  {
+                    type: "button",
+                    className: "zap-pg-btn zap-pg-btn--primary",
+                    disabled: busy || dataInvalida,
+                    onClick: handleConfirm,
+                    children: busy ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+                      /* @__PURE__ */ jsxDEV("span", { className: "zap-pg-btn__spinner", "aria-hidden": "true" }, void 0, false, {
+                        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                        lineNumber: 214,
+                        columnNumber: 17
+                      }, this),
+                      "Salvando…"
+                    ] }, void 0, true, {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                      lineNumber: 213,
+                      columnNumber: 13
+                    }, this) : "Confirmar prazo"
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                    lineNumber: 206,
+                    columnNumber: 11
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+                lineNumber: 202,
+                columnNumber: 9
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+            lineNumber: 119,
+            columnNumber: 7
+          },
+          this
+        )
+      },
+      void 0,
+      false,
+      {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx",
+        lineNumber: 112,
+        columnNumber: 5
+      },
+      this
+    ),
+    document.body
+  );
+}
+_s(AguardarPagamentoModal, "9D+6pkKx09jxVpzAI5BUf47zMM8=");
+_c2 = AguardarPagamentoModal;
+var _c, _c2;
+$RefreshReg$(_c, "IconClose");
+$RefreshReg$(_c2, "AguardarPagamentoModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/atendimento/AguardarPagamentoModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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VTtBQUFBLG9CQUNWLFVBQVVELFFBQVFvQjtBQUFBQSxvQkFDbEIsU0FBU0Y7QUFBQUEsb0JBRVJsQixpQkFDQyxtQ0FDRTtBQUFBLDZDQUFDLFVBQUssV0FBVSx1QkFBc0IsZUFBWSxVQUFsRDtBQUFBO0FBQUE7QUFBQTtBQUFBLDZCQUF3RDtBQUFBLHNCQUFHO0FBQUEseUJBRDdEO0FBQUE7QUFBQTtBQUFBO0FBQUEsMkJBR0EsSUFFQTtBQUFBO0FBQUEsa0JBWko7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLGdCQWNBO0FBQUEsbUJBbEJGO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBbUJBO0FBQUE7QUFBQTtBQUFBLFVBdEdGO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxRQXVHQTtBQUFBO0FBQUEsTUE5R0Y7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBLElBK0dBO0FBQUEsSUFDQVMsU0FBU0M7QUFBQUEsRUFDWDtBQUNGO0FBQUNQLEdBckp1Qkwsd0JBQXNCO0FBQUEsTUFBdEJBO0FBQXNCLElBQUFELElBQUFzQztBQUFBLGFBQUF0QyxJQUFBO0FBQUEsYUFBQXNDLEtBQUEiLCJuYW1lcyI6WyJ1c2VDYWxsYmFjayIsInVzZUVmZmVjdCIsInVzZVN0YXRlIiwiY3JlYXRlUG9ydGFsIiwiT1BDT0VTIiwiaWQiLCJsYWJlbCIsImhpbnQiLCJpY29uIiwiSWNvbkNsb3NlIiwiX2MiLCJBZ3VhcmRhclBhZ2FtZW50b01vZGFsIiwib3BlbiIsImJ1c3kiLCJvbkNsb3NlIiwib25Db25maXJtIiwiX3MiLCJwcmF6byIsInNldFByYXpvIiwiZGF0YSIsInNldERhdGEiLCJwcmV2IiwiZG9jdW1lbnQiLCJib2R5Iiwic3R5bGUiLCJvdmVyZmxvdyIsIm9uS2V5IiwiZSIsImtleSIsImFkZEV2ZW50TGlzdGVuZXIiLCJyZW1vdmVFdmVudExpc3RlbmVyIiwiaGFuZGxlQ29uZmlybSIsInVuZGVmaW5lZCIsImRhdGFJbnZhbGlkYSIsInRlc3QiLCJTdHJpbmciLCJ0cmltIiwibWluRGF0ZSIsIkRhdGUiLCJ0b0lTT1N0cmluZyIsInNsaWNlIiwidGFyZ2V0IiwiY3VycmVudFRhcmdldCIsInN0b3BQcm9wYWdhdGlvbiIsIm1hcCIsIm9wIiwic2VsZWN0ZWQiLCJ2YWx1ZSIsIl9jMiJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJBZ3VhcmRhclBhZ2FtZW50b01vZGFsLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VDYWxsYmFjaywgdXNlRWZmZWN0LCB1c2VTdGF0ZSB9IGZyb20gXCJyZWFjdFwiO1xyXG5pbXBvcnQgeyBjcmVhdGVQb3J0YWwgfSBmcm9tIFwicmVhY3QtZG9tXCI7XHJcbmltcG9ydCBcIi4vYWd1YXJkYXJQYWdhbWVudG8uY3NzXCI7XHJcblxyXG5jb25zdCBPUENPRVMgPSBbXHJcbiAge1xyXG4gICAgaWQ6IFwiaG9qZVwiLFxyXG4gICAgbGFiZWw6IFwiSG9qZVwiLFxyXG4gICAgaGludDogXCJBdMOpIG8gZmltIGRvIGRpYVwiLFxyXG4gICAgaWNvbjogKFxyXG4gICAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiBhcmlhLWhpZGRlbiBmaWxsPVwibm9uZVwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIHN0cm9rZVdpZHRoPVwiMS43NVwiPlxyXG4gICAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiOVwiIC8+XHJcbiAgICAgICAgPHBhdGggZD1cIk0xMiA3djVsMyAyXCIgc3Ryb2tlTGluZWNhcD1cInJvdW5kXCIgLz5cclxuICAgICAgPC9zdmc+XHJcbiAgICApLFxyXG4gIH0sXHJcbiAge1xyXG4gICAgaWQ6IFwiYW1hbmhhXCIsXHJcbiAgICBsYWJlbDogXCJBbWFuaMOjXCIsXHJcbiAgICBoaW50OiBcIkF0w6kgbyBmaW0gZGUgYW1hbmjDo1wiLFxyXG4gICAgaWNvbjogKFxyXG4gICAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiBhcmlhLWhpZGRlbiBmaWxsPVwibm9uZVwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIHN0cm9rZVdpZHRoPVwiMS43NVwiPlxyXG4gICAgICAgIDxyZWN0IHg9XCI0XCIgeT1cIjVcIiB3aWR0aD1cIjE2XCIgaGVpZ2h0PVwiMTVcIiByeD1cIjJcIiAvPlxyXG4gICAgICAgIDxwYXRoIGQ9XCJNOCAzdjRNMTYgM3Y0TTQgMTBoMTZcIiBzdHJva2VMaW5lY2FwPVwicm91bmRcIiAvPlxyXG4gICAgICA8L3N2Zz5cclxuICAgICksXHJcbiAgfSxcclxuICB7XHJcbiAgICBpZDogXCI0aFwiLFxyXG4gICAgbGFiZWw6IFwiRW0gNCBob3Jhc1wiLFxyXG4gICAgaGludDogXCJQcmF6byBjdXJ0b1wiLFxyXG4gICAgaWNvbjogKFxyXG4gICAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiBhcmlhLWhpZGRlbiBmaWxsPVwibm9uZVwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIHN0cm9rZVdpZHRoPVwiMS43NVwiPlxyXG4gICAgICAgIDxwYXRoIGQ9XCJNMTMgMkw0IDE0aDdsLTEgOCAxMC0xNGgtN2wxLTZ6XCIgc3Ryb2tlTGluZWpvaW49XCJyb3VuZFwiIC8+XHJcbiAgICAgIDwvc3ZnPlxyXG4gICAgKSxcclxuICB9LFxyXG4gIHtcclxuICAgIGlkOiBcImRhdGFcIixcclxuICAgIGxhYmVsOiBcIkRhdGEgZXNwZWPDrWZpY2FcIixcclxuICAgIGhpbnQ6IFwiRXNjb2xoYSBvIGRpYVwiLFxyXG4gICAgaWNvbjogKFxyXG4gICAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiBhcmlhLWhpZGRlbiBmaWxsPVwibm9uZVwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIHN0cm9rZVdpZHRoPVwiMS43NVwiPlxyXG4gICAgICAgIDxwYXRoIGQ9XCJNNiA0djRNMTggNHY0TTQgOWgxNk02IDRoMTJhMiAyIDAgMCAxIDIgMnYxMmEyIDIgMCAwIDEtMiAySDZhMiAyIDAgMCAxLTItMlY2YTIgMiAwIDAgMSAyLTJ6XCIgc3Ryb2tlTGluZWNhcD1cInJvdW5kXCIgLz5cclxuICAgICAgPC9zdmc+XHJcbiAgICApLFxyXG4gIH0sXHJcbl07XHJcblxyXG5mdW5jdGlvbiBJY29uQ2xvc2UoKSB7XHJcbiAgcmV0dXJuIChcclxuICAgIDxzdmcgdmlld0JveD1cIjAgMCAyNCAyNFwiIHdpZHRoPVwiMThcIiBoZWlnaHQ9XCIxOFwiIGFyaWEtaGlkZGVuIGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlV2lkdGg9XCIyXCI+XHJcbiAgICAgIDxwYXRoIGQ9XCJNNiA2bDEyIDEyTTE4IDZMNiAxOFwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIC8+XHJcbiAgICA8L3N2Zz5cclxuICApO1xyXG59XHJcblxyXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBBZ3VhcmRhclBhZ2FtZW50b01vZGFsKHsgb3BlbiwgYnVzeSwgb25DbG9zZSwgb25Db25maXJtIH0pIHtcclxuICBjb25zdCBbcHJhem8sIHNldFByYXpvXSA9IHVzZVN0YXRlKFwiaG9qZVwiKTtcclxuICBjb25zdCBbZGF0YSwgc2V0RGF0YV0gPSB1c2VTdGF0ZShcIlwiKTtcclxuXHJcbiAgdXNlRWZmZWN0KCgpID0+IHtcclxuICAgIGlmICghb3BlbikgcmV0dXJuO1xyXG4gICAgc2V0UHJhem8oXCJob2plXCIpO1xyXG4gICAgc2V0RGF0YShcIlwiKTtcclxuICB9LCBbb3Blbl0pO1xyXG5cclxuICB1c2VFZmZlY3QoKCkgPT4ge1xyXG4gICAgaWYgKCFvcGVuKSByZXR1cm47XHJcbiAgICBjb25zdCBwcmV2ID0gZG9jdW1lbnQuYm9keS5zdHlsZS5vdmVyZmxvdztcclxuICAgIGRvY3VtZW50LmJvZHkuc3R5bGUub3ZlcmZsb3cgPSBcImhpZGRlblwiO1xyXG4gICAgY29uc3Qgb25LZXkgPSAoZSkgPT4ge1xyXG4gICAgICBpZiAoZS5rZXkgPT09IFwiRXNjYXBlXCIgJiYgIWJ1c3kpIG9uQ2xvc2U/LigpO1xyXG4gICAgfTtcclxuICAgIGRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoXCJrZXlkb3duXCIsIG9uS2V5KTtcclxuICAgIHJldHVybiAoKSA9PiB7XHJcbiAgICAgIGRvY3VtZW50LmJvZHkuc3R5bGUub3ZlcmZsb3cgPSBwcmV2O1xyXG4gICAgICBkb2N1bWVudC5yZW1vdmVFdmVudExpc3RlbmVyKFwia2V5ZG93blwiLCBvbktleSk7XHJcbiAgICB9O1xyXG4gIH0sIFtvcGVuLCBidXN5LCBvbkNsb3NlXSk7XHJcblxyXG4gIGNvbnN0IGhhbmRsZUNvbmZpcm0gPSB1c2VDYWxsYmFjaygoKSA9PiB7XHJcbiAgICBpZiAoYnVzeSkgcmV0dXJuO1xyXG4gICAgb25Db25maXJtPy4oeyBwcmF6bywgZGF0YTogcHJhem8gPT09IFwiZGF0YVwiID8gZGF0YSA6IHVuZGVmaW5lZCB9KTtcclxuICB9LCBbYnVzeSwgb25Db25maXJtLCBwcmF6bywgZGF0YV0pO1xyXG5cclxuICBpZiAoIW9wZW4pIHJldHVybiBudWxsO1xyXG5cclxuICBjb25zdCBkYXRhSW52YWxpZGEgPSBwcmF6byA9PT0gXCJkYXRhXCIgJiYgIS9eXFxkezR9LVxcZHsyfS1cXGR7Mn0kLy50ZXN0KFN0cmluZyhkYXRhIHx8IFwiXCIpLnRyaW0oKSk7XHJcbiAgY29uc3QgbWluRGF0ZSA9IG5ldyBEYXRlKCkudG9JU09TdHJpbmcoKS5zbGljZSgwLCAxMCk7XHJcblxyXG4gIHJldHVybiBjcmVhdGVQb3J0YWwoXHJcbiAgICA8ZGl2XHJcbiAgICAgIGNsYXNzTmFtZT1cInphcC1wZy1vdmVybGF5XCJcclxuICAgICAgcm9sZT1cInByZXNlbnRhdGlvblwiXHJcbiAgICAgIG9uTW91c2VEb3duPXsoZSkgPT4ge1xyXG4gICAgICAgIGlmIChlLnRhcmdldCA9PT0gZS5jdXJyZW50VGFyZ2V0ICYmICFidXN5KSBvbkNsb3NlPy4oKTtcclxuICAgICAgfX1cclxuICAgID5cclxuICAgICAgPGRpdlxyXG4gICAgICAgIGNsYXNzTmFtZT1cInphcC1wZy1tb2RhbFwiXHJcbiAgICAgICAgcm9sZT1cImRpYWxvZ1wiXHJcbiAgICAgICAgYXJpYS1tb2RhbD1cInRydWVcIlxyXG4gICAgICAgIGFyaWEtbGFiZWxsZWRieT1cInphcC1wZy10aXRsZVwiXHJcbiAgICAgICAgb25Nb3VzZURvd249eyhlKSA9PiBlLnN0b3BQcm9wYWdhdGlvbigpfVxyXG4gICAgICA+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ6YXAtcGctbW9kYWxfX2dsb3dcIiBhcmlhLWhpZGRlbj1cInRydWVcIiAvPlxyXG5cclxuICAgICAgICA8aGVhZGVyIGNsYXNzTmFtZT1cInphcC1wZy1oZWFkZXJcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiemFwLXBnLWhlYWRlcl9fYnJhbmRcIj5cclxuICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiemFwLXBnLWhlYWRlcl9faWNvblwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiPlxyXG4gICAgICAgICAgICAgIDxzdmcgdmlld0JveD1cIjAgMCAyNCAyNFwiIHdpZHRoPVwiMjJcIiBoZWlnaHQ9XCIyMlwiIGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlV2lkdGg9XCIxLjc1XCI+XHJcbiAgICAgICAgICAgICAgICA8cmVjdCB4PVwiM1wiIHk9XCI2XCIgd2lkdGg9XCIxOFwiIGhlaWdodD1cIjE0XCIgcng9XCIyXCIgLz5cclxuICAgICAgICAgICAgICAgIDxwYXRoIGQ9XCJNMyAxMGgxOE04IDZWNE0xNiA2VjRcIiBzdHJva2VMaW5lY2FwPVwicm91bmRcIiAvPlxyXG4gICAgICAgICAgICAgIDwvc3ZnPlxyXG4gICAgICAgICAgICA8L3NwYW4+XHJcbiAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgPGgyIGlkPVwiemFwLXBnLXRpdGxlXCIgY2xhc3NOYW1lPVwiemFwLXBnLXRpdGxlXCI+XHJcbiAgICAgICAgICAgICAgICBBZ3VhcmRhciBwYWdhbWVudG9cclxuICAgICAgICAgICAgICA8L2gyPlxyXG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInphcC1wZy1zdWJ0aXRsZVwiPlxyXG4gICAgICAgICAgICAgICAgRGVmaW5hIHF1YW5kbyBhIGNvYnJhbsOnYSBkZXZlIHNlciBxdWl0YWRhLiBBIGNvbnZlcnNhIGZpY2Fyw6EgY29tbyBwYWdhbWVudG8gcGVuZGVudGUuXHJcbiAgICAgICAgICAgICAgPC9wPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcclxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiemFwLXBnLWNsb3NlXCJcclxuICAgICAgICAgICAgb25DbGljaz17KCkgPT4gIWJ1c3kgJiYgb25DbG9zZT8uKCl9XHJcbiAgICAgICAgICAgIGRpc2FibGVkPXtidXN5fVxyXG4gICAgICAgICAgICBhcmlhLWxhYmVsPVwiRmVjaGFyXCJcclxuICAgICAgICAgID5cclxuICAgICAgICAgICAgPEljb25DbG9zZSAvPlxyXG4gICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgPC9oZWFkZXI+XHJcblxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiemFwLXBnLWJvZHlcIj5cclxuICAgICAgICAgIDxwIGNsYXNzTmFtZT1cInphcC1wZy1zZWN0aW9uLWxhYmVsXCI+UHJhem8gZGUgYWNvbXBhbmhhbWVudG88L3A+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInphcC1wZy1ncmlkXCIgcm9sZT1cInJhZGlvZ3JvdXBcIiBhcmlhLWxhYmVsPVwiUHJhem8gZG8gcGFnYW1lbnRvXCI+XHJcbiAgICAgICAgICAgIHtPUENPRVMubWFwKChvcCkgPT4ge1xyXG4gICAgICAgICAgICAgIGNvbnN0IHNlbGVjdGVkID0gcHJhem8gPT09IG9wLmlkO1xyXG4gICAgICAgICAgICAgIHJldHVybiAoXHJcbiAgICAgICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAgICAgIGtleT17b3AuaWR9XHJcbiAgICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxyXG4gICAgICAgICAgICAgICAgICByb2xlPVwicmFkaW9cIlxyXG4gICAgICAgICAgICAgICAgICBhcmlhLWNoZWNrZWQ9e3NlbGVjdGVkfVxyXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2B6YXAtcGctY2FyZCR7c2VsZWN0ZWQgPyBcIiBpcy1zZWxlY3RlZFwiIDogXCJcIn1gfVxyXG4gICAgICAgICAgICAgICAgICBkaXNhYmxlZD17YnVzeX1cclxuICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gc2V0UHJhem8ob3AuaWQpfVxyXG4gICAgICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ6YXAtcGctY2FyZF9fcmFkaW9cIiBhcmlhLWhpZGRlbj1cInRydWVcIj5cclxuICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ6YXAtcGctY2FyZF9fcmFkaW8tZG90XCIgLz5cclxuICAgICAgICAgICAgICAgICAgPC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ6YXAtcGctY2FyZF9faWNvblwiPntvcC5pY29ufTwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiemFwLXBnLWNhcmRfX3RleHRcIj5cclxuICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ6YXAtcGctY2FyZF9fbGFiZWxcIj57b3AubGFiZWx9PC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInphcC1wZy1jYXJkX19oaW50XCI+e29wLmhpbnR9PC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgICA8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgICApO1xyXG4gICAgICAgICAgICB9KX1cclxuICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgIHtwcmF6byA9PT0gXCJkYXRhXCIgPyAoXHJcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiemFwLXBnLWRhdGUtd3JhcFwiPlxyXG4gICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ6YXAtcGctZGF0ZS1sYWJlbFwiIGh0bWxGb3I9XCJ6YXAtcGctZGF0ZS1pbnB1dFwiPlxyXG4gICAgICAgICAgICAgICAgRGF0YSBsaW1pdGUgZG8gcGFnYW1lbnRvXHJcbiAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgIGlkPVwiemFwLXBnLWRhdGUtaW5wdXRcIlxyXG4gICAgICAgICAgICAgICAgdHlwZT1cImRhdGVcIlxyXG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiemFwLXBnLWRhdGUtaW5wdXRcIlxyXG4gICAgICAgICAgICAgICAgdmFsdWU9e2RhdGF9XHJcbiAgICAgICAgICAgICAgICBtaW49e21pbkRhdGV9XHJcbiAgICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldERhdGEoZS50YXJnZXQudmFsdWUpfVxyXG4gICAgICAgICAgICAgICAgZGlzYWJsZWQ9e2J1c3l9XHJcbiAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICApIDogbnVsbH1cclxuICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgPGZvb3RlciBjbGFzc05hbWU9XCJ6YXAtcGctZm9vdGVyXCI+XHJcbiAgICAgICAgICA8YnV0dG9uIHR5cGU9XCJidXR0b25cIiBjbGFzc05hbWU9XCJ6YXAtcGctYnRuIHphcC1wZy1idG4tLWdob3N0XCIgZGlzYWJsZWQ9e2J1c3l9IG9uQ2xpY2s9eygpID0+IG9uQ2xvc2U/LigpfT5cclxuICAgICAgICAgICAgQ2FuY2VsYXJcclxuICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcclxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiemFwLXBnLWJ0biB6YXAtcGctYnRuLS1wcmltYXJ5XCJcclxuICAgICAgICAgICAgZGlzYWJsZWQ9e2J1c3kgfHwgZGF0YUludmFsaWRhfVxyXG4gICAgICAgICAgICBvbkNsaWNrPXtoYW5kbGVDb25maXJtfVxyXG4gICAgICAgICAgPlxyXG4gICAgICAgICAgICB7YnVzeSA/IChcclxuICAgICAgICAgICAgICA8PlxyXG4gICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiemFwLXBnLWJ0bl9fc3Bpbm5lclwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIC8+XHJcbiAgICAgICAgICAgICAgICBTYWx2YW5kb+KAplxyXG4gICAgICAgICAgICAgIDwvPlxyXG4gICAgICAgICAgICApIDogKFxyXG4gICAgICAgICAgICAgIFwiQ29uZmlybWFyIHByYXpvXCJcclxuICAgICAgICAgICAgKX1cclxuICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgIDwvZm9vdGVyPlxyXG4gICAgICA8L2Rpdj5cclxuICAgIDwvZGl2PixcclxuICAgIGRvY3VtZW50LmJvZHlcclxuICApO1xyXG59XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvTWlndWVsL0RvY3VtZW50cy93aGF0c2FwcC1wbGF0YWZvcm1hL2Zyb250ZW5kL3NyYy9hdGVuZGltZW50by9BZ3VhcmRhclBhZ2FtZW50b01vZGFsLmpzeCJ9

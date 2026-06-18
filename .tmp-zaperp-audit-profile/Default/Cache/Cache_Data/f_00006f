@@ -1,0 +1,596 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/chats/NovoContatoModal.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5bfdcc68"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=5bfdcc68"; const useCallback = __vite__cjsImport3_react["useCallback"]; const useEffect = __vite__cjsImport3_react["useEffect"]; const useId = __vite__cjsImport3_react["useId"]; const useRef = __vite__cjsImport3_react["useRef"]; const useState = __vite__cjsImport3_react["useState"];
+import __vite__cjsImport4_reactDom from "/node_modules/.vite/deps/react-dom.js?v=5bfdcc68"; const createPortal = __vite__cjsImport4_reactDom["createPortal"];
+import { Phone, User } from "/node_modules/.vite/deps/lucide-react.js?v=5bfdcc68";
+import { criarCliente } from "/src/api/configService.js";
+import { parsePostClientesResponse } from "/src/api/parseCriarClienteResponse.ts";
+import { useNotificationStore } from "/src/notifications/notificationStore.js";
+import {
+  AJUDA_TELEFONE_PADRAO,
+  EXEMPLO_TELEFONE_PADRAO,
+  digitsOnly,
+  formatBrPhoneDisplay,
+  isPlausibleBrPhoneDigits
+} from "/src/chats/phoneBrFormat.js";
+import { whatsappInstanceLabel } from "/src/chats/whatsappInstancesService.js";
+import { useWhatsappInstancesStore } from "/src/chats/whatsappInstancesStore.js";
+import "/src/chats/novoContatoModal.css";
+export default function NovoContatoModal({ open, onClose, onSuccess }) {
+  _s();
+  const showToast = useNotificationStore((s) => s.showToast);
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [abrirConversa, setAbrirConversa] = useState(true);
+  const [assumir, setAssumir] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [clientError, setClientError] = useState("");
+  const [apiError, setApiError] = useState(null);
+  const [selectedInstanceId, setSelectedInstanceId] = useState("");
+  const whatsappInstances = useWhatsappInstancesStore((s) => s.instances);
+  const hasMultipleWhatsappInstances = useWhatsappInstancesStore((s) => s.hasMultiple);
+  const instancesLoaded = useWhatsappInstancesStore((s) => s.loaded);
+  const instancesLoading = useWhatsappInstancesStore((s) => s.loading);
+  const loadWhatsappInstances = useWhatsappInstancesStore((s) => s.load);
+  const telefoneRef = useRef(null);
+  const overlayRef = useRef(null);
+  const idBase = useId();
+  const helpId = `${idBase}-help`;
+  const nomeId = `${idBase}-nome`;
+  const telId = `${idBase}-tel`;
+  const chkAbrirId = `${idBase}-abrir`;
+  const chkAssumirId = `${idBase}-assumir`;
+  const instId = `${idBase}-whatsapp-instance`;
+  const needsInstancePicker = hasMultipleWhatsappInstances;
+  const mustPickInstance = needsInstancePicker && (abrirConversa || assumir);
+  const resetApiHints = useCallback(() => {
+    setApiError(null);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    setNome("");
+    setTelefone("");
+    setAbrirConversa(true);
+    setAssumir(false);
+    setSubmitting(false);
+    setClientError("");
+    setApiError(null);
+    setSelectedInstanceId("");
+    const t = requestAnimationFrame(() => {
+      telefoneRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(t);
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    loadWhatsappInstances();
+  }, [open, loadWhatsappInstances]);
+  useEffect(() => {
+    if (!open || !instancesLoaded || !hasMultipleWhatsappInstances) return;
+    if (whatsappInstances.length === 1) {
+      setSelectedInstanceId(String(whatsappInstances[0].id));
+    }
+  }, [open, instancesLoaded, hasMultipleWhatsappInstances, whatsappInstances]);
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e) {
+      if (e.key === "Escape" && !submitting) {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, onClose, submitting]);
+  function handleTelChange(e) {
+    const v = e.target.value;
+    setTelefone(formatBrPhoneDisplay(v));
+    setClientError("");
+    resetApiHints();
+  }
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const trimmedNome = nome.trim();
+    const telDigits = digitsOnly(telefone);
+    if (!telDigits) {
+      setClientError("Informe o número com DDD.");
+      telefoneRef.current?.focus();
+      return;
+    }
+    if (!isPlausibleBrPhoneDigits(telDigits)) {
+      setClientError("O número parece incompleto. Use DDD + telefone (10 ou 11 dígitos) ou inclua o código 55.");
+      telefoneRef.current?.focus();
+      return;
+    }
+    if (mustPickInstance && !selectedInstanceId) {
+      setClientError("Selecione por qual número WhatsApp deseja iniciar a conversa.");
+      return;
+    }
+    setClientError("");
+    setSubmitting(true);
+    resetApiHints();
+    try {
+      const payload = {
+        telefone: String(telefone || "").trim()
+      };
+      if (trimmedNome) payload.nome = trimmedNome;
+      if (assumir) {
+        payload.assumir = true;
+      } else if (abrirConversa) {
+        payload.abrir_conversa = true;
+      }
+      if (selectedInstanceId && (abrirConversa || assumir)) {
+        payload.whatsapp_instance_id = Number(selectedInstanceId);
+      }
+      const data = await criarCliente(payload);
+      const parsed = parsePostClientesResponse(data);
+      if (parsed.codigo === "SELECIONE_WHATSAPP_INSTANCE" || data?.codigo === "SELECIONE_WHATSAPP_INSTANCE") {
+        const fromApi = data?.whatsapp_instances ?? parsed.whatsapp_instances;
+        if (Array.isArray(fromApi) && fromApi.length) {
+          useWhatsappInstancesStore.setState({
+            instances: fromApi,
+            hasMultiple: fromApi.length > 1,
+            loaded: true
+          });
+        }
+        setClientError("Selecione por qual número WhatsApp deseja iniciar a conversa.");
+        return;
+      }
+      if (parsed.conversa_aviso) {
+        showToast({
+          type: "warning",
+          title: "Conversa",
+          message: parsed.conversa_aviso
+        });
+      }
+      if (parsed.assumir_erro) {
+        showToast({
+          type: "warning",
+          title: "Assumir atendimento",
+          message: parsed.assumir_status != null ? `${parsed.assumir_erro} (${parsed.assumir_status})` : parsed.assumir_erro
+        });
+      }
+      if (parsed.conversa?.id != null) {
+        onSuccess?.(parsed.conversa, { cliente: parsed.cliente });
+        onClose();
+        return;
+      }
+      if (parsed.cliente?.id != null) {
+        onSuccess?.(null, { cliente: parsed.cliente });
+        onClose();
+        return;
+      }
+      setApiError({
+        detalhe: "O servidor respondeu sem dados do cliente. Atualize a lista e tente novamente.",
+        exemplos: []
+      });
+    } catch (err) {
+      const status = err?.response?.status;
+      const fallback = err?.response?.data?.erro || err?.response?.data?.error || err?.response?.data?.detalhe || (status ? `Erro ${status}` : err?.message || "Não foi possível salvar o contato.");
+      setApiError({ detalhe: fallback, exemplos: [] });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+  const submitLabel = assumir ? "Salvar e atender" : abrirConversa ? "Iniciar conversa" : "Salvar contato";
+  const submittingLabel = assumir ? "Assumindo…" : abrirConversa ? "Abrindo…" : "Salvando…";
+  const helpLinhaExtra = apiError?.formato_esperado ? String(apiError.formato_esperado) : null;
+  const exemploApi = Array.isArray(apiError?.exemplos) && apiError.exemplos.length > 0 ? apiError.exemplos[0] : null;
+  if (!open) return null;
+  const node = /* @__PURE__ */ jsxDEV(
+    "div",
+    {
+      ref: overlayRef,
+      className: "ncm-overlay",
+      role: "presentation",
+      onMouseDown: (e) => {
+        if (e.target === overlayRef.current && !submitting) onClose();
+      },
+      children: /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          className: "ncm-dialog",
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": `${idBase}-heading`,
+          onMouseDown: (e) => e.stopPropagation(),
+          children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "ncm-head", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "ncm-title-block", children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "ncm-icon", "aria-hidden": true, children: /* @__PURE__ */ jsxDEV(Phone, { size: 22, strokeWidth: 1.75 }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 255,
+                  columnNumber: 15
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 254,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { children: [
+                  /* @__PURE__ */ jsxDEV("h2", { className: "ncm-title", id: `${idBase}-heading`, children: "Novo contato" }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 258,
+                    columnNumber: 15
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("p", { className: "ncm-subtitle", children: "Digite o número com DDD. O sistema aceita com ou sem máscara." }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 261,
+                    columnNumber: 15
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 257,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 253,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV("button", { type: "button", className: "ncm-close", onClick: () => !submitting && onClose(), "aria-label": "Fechar", children: "×" }, void 0, false, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 264,
+                columnNumber: 11
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+              lineNumber: 252,
+              columnNumber: 9
+            }, this),
+            /* @__PURE__ */ jsxDEV("form", { className: "ncm-body", onSubmit: handleSubmit, noValidate: true, children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "ncm-field", children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "ncm-label-row", htmlFor: nomeId, children: [
+                  /* @__PURE__ */ jsxDEV(User, { size: 16, strokeWidth: 1.75 }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 272,
+                    columnNumber: 15
+                  }, this),
+                  "Nome ",
+                  /* @__PURE__ */ jsxDEV("span", { style: { fontWeight: 400, color: "var(--ds-text-tertiary)" }, children: "(opcional)" }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 273,
+                    columnNumber: 20
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 271,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    id: nomeId,
+                    name: "nome",
+                    type: "text",
+                    className: "ncm-input",
+                    autoComplete: "name",
+                    placeholder: "Como aparecerá na conversa",
+                    value: nome,
+                    onChange: (e) => {
+                      setNome(e.target.value);
+                      resetApiHints();
+                    },
+                    disabled: submitting
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 275,
+                    columnNumber: 13
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 270,
+                columnNumber: 11
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "ncm-field", children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "ncm-label-row", htmlFor: telId, children: [
+                  /* @__PURE__ */ jsxDEV(Phone, { size: 16, strokeWidth: 1.75 }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 293,
+                    columnNumber: 15
+                  }, this),
+                  "Telefone"
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 292,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    ref: telefoneRef,
+                    id: telId,
+                    name: "telefone",
+                    type: "tel",
+                    inputMode: "tel",
+                    className: "ncm-input",
+                    autoComplete: "tel-national",
+                    placeholder: "Ex.: (11) 98765-4321 ou +55 11 98765-4321",
+                    value: telefone,
+                    onChange: handleTelChange,
+                    disabled: submitting,
+                    "aria-required": "true",
+                    "aria-invalid": !!(clientError || apiError),
+                    "aria-describedby": helpId
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 296,
+                    columnNumber: 13
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("p", { id: helpId, className: "ncm-help", children: [
+                  AJUDA_TELEFONE_PADRAO,
+                  /* @__PURE__ */ jsxDEV("span", { className: "ncm-example", children: EXEMPLO_TELEFONE_PADRAO }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 314,
+                    columnNumber: 15
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 312,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 291,
+                columnNumber: 11
+              }, this),
+              mustPickInstance ? /* @__PURE__ */ jsxDEV("div", { className: "ncm-field", children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "ncm-label-row", htmlFor: instId, children: "Número WhatsApp" }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 320,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "select",
+                  {
+                    id: instId,
+                    className: "ncm-input",
+                    value: selectedInstanceId,
+                    onChange: (e) => {
+                      setSelectedInstanceId(e.target.value);
+                      resetApiHints();
+                    },
+                    disabled: submitting || instancesLoading,
+                    "aria-required": "true",
+                    children: [
+                      /* @__PURE__ */ jsxDEV("option", { value: "", children: instancesLoading ? "Carregando números…" : "Selecione o número" }, void 0, false, {
+                        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                        lineNumber: 334,
+                        columnNumber: 17
+                      }, this),
+                      whatsappInstances.map(
+                        (inst) => /* @__PURE__ */ jsxDEV("option", { value: String(inst.id), children: whatsappInstanceLabel(inst) || `WhatsApp #${inst.id}` }, String(inst.id), false, {
+                          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                          lineNumber: 338,
+                          columnNumber: 13
+                        }, this)
+                      )
+                    ]
+                  },
+                  void 0,
+                  true,
+                  {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 323,
+                    columnNumber: 15
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("p", { className: "ncm-help", children: "Este contato pode conversar por mais de um número da empresa." }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 343,
+                  columnNumber: 15
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 319,
+                columnNumber: 9
+              }, this) : null,
+              /* @__PURE__ */ jsxDEV("div", { className: "ncm-field ncm-field--checks", role: "group", "aria-label": "Opções ao salvar", children: [
+                /* @__PURE__ */ jsxDEV("label", { className: "ncm-check", htmlFor: chkAbrirId, children: [
+                  /* @__PURE__ */ jsxDEV(
+                    "input",
+                    {
+                      id: chkAbrirId,
+                      type: "checkbox",
+                      checked: assumir || abrirConversa,
+                      disabled: submitting || assumir,
+                      "aria-describedby": assumir ? `${chkAbrirId}-hint` : void 0,
+                      onChange: (e) => {
+                        setAbrirConversa(e.target.checked);
+                        resetApiHints();
+                      }
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                      lineNumber: 349,
+                      columnNumber: 15
+                    },
+                    this
+                  ),
+                  /* @__PURE__ */ jsxDEV("span", { children: "Abrir conversa ao salvar" }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 360,
+                    columnNumber: 15
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 348,
+                  columnNumber: 13
+                }, this),
+                assumir ? /* @__PURE__ */ jsxDEV("p", { className: "ncm-help ncm-help--indent", id: `${chkAbrirId}-hint`, children: "Incluído ao assumir o atendimento." }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 363,
+                  columnNumber: 11
+                }, this) : null,
+                /* @__PURE__ */ jsxDEV("label", { className: "ncm-check", htmlFor: chkAssumirId, children: [
+                  /* @__PURE__ */ jsxDEV(
+                    "input",
+                    {
+                      id: chkAssumirId,
+                      type: "checkbox",
+                      checked: assumir,
+                      disabled: submitting,
+                      onChange: (e) => {
+                        const on = e.target.checked;
+                        setAssumir(on);
+                        resetApiHints();
+                      }
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                      lineNumber: 368,
+                      columnNumber: 15
+                    },
+                    this
+                  ),
+                  /* @__PURE__ */ jsxDEV("span", { children: "Assumir e atender agora" }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 379,
+                    columnNumber: 15
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 367,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 347,
+                columnNumber: 11
+              }, this),
+              apiError?.detalhe ? /* @__PURE__ */ jsxDEV("div", { className: "ncm-alert", role: "alert", children: [
+                /* @__PURE__ */ jsxDEV("strong", { children: apiError.detalhe }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 385,
+                  columnNumber: 15
+                }, this),
+                exemploApi ? /* @__PURE__ */ jsxDEV("span", { className: "ncm-example", style: { display: "block", marginTop: 6 }, children: [
+                  "Exemplo aceito: ",
+                  exemploApi
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 386,
+                  columnNumber: 29
+                }, this) : null,
+                helpLinhaExtra ? /* @__PURE__ */ jsxDEV("span", { style: { display: "block", marginTop: 6 }, children: helpLinhaExtra }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 387,
+                  columnNumber: 33
+                }, this) : null
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 384,
+                columnNumber: 9
+              }, this) : null,
+              clientError ? /* @__PURE__ */ jsxDEV("div", { className: "ncm-alert", role: "alert", children: clientError }, void 0, false, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 392,
+                columnNumber: 9
+              }, this) : null,
+              /* @__PURE__ */ jsxDEV("div", { className: "ncm-footer", children: [
+                /* @__PURE__ */ jsxDEV("button", { type: "button", className: "ncm-btn ncm-btn--ghost", onClick: () => !submitting && onClose(), disabled: submitting, children: "Cancelar" }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 398,
+                  columnNumber: 13
+                }, this),
+                /* @__PURE__ */ jsxDEV("button", { type: "submit", className: "ncm-btn ncm-btn--primary", disabled: submitting, children: submitting ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+                  /* @__PURE__ */ jsxDEV("span", { className: "ncm-spin", "aria-hidden": true }, void 0, false, {
+                    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                    lineNumber: 404,
+                    columnNumber: 19
+                  }, this),
+                  submittingLabel
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 403,
+                  columnNumber: 13
+                }, this) : submitLabel }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                  lineNumber: 401,
+                  columnNumber: 13
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+                lineNumber: 397,
+                columnNumber: 11
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+              lineNumber: 269,
+              columnNumber: 9
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+          lineNumber: 245,
+          columnNumber: 7
+        },
+        this
+      )
+    },
+    void 0,
+    false,
+    {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx",
+      lineNumber: 237,
+      columnNumber: 3
+    },
+    this
+  );
+  return createPortal(node, document.body);
+}
+_s(NovoContatoModal, "FmQxKS3SW2RvtKaz1bdtwCrMGBk=", false, function() {
+  return [useNotificationStore, useWhatsappInstancesStore, useWhatsappInstancesStore, useWhatsappInstancesStore, useWhatsappInstancesStore, useWhatsappInstancesStore];
+});
+_c = NovoContatoModal;
+var _c;
+$RefreshReg$(_c, "NovoContatoModal");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/chats/NovoContatoModal.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUFBQTtBQUFBO0FBQUEsRUFpTEE7QUFHRixTQUFPOUcsYUFBYW1ILE1BQU1VLFNBQVNDLElBQUk7QUFDekM7QUFBQzdHLEdBdlh1Qkosa0JBQWdCO0FBQUEsVUFDcEJSLHNCQVNRTywyQkFDV0EsMkJBQ2JBLDJCQUNDQSwyQkFDS0EseUJBQXlCO0FBQUE7QUFBQSxLQWRqQ0M7QUFBZ0IsSUFBQWtIO0FBQUEsYUFBQUEsSUFBQSIsIm5hbWVzIjpbInVzZUNhbGxiYWNrIiwidXNlRWZmZWN0IiwidXNlSWQiLCJ1c2VSZWYiLCJ1c2VTdGF0ZSIsImNyZWF0ZVBvcnRhbCIsIlBob25lIiwiVXNlciIsImNyaWFyQ2xpZW50ZSIsInBhcnNlUG9zdENsaWVudGVzUmVzcG9uc2UiLCJ1c2VOb3RpZmljYXRpb25TdG9yZSIsIkFKVURBX1RFTEVGT05FX1BBRFJBTyIsIkVYRU1QTE9fVEVMRUZPTkVfUEFEUkFPIiwiZGlnaXRzT25seSIsImZvcm1hdEJyUGhvbmVEaXNwbGF5IiwiaXNQbGF1c2libGVCclBob25lRGlnaXRzIiwid2hhdHNhcHBJbnN0YW5jZUxhYmVsIiwidXNlV2hhdHNhcHBJbnN0YW5jZXNTdG9yZSIsIk5vdm9Db250YXRvTW9kYWwiLCJvcGVuIiwib25DbG9zZSIsIm9uU3VjY2VzcyIsIl9zIiwic2hvd1RvYXN0IiwicyIsIm5vbWUiLCJzZXROb21lIiwidGVsZWZvbmUiLCJzZXRUZWxlZm9uZSIsImFicmlyQ29udmVyc2EiLCJzZXRBYnJpckNvbnZlcnNhIiwiYXNzdW1pciIsInNldEFzc3VtaXIiLCJzdWJtaXR0aW5nIiwic2V0U3VibWl0dGluZyIsImNsaWVudEVycm9yIiwic2V0Q2xpZW50RXJyb3IiLCJhcGlFcnJvciIsInNldEFwaUVycm9yIiwic2VsZWN0ZWRJbnN0YW5jZUlkIiwic2V0U2VsZWN0ZWRJbnN0YW5jZUlkIiwid2hhdHNhcHBJbnN0YW5jZXMiLCJpbnN0YW5jZXMiLCJoYXNNdWx0aXBsZVdoYXRzYXBwSW5zdGFuY2VzIiwiaGFzTXVsdGlwbGUiLCJpbnN0YW5jZXNMb2FkZWQiLCJsb2FkZWQiLCJpbnN0YW5jZXNMb2FkaW5nIiwibG9hZGluZyIsImxvYWRXaGF0c2FwcEluc3RhbmNlcyIsImxvYWQiLCJ0ZWxlZm9uZVJlZiIsIm92ZXJsYXlSZWYiLCJpZEJhc2UiLCJoZWxwSWQiLCJub21lSWQiLCJ0ZWxJZCIsImNoa0FicmlySWQiLCJjaGtBc3N1bWlySWQiLCJpbnN0SWQiLCJuZWVkc0luc3RhbmNlUGlja2VyIiwibXVzdFBpY2tJbnN0YW5jZSIsInJlc2V0QXBpSGludHMiLCJ0IiwicmVxdWVzdEFuaW1hdGlvbkZyYW1lIiwiY3VycmVudCIsImZvY3VzIiwiY2FuY2VsQW5pbWF0aW9uRnJhbWUiLCJsZW5ndGgiLCJTdHJpbmciLCJpZCIsIm9uS2V5IiwiZSIsImtleSIsInByZXZlbnREZWZhdWx0Iiwic3RvcFByb3BhZ2F0aW9uIiwid2luZG93IiwiYWRkRXZlbnRMaXN0ZW5lciIsInJlbW92ZUV2ZW50TGlzdGVuZXIiLCJoYW5kbGVUZWxDaGFuZ2UiLCJ2IiwidGFyZ2V0IiwidmFsdWUiLCJoYW5kbGVTdWJtaXQiLCJ0cmltbWVkTm9tZSIsInRyaW0iLCJ0ZWxEaWdpdHMiLCJwYXlsb2FkIiwiYWJyaXJfY29udmVyc2EiLCJ3aGF0c2FwcF9pbnN0YW5jZV9pZCIsIk51bWJlciIsImRhdGEiLCJwYXJzZWQiLCJjb2RpZ28iLCJmcm9tQXBpIiwid2hhdHNhcHBfaW5zdGFuY2VzIiwiQXJyYXkiLCJpc0FycmF5Iiwic2V0U3RhdGUiLCJjb252ZXJzYV9hdmlzbyIsInR5cGUiLCJ0aXRsZSIsIm1lc3NhZ2UiLCJhc3N1bWlyX2Vycm8iLCJhc3N1bWlyX3N0YXR1cyIsImNvbnZlcnNhIiwiY2xpZW50ZSIsImRldGFsaGUiLCJleGVtcGxvcyIsImVyciIsInN0YXR1cyIsInJlc3BvbnNlIiwiZmFsbGJhY2siLCJlcnJvIiwiZXJyb3IiLCJzdWJtaXRMYWJlbCIsInN1Ym1pdHRpbmdMYWJlbCIsImhlbHBMaW5oYUV4dHJhIiwiZm9ybWF0b19lc3BlcmFkbyIsImV4ZW1wbG9BcGkiLCJub2RlIiwiZm9udFdlaWdodCIsImNvbG9yIiwibWFwIiwiaW5zdCIsInVuZGVmaW5lZCIsImNoZWNrZWQiLCJvbiIsImRpc3BsYXkiLCJtYXJnaW5Ub3AiLCJkb2N1bWVudCIsImJvZHkiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJOb3ZvQ29udGF0b01vZGFsLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VDYWxsYmFjaywgdXNlRWZmZWN0LCB1c2VJZCwgdXNlUmVmLCB1c2VTdGF0ZSB9IGZyb20gXCJyZWFjdFwiO1xyXG5pbXBvcnQgeyBjcmVhdGVQb3J0YWwgfSBmcm9tIFwicmVhY3QtZG9tXCI7XHJcbmltcG9ydCB7IFBob25lLCBVc2VyIH0gZnJvbSBcImx1Y2lkZS1yZWFjdFwiO1xyXG5pbXBvcnQgeyBjcmlhckNsaWVudGUgfSBmcm9tIFwiLi4vYXBpL2NvbmZpZ1NlcnZpY2VcIjtcclxuaW1wb3J0IHsgcGFyc2VQb3N0Q2xpZW50ZXNSZXNwb25zZSB9IGZyb20gXCIuLi9hcGkvcGFyc2VDcmlhckNsaWVudGVSZXNwb25zZVwiO1xyXG5pbXBvcnQgeyB1c2VOb3RpZmljYXRpb25TdG9yZSB9IGZyb20gXCIuLi9ub3RpZmljYXRpb25zL25vdGlmaWNhdGlvblN0b3JlXCI7XHJcbmltcG9ydCB7XHJcbiAgQUpVREFfVEVMRUZPTkVfUEFEUkFPLFxyXG4gIEVYRU1QTE9fVEVMRUZPTkVfUEFEUkFPLFxyXG4gIGRpZ2l0c09ubHksXHJcbiAgZm9ybWF0QnJQaG9uZURpc3BsYXksXHJcbiAgaXNQbGF1c2libGVCclBob25lRGlnaXRzLFxyXG59IGZyb20gXCIuL3Bob25lQnJGb3JtYXRcIjtcclxuaW1wb3J0IHsgd2hhdHNhcHBJbnN0YW5jZUxhYmVsIH0gZnJvbSBcIi4vd2hhdHNhcHBJbnN0YW5jZXNTZXJ2aWNlXCI7XHJcbmltcG9ydCB7IHVzZVdoYXRzYXBwSW5zdGFuY2VzU3RvcmUgfSBmcm9tIFwiLi93aGF0c2FwcEluc3RhbmNlc1N0b3JlXCI7XHJcbmltcG9ydCBcIi4vbm92b0NvbnRhdG9Nb2RhbC5jc3NcIjtcclxuXHJcbi8qKlxyXG4gKiBAcGFyYW0ge29iamVjdH0gcHJvcHNcclxuICogQHBhcmFtIHtib29sZWFufSBwcm9wcy5vcGVuXHJcbiAqIEBwYXJhbSB7KCkgPT4gdm9pZH0gcHJvcHMub25DbG9zZVxyXG4gKiBAcGFyYW0geyhjb252ZXJzYTogb2JqZWN0IHwgbnVsbCwgZXh0cmE/OiB7IGNsaWVudGU/OiBpbXBvcnQoJy4uL2FwaS9jbGllbnRlcy50eXBlcycpLkNsaWVudGVCYXNpY28gfCBudWxsIH0pID0+IHZvaWR9IFtwcm9wcy5vblN1Y2Nlc3NdXHJcbiAqL1xyXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBOb3ZvQ29udGF0b01vZGFsKHsgb3Blbiwgb25DbG9zZSwgb25TdWNjZXNzIH0pIHtcclxuICBjb25zdCBzaG93VG9hc3QgPSB1c2VOb3RpZmljYXRpb25TdG9yZSgocykgPT4gcy5zaG93VG9hc3QpO1xyXG4gIGNvbnN0IFtub21lLCBzZXROb21lXSA9IHVzZVN0YXRlKFwiXCIpO1xyXG4gIGNvbnN0IFt0ZWxlZm9uZSwgc2V0VGVsZWZvbmVdID0gdXNlU3RhdGUoXCJcIik7XHJcbiAgY29uc3QgW2FicmlyQ29udmVyc2EsIHNldEFicmlyQ29udmVyc2FdID0gdXNlU3RhdGUodHJ1ZSk7XHJcbiAgY29uc3QgW2Fzc3VtaXIsIHNldEFzc3VtaXJdID0gdXNlU3RhdGUoZmFsc2UpO1xyXG4gIGNvbnN0IFtzdWJtaXR0aW5nLCBzZXRTdWJtaXR0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcclxuICBjb25zdCBbY2xpZW50RXJyb3IsIHNldENsaWVudEVycm9yXSA9IHVzZVN0YXRlKFwiXCIpO1xyXG4gIGNvbnN0IFthcGlFcnJvciwgc2V0QXBpRXJyb3JdID0gdXNlU3RhdGUobnVsbCk7XHJcbiAgY29uc3QgW3NlbGVjdGVkSW5zdGFuY2VJZCwgc2V0U2VsZWN0ZWRJbnN0YW5jZUlkXSA9IHVzZVN0YXRlKFwiXCIpO1xyXG4gIGNvbnN0IHdoYXRzYXBwSW5zdGFuY2VzID0gdXNlV2hhdHNhcHBJbnN0YW5jZXNTdG9yZSgocykgPT4gcy5pbnN0YW5jZXMpO1xyXG4gIGNvbnN0IGhhc011bHRpcGxlV2hhdHNhcHBJbnN0YW5jZXMgPSB1c2VXaGF0c2FwcEluc3RhbmNlc1N0b3JlKChzKSA9PiBzLmhhc011bHRpcGxlKTtcclxuICBjb25zdCBpbnN0YW5jZXNMb2FkZWQgPSB1c2VXaGF0c2FwcEluc3RhbmNlc1N0b3JlKChzKSA9PiBzLmxvYWRlZCk7XHJcbiAgY29uc3QgaW5zdGFuY2VzTG9hZGluZyA9IHVzZVdoYXRzYXBwSW5zdGFuY2VzU3RvcmUoKHMpID0+IHMubG9hZGluZyk7XHJcbiAgY29uc3QgbG9hZFdoYXRzYXBwSW5zdGFuY2VzID0gdXNlV2hhdHNhcHBJbnN0YW5jZXNTdG9yZSgocykgPT4gcy5sb2FkKTtcclxuXHJcbiAgY29uc3QgdGVsZWZvbmVSZWYgPSB1c2VSZWYobnVsbCk7XHJcbiAgY29uc3Qgb3ZlcmxheVJlZiA9IHVzZVJlZihudWxsKTtcclxuICBjb25zdCBpZEJhc2UgPSB1c2VJZCgpO1xyXG4gIGNvbnN0IGhlbHBJZCA9IGAke2lkQmFzZX0taGVscGA7XHJcbiAgY29uc3Qgbm9tZUlkID0gYCR7aWRCYXNlfS1ub21lYDtcclxuICBjb25zdCB0ZWxJZCA9IGAke2lkQmFzZX0tdGVsYDtcclxuICBjb25zdCBjaGtBYnJpcklkID0gYCR7aWRCYXNlfS1hYnJpcmA7XHJcbiAgY29uc3QgY2hrQXNzdW1pcklkID0gYCR7aWRCYXNlfS1hc3N1bWlyYDtcclxuICBjb25zdCBpbnN0SWQgPSBgJHtpZEJhc2V9LXdoYXRzYXBwLWluc3RhbmNlYDtcclxuXHJcbiAgY29uc3QgbmVlZHNJbnN0YW5jZVBpY2tlciA9IGhhc011bHRpcGxlV2hhdHNhcHBJbnN0YW5jZXM7XHJcbiAgY29uc3QgbXVzdFBpY2tJbnN0YW5jZSA9IG5lZWRzSW5zdGFuY2VQaWNrZXIgJiYgKGFicmlyQ29udmVyc2EgfHwgYXNzdW1pcik7XHJcblxyXG4gIGNvbnN0IHJlc2V0QXBpSGludHMgPSB1c2VDYWxsYmFjaygoKSA9PiB7XHJcbiAgICBzZXRBcGlFcnJvcihudWxsKTtcclxuICB9LCBbXSk7XHJcblxyXG4gIHVzZUVmZmVjdCgoKSA9PiB7XHJcbiAgICBpZiAoIW9wZW4pIHJldHVybjtcclxuICAgIHNldE5vbWUoXCJcIik7XHJcbiAgICBzZXRUZWxlZm9uZShcIlwiKTtcclxuICAgIHNldEFicmlyQ29udmVyc2EodHJ1ZSk7XHJcbiAgICBzZXRBc3N1bWlyKGZhbHNlKTtcclxuICAgIHNldFN1Ym1pdHRpbmcoZmFsc2UpO1xyXG4gICAgc2V0Q2xpZW50RXJyb3IoXCJcIik7XHJcbiAgICBzZXRBcGlFcnJvcihudWxsKTtcclxuICAgIHNldFNlbGVjdGVkSW5zdGFuY2VJZChcIlwiKTtcclxuICAgIGNvbnN0IHQgPSByZXF1ZXN0QW5pbWF0aW9uRnJhbWUoKCkgPT4ge1xyXG4gICAgICB0ZWxlZm9uZVJlZi5jdXJyZW50Py5mb2N1cygpO1xyXG4gICAgfSk7XHJcbiAgICByZXR1cm4gKCkgPT4gY2FuY2VsQW5pbWF0aW9uRnJhbWUodCk7XHJcbiAgfSwgW29wZW5dKTtcclxuXHJcbiAgdXNlRWZmZWN0KCgpID0+IHtcclxuICAgIGlmICghb3BlbikgcmV0dXJuO1xyXG4gICAgbG9hZFdoYXRzYXBwSW5zdGFuY2VzKCk7XHJcbiAgfSwgW29wZW4sIGxvYWRXaGF0c2FwcEluc3RhbmNlc10pO1xyXG5cclxuICB1c2VFZmZlY3QoKCkgPT4ge1xyXG4gICAgaWYgKCFvcGVuIHx8ICFpbnN0YW5jZXNMb2FkZWQgfHwgIWhhc011bHRpcGxlV2hhdHNhcHBJbnN0YW5jZXMpIHJldHVybjtcclxuICAgIGlmICh3aGF0c2FwcEluc3RhbmNlcy5sZW5ndGggPT09IDEpIHtcclxuICAgICAgc2V0U2VsZWN0ZWRJbnN0YW5jZUlkKFN0cmluZyh3aGF0c2FwcEluc3RhbmNlc1swXS5pZCkpO1xyXG4gICAgfVxyXG4gIH0sIFtvcGVuLCBpbnN0YW5jZXNMb2FkZWQsIGhhc011bHRpcGxlV2hhdHNhcHBJbnN0YW5jZXMsIHdoYXRzYXBwSW5zdGFuY2VzXSk7XHJcblxyXG4gIHVzZUVmZmVjdCgoKSA9PiB7XHJcbiAgICBpZiAoIW9wZW4pIHJldHVybjtcclxuICAgIGZ1bmN0aW9uIG9uS2V5KGUpIHtcclxuICAgICAgaWYgKGUua2V5ID09PSBcIkVzY2FwZVwiICYmICFzdWJtaXR0aW5nKSB7XHJcbiAgICAgICAgZS5wcmV2ZW50RGVmYXVsdCgpO1xyXG4gICAgICAgIGUuc3RvcFByb3BhZ2F0aW9uKCk7XHJcbiAgICAgICAgb25DbG9zZSgpO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcihcImtleWRvd25cIiwgb25LZXksIHRydWUpO1xyXG4gICAgcmV0dXJuICgpID0+IHdpbmRvdy5yZW1vdmVFdmVudExpc3RlbmVyKFwia2V5ZG93blwiLCBvbktleSwgdHJ1ZSk7XHJcbiAgfSwgW29wZW4sIG9uQ2xvc2UsIHN1Ym1pdHRpbmddKTtcclxuXHJcbiAgZnVuY3Rpb24gaGFuZGxlVGVsQ2hhbmdlKGUpIHtcclxuICAgIGNvbnN0IHYgPSBlLnRhcmdldC52YWx1ZTtcclxuICAgIHNldFRlbGVmb25lKGZvcm1hdEJyUGhvbmVEaXNwbGF5KHYpKTtcclxuICAgIHNldENsaWVudEVycm9yKFwiXCIpO1xyXG4gICAgcmVzZXRBcGlIaW50cygpO1xyXG4gIH1cclxuXHJcbiAgYXN5bmMgZnVuY3Rpb24gaGFuZGxlU3VibWl0KGUpIHtcclxuICAgIGUucHJldmVudERlZmF1bHQoKTtcclxuICAgIGNvbnN0IHRyaW1tZWROb21lID0gbm9tZS50cmltKCk7XHJcbiAgICBjb25zdCB0ZWxEaWdpdHMgPSBkaWdpdHNPbmx5KHRlbGVmb25lKTtcclxuXHJcbiAgICBpZiAoIXRlbERpZ2l0cykge1xyXG4gICAgICBzZXRDbGllbnRFcnJvcihcIkluZm9ybWUgbyBuw7ptZXJvIGNvbSBEREQuXCIpO1xyXG4gICAgICB0ZWxlZm9uZVJlZi5jdXJyZW50Py5mb2N1cygpO1xyXG4gICAgICByZXR1cm47XHJcbiAgICB9XHJcblxyXG4gICAgaWYgKCFpc1BsYXVzaWJsZUJyUGhvbmVEaWdpdHModGVsRGlnaXRzKSkge1xyXG4gICAgICBzZXRDbGllbnRFcnJvcihcIk8gbsO6bWVybyBwYXJlY2UgaW5jb21wbGV0by4gVXNlIERERCArIHRlbGVmb25lICgxMCBvdSAxMSBkw61naXRvcykgb3UgaW5jbHVhIG8gY8OzZGlnbyA1NS5cIik7XHJcbiAgICAgIHRlbGVmb25lUmVmLmN1cnJlbnQ/LmZvY3VzKCk7XHJcbiAgICAgIHJldHVybjtcclxuICAgIH1cclxuXHJcbiAgICBpZiAobXVzdFBpY2tJbnN0YW5jZSAmJiAhc2VsZWN0ZWRJbnN0YW5jZUlkKSB7XHJcbiAgICAgIHNldENsaWVudEVycm9yKFwiU2VsZWNpb25lIHBvciBxdWFsIG7Dum1lcm8gV2hhdHNBcHAgZGVzZWphIGluaWNpYXIgYSBjb252ZXJzYS5cIik7XHJcbiAgICAgIHJldHVybjtcclxuICAgIH1cclxuXHJcbiAgICBzZXRDbGllbnRFcnJvcihcIlwiKTtcclxuICAgIHNldFN1Ym1pdHRpbmcodHJ1ZSk7XHJcbiAgICByZXNldEFwaUhpbnRzKCk7XHJcblxyXG4gICAgdHJ5IHtcclxuICAgICAgLyoqIEB0eXBlIHtpbXBvcnQoJy4uL2FwaS9jbGllbnRlcy50eXBlcycpLkNyaWFyQ2xpZW50ZVBheWxvYWR9ICovXHJcbiAgICAgIGNvbnN0IHBheWxvYWQgPSB7XHJcbiAgICAgICAgdGVsZWZvbmU6IFN0cmluZyh0ZWxlZm9uZSB8fCBcIlwiKS50cmltKCksXHJcbiAgICAgIH07XHJcbiAgICAgIGlmICh0cmltbWVkTm9tZSkgcGF5bG9hZC5ub21lID0gdHJpbW1lZE5vbWU7XHJcbiAgICAgIGlmIChhc3N1bWlyKSB7XHJcbiAgICAgICAgcGF5bG9hZC5hc3N1bWlyID0gdHJ1ZTtcclxuICAgICAgfSBlbHNlIGlmIChhYnJpckNvbnZlcnNhKSB7XHJcbiAgICAgICAgcGF5bG9hZC5hYnJpcl9jb252ZXJzYSA9IHRydWU7XHJcbiAgICAgIH1cclxuICAgICAgaWYgKHNlbGVjdGVkSW5zdGFuY2VJZCAmJiAoYWJyaXJDb252ZXJzYSB8fCBhc3N1bWlyKSkge1xyXG4gICAgICAgIHBheWxvYWQud2hhdHNhcHBfaW5zdGFuY2VfaWQgPSBOdW1iZXIoc2VsZWN0ZWRJbnN0YW5jZUlkKTtcclxuICAgICAgfVxyXG5cclxuICAgICAgY29uc3QgZGF0YSA9IGF3YWl0IGNyaWFyQ2xpZW50ZShwYXlsb2FkKTtcclxuICAgICAgY29uc3QgcGFyc2VkID0gcGFyc2VQb3N0Q2xpZW50ZXNSZXNwb25zZShkYXRhKTtcclxuXHJcbiAgICAgIGlmIChwYXJzZWQuY29kaWdvID09PSBcIlNFTEVDSU9ORV9XSEFUU0FQUF9JTlNUQU5DRVwiIHx8IGRhdGE/LmNvZGlnbyA9PT0gXCJTRUxFQ0lPTkVfV0hBVFNBUFBfSU5TVEFOQ0VcIikge1xyXG4gICAgICAgIGNvbnN0IGZyb21BcGkgPSBkYXRhPy53aGF0c2FwcF9pbnN0YW5jZXMgPz8gcGFyc2VkLndoYXRzYXBwX2luc3RhbmNlcztcclxuICAgICAgICBpZiAoQXJyYXkuaXNBcnJheShmcm9tQXBpKSAmJiBmcm9tQXBpLmxlbmd0aCkge1xyXG4gICAgICAgICAgdXNlV2hhdHNhcHBJbnN0YW5jZXNTdG9yZS5zZXRTdGF0ZSh7XHJcbiAgICAgICAgICAgIGluc3RhbmNlczogZnJvbUFwaSxcclxuICAgICAgICAgICAgaGFzTXVsdGlwbGU6IGZyb21BcGkubGVuZ3RoID4gMSxcclxuICAgICAgICAgICAgbG9hZGVkOiB0cnVlLFxyXG4gICAgICAgICAgfSk7XHJcbiAgICAgICAgfVxyXG4gICAgICAgIHNldENsaWVudEVycm9yKFwiU2VsZWNpb25lIHBvciBxdWFsIG7Dum1lcm8gV2hhdHNBcHAgZGVzZWphIGluaWNpYXIgYSBjb252ZXJzYS5cIik7XHJcbiAgICAgICAgcmV0dXJuO1xyXG4gICAgICB9XHJcblxyXG4gICAgICBpZiAocGFyc2VkLmNvbnZlcnNhX2F2aXNvKSB7XHJcbiAgICAgICAgc2hvd1RvYXN0KHtcclxuICAgICAgICAgIHR5cGU6IFwid2FybmluZ1wiLFxyXG4gICAgICAgICAgdGl0bGU6IFwiQ29udmVyc2FcIixcclxuICAgICAgICAgIG1lc3NhZ2U6IHBhcnNlZC5jb252ZXJzYV9hdmlzbyxcclxuICAgICAgICB9KTtcclxuICAgICAgfVxyXG4gICAgICBpZiAocGFyc2VkLmFzc3VtaXJfZXJybykge1xyXG4gICAgICAgIHNob3dUb2FzdCh7XHJcbiAgICAgICAgICB0eXBlOiBcIndhcm5pbmdcIixcclxuICAgICAgICAgIHRpdGxlOiBcIkFzc3VtaXIgYXRlbmRpbWVudG9cIixcclxuICAgICAgICAgIG1lc3NhZ2U6XHJcbiAgICAgICAgICAgIHBhcnNlZC5hc3N1bWlyX3N0YXR1cyAhPSBudWxsXHJcbiAgICAgICAgICAgICAgPyBgJHtwYXJzZWQuYXNzdW1pcl9lcnJvfSAoJHtwYXJzZWQuYXNzdW1pcl9zdGF0dXN9KWBcclxuICAgICAgICAgICAgICA6IHBhcnNlZC5hc3N1bWlyX2Vycm8sXHJcbiAgICAgICAgfSk7XHJcbiAgICAgIH1cclxuXHJcbiAgICAgIGlmIChwYXJzZWQuY29udmVyc2E/LmlkICE9IG51bGwpIHtcclxuICAgICAgICBvblN1Y2Nlc3M/LihwYXJzZWQuY29udmVyc2EsIHsgY2xpZW50ZTogcGFyc2VkLmNsaWVudGUgfSk7XHJcbiAgICAgICAgb25DbG9zZSgpO1xyXG4gICAgICAgIHJldHVybjtcclxuICAgICAgfVxyXG5cclxuICAgICAgaWYgKHBhcnNlZC5jbGllbnRlPy5pZCAhPSBudWxsKSB7XHJcbiAgICAgICAgb25TdWNjZXNzPy4obnVsbCwgeyBjbGllbnRlOiBwYXJzZWQuY2xpZW50ZSB9KTtcclxuICAgICAgICBvbkNsb3NlKCk7XHJcbiAgICAgICAgcmV0dXJuO1xyXG4gICAgICB9XHJcblxyXG4gICAgICBzZXRBcGlFcnJvcih7XHJcbiAgICAgICAgZGV0YWxoZTogXCJPIHNlcnZpZG9yIHJlc3BvbmRldSBzZW0gZGFkb3MgZG8gY2xpZW50ZS4gQXR1YWxpemUgYSBsaXN0YSBlIHRlbnRlIG5vdmFtZW50ZS5cIixcclxuICAgICAgICBleGVtcGxvczogW10sXHJcbiAgICAgIH0pO1xyXG4gICAgfSBjYXRjaCAoZXJyKSB7XHJcbiAgICAgIGNvbnN0IHN0YXR1cyA9IGVycj8ucmVzcG9uc2U/LnN0YXR1cztcclxuICAgICAgY29uc3QgZmFsbGJhY2sgPVxyXG4gICAgICAgIGVycj8ucmVzcG9uc2U/LmRhdGE/LmVycm8gfHxcclxuICAgICAgICBlcnI/LnJlc3BvbnNlPy5kYXRhPy5lcnJvciB8fFxyXG4gICAgICAgIGVycj8ucmVzcG9uc2U/LmRhdGE/LmRldGFsaGUgfHxcclxuICAgICAgICAoc3RhdHVzID8gYEVycm8gJHtzdGF0dXN9YCA6IGVycj8ubWVzc2FnZSB8fCBcIk7Do28gZm9pIHBvc3PDrXZlbCBzYWx2YXIgbyBjb250YXRvLlwiKTtcclxuICAgICAgc2V0QXBpRXJyb3IoeyBkZXRhbGhlOiBmYWxsYmFjaywgZXhlbXBsb3M6IFtdIH0pO1xyXG4gICAgfSBmaW5hbGx5IHtcclxuICAgICAgc2V0U3VibWl0dGluZyhmYWxzZSk7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICBjb25zdCBzdWJtaXRMYWJlbCA9IGFzc3VtaXIgPyBcIlNhbHZhciBlIGF0ZW5kZXJcIiA6IGFicmlyQ29udmVyc2EgPyBcIkluaWNpYXIgY29udmVyc2FcIiA6IFwiU2FsdmFyIGNvbnRhdG9cIjtcclxuICBjb25zdCBzdWJtaXR0aW5nTGFiZWwgPSBhc3N1bWlyID8gXCJBc3N1bWluZG/igKZcIiA6IGFicmlyQ29udmVyc2EgPyBcIkFicmluZG/igKZcIiA6IFwiU2FsdmFuZG/igKZcIjtcclxuXHJcbiAgY29uc3QgaGVscExpbmhhRXh0cmEgPSBhcGlFcnJvcj8uZm9ybWF0b19lc3BlcmFkbyA/IFN0cmluZyhhcGlFcnJvci5mb3JtYXRvX2VzcGVyYWRvKSA6IG51bGw7XHJcbiAgY29uc3QgZXhlbXBsb0FwaSA9IEFycmF5LmlzQXJyYXkoYXBpRXJyb3I/LmV4ZW1wbG9zKSAmJiBhcGlFcnJvci5leGVtcGxvcy5sZW5ndGggPiAwID8gYXBpRXJyb3IuZXhlbXBsb3NbMF0gOiBudWxsO1xyXG5cclxuICBpZiAoIW9wZW4pIHJldHVybiBudWxsO1xyXG5cclxuICBjb25zdCBub2RlID0gKFxyXG4gICAgPGRpdlxyXG4gICAgICByZWY9e292ZXJsYXlSZWZ9XHJcbiAgICAgIGNsYXNzTmFtZT1cIm5jbS1vdmVybGF5XCJcclxuICAgICAgcm9sZT1cInByZXNlbnRhdGlvblwiXHJcbiAgICAgIG9uTW91c2VEb3duPXsoZSkgPT4ge1xyXG4gICAgICAgIGlmIChlLnRhcmdldCA9PT0gb3ZlcmxheVJlZi5jdXJyZW50ICYmICFzdWJtaXR0aW5nKSBvbkNsb3NlKCk7XHJcbiAgICAgIH19XHJcbiAgICA+XHJcbiAgICAgIDxkaXZcclxuICAgICAgICBjbGFzc05hbWU9XCJuY20tZGlhbG9nXCJcclxuICAgICAgICByb2xlPVwiZGlhbG9nXCJcclxuICAgICAgICBhcmlhLW1vZGFsPVwidHJ1ZVwiXHJcbiAgICAgICAgYXJpYS1sYWJlbGxlZGJ5PXtgJHtpZEJhc2V9LWhlYWRpbmdgfVxyXG4gICAgICAgIG9uTW91c2VEb3duPXsoZSkgPT4gZS5zdG9wUHJvcGFnYXRpb24oKX1cclxuICAgICAgPlxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibmNtLWhlYWRcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibmNtLXRpdGxlLWJsb2NrXCI+XHJcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibmNtLWljb25cIiBhcmlhLWhpZGRlbj5cclxuICAgICAgICAgICAgICA8UGhvbmUgc2l6ZT17MjJ9IHN0cm9rZVdpZHRoPXsxLjc1fSAvPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwibmNtLXRpdGxlXCIgaWQ9e2Ake2lkQmFzZX0taGVhZGluZ2B9PlxyXG4gICAgICAgICAgICAgICAgTm92byBjb250YXRvXHJcbiAgICAgICAgICAgICAgPC9oMj5cclxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJuY20tc3VidGl0bGVcIj5EaWdpdGUgbyBuw7ptZXJvIGNvbSBEREQuIE8gc2lzdGVtYSBhY2VpdGEgY29tIG91IHNlbSBtw6FzY2FyYS48L3A+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8YnV0dG9uIHR5cGU9XCJidXR0b25cIiBjbGFzc05hbWU9XCJuY20tY2xvc2VcIiBvbkNsaWNrPXsoKSA9PiAhc3VibWl0dGluZyAmJiBvbkNsb3NlKCl9IGFyaWEtbGFiZWw9XCJGZWNoYXJcIj5cclxuICAgICAgICAgICAgw5dcclxuICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICA8Zm9ybSBjbGFzc05hbWU9XCJuY20tYm9keVwiIG9uU3VibWl0PXtoYW5kbGVTdWJtaXR9IG5vVmFsaWRhdGU+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm5jbS1maWVsZFwiPlxyXG4gICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwibmNtLWxhYmVsLXJvd1wiIGh0bWxGb3I9e25vbWVJZH0+XHJcbiAgICAgICAgICAgICAgPFVzZXIgc2l6ZT17MTZ9IHN0cm9rZVdpZHRoPXsxLjc1fSAvPlxyXG4gICAgICAgICAgICAgIE5vbWUgPHNwYW4gc3R5bGU9e3sgZm9udFdlaWdodDogNDAwLCBjb2xvcjogXCJ2YXIoLS1kcy10ZXh0LXRlcnRpYXJ5KVwiIH19PihvcGNpb25hbCk8L3NwYW4+XHJcbiAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgIGlkPXtub21lSWR9XHJcbiAgICAgICAgICAgICAgbmFtZT1cIm5vbWVcIlxyXG4gICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcclxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJuY20taW5wdXRcIlxyXG4gICAgICAgICAgICAgIGF1dG9Db21wbGV0ZT1cIm5hbWVcIlxyXG4gICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiQ29tbyBhcGFyZWNlcsOhIG5hIGNvbnZlcnNhXCJcclxuICAgICAgICAgICAgICB2YWx1ZT17bm9tZX1cclxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHtcclxuICAgICAgICAgICAgICAgIHNldE5vbWUoZS50YXJnZXQudmFsdWUpO1xyXG4gICAgICAgICAgICAgICAgcmVzZXRBcGlIaW50cygpO1xyXG4gICAgICAgICAgICAgIH19XHJcbiAgICAgICAgICAgICAgZGlzYWJsZWQ9e3N1Ym1pdHRpbmd9XHJcbiAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm5jbS1maWVsZFwiPlxyXG4gICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwibmNtLWxhYmVsLXJvd1wiIGh0bWxGb3I9e3RlbElkfT5cclxuICAgICAgICAgICAgICA8UGhvbmUgc2l6ZT17MTZ9IHN0cm9rZVdpZHRoPXsxLjc1fSAvPlxyXG4gICAgICAgICAgICAgIFRlbGVmb25lXHJcbiAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICAgIHJlZj17dGVsZWZvbmVSZWZ9XHJcbiAgICAgICAgICAgICAgaWQ9e3RlbElkfVxyXG4gICAgICAgICAgICAgIG5hbWU9XCJ0ZWxlZm9uZVwiXHJcbiAgICAgICAgICAgICAgdHlwZT1cInRlbFwiXHJcbiAgICAgICAgICAgICAgaW5wdXRNb2RlPVwidGVsXCJcclxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJuY20taW5wdXRcIlxyXG4gICAgICAgICAgICAgIGF1dG9Db21wbGV0ZT1cInRlbC1uYXRpb25hbFwiXHJcbiAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJFeC46ICgxMSkgOTg3NjUtNDMyMSBvdSArNTUgMTEgOTg3NjUtNDMyMVwiXHJcbiAgICAgICAgICAgICAgdmFsdWU9e3RlbGVmb25lfVxyXG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXtoYW5kbGVUZWxDaGFuZ2V9XHJcbiAgICAgICAgICAgICAgZGlzYWJsZWQ9e3N1Ym1pdHRpbmd9XHJcbiAgICAgICAgICAgICAgYXJpYS1yZXF1aXJlZD1cInRydWVcIlxyXG4gICAgICAgICAgICAgIGFyaWEtaW52YWxpZD17ISEoY2xpZW50RXJyb3IgfHwgYXBpRXJyb3IpfVxyXG4gICAgICAgICAgICAgIGFyaWEtZGVzY3JpYmVkYnk9e2hlbHBJZH1cclxuICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgPHAgaWQ9e2hlbHBJZH0gY2xhc3NOYW1lPVwibmNtLWhlbHBcIj5cclxuICAgICAgICAgICAgICB7QUpVREFfVEVMRUZPTkVfUEFEUkFPfVxyXG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cIm5jbS1leGFtcGxlXCI+e0VYRU1QTE9fVEVMRUZPTkVfUEFEUkFPfTwvc3Bhbj5cclxuICAgICAgICAgICAgPC9wPlxyXG4gICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAge211c3RQaWNrSW5zdGFuY2UgPyAoXHJcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibmNtLWZpZWxkXCI+XHJcbiAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cIm5jbS1sYWJlbC1yb3dcIiBodG1sRm9yPXtpbnN0SWR9PlxyXG4gICAgICAgICAgICAgICAgTsO6bWVybyBXaGF0c0FwcFxyXG4gICAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgPHNlbGVjdFxyXG4gICAgICAgICAgICAgICAgaWQ9e2luc3RJZH1cclxuICAgICAgICAgICAgICAgIGNsYXNzTmFtZT1cIm5jbS1pbnB1dFwiXHJcbiAgICAgICAgICAgICAgICB2YWx1ZT17c2VsZWN0ZWRJbnN0YW5jZUlkfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiB7XHJcbiAgICAgICAgICAgICAgICAgIHNldFNlbGVjdGVkSW5zdGFuY2VJZChlLnRhcmdldC52YWx1ZSk7XHJcbiAgICAgICAgICAgICAgICAgIHJlc2V0QXBpSGludHMoKTtcclxuICAgICAgICAgICAgICAgIH19XHJcbiAgICAgICAgICAgICAgICBkaXNhYmxlZD17c3VibWl0dGluZyB8fCBpbnN0YW5jZXNMb2FkaW5nfVxyXG4gICAgICAgICAgICAgICAgYXJpYS1yZXF1aXJlZD1cInRydWVcIlxyXG4gICAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJcIj5cclxuICAgICAgICAgICAgICAgICAge2luc3RhbmNlc0xvYWRpbmcgPyBcIkNhcnJlZ2FuZG8gbsO6bWVyb3PigKZcIiA6IFwiU2VsZWNpb25lIG8gbsO6bWVyb1wifVxyXG4gICAgICAgICAgICAgICAgPC9vcHRpb24+XHJcbiAgICAgICAgICAgICAgICB7d2hhdHNhcHBJbnN0YW5jZXMubWFwKChpbnN0KSA9PiAoXHJcbiAgICAgICAgICAgICAgICAgIDxvcHRpb24ga2V5PXtTdHJpbmcoaW5zdC5pZCl9IHZhbHVlPXtTdHJpbmcoaW5zdC5pZCl9PlxyXG4gICAgICAgICAgICAgICAgICAgIHt3aGF0c2FwcEluc3RhbmNlTGFiZWwoaW5zdCkgfHwgYFdoYXRzQXBwICMke2luc3QuaWR9YH1cclxuICAgICAgICAgICAgICAgICAgPC9vcHRpb24+XHJcbiAgICAgICAgICAgICAgICApKX1cclxuICAgICAgICAgICAgICA8L3NlbGVjdD5cclxuICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJuY20taGVscFwiPkVzdGUgY29udGF0byBwb2RlIGNvbnZlcnNhciBwb3IgbWFpcyBkZSB1bSBuw7ptZXJvIGRhIGVtcHJlc2EuPC9wPlxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICkgOiBudWxsfVxyXG5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibmNtLWZpZWxkIG5jbS1maWVsZC0tY2hlY2tzXCIgcm9sZT1cImdyb3VwXCIgYXJpYS1sYWJlbD1cIk9ww6fDtWVzIGFvIHNhbHZhclwiPlxyXG4gICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwibmNtLWNoZWNrXCIgaHRtbEZvcj17Y2hrQWJyaXJJZH0+XHJcbiAgICAgICAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICAgICAgICBpZD17Y2hrQWJyaXJJZH1cclxuICAgICAgICAgICAgICAgIHR5cGU9XCJjaGVja2JveFwiXHJcbiAgICAgICAgICAgICAgICBjaGVja2VkPXthc3N1bWlyIHx8IGFicmlyQ29udmVyc2F9XHJcbiAgICAgICAgICAgICAgICBkaXNhYmxlZD17c3VibWl0dGluZyB8fCBhc3N1bWlyfVxyXG4gICAgICAgICAgICAgICAgYXJpYS1kZXNjcmliZWRieT17YXNzdW1pciA/IGAke2Noa0FicmlySWR9LWhpbnRgIDogdW5kZWZpbmVkfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiB7XHJcbiAgICAgICAgICAgICAgICAgIHNldEFicmlyQ29udmVyc2EoZS50YXJnZXQuY2hlY2tlZCk7XHJcbiAgICAgICAgICAgICAgICAgIHJlc2V0QXBpSGludHMoKTtcclxuICAgICAgICAgICAgICAgIH19XHJcbiAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8c3Bhbj5BYnJpciBjb252ZXJzYSBhbyBzYWx2YXI8L3NwYW4+XHJcbiAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgIHthc3N1bWlyID8gKFxyXG4gICAgICAgICAgICAgIDxwIGNsYXNzTmFtZT1cIm5jbS1oZWxwIG5jbS1oZWxwLS1pbmRlbnRcIiBpZD17YCR7Y2hrQWJyaXJJZH0taGludGB9PlxyXG4gICAgICAgICAgICAgICAgSW5jbHXDrWRvIGFvIGFzc3VtaXIgbyBhdGVuZGltZW50by5cclxuICAgICAgICAgICAgICA8L3A+XHJcbiAgICAgICAgICAgICkgOiBudWxsfVxyXG4gICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwibmNtLWNoZWNrXCIgaHRtbEZvcj17Y2hrQXNzdW1pcklkfT5cclxuICAgICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICAgIGlkPXtjaGtBc3N1bWlySWR9XHJcbiAgICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxyXG4gICAgICAgICAgICAgICAgY2hlY2tlZD17YXNzdW1pcn1cclxuICAgICAgICAgICAgICAgIGRpc2FibGVkPXtzdWJtaXR0aW5nfVxyXG4gICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiB7XHJcbiAgICAgICAgICAgICAgICAgIGNvbnN0IG9uID0gZS50YXJnZXQuY2hlY2tlZDtcclxuICAgICAgICAgICAgICAgICAgc2V0QXNzdW1pcihvbik7XHJcbiAgICAgICAgICAgICAgICAgIHJlc2V0QXBpSGludHMoKTtcclxuICAgICAgICAgICAgICAgIH19XHJcbiAgICAgICAgICAgICAgLz5cclxuICAgICAgICAgICAgICA8c3Bhbj5Bc3N1bWlyIGUgYXRlbmRlciBhZ29yYTwvc3Bhbj5cclxuICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgIHthcGlFcnJvcj8uZGV0YWxoZSA/IChcclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJuY20tYWxlcnRcIiByb2xlPVwiYWxlcnRcIj5cclxuICAgICAgICAgICAgICA8c3Ryb25nPnthcGlFcnJvci5kZXRhbGhlfTwvc3Ryb25nPlxyXG4gICAgICAgICAgICAgIHtleGVtcGxvQXBpID8gPHNwYW4gY2xhc3NOYW1lPVwibmNtLWV4YW1wbGVcIiBzdHlsZT17eyBkaXNwbGF5OiBcImJsb2NrXCIsIG1hcmdpblRvcDogNiB9fT5FeGVtcGxvIGFjZWl0bzoge2V4ZW1wbG9BcGl9PC9zcGFuPiA6IG51bGx9XHJcbiAgICAgICAgICAgICAge2hlbHBMaW5oYUV4dHJhID8gPHNwYW4gc3R5bGU9e3sgZGlzcGxheTogXCJibG9ja1wiLCBtYXJnaW5Ub3A6IDYgfX0+e2hlbHBMaW5oYUV4dHJhfTwvc3Bhbj4gOiBudWxsfVxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICkgOiBudWxsfVxyXG5cclxuICAgICAgICAgIHtjbGllbnRFcnJvciA/IChcclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJuY20tYWxlcnRcIiByb2xlPVwiYWxlcnRcIj5cclxuICAgICAgICAgICAgICB7Y2xpZW50RXJyb3J9XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgKSA6IG51bGx9XHJcblxyXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJuY20tZm9vdGVyXCI+XHJcbiAgICAgICAgICAgIDxidXR0b24gdHlwZT1cImJ1dHRvblwiIGNsYXNzTmFtZT1cIm5jbS1idG4gbmNtLWJ0bi0tZ2hvc3RcIiBvbkNsaWNrPXsoKSA9PiAhc3VibWl0dGluZyAmJiBvbkNsb3NlKCl9IGRpc2FibGVkPXtzdWJtaXR0aW5nfT5cclxuICAgICAgICAgICAgICBDYW5jZWxhclxyXG4gICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgPGJ1dHRvbiB0eXBlPVwic3VibWl0XCIgY2xhc3NOYW1lPVwibmNtLWJ0biBuY20tYnRuLS1wcmltYXJ5XCIgZGlzYWJsZWQ9e3N1Ym1pdHRpbmd9PlxyXG4gICAgICAgICAgICAgIHtzdWJtaXR0aW5nID8gKFxyXG4gICAgICAgICAgICAgICAgPD5cclxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwibmNtLXNwaW5cIiBhcmlhLWhpZGRlbiAvPlxyXG4gICAgICAgICAgICAgICAgICB7c3VibWl0dGluZ0xhYmVsfVxyXG4gICAgICAgICAgICAgICAgPC8+XHJcbiAgICAgICAgICAgICAgKSA6IChcclxuICAgICAgICAgICAgICAgIHN1Ym1pdExhYmVsXHJcbiAgICAgICAgICAgICAgKX1cclxuICAgICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8L2Zvcm0+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgPC9kaXY+XHJcbiAgKTtcclxuXHJcbiAgcmV0dXJuIGNyZWF0ZVBvcnRhbChub2RlLCBkb2N1bWVudC5ib2R5KTtcclxufVxyXG4iXSwiZmlsZSI6IkM6L1VzZXJzL01pZ3VlbC9Eb2N1bWVudHMvd2hhdHNhcHAtcGxhdGFmb3JtYS9mcm9udGVuZC9zcmMvY2hhdHMvTm92b0NvbnRhdG9Nb2RhbC5qc3gifQ==

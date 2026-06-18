@@ -23,6 +23,28 @@ import PushNotificationsCard from "../push/PushNotificationsCard";
 /** Limite por página na lista de clientes — evita buscar/renderizar a base inteira de uma vez. */
 const CLIENTES_PAGE_LIMIT = 200;
 
+/** Fontes disponíveis para o nome da empresa no cabeçalho. */
+export const FONTES_OPCOES = [
+  { value: "inter",              label: "Inter (padrão)"          },
+  { value: "plus-jakarta-sans",  label: "Plus Jakarta Sans"        },
+  { value: "poppins",            label: "Poppins"                  },
+  { value: "montserrat",         label: "Montserrat"               },
+  { value: "nunito",             label: "Nunito"                   },
+  { value: "raleway",            label: "Raleway"                  },
+  { value: "playfair-display",   label: "Playfair Display (Serif)" },
+];
+
+/** Mapa de chave → CSS font-family para aplicar inline. */
+export const FONT_FAMILIES = {
+  "inter":             '"Inter", system-ui, sans-serif',
+  "plus-jakarta-sans": '"Plus Jakarta Sans", sans-serif',
+  "poppins":           '"Poppins", sans-serif',
+  "montserrat":        '"Montserrat", sans-serif',
+  "nunito":            '"Nunito", sans-serif',
+  "raleway":           '"Raleway", sans-serif',
+  "playfair-display":  '"Playfair Display", Georgia, serif',
+};
+
 const TABS = [
   { id: "geral", label: "Geral" },
   { id: "usuarios", label: "Usuários" },
@@ -622,7 +644,7 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
                 <div className="config-logo-actions">
                   <label
                     className={`ia-btn ia-btn--outline config-logo-upload-btn${logoUploading ? " is-loading" : ""}`}
-                    title="Selecionar imagem (PNG, JPG, WebP — máx. 2 MB)"
+                    title="Selecionar imagem (PNG, JPG, WebP — máx. 5 MB)"
                     style={{ cursor: logoUploading ? "default" : "pointer" }}
                   >
                     {logoUploading ? "Enviando…" : v.logo_url ? "Trocar logo" : "Fazer upload do logo"}
@@ -634,8 +656,8 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        if (file.size > 2 * 1024 * 1024) {
-                          setLogoMsg({ type: "err", text: "A imagem deve ter no máximo 2 MB." });
+                        if (file.size > 5 * 1024 * 1024) {
+                          setLogoMsg({ type: "err", text: "A imagem deve ter no máximo 5 MB." });
                           e.target.value = "";
                           return;
                         }
@@ -693,6 +715,27 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
                   onChange={(e) => setV((c) => ({ ...c, cor_primaria: e.target.value }))}
                 />
                 <span className="config-geral-color-value">{v.cor_primaria || "#2563eb"}</span>
+              </div>
+            </div>
+
+            <div className="ia-field config-geral-field--span2">
+              <label htmlFor="empresa-fonte">Fonte do nome da empresa</label>
+              <select
+                id="empresa-fonte"
+                className="ia-select"
+                value={v.nome_fonte || "inter"}
+                onChange={(e) => setV((c) => ({ ...c, nome_fonte: e.target.value }))}
+              >
+                {FONTES_OPCOES.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+              {/* Prévia ao vivo */}
+              <div
+                className="config-fonte-preview"
+                style={{ fontFamily: FONT_FAMILIES[v.nome_fonte || "inter"] }}
+              >
+                {v.nome || "Nome da Empresa"}
               </div>
             </div>
           </div>

@@ -145,6 +145,10 @@ function isPlaceholderLocationText(txt) {
   const t = String(txt || "").trim().toLowerCase();
   return t === "(localização)" || t === "(localizacao)";
 }
+function isPlaceholderGenericMessageText(txt) {
+  const t = String(txt || "").trim().toLowerCase();
+  return t === "(mensagem)" || t === "(mensagem vazia)";
+}
 
 /** Detecta se mensagem é contato compartilhado (vCard) */
 function isContactMessage(last) {
@@ -357,7 +361,7 @@ function getPreview(chat, { audioDurationSec } = {}) {
   const isPlaceholder =
     !txt ||
     txt === "(mídia)" ||
-    txt === "(mensagem vazia)" ||
+    isPlaceholderGenericMessageText(txt) ||
     txt === "(imagem)" ||
     txt === "(áudio)" ||
     txt === "(vídeo)" ||
@@ -379,7 +383,8 @@ function getPreview(chat, { audioDurationSec } = {}) {
     return `${outPrefix}${n || "Documento"}`;
   }
 
-  if (txt) return `${outPrefix}${txt}`;
+  if (txt && !isPlaceholderGenericMessageText(txt)) return `${outPrefix}${txt}`;
+  if (isPlaceholderGenericMessageText(txt)) return "Sem mensagens";
   return `${outPrefix}(sem texto)`;
 }
 
@@ -453,7 +458,7 @@ function PreviewLine({ chat, audioDurationSec }) {
   const isPlaceholder =
     !txt ||
     txt === "(mídia)" ||
-    txt === "(mensagem vazia)" ||
+    isPlaceholderGenericMessageText(txt) ||
     isPlaceholderImageText(txt) ||
     isPlaceholderAudioText(txt) ||
     isPlaceholderVideoText(txt) ||
@@ -582,7 +587,7 @@ function PreviewLine({ chat, audioDurationSec }) {
   return (
     <span className="chat-list-previewLine">
       {out ? <ChatTicks status={status} isGroup={isGroup} /> : null}
-      <span className="chat-list-previewText">{atendentePrefix}{txt || "Sem mensagens"}</span>
+      <span className="chat-list-previewText">{isPlaceholderGenericMessageText(txt) ? "Sem mensagens" : `${atendentePrefix}${txt || "Sem mensagens"}`}</span>
     </span>
   );
 }

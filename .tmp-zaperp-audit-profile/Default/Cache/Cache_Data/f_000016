@@ -1,0 +1,196 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/push/PushPermissionPrompt.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5bfdcc68"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=5bfdcc68"; const useEffect = __vite__cjsImport3_react["useEffect"]; const useState = __vite__cjsImport3_react["useState"];
+import {
+  fetchVapidPublicKey,
+  pushSupported,
+  subscribeWebPush,
+  syncPushSubscriptionSilently
+} from "/src/push/webPushClient.js";
+import "/src/push/push-permission-prompt.css";
+const STORAGE_DISMISS_UNTIL = "zaperp_push_optin_dismissed_until";
+const SESSION_DENIED_HINT = "zaperp_push_denied_hint_shown_v1";
+const DISMISS_DAYS = 14;
+function dismissUntilMs() {
+  return Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1e3;
+}
+export default function PushPermissionPrompt() {
+  _s();
+  const [ui, setUi] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!pushSupported() || typeof Notification === "undefined") {
+        if (!cancelled) setUi("none");
+        return;
+      }
+      const v = await fetchVapidPublicKey();
+      if (cancelled) return;
+      if (!v.publicKey) {
+        setUi("none");
+        return;
+      }
+      const perm = Notification.permission;
+      if (perm === "granted") {
+        void syncPushSubscriptionSilently().catch(() => {
+        });
+        setUi("none");
+        return;
+      }
+      if (perm === "denied") {
+        try {
+          if (sessionStorage.getItem(SESSION_DENIED_HINT) === "1") {
+            setUi("none");
+            return;
+          }
+        } catch {
+        }
+        setUi("denied_strip");
+        return;
+      }
+      try {
+        const raw = localStorage.getItem(STORAGE_DISMISS_UNTIL);
+        const until = raw ? Number(raw) : 0;
+        if (until > Date.now()) {
+          setUi("none");
+          return;
+        }
+      } catch {
+      }
+      setUi("modal");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  async function handleEnable() {
+    setBusy(true);
+    try {
+      const res = await subscribeWebPush();
+      if (res?.ok) {
+        setUi("none");
+      } else if (res?.reason === "permission_denied" || res?.reason === "permission_blocked") {
+        setUi("denied_strip");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+  function handleDismiss() {
+    try {
+      localStorage.setItem(STORAGE_DISMISS_UNTIL, String(dismissUntilMs()));
+    } catch {
+    }
+    setUi("none");
+  }
+  function dismissDeniedHint() {
+    try {
+      sessionStorage.setItem(SESSION_DENIED_HINT, "1");
+    } catch {
+    }
+    setUi("none");
+  }
+  if (ui === null || ui === "none") return null;
+  if (ui === "modal") {
+    return /* @__PURE__ */ jsxDEV("div", { className: "zap-push-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "zap-push-modal-title", children: /* @__PURE__ */ jsxDEV("div", { className: "zap-push-modal", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "zap-push-modal__brand", "aria-hidden": "true", children: /* @__PURE__ */ jsxDEV("span", { className: "zap-push-modal__dot" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+        lineNumber: 135,
+        columnNumber: 13
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+        lineNumber: 134,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("h2", { id: "zap-push-modal-title", className: "zap-push-modal__title", children: "Notificações" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+        lineNumber: 137,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("p", { className: "zap-push-modal__text", children: "Ative as notificações para receber avisos de novas mensagens dos clientes mesmo com o ZapERP fechado." }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+        lineNumber: 140,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "zap-push-modal__actions", children: [
+        /* @__PURE__ */ jsxDEV("button", { type: "button", className: "zap-push-btn zap-push-btn--secondary", disabled: busy, onClick: handleDismiss, children: "Agora não" }, void 0, false, {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+          lineNumber: 144,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("button", { type: "button", className: "zap-push-btn zap-push-btn--primary", disabled: busy, onClick: handleEnable, children: busy ? "Abrindo…" : "Ativar notificações" }, void 0, false, {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+          lineNumber: 147,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+        lineNumber: 143,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+      lineNumber: 133,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+      lineNumber: 132,
+      columnNumber: 7
+    }, this);
+  }
+  if (ui === "denied_strip") {
+    return /* @__PURE__ */ jsxDEV("div", { className: "zap-push-strip", role: "status", children: [
+      /* @__PURE__ */ jsxDEV("p", { className: "zap-push-strip__text", children: "Notificações bloqueadas neste navegador. Para receber alertas com o app fechado, permita notificações nas configurações do site." }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+        lineNumber: 159,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("button", { type: "button", className: "zap-push-strip__close", onClick: dismissDeniedHint, "aria-label": "Fechar aviso", children: "×" }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+        lineNumber: 163,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx",
+      lineNumber: 158,
+      columnNumber: 7
+    }, this);
+  }
+  return null;
+}
+_s(PushPermissionPrompt, "cCT/ygXCzjx5kIrA3c6zQ7RISKY=");
+_c = PushPermissionPrompt;
+var _c;
+$RefreshReg$(_c, "PushPermissionPrompt");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/push/PushPermissionPrompt.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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O0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FRQTtBQUFBLEVBRUo7QUFFQSxTQUFPO0FBQ1Q7QUFBQ3pCLEdBdEl1QkQsc0JBQW9CO0FBQUEsS0FBcEJBO0FBQW9CLElBQUEyQjtBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJ1c2VFZmZlY3QiLCJ1c2VTdGF0ZSIsImZldGNoVmFwaWRQdWJsaWNLZXkiLCJwdXNoU3VwcG9ydGVkIiwic3Vic2NyaWJlV2ViUHVzaCIsInN5bmNQdXNoU3Vic2NyaXB0aW9uU2lsZW50bHkiLCJTVE9SQUdFX0RJU01JU1NfVU5USUwiLCJTRVNTSU9OX0RFTklFRF9ISU5UIiwiRElTTUlTU19EQVlTIiwiZGlzbWlzc1VudGlsTXMiLCJEYXRlIiwibm93IiwiUHVzaFBlcm1pc3Npb25Qcm9tcHQiLCJfcyIsInVpIiwic2V0VWkiLCJidXN5Iiwic2V0QnVzeSIsImNhbmNlbGxlZCIsIk5vdGlmaWNhdGlvbiIsInYiLCJwdWJsaWNLZXkiLCJwZXJtIiwicGVybWlzc2lvbiIsImNhdGNoIiwic2Vzc2lvblN0b3JhZ2UiLCJnZXRJdGVtIiwicmF3IiwibG9jYWxTdG9yYWdlIiwidW50aWwiLCJOdW1iZXIiLCJoYW5kbGVFbmFibGUiLCJyZXMiLCJvayIsInJlYXNvbiIsImhhbmRsZURpc21pc3MiLCJzZXRJdGVtIiwiU3RyaW5nIiwiZGlzbWlzc0RlbmllZEhpbnQiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJQdXNoUGVybWlzc2lvblByb21wdC5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgdXNlRWZmZWN0LCB1c2VTdGF0ZSB9IGZyb20gXCJyZWFjdFwiXHJcbmltcG9ydCB7XHJcbiAgZmV0Y2hWYXBpZFB1YmxpY0tleSxcclxuICBwdXNoU3VwcG9ydGVkLFxyXG4gIHN1YnNjcmliZVdlYlB1c2gsXHJcbiAgc3luY1B1c2hTdWJzY3JpcHRpb25TaWxlbnRseSxcclxufSBmcm9tIFwiLi93ZWJQdXNoQ2xpZW50XCJcclxuaW1wb3J0IFwiLi9wdXNoLXBlcm1pc3Npb24tcHJvbXB0LmNzc1wiXHJcblxyXG5jb25zdCBTVE9SQUdFX0RJU01JU1NfVU5USUwgPSBcInphcGVycF9wdXNoX29wdGluX2Rpc21pc3NlZF91bnRpbFwiXHJcbmNvbnN0IFNFU1NJT05fREVOSUVEX0hJTlQgPSBcInphcGVycF9wdXNoX2RlbmllZF9oaW50X3Nob3duX3YxXCJcclxuY29uc3QgRElTTUlTU19EQVlTID0gMTRcclxuXHJcbmZ1bmN0aW9uIGRpc21pc3NVbnRpbE1zKCkge1xyXG4gIHJldHVybiBEYXRlLm5vdygpICsgRElTTUlTU19EQVlTICogMjQgKiA2MCAqIDYwICogMTAwMFxyXG59XHJcblxyXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBQdXNoUGVybWlzc2lvblByb21wdCgpIHtcclxuICBjb25zdCBbdWksIHNldFVpXSA9IHVzZVN0YXRlKG51bGwpXHJcbiAgY29uc3QgW2J1c3ksIHNldEJ1c3ldID0gdXNlU3RhdGUoZmFsc2UpXHJcblxyXG4gIHVzZUVmZmVjdCgoKSA9PiB7XHJcbiAgICBsZXQgY2FuY2VsbGVkID0gZmFsc2VcclxuXHJcbiAgICB2b2lkIChhc3luYyAoKSA9PiB7XHJcbiAgICAgIGlmICghcHVzaFN1cHBvcnRlZCgpIHx8IHR5cGVvZiBOb3RpZmljYXRpb24gPT09IFwidW5kZWZpbmVkXCIpIHtcclxuICAgICAgICBpZiAoIWNhbmNlbGxlZCkgc2V0VWkoXCJub25lXCIpXHJcbiAgICAgICAgcmV0dXJuXHJcbiAgICAgIH1cclxuXHJcbiAgICAgIGNvbnN0IHYgPSBhd2FpdCBmZXRjaFZhcGlkUHVibGljS2V5KClcclxuICAgICAgaWYgKGNhbmNlbGxlZCkgcmV0dXJuXHJcbiAgICAgIGlmICghdi5wdWJsaWNLZXkpIHtcclxuICAgICAgICBzZXRVaShcIm5vbmVcIilcclxuICAgICAgICByZXR1cm5cclxuICAgICAgfVxyXG5cclxuICAgICAgY29uc3QgcGVybSA9IE5vdGlmaWNhdGlvbi5wZXJtaXNzaW9uXHJcbiAgICAgIGlmIChwZXJtID09PSBcImdyYW50ZWRcIikge1xyXG4gICAgICAgIHZvaWQgc3luY1B1c2hTdWJzY3JpcHRpb25TaWxlbnRseSgpLmNhdGNoKCgpID0+IHt9KVxyXG4gICAgICAgIHNldFVpKFwibm9uZVwiKVxyXG4gICAgICAgIHJldHVyblxyXG4gICAgICB9XHJcblxyXG4gICAgICBpZiAocGVybSA9PT0gXCJkZW5pZWRcIikge1xyXG4gICAgICAgIHRyeSB7XHJcbiAgICAgICAgICBpZiAoc2Vzc2lvblN0b3JhZ2UuZ2V0SXRlbShTRVNTSU9OX0RFTklFRF9ISU5UKSA9PT0gXCIxXCIpIHtcclxuICAgICAgICAgICAgc2V0VWkoXCJub25lXCIpXHJcbiAgICAgICAgICAgIHJldHVyblxyXG4gICAgICAgICAgfVxyXG4gICAgICAgIH0gY2F0Y2gge1xyXG4gICAgICAgICAgLyogaWdub3JlICovXHJcbiAgICAgICAgfVxyXG4gICAgICAgIHNldFVpKFwiZGVuaWVkX3N0cmlwXCIpXHJcbiAgICAgICAgcmV0dXJuXHJcbiAgICAgIH1cclxuXHJcbiAgICAgIHRyeSB7XHJcbiAgICAgICAgY29uc3QgcmF3ID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oU1RPUkFHRV9ESVNNSVNTX1VOVElMKVxyXG4gICAgICAgIGNvbnN0IHVudGlsID0gcmF3ID8gTnVtYmVyKHJhdykgOiAwXHJcbiAgICAgICAgaWYgKHVudGlsID4gRGF0ZS5ub3coKSkge1xyXG4gICAgICAgICAgc2V0VWkoXCJub25lXCIpXHJcbiAgICAgICAgICByZXR1cm5cclxuICAgICAgICB9XHJcbiAgICAgIH0gY2F0Y2gge1xyXG4gICAgICAgIC8qIGlnbm9yZSAqL1xyXG4gICAgICB9XHJcblxyXG4gICAgICBzZXRVaShcIm1vZGFsXCIpXHJcbiAgICB9KSgpXHJcblxyXG4gICAgcmV0dXJuICgpID0+IHtcclxuICAgICAgY2FuY2VsbGVkID0gdHJ1ZVxyXG4gICAgfVxyXG4gIH0sIFtdKVxyXG5cclxuICBhc3luYyBmdW5jdGlvbiBoYW5kbGVFbmFibGUoKSB7XHJcbiAgICBzZXRCdXN5KHRydWUpXHJcbiAgICB0cnkge1xyXG4gICAgICBjb25zdCByZXMgPSBhd2FpdCBzdWJzY3JpYmVXZWJQdXNoKClcclxuICAgICAgaWYgKHJlcz8ub2spIHtcclxuICAgICAgICBzZXRVaShcIm5vbmVcIilcclxuICAgICAgfSBlbHNlIGlmIChyZXM/LnJlYXNvbiA9PT0gXCJwZXJtaXNzaW9uX2RlbmllZFwiIHx8IHJlcz8ucmVhc29uID09PSBcInBlcm1pc3Npb25fYmxvY2tlZFwiKSB7XHJcbiAgICAgICAgc2V0VWkoXCJkZW5pZWRfc3RyaXBcIilcclxuICAgICAgfVxyXG4gICAgfSBmaW5hbGx5IHtcclxuICAgICAgc2V0QnVzeShmYWxzZSlcclxuICAgIH1cclxuICB9XHJcblxyXG4gIGZ1bmN0aW9uIGhhbmRsZURpc21pc3MoKSB7XHJcbiAgICB0cnkge1xyXG4gICAgICBsb2NhbFN0b3JhZ2Uuc2V0SXRlbShTVE9SQUdFX0RJU01JU1NfVU5USUwsIFN0cmluZyhkaXNtaXNzVW50aWxNcygpKSlcclxuICAgIH0gY2F0Y2gge1xyXG4gICAgICAvKiBpZ25vcmUgKi9cclxuICAgIH1cclxuICAgIHNldFVpKFwibm9uZVwiKVxyXG4gIH1cclxuXHJcbiAgZnVuY3Rpb24gZGlzbWlzc0RlbmllZEhpbnQoKSB7XHJcbiAgICB0cnkge1xyXG4gICAgICBzZXNzaW9uU3RvcmFnZS5zZXRJdGVtKFNFU1NJT05fREVOSUVEX0hJTlQsIFwiMVwiKVxyXG4gICAgfSBjYXRjaCB7XHJcbiAgICAgIC8qIGlnbm9yZSAqL1xyXG4gICAgfVxyXG4gICAgc2V0VWkoXCJub25lXCIpXHJcbiAgfVxyXG5cclxuICBpZiAodWkgPT09IG51bGwgfHwgdWkgPT09IFwibm9uZVwiKSByZXR1cm4gbnVsbFxyXG5cclxuICBpZiAodWkgPT09IFwibW9kYWxcIikge1xyXG4gICAgcmV0dXJuIChcclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJ6YXAtcHVzaC1vdmVybGF5XCIgcm9sZT1cImRpYWxvZ1wiIGFyaWEtbW9kYWw9XCJ0cnVlXCIgYXJpYS1sYWJlbGxlZGJ5PVwiemFwLXB1c2gtbW9kYWwtdGl0bGVcIj5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInphcC1wdXNoLW1vZGFsXCI+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInphcC1wdXNoLW1vZGFsX19icmFuZFwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiPlxyXG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ6YXAtcHVzaC1tb2RhbF9fZG90XCIgLz5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPGgyIGlkPVwiemFwLXB1c2gtbW9kYWwtdGl0bGVcIiBjbGFzc05hbWU9XCJ6YXAtcHVzaC1tb2RhbF9fdGl0bGVcIj5cclxuICAgICAgICAgICAgTm90aWZpY2HDp8O1ZXNcclxuICAgICAgICAgIDwvaDI+XHJcbiAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ6YXAtcHVzaC1tb2RhbF9fdGV4dFwiPlxyXG4gICAgICAgICAgICBBdGl2ZSBhcyBub3RpZmljYcOnw7VlcyBwYXJhIHJlY2ViZXIgYXZpc29zIGRlIG5vdmFzIG1lbnNhZ2VucyBkb3MgY2xpZW50ZXMgbWVzbW8gY29tIG8gWmFwRVJQIGZlY2hhZG8uXHJcbiAgICAgICAgICA8L3A+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInphcC1wdXNoLW1vZGFsX19hY3Rpb25zXCI+XHJcbiAgICAgICAgICAgIDxidXR0b24gdHlwZT1cImJ1dHRvblwiIGNsYXNzTmFtZT1cInphcC1wdXNoLWJ0biB6YXAtcHVzaC1idG4tLXNlY29uZGFyeVwiIGRpc2FibGVkPXtidXN5fSBvbkNsaWNrPXtoYW5kbGVEaXNtaXNzfT5cclxuICAgICAgICAgICAgICBBZ29yYSBuw6NvXHJcbiAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgICA8YnV0dG9uIHR5cGU9XCJidXR0b25cIiBjbGFzc05hbWU9XCJ6YXAtcHVzaC1idG4gemFwLXB1c2gtYnRuLS1wcmltYXJ5XCIgZGlzYWJsZWQ9e2J1c3l9IG9uQ2xpY2s9e2hhbmRsZUVuYWJsZX0+XHJcbiAgICAgICAgICAgICAge2J1c3kgPyBcIkFicmluZG/igKZcIiA6IFwiQXRpdmFyIG5vdGlmaWNhw6fDtWVzXCJ9XHJcbiAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgKVxyXG4gIH1cclxuXHJcbiAgaWYgKHVpID09PSBcImRlbmllZF9zdHJpcFwiKSB7XHJcbiAgICByZXR1cm4gKFxyXG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cInphcC1wdXNoLXN0cmlwXCIgcm9sZT1cInN0YXR1c1wiPlxyXG4gICAgICAgIDxwIGNsYXNzTmFtZT1cInphcC1wdXNoLXN0cmlwX190ZXh0XCI+XHJcbiAgICAgICAgICBOb3RpZmljYcOnw7VlcyBibG9xdWVhZGFzIG5lc3RlIG5hdmVnYWRvci4gUGFyYSByZWNlYmVyIGFsZXJ0YXMgY29tIG8gYXBwIGZlY2hhZG8sIHBlcm1pdGEgbm90aWZpY2HDp8O1ZXMgbmFzXHJcbiAgICAgICAgICBjb25maWd1cmHDp8O1ZXMgZG8gc2l0ZS5cclxuICAgICAgICA8L3A+XHJcbiAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgY2xhc3NOYW1lPVwiemFwLXB1c2gtc3RyaXBfX2Nsb3NlXCIgb25DbGljaz17ZGlzbWlzc0RlbmllZEhpbnR9IGFyaWEtbGFiZWw9XCJGZWNoYXIgYXZpc29cIj5cclxuICAgICAgICAgIMOXXHJcbiAgICAgICAgPC9idXR0b24+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgKVxyXG4gIH1cclxuXHJcbiAgcmV0dXJuIG51bGxcclxufVxyXG4iXSwiZmlsZSI6IkM6L1VzZXJzL01pZ3VlbC9Eb2N1bWVudHMvd2hhdHNhcHAtcGxhdGFmb3JtYS9mcm9udGVuZC9zcmMvcHVzaC9QdXNoUGVybWlzc2lvblByb21wdC5qc3gifQ==

@@ -1,0 +1,887 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/routes/AppRoutes.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5bfdcc68"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=5bfdcc68"; const lazy = __vite__cjsImport3_react["lazy"]; const Suspense = __vite__cjsImport3_react["Suspense"];
+import { BrowserRouter, Routes, Route, Navigate } from "/node_modules/.vite/deps/react-router-dom.js?v=5bfdcc68";
+import { useAuthStore } from "/src/auth/authStore.js";
+import { can, canGerenciarRespostasSalvas, isSupervisorOrAdmin } from "/src/auth/permissions.js";
+import ProtectedRoute from "/src/routes/ProtectedRoute.jsx";
+import Login from "/src/pages/Login.jsx";
+import MainLayout from "/src/layouts/MainLayout.jsx";
+import NotFound from "/src/pages/NotFound.jsx";
+import Atendimento from "/src/pages/Atendimento.jsx";
+const Dashboard = lazy(_c = () => import("/src/dashboard/Dashboard.jsx"));
+_c2 = Dashboard;
+const Configuracoes = lazy(_c3 = () => import("/src/pages/Configuracoes.jsx"));
+_c4 = Configuracoes;
+const IA = lazy(_c5 = () => import("/src/pages/IA.jsx"));
+_c6 = IA;
+const DashboardIA = lazy(_c7 = () => import("/src/pages/DashboardIA.jsx"));
+_c8 = DashboardIA;
+const NovoContato = lazy(_c9 = () => import("/src/pages/NovoContato.jsx"));
+_c0 = NovoContato;
+const NovoGrupo = lazy(_c1 = () => import("/src/pages/NovoGrupo.jsx"));
+_c10 = NovoGrupo;
+const NovaComunidade = lazy(_c11 = () => import("/src/pages/NovaComunidade.jsx"));
+_c12 = NovaComunidade;
+const ConnectWhatsApp = lazy(_c13 = () => import("/src/pages/ConnectWhatsApp.jsx"));
+_c14 = ConnectWhatsApp;
+const Permissoes = lazy(_c15 = () => import("/src/pages/Permissoes.jsx"));
+_c16 = Permissoes;
+const Mensagens = lazy(_c17 = () => import("/src/pages/Mensagens.jsx"));
+_c18 = Mensagens;
+const Atalhos = lazy(_c19 = () => import("/src/pages/Atalhos.jsx"));
+_c20 = Atalhos;
+const InternalChat = lazy(_c21 = () => import("/src/pages/InternalChat.jsx"));
+_c22 = InternalChat;
+const Supervisao = lazy(_c23 = () => import("/src/pages/Supervisao.jsx"));
+_c24 = Supervisao;
+const CrmLayout = lazy(_c25 = () => import("/src/crm/CrmLayout.jsx"));
+_c26 = CrmLayout;
+const CrmDashboard = lazy(_c27 = () => import("/src/crm/pages/CrmDashboard.tsx"));
+_c28 = CrmDashboard;
+const CrmKanban = lazy(_c29 = () => import("/src/crm/pages/CrmKanban.tsx"));
+_c30 = CrmKanban;
+const CrmAgenda = lazy(_c31 = () => import("/src/crm/pages/CrmAgenda.tsx"));
+_c32 = CrmAgenda;
+const CrmLeads = lazy(_c33 = () => import("/src/crm/pages/CrmLeads.tsx"));
+_c34 = CrmLeads;
+const CrmLeadDetail = lazy(_c35 = () => import("/src/crm/pages/CrmLeadDetail.tsx"));
+_c36 = CrmLeadDetail;
+const CrmPipelines = lazy(_c37 = () => import("/src/crm/pages/CrmPipelines.tsx"));
+_c38 = CrmPipelines;
+const CrmStages = lazy(_c39 = () => import("/src/crm/pages/CrmStages.tsx"));
+_c40 = CrmStages;
+const CrmOrigens = lazy(_c41 = () => import("/src/crm/pages/CrmOrigens.tsx"));
+_c42 = CrmOrigens;
+function RoutePageFallback() {
+  return /* @__PURE__ */ jsxDEV(
+    "div",
+    {
+      style: {
+        flex: 1,
+        minHeight: 120,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        color: "var(--ds-text-muted, var(--wa-text-muted, #64748b))",
+        fontSize: 14
+      },
+      "aria-busy": "true",
+      "aria-live": "polite",
+      children: "Carregando…"
+    },
+    void 0,
+    false,
+    {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 58,
+      columnNumber: 5
+    },
+    this
+  );
+}
+_c43 = RoutePageFallback;
+function LazyPage({ children }) {
+  return /* @__PURE__ */ jsxDEV(Suspense, { fallback: /* @__PURE__ */ jsxDEV(RoutePageFallback, {}, void 0, false, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+    lineNumber: 78,
+    columnNumber: 30
+  }, this), children }, void 0, false, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+    lineNumber: 78,
+    columnNumber: 10
+  }, this);
+}
+_c44 = LazyPage;
+export default function AppRoutes() {
+  _s();
+  const { token, user } = useAuthStore();
+  const canAccessConfig = can("config_acessar", user);
+  const canAccessRespostasSalvas = canGerenciarRespostasSalvas(user);
+  const canAccessDashboard_ = can("dashboard_acessar", user);
+  const canAccessChatbot_ = can("chatbot_acessar", user);
+  const canAccessUsers = can("usuarios_acessar", user);
+  const canAccessSupervisao = isSupervisorOrAdmin(user);
+  if (!token) {
+    return /* @__PURE__ */ jsxDEV(BrowserRouter, { children: /* @__PURE__ */ jsxDEV(Routes, { children: /* @__PURE__ */ jsxDEV(Route, { path: "*", element: /* @__PURE__ */ jsxDEV(Login, {}, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 94,
+      columnNumber: 36
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 94,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 93,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 92,
+      columnNumber: 7
+    }, this);
+  }
+  return /* @__PURE__ */ jsxDEV(BrowserRouter, { children: /* @__PURE__ */ jsxDEV(Routes, { children: [
+    /* @__PURE__ */ jsxDEV(Route, { element: /* @__PURE__ */ jsxDEV(MainLayout, {}, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 103,
+      columnNumber: 25
+    }, this), children: [
+      /* @__PURE__ */ jsxDEV(Route, { path: "/", element: /* @__PURE__ */ jsxDEV(Navigate, { to: "/atendimento", replace: true }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 104,
+        columnNumber: 36
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 104,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/dashboard",
+          element: /* @__PURE__ */ jsxDEV(ProtectedRoute, { canAccess: canAccessDashboard_, redirectTo: "/atendimento", children: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(Dashboard, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 110,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 109,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 108,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 105,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/dashboard/ia",
+          element: /* @__PURE__ */ jsxDEV(ProtectedRoute, { canAccess: canAccessDashboard_, redirectTo: "/atendimento", children: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(DashboardIA, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 120,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 119,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 118,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 115,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(Route, { path: "/atendimento", element: /* @__PURE__ */ jsxDEV(Atendimento, {}, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 125,
+        columnNumber: 47
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 125,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/chat-interno",
+          element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(InternalChat, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 130,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 129,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 126,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/supervisao",
+          element: /* @__PURE__ */ jsxDEV(ProtectedRoute, { canAccess: canAccessSupervisao, redirectTo: "/atendimento", children: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(Supervisao, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 139,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 138,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 137,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 134,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/atendimento/novo-contato",
+          element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(NovoContato, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 148,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 147,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 144,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/atendimento/novo-grupo",
+          element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(NovoGrupo, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 156,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 155,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 152,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/atendimento/nova-comunidade",
+          element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(NovaComunidade, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 164,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 163,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 160,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/chatbot",
+          element: canAccessChatbot_ ? /* @__PURE__ */ jsxDEV(Navigate, { to: "/ia", replace: true }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 172,
+            columnNumber: 13
+          }, this) : /* @__PURE__ */ jsxDEV(Navigate, { to: "/atendimento", replace: true }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 174,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 168,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/configuracoes",
+          element: /* @__PURE__ */ jsxDEV(ProtectedRoute, { canAccess: canAccessConfig || canAccessRespostasSalvas, redirectTo: "/atendimento", children: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(Configuracoes, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 183,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 182,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 181,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 178,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/configuracoes/whatsapp",
+          element: /* @__PURE__ */ jsxDEV(ProtectedRoute, { canAccess: canAccessConfig, redirectTo: "/atendimento", children: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(ConnectWhatsApp, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 193,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 192,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 191,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 188,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/configuracoes/chatbot",
+          element: canAccessChatbot_ ? /* @__PURE__ */ jsxDEV(Navigate, { to: "/ia?tab=chatbot", replace: true }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 202,
+            columnNumber: 13
+          }, this) : /* @__PURE__ */ jsxDEV(Navigate, { to: "/atendimento", replace: true }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 204,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 198,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/ia",
+          element: /* @__PURE__ */ jsxDEV(ProtectedRoute, { canAccess: canAccessChatbot_, redirectTo: "/atendimento", children: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(IA, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 213,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 212,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 211,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 208,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/usuarios",
+          element: canAccessUsers ? /* @__PURE__ */ jsxDEV(Navigate, { to: "/configuracoes?tab=usuarios", replace: true }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 222,
+            columnNumber: 13
+          }, this) : /* @__PURE__ */ jsxDEV(Navigate, { to: "/atendimento", replace: true }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 224,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 218,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/permissoes",
+          element: canAccessUsers ? /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(Permissoes, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 233,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 232,
+            columnNumber: 13
+          }, this) : /* @__PURE__ */ jsxDEV(Navigate, { to: "/atendimento", replace: true }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 236,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 228,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(Route, { path: "/campanhas", element: /* @__PURE__ */ jsxDEV(Navigate, { to: "/atendimento", replace: true }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 240,
+        columnNumber: 45
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 240,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/mensagens",
+          element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(Mensagens, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 245,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 244,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 241,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/atalhos",
+          element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(Atalhos, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 253,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 252,
+            columnNumber: 13
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 249,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        Route,
+        {
+          path: "/crm",
+          element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmLayout, {}, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 262,
+            columnNumber: 17
+          }, this) }, void 0, false, {
+            fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+            lineNumber: 261,
+            columnNumber: 13
+          }, this),
+          children: [
+            /* @__PURE__ */ jsxDEV(Route, { index: true, element: /* @__PURE__ */ jsxDEV(Navigate, { to: "dashboard", replace: true }, void 0, false, {
+              fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+              lineNumber: 266,
+              columnNumber: 35
+            }, this) }, void 0, false, {
+              fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+              lineNumber: 266,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "dashboard",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmDashboard, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 271,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 270,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 267,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "kanban",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmKanban, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 279,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 278,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 275,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "agenda",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmAgenda, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 287,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 286,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 283,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "leads",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmLeads, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 295,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 294,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 291,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "leads/:id",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmLeadDetail, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 303,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 302,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 299,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "pipelines",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmPipelines, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 311,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 310,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 307,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "stages",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmStages, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 319,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 318,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 315,
+                columnNumber: 13
+              },
+              this
+            ),
+            /* @__PURE__ */ jsxDEV(
+              Route,
+              {
+                path: "origens",
+                element: /* @__PURE__ */ jsxDEV(LazyPage, { children: /* @__PURE__ */ jsxDEV(CrmOrigens, {}, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 327,
+                  columnNumber: 19
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                  lineNumber: 326,
+                  columnNumber: 15
+                }, this)
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+                lineNumber: 323,
+                columnNumber: 13
+              },
+              this
+            )
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+          lineNumber: 258,
+          columnNumber: 11
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(Route, { path: "*", element: /* @__PURE__ */ jsxDEV(NotFound, {}, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 333,
+        columnNumber: 36
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+        lineNumber: 333,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 103,
+      columnNumber: 9
+    }, this),
+    /* @__PURE__ */ jsxDEV(Route, { path: "/login", element: /* @__PURE__ */ jsxDEV(Login, {}, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 336,
+      columnNumber: 39
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+      lineNumber: 336,
+      columnNumber: 9
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+    lineNumber: 102,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx",
+    lineNumber: 101,
+    columnNumber: 5
+  }, this);
+}
+_s(AppRoutes, "K4x50tiBOit+TiaKliuuHxt2pBM=", false, function() {
+  return [useAuthStore];
+});
+_c45 = AppRoutes;
+var _c, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9, _c0, _c1, _c10, _c11, _c12, _c13, _c14, _c15, _c16, _c17, _c18, _c19, _c20, _c21, _c22, _c23, _c24, _c25, _c26, _c27, _c28, _c29, _c30, _c31, _c32, _c33, _c34, _c35, _c36, _c37, _c38, _c39, _c40, _c41, _c42, _c43, _c44, _c45;
+$RefreshReg$(_c, "Dashboard$lazy");
+$RefreshReg$(_c2, "Dashboard");
+$RefreshReg$(_c3, "Configuracoes$lazy");
+$RefreshReg$(_c4, "Configuracoes");
+$RefreshReg$(_c5, "IA$lazy");
+$RefreshReg$(_c6, "IA");
+$RefreshReg$(_c7, "DashboardIA$lazy");
+$RefreshReg$(_c8, "DashboardIA");
+$RefreshReg$(_c9, "NovoContato$lazy");
+$RefreshReg$(_c0, "NovoContato");
+$RefreshReg$(_c1, "NovoGrupo$lazy");
+$RefreshReg$(_c10, "NovoGrupo");
+$RefreshReg$(_c11, "NovaComunidade$lazy");
+$RefreshReg$(_c12, "NovaComunidade");
+$RefreshReg$(_c13, "ConnectWhatsApp$lazy");
+$RefreshReg$(_c14, "ConnectWhatsApp");
+$RefreshReg$(_c15, "Permissoes$lazy");
+$RefreshReg$(_c16, "Permissoes");
+$RefreshReg$(_c17, "Mensagens$lazy");
+$RefreshReg$(_c18, "Mensagens");
+$RefreshReg$(_c19, "Atalhos$lazy");
+$RefreshReg$(_c20, "Atalhos");
+$RefreshReg$(_c21, "InternalChat$lazy");
+$RefreshReg$(_c22, "InternalChat");
+$RefreshReg$(_c23, "Supervisao$lazy");
+$RefreshReg$(_c24, "Supervisao");
+$RefreshReg$(_c25, "CrmLayout$lazy");
+$RefreshReg$(_c26, "CrmLayout");
+$RefreshReg$(_c27, "CrmDashboard$lazy");
+$RefreshReg$(_c28, "CrmDashboard");
+$RefreshReg$(_c29, "CrmKanban$lazy");
+$RefreshReg$(_c30, "CrmKanban");
+$RefreshReg$(_c31, "CrmAgenda$lazy");
+$RefreshReg$(_c32, "CrmAgenda");
+$RefreshReg$(_c33, "CrmLeads$lazy");
+$RefreshReg$(_c34, "CrmLeads");
+$RefreshReg$(_c35, "CrmLeadDetail$lazy");
+$RefreshReg$(_c36, "CrmLeadDetail");
+$RefreshReg$(_c37, "CrmPipelines$lazy");
+$RefreshReg$(_c38, "CrmPipelines");
+$RefreshReg$(_c39, "CrmStages$lazy");
+$RefreshReg$(_c40, "CrmStages");
+$RefreshReg$(_c41, "CrmOrigens$lazy");
+$RefreshReg$(_c42, "CrmOrigens");
+$RefreshReg$(_c43, "RoutePageFallback");
+$RefreshReg$(_c44, "LazyPage");
+$RefreshReg$(_c45, "AppRoutes");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/routes/AppRoutes.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUFBQSxhQUFBQyxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFDLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUMsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBQyxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFDLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUMsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBQyxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFDLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUMsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBQyxNQUFBO0FBQUEsYUFBQVUsTUFBQTtBQUFBLGFBQUFHLE1BQUE7QUFBQSxhQUFBVyxNQUFBIiwibmFtZXMiOlsibGF6eSIsIlN1c3BlbnNlIiwiQnJvd3NlclJvdXRlciIsIlJvdXRlcyIsIlJvdXRlIiwiTmF2aWdhdGUiLCJ1c2VBdXRoU3RvcmUiLCJjYW4iLCJjYW5HZXJlbmNpYXJSZXNwb3N0YXNTYWx2YXMiLCJpc1N1cGVydmlzb3JPckFkbWluIiwiUHJvdGVjdGVkUm91dGUiLCJMb2dpbiIsIk1haW5MYXlvdXQiLCJOb3RGb3VuZCIsIkF0ZW5kaW1lbnRvIiwiRGFzaGJvYXJkIiwiX2MiLCJfYzIiLCJDb25maWd1cmFjb2VzIiwiX2MzIiwiX2M0IiwiSUEiLCJfYzUiLCJfYzYiLCJEYXNoYm9hcmRJQSIsIl9jNyIsIl9jOCIsIk5vdm9Db250YXRvIiwiX2M5IiwiX2MwIiwiTm92b0dydXBvIiwiX2MxIiwiX2MxMCIsIk5vdmFDb211bmlkYWRlIiwiX2MxMSIsIl9jMTIiLCJDb25uZWN0V2hhdHNBcHAiLCJfYzEzIiwiX2MxNCIsIlBlcm1pc3NvZXMiLCJfYzE1IiwiX2MxNiIsIk1lbnNhZ2VucyIsIl9jMTciLCJfYzE4IiwiQXRhbGhvcyIsIl9jMTkiLCJfYzIwIiwiSW50ZXJuYWxDaGF0IiwiX2MyMSIsIl9jMjIiLCJTdXBlcnZpc2FvIiwiX2MyMyIsIl9jMjQiLCJDcm1MYXlvdXQiLCJfYzI1IiwiX2MyNiIsIkNybURhc2hib2FyZCIsIl9jMjciLCJfYzI4IiwiQ3JtS2FuYmFuIiwiX2MyOSIsIl9jMzAiLCJDcm1BZ2VuZGEiLCJfYzMxIiwiX2MzMiIsIkNybUxlYWRzIiwiX2MzMyIsIl9jMzQiLCJDcm1MZWFkRGV0YWlsIiwiX2MzNSIsIl9jMzYiLCJDcm1QaXBlbGluZXMiLCJfYzM3IiwiX2MzOCIsIkNybVN0YWdlcyIsIl9jMzkiLCJfYzQwIiwiQ3JtT3JpZ2VucyIsIl9jNDEiLCJfYzQyIiwiUm91dGVQYWdlRmFsbGJhY2siLCJmbGV4IiwibWluSGVpZ2h0IiwiZGlzcGxheSIsImFsaWduSXRlbXMiLCJqdXN0aWZ5Q29udGVudCIsInBhZGRpbmciLCJjb2xvciIsImZvbnRTaXplIiwiX2M0MyIsIkxhenlQYWdlIiwiY2hpbGRyZW4iLCJfYzQ0IiwiQXBwUm91dGVzIiwiX3MiLCJ0b2tlbiIsInVzZXIiLCJjYW5BY2Nlc3NDb25maWciLCJjYW5BY2Nlc3NSZXNwb3N0YXNTYWx2YXMiLCJjYW5BY2Nlc3NEYXNoYm9hcmRfIiwiY2FuQWNjZXNzQ2hhdGJvdF8iLCJjYW5BY2Nlc3NVc2VycyIsImNhbkFjY2Vzc1N1cGVydmlzYW8iLCJfYzQ1Il0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIkFwcFJvdXRlcy5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgbGF6eSwgU3VzcGVuc2UgfSBmcm9tIFwicmVhY3RcIjtcbmltcG9ydCB7IEJyb3dzZXJSb3V0ZXIsIFJvdXRlcywgUm91dGUsIE5hdmlnYXRlIH0gZnJvbSBcInJlYWN0LXJvdXRlci1kb21cIjtcbmltcG9ydCB7IHVzZUF1dGhTdG9yZSB9IGZyb20gXCIuLi9hdXRoL2F1dGhTdG9yZVwiO1xuaW1wb3J0IHsgY2FuLCBjYW5HZXJlbmNpYXJSZXNwb3N0YXNTYWx2YXMsIGlzU3VwZXJ2aXNvck9yQWRtaW4gfSBmcm9tIFwiLi4vYXV0aC9wZXJtaXNzaW9uc1wiO1xuaW1wb3J0IFByb3RlY3RlZFJvdXRlIGZyb20gXCIuL1Byb3RlY3RlZFJvdXRlXCI7XG5cbmltcG9ydCBMb2dpbiBmcm9tIFwiLi4vcGFnZXMvTG9naW5cIjtcbmltcG9ydCBNYWluTGF5b3V0IGZyb20gXCIuLi9sYXlvdXRzL01haW5MYXlvdXRcIjtcbmltcG9ydCBOb3RGb3VuZCBmcm9tIFwiLi4vcGFnZXMvTm90Rm91bmRcIjtcbmltcG9ydCBBdGVuZGltZW50byBmcm9tIFwiLi4vcGFnZXMvQXRlbmRpbWVudG9cIjtcblxuY29uc3QgRGFzaGJvYXJkID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9kYXNoYm9hcmQvRGFzaGJvYXJkXCIpKTtcbmNvbnN0IENvbmZpZ3VyYWNvZXMgPSBsYXp5KCgpID0+IGltcG9ydChcIi4uL3BhZ2VzL0NvbmZpZ3VyYWNvZXNcIikpO1xuY29uc3QgSUEgPSBsYXp5KCgpID0+IGltcG9ydChcIi4uL3BhZ2VzL0lBXCIpKTtcbmNvbnN0IERhc2hib2FyZElBID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9wYWdlcy9EYXNoYm9hcmRJQVwiKSk7XG5jb25zdCBOb3ZvQ29udGF0byA9IGxhenkoKCkgPT4gaW1wb3J0KFwiLi4vcGFnZXMvTm92b0NvbnRhdG9cIikpO1xuY29uc3QgTm92b0dydXBvID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9wYWdlcy9Ob3ZvR3J1cG9cIikpO1xuY29uc3QgTm92YUNvbXVuaWRhZGUgPSBsYXp5KCgpID0+IGltcG9ydChcIi4uL3BhZ2VzL05vdmFDb211bmlkYWRlXCIpKTtcbmNvbnN0IENvbm5lY3RXaGF0c0FwcCA9IGxhenkoKCkgPT4gaW1wb3J0KFwiLi4vcGFnZXMvQ29ubmVjdFdoYXRzQXBwXCIpKTtcbmNvbnN0IFBlcm1pc3NvZXMgPSBsYXp5KCgpID0+IGltcG9ydChcIi4uL3BhZ2VzL1Blcm1pc3NvZXNcIikpO1xuY29uc3QgTWVuc2FnZW5zID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9wYWdlcy9NZW5zYWdlbnNcIikpO1xuY29uc3QgQXRhbGhvcyA9IGxhenkoKCkgPT4gaW1wb3J0KFwiLi4vcGFnZXMvQXRhbGhvc1wiKSk7XG5jb25zdCBJbnRlcm5hbENoYXQgPSBsYXp5KCgpID0+IGltcG9ydChcIi4uL3BhZ2VzL0ludGVybmFsQ2hhdFwiKSk7XG5jb25zdCBTdXBlcnZpc2FvID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9wYWdlcy9TdXBlcnZpc2FvXCIpKTtcblxuY29uc3QgQ3JtTGF5b3V0ID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9jcm0vQ3JtTGF5b3V0XCIpKTtcbmNvbnN0IENybURhc2hib2FyZCA9IGxhenkoKCkgPT4gaW1wb3J0KFwiLi4vY3JtL3BhZ2VzL0NybURhc2hib2FyZFwiKSk7XG5jb25zdCBDcm1LYW5iYW4gPSBsYXp5KCgpID0+IGltcG9ydChcIi4uL2NybS9wYWdlcy9Dcm1LYW5iYW5cIikpO1xuY29uc3QgQ3JtQWdlbmRhID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9jcm0vcGFnZXMvQ3JtQWdlbmRhXCIpKTtcbmNvbnN0IENybUxlYWRzID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9jcm0vcGFnZXMvQ3JtTGVhZHNcIikpO1xuY29uc3QgQ3JtTGVhZERldGFpbCA9IGxhenkoKCkgPT4gaW1wb3J0KFwiLi4vY3JtL3BhZ2VzL0NybUxlYWREZXRhaWxcIikpO1xuY29uc3QgQ3JtUGlwZWxpbmVzID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9jcm0vcGFnZXMvQ3JtUGlwZWxpbmVzXCIpKTtcbmNvbnN0IENybVN0YWdlcyA9IGxhenkoKCkgPT4gaW1wb3J0KFwiLi4vY3JtL3BhZ2VzL0NybVN0YWdlc1wiKSk7XG5jb25zdCBDcm1PcmlnZW5zID0gbGF6eSgoKSA9PiBpbXBvcnQoXCIuLi9jcm0vcGFnZXMvQ3JtT3JpZ2Vuc1wiKSk7XG5cbi8qKiBGYWxsYmFjayBsZXZlIHBhcmEgcm90YXMgbGF6eSAoc2VtIGFsdGVyYXIgbGF5b3V0IGRvIE1haW5MYXlvdXQpLiAqL1xuZnVuY3Rpb24gUm91dGVQYWdlRmFsbGJhY2soKSB7XG4gIHJldHVybiAoXG4gICAgPGRpdlxuICAgICAgc3R5bGU9e3tcbiAgICAgICAgZmxleDogMSxcbiAgICAgICAgbWluSGVpZ2h0OiAxMjAsXG4gICAgICAgIGRpc3BsYXk6IFwiZmxleFwiLFxuICAgICAgICBhbGlnbkl0ZW1zOiBcImNlbnRlclwiLFxuICAgICAgICBqdXN0aWZ5Q29udGVudDogXCJjZW50ZXJcIixcbiAgICAgICAgcGFkZGluZzogMjQsXG4gICAgICAgIGNvbG9yOiBcInZhcigtLWRzLXRleHQtbXV0ZWQsIHZhcigtLXdhLXRleHQtbXV0ZWQsICM2NDc0OGIpKVwiLFxuICAgICAgICBmb250U2l6ZTogMTQsXG4gICAgICB9fVxuICAgICAgYXJpYS1idXN5PVwidHJ1ZVwiXG4gICAgICBhcmlhLWxpdmU9XCJwb2xpdGVcIlxuICAgID5cbiAgICAgIENhcnJlZ2FuZG/igKZcbiAgICA8L2Rpdj5cbiAgKTtcbn1cblxuZnVuY3Rpb24gTGF6eVBhZ2UoeyBjaGlsZHJlbiB9KSB7XG4gIHJldHVybiA8U3VzcGVuc2UgZmFsbGJhY2s9ezxSb3V0ZVBhZ2VGYWxsYmFjayAvPn0+e2NoaWxkcmVufTwvU3VzcGVuc2U+O1xufVxuXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBBcHBSb3V0ZXMoKSB7XG4gIGNvbnN0IHsgdG9rZW4sIHVzZXIgfSA9IHVzZUF1dGhTdG9yZSgpO1xuICBjb25zdCBjYW5BY2Nlc3NDb25maWcgPSBjYW4oXCJjb25maWdfYWNlc3NhclwiLCB1c2VyKTtcbiAgY29uc3QgY2FuQWNjZXNzUmVzcG9zdGFzU2FsdmFzID0gY2FuR2VyZW5jaWFyUmVzcG9zdGFzU2FsdmFzKHVzZXIpO1xuICBjb25zdCBjYW5BY2Nlc3NEYXNoYm9hcmRfID0gY2FuKFwiZGFzaGJvYXJkX2FjZXNzYXJcIiwgdXNlcik7XG4gIGNvbnN0IGNhbkFjY2Vzc0NoYXRib3RfID0gY2FuKFwiY2hhdGJvdF9hY2Vzc2FyXCIsIHVzZXIpO1xuICBjb25zdCBjYW5BY2Nlc3NVc2VycyA9IGNhbihcInVzdWFyaW9zX2FjZXNzYXJcIiwgdXNlcik7XG4gIGNvbnN0IGNhbkFjY2Vzc1N1cGVydmlzYW8gPSBpc1N1cGVydmlzb3JPckFkbWluKHVzZXIpO1xuXG4gIGlmICghdG9rZW4pIHtcbiAgICByZXR1cm4gKFxuICAgICAgPEJyb3dzZXJSb3V0ZXI+XG4gICAgICAgIDxSb3V0ZXM+XG4gICAgICAgICAgPFJvdXRlIHBhdGg9XCIqXCIgZWxlbWVudD17PExvZ2luIC8+fSAvPlxuICAgICAgICA8L1JvdXRlcz5cbiAgICAgIDwvQnJvd3NlclJvdXRlcj5cbiAgICApO1xuICB9XG5cbiAgcmV0dXJuIChcbiAgICA8QnJvd3NlclJvdXRlcj5cbiAgICAgIDxSb3V0ZXM+XG4gICAgICAgIDxSb3V0ZSBlbGVtZW50PXs8TWFpbkxheW91dCAvPn0+XG4gICAgICAgICAgPFJvdXRlIHBhdGg9XCIvXCIgZWxlbWVudD17PE5hdmlnYXRlIHRvPVwiL2F0ZW5kaW1lbnRvXCIgcmVwbGFjZSAvPn0gLz5cbiAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgIHBhdGg9XCIvZGFzaGJvYXJkXCJcbiAgICAgICAgICAgIGVsZW1lbnQ9e1xuICAgICAgICAgICAgICA8UHJvdGVjdGVkUm91dGUgY2FuQWNjZXNzPXtjYW5BY2Nlc3NEYXNoYm9hcmRffSByZWRpcmVjdFRvPVwiL2F0ZW5kaW1lbnRvXCI+XG4gICAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgICAgPERhc2hib2FyZCAvPlxuICAgICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICAgIDwvUHJvdGVjdGVkUm91dGU+XG4gICAgICAgICAgICB9XG4gICAgICAgICAgLz5cbiAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgIHBhdGg9XCIvZGFzaGJvYXJkL2lhXCJcbiAgICAgICAgICAgIGVsZW1lbnQ9e1xuICAgICAgICAgICAgICA8UHJvdGVjdGVkUm91dGUgY2FuQWNjZXNzPXtjYW5BY2Nlc3NEYXNoYm9hcmRffSByZWRpcmVjdFRvPVwiL2F0ZW5kaW1lbnRvXCI+XG4gICAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgICAgPERhc2hib2FyZElBIC8+XG4gICAgICAgICAgICAgICAgPC9MYXp5UGFnZT5cbiAgICAgICAgICAgICAgPC9Qcm90ZWN0ZWRSb3V0ZT5cbiAgICAgICAgICAgIH1cbiAgICAgICAgICAvPlxuICAgICAgICAgIDxSb3V0ZSBwYXRoPVwiL2F0ZW5kaW1lbnRvXCIgZWxlbWVudD17PEF0ZW5kaW1lbnRvIC8+fSAvPlxuICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgcGF0aD1cIi9jaGF0LWludGVybm9cIlxuICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICA8SW50ZXJuYWxDaGF0IC8+XG4gICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICB9XG4gICAgICAgICAgLz5cbiAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgIHBhdGg9XCIvc3VwZXJ2aXNhb1wiXG4gICAgICAgICAgICBlbGVtZW50PXtcbiAgICAgICAgICAgICAgPFByb3RlY3RlZFJvdXRlIGNhbkFjY2Vzcz17Y2FuQWNjZXNzU3VwZXJ2aXNhb30gcmVkaXJlY3RUbz1cIi9hdGVuZGltZW50b1wiPlxuICAgICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICAgIDxTdXBlcnZpc2FvIC8+XG4gICAgICAgICAgICAgICAgPC9MYXp5UGFnZT5cbiAgICAgICAgICAgICAgPC9Qcm90ZWN0ZWRSb3V0ZT5cbiAgICAgICAgICAgIH1cbiAgICAgICAgICAvPlxuICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgcGF0aD1cIi9hdGVuZGltZW50by9ub3ZvLWNvbnRhdG9cIlxuICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICA8Tm92b0NvbnRhdG8gLz5cbiAgICAgICAgICAgICAgPC9MYXp5UGFnZT5cbiAgICAgICAgICAgIH1cbiAgICAgICAgICAvPlxuICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgcGF0aD1cIi9hdGVuZGltZW50by9ub3ZvLWdydXBvXCJcbiAgICAgICAgICAgIGVsZW1lbnQ9e1xuICAgICAgICAgICAgICA8TGF6eVBhZ2U+XG4gICAgICAgICAgICAgICAgPE5vdm9HcnVwbyAvPlxuICAgICAgICAgICAgICA8L0xhenlQYWdlPlxuICAgICAgICAgICAgfVxuICAgICAgICAgIC8+XG4gICAgICAgICAgPFJvdXRlXG4gICAgICAgICAgICBwYXRoPVwiL2F0ZW5kaW1lbnRvL25vdmEtY29tdW5pZGFkZVwiXG4gICAgICAgICAgICBlbGVtZW50PXtcbiAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgIDxOb3ZhQ29tdW5pZGFkZSAvPlxuICAgICAgICAgICAgICA8L0xhenlQYWdlPlxuICAgICAgICAgICAgfVxuICAgICAgICAgIC8+XG4gICAgICAgICAgPFJvdXRlXG4gICAgICAgICAgICBwYXRoPVwiL2NoYXRib3RcIlxuICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgIGNhbkFjY2Vzc0NoYXRib3RfID8gKFxuICAgICAgICAgICAgICAgIDxOYXZpZ2F0ZSB0bz1cIi9pYVwiIHJlcGxhY2UgLz5cbiAgICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgICA8TmF2aWdhdGUgdG89XCIvYXRlbmRpbWVudG9cIiByZXBsYWNlIC8+XG4gICAgICAgICAgICAgIClcbiAgICAgICAgICAgIH1cbiAgICAgICAgICAvPlxuICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgcGF0aD1cIi9jb25maWd1cmFjb2VzXCJcbiAgICAgICAgICAgIGVsZW1lbnQ9e1xuICAgICAgICAgICAgICA8UHJvdGVjdGVkUm91dGUgY2FuQWNjZXNzPXtjYW5BY2Nlc3NDb25maWcgfHwgY2FuQWNjZXNzUmVzcG9zdGFzU2FsdmFzfSByZWRpcmVjdFRvPVwiL2F0ZW5kaW1lbnRvXCI+XG4gICAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgICAgPENvbmZpZ3VyYWNvZXMgLz5cbiAgICAgICAgICAgICAgICA8L0xhenlQYWdlPlxuICAgICAgICAgICAgICA8L1Byb3RlY3RlZFJvdXRlPlxuICAgICAgICAgICAgfVxuICAgICAgICAgIC8+XG4gICAgICAgICAgPFJvdXRlXG4gICAgICAgICAgICBwYXRoPVwiL2NvbmZpZ3VyYWNvZXMvd2hhdHNhcHBcIlxuICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgIDxQcm90ZWN0ZWRSb3V0ZSBjYW5BY2Nlc3M9e2NhbkFjY2Vzc0NvbmZpZ30gcmVkaXJlY3RUbz1cIi9hdGVuZGltZW50b1wiPlxuICAgICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICAgIDxDb25uZWN0V2hhdHNBcHAgLz5cbiAgICAgICAgICAgICAgICA8L0xhenlQYWdlPlxuICAgICAgICAgICAgICA8L1Byb3RlY3RlZFJvdXRlPlxuICAgICAgICAgICAgfVxuICAgICAgICAgIC8+XG4gICAgICAgICAgPFJvdXRlXG4gICAgICAgICAgICBwYXRoPVwiL2NvbmZpZ3VyYWNvZXMvY2hhdGJvdFwiXG4gICAgICAgICAgICBlbGVtZW50PXtcbiAgICAgICAgICAgICAgY2FuQWNjZXNzQ2hhdGJvdF8gPyAoXG4gICAgICAgICAgICAgICAgPE5hdmlnYXRlIHRvPVwiL2lhP3RhYj1jaGF0Ym90XCIgcmVwbGFjZSAvPlxuICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgIDxOYXZpZ2F0ZSB0bz1cIi9hdGVuZGltZW50b1wiIHJlcGxhY2UgLz5cbiAgICAgICAgICAgICAgKVxuICAgICAgICAgICAgfVxuICAgICAgICAgIC8+XG4gICAgICAgICAgPFJvdXRlXG4gICAgICAgICAgICBwYXRoPVwiL2lhXCJcbiAgICAgICAgICAgIGVsZW1lbnQ9e1xuICAgICAgICAgICAgICA8UHJvdGVjdGVkUm91dGUgY2FuQWNjZXNzPXtjYW5BY2Nlc3NDaGF0Ym90X30gcmVkaXJlY3RUbz1cIi9hdGVuZGltZW50b1wiPlxuICAgICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICAgIDxJQSAvPlxuICAgICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICAgIDwvUHJvdGVjdGVkUm91dGU+XG4gICAgICAgICAgICB9XG4gICAgICAgICAgLz5cbiAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgIHBhdGg9XCIvdXN1YXJpb3NcIlxuICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgIGNhbkFjY2Vzc1VzZXJzID8gKFxuICAgICAgICAgICAgICAgIDxOYXZpZ2F0ZSB0bz1cIi9jb25maWd1cmFjb2VzP3RhYj11c3Vhcmlvc1wiIHJlcGxhY2UgLz5cbiAgICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgICA8TmF2aWdhdGUgdG89XCIvYXRlbmRpbWVudG9cIiByZXBsYWNlIC8+XG4gICAgICAgICAgICAgIClcbiAgICAgICAgICAgIH1cbiAgICAgICAgICAvPlxuICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgcGF0aD1cIi9wZXJtaXNzb2VzXCJcbiAgICAgICAgICAgIGVsZW1lbnQ9e1xuICAgICAgICAgICAgICBjYW5BY2Nlc3NVc2VycyA/IChcbiAgICAgICAgICAgICAgICA8TGF6eVBhZ2U+XG4gICAgICAgICAgICAgICAgICA8UGVybWlzc29lcyAvPlxuICAgICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgICAgPE5hdmlnYXRlIHRvPVwiL2F0ZW5kaW1lbnRvXCIgcmVwbGFjZSAvPlxuICAgICAgICAgICAgICApXG4gICAgICAgICAgICB9XG4gICAgICAgICAgLz5cbiAgICAgICAgICA8Um91dGUgcGF0aD1cIi9jYW1wYW5oYXNcIiBlbGVtZW50PXs8TmF2aWdhdGUgdG89XCIvYXRlbmRpbWVudG9cIiByZXBsYWNlIC8+fSAvPlxuICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgcGF0aD1cIi9tZW5zYWdlbnNcIlxuICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICA8TWVuc2FnZW5zIC8+XG4gICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICB9XG4gICAgICAgICAgLz5cbiAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgIHBhdGg9XCIvYXRhbGhvc1wiXG4gICAgICAgICAgICBlbGVtZW50PXtcbiAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgIDxBdGFsaG9zIC8+XG4gICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICB9XG4gICAgICAgICAgLz5cblxuICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgcGF0aD1cIi9jcm1cIlxuICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICA8Q3JtTGF5b3V0IC8+XG4gICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICB9XG4gICAgICAgICAgPlxuICAgICAgICAgICAgPFJvdXRlIGluZGV4IGVsZW1lbnQ9ezxOYXZpZ2F0ZSB0bz1cImRhc2hib2FyZFwiIHJlcGxhY2UgLz59IC8+XG4gICAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgICAgcGF0aD1cImRhc2hib2FyZFwiXG4gICAgICAgICAgICAgIGVsZW1lbnQ9e1xuICAgICAgICAgICAgICAgIDxMYXp5UGFnZT5cbiAgICAgICAgICAgICAgICAgIDxDcm1EYXNoYm9hcmQgLz5cbiAgICAgICAgICAgICAgICA8L0xhenlQYWdlPlxuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgICAgPFJvdXRlXG4gICAgICAgICAgICAgIHBhdGg9XCJrYW5iYW5cIlxuICAgICAgICAgICAgICBlbGVtZW50PXtcbiAgICAgICAgICAgICAgICA8TGF6eVBhZ2U+XG4gICAgICAgICAgICAgICAgICA8Q3JtS2FuYmFuIC8+XG4gICAgICAgICAgICAgICAgPC9MYXp5UGFnZT5cbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgICBwYXRoPVwiYWdlbmRhXCJcbiAgICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgICAgPENybUFnZW5kYSAvPlxuICAgICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICAgIH1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgICAgcGF0aD1cImxlYWRzXCJcbiAgICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgICAgPENybUxlYWRzIC8+XG4gICAgICAgICAgICAgICAgPC9MYXp5UGFnZT5cbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgICBwYXRoPVwibGVhZHMvOmlkXCJcbiAgICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgICAgPENybUxlYWREZXRhaWwgLz5cbiAgICAgICAgICAgICAgICA8L0xhenlQYWdlPlxuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgICAgPFJvdXRlXG4gICAgICAgICAgICAgIHBhdGg9XCJwaXBlbGluZXNcIlxuICAgICAgICAgICAgICBlbGVtZW50PXtcbiAgICAgICAgICAgICAgICA8TGF6eVBhZ2U+XG4gICAgICAgICAgICAgICAgICA8Q3JtUGlwZWxpbmVzIC8+XG4gICAgICAgICAgICAgICAgPC9MYXp5UGFnZT5cbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICAgIDxSb3V0ZVxuICAgICAgICAgICAgICBwYXRoPVwic3RhZ2VzXCJcbiAgICAgICAgICAgICAgZWxlbWVudD17XG4gICAgICAgICAgICAgICAgPExhenlQYWdlPlxuICAgICAgICAgICAgICAgICAgPENybVN0YWdlcyAvPlxuICAgICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICAgIH1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgICA8Um91dGVcbiAgICAgICAgICAgICAgcGF0aD1cIm9yaWdlbnNcIlxuICAgICAgICAgICAgICBlbGVtZW50PXtcbiAgICAgICAgICAgICAgICA8TGF6eVBhZ2U+XG4gICAgICAgICAgICAgICAgICA8Q3JtT3JpZ2VucyAvPlxuICAgICAgICAgICAgICAgIDwvTGF6eVBhZ2U+XG4gICAgICAgICAgICAgIH1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9Sb3V0ZT5cblxuICAgICAgICAgIDxSb3V0ZSBwYXRoPVwiKlwiIGVsZW1lbnQ9ezxOb3RGb3VuZCAvPn0gLz5cbiAgICAgICAgPC9Sb3V0ZT5cblxuICAgICAgICA8Um91dGUgcGF0aD1cIi9sb2dpblwiIGVsZW1lbnQ9ezxMb2dpbiAvPn0gLz5cbiAgICAgIDwvUm91dGVzPlxuICAgIDwvQnJvd3NlclJvdXRlcj5cbiAgKTtcbn1cbiJdLCJmaWxlIjoiQzovVXNlcnMvTWlndWVsL0RvY3VtZW50cy93aGF0c2FwcC1wbGF0YWZvcm1hL2Zyb250ZW5kL3NyYy9yb3V0ZXMvQXBwUm91dGVzLmpzeCJ9

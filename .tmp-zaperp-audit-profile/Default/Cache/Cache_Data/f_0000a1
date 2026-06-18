@@ -1,0 +1,303 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/conversa/conversaComposerIcons.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=5bfdcc68"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+export function IconSend(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.5", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "m22 2-7 20-4-9-9-4L22 2z" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 25,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M22 2 11 13" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 26,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 24,
+    columnNumber: 5
+  }, this);
+}
+_c = IconSend;
+export function IconMic(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.5", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 34,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M19 11a7 7 0 0 1-14 0" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 35,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 18v3" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 36,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 21h8" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 37,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 33,
+    columnNumber: 5
+  }, this);
+}
+_c2 = IconMic;
+export function IconEmoji(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.5", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 45,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8.5 14.5s1.5 2 3.5 2 3.5-2 3.5-2" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 46,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9 10h.01" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 47,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M15 10h.01" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 48,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 44,
+    columnNumber: 5
+  }, this);
+}
+_c3 = IconEmoji;
+export function IconCamera(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.5", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2Z" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 56,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "13", r: "4" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 57,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 55,
+    columnNumber: 5
+  }, this);
+}
+_c4 = IconCamera;
+export function IconClose(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "18", height: "18", strokeWidth: "1.5", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M18 6 6 18" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 65,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "m6 6 12 12" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 66,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 64,
+    columnNumber: 5
+  }, this);
+}
+_c5 = IconClose;
+export function IconPlus(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "24", height: "24", strokeWidth: "2", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 5v14" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 74,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M5 12h14" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 75,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 73,
+    columnNumber: 5
+  }, this);
+}
+_c6 = IconPlus;
+export function IconDocument(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.6", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 83,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M14 3v5h5" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 84,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9 13h6" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 85,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9 17h6" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 86,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 82,
+    columnNumber: 5
+  }, this);
+}
+_c7 = IconDocument;
+export function IconPix(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.8", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 5 5 8l3 3 4-4" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 94,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M16 5l3 3-3 3-4-4" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 95,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 19l-3-3 3-3 4 4" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 96,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M16 19l3-3-3-3-4 4" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 97,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M10.8 10.8h2.4v2.4h-2.4z" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 98,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 93,
+    columnNumber: 5
+  }, this);
+}
+_c8 = IconPix;
+export function IconSticker(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.7", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("rect", { x: "4", y: "4", width: "16", height: "16", rx: "4" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 106,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M15 4v4a1.5 1.5 0 0 0 1.5 1.5H20" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 107,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8.5 14.5s1.2 1.5 3.5 1.5 3.5-1.5 3.5-1.5" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 108,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9 10h.01" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 109,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M15 10h.01" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 110,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 105,
+    columnNumber: 5
+  }, this);
+}
+_c9 = IconSticker;
+export function IconSavedReplies(props) {
+  return /* @__PURE__ */ jsxDEV("svg", { viewBox: "0 0 24 24", width: "20", height: "20", strokeWidth: "1.6", stroke: "currentColor", fill: "none", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", ...props, children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M4 6h16v12H4z" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 119,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 10h8" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 120,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 14h5" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 121,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 6V4h8v2" }, void 0, false, {
+      fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+      lineNumber: 122,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx",
+    lineNumber: 118,
+    columnNumber: 5
+  }, this);
+}
+_c0 = IconSavedReplies;
+var _c, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9, _c0;
+$RefreshReg$(_c, "IconSend");
+$RefreshReg$(_c2, "IconMic");
+$RefreshReg$(_c3, "IconEmoji");
+$RefreshReg$(_c4, "IconCamera");
+$RefreshReg$(_c5, "IconClose");
+$RefreshReg$(_c6, "IconPlus");
+$RefreshReg$(_c7, "IconDocument");
+$RefreshReg$(_c8, "IconPix");
+$RefreshReg$(_c9, "IconSticker");
+$RefreshReg$(_c0, "IconSavedReplies");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Miguel/Documents/whatsapp-plataforma/frontend/src/conversa/conversaComposerIcons.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUEsT0FMdEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQU1BO0FBRUo7QUFFQWlCLE1BWmdCRDtBQWFULGdCQUFTRSxpQkFBaUJsQixPQUFPO0FBQ3RDLFNBQ0UsdUJBQUMsU0FBSSxTQUFRLGFBQVksT0FBTSxNQUFLLFFBQU8sTUFBSyxhQUFZLE9BQU0sUUFBTyxnQkFBZSxNQUFLLFFBQU8sZUFBYyxTQUFRLGdCQUFlLFNBQVEsZUFBWSxRQUFPLEdBQUlBLE9BQ3RLO0FBQUEsMkJBQUMsVUFBSyxHQUFFLG1CQUFSO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FBdUI7QUFBQSxJQUN2Qix1QkFBQyxVQUFLLEdBQUUsYUFBUjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBQWlCO0FBQUEsSUFDakIsdUJBQUMsVUFBSyxHQUFFLGFBQVI7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQUFpQjtBQUFBLElBQ2pCLHVCQUFDLFVBQUssR0FBRSxnQkFBUjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBQW9CO0FBQUEsT0FKdEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQUtBO0FBRUo7QUFBQ21CLE1BVGVEO0FBQWdCLElBQUFqQixJQUFBRSxLQUFBRSxLQUFBRSxLQUFBRSxLQUFBRSxLQUFBRSxLQUFBRSxLQUFBRSxLQUFBRTtBQUFBLGFBQUFsQixJQUFBO0FBQUEsYUFBQUUsS0FBQTtBQUFBLGFBQUFFLEtBQUE7QUFBQSxhQUFBRSxLQUFBO0FBQUEsYUFBQUUsS0FBQTtBQUFBLGFBQUFFLEtBQUE7QUFBQSxhQUFBRSxLQUFBO0FBQUEsYUFBQUUsS0FBQTtBQUFBLGFBQUFFLEtBQUE7QUFBQSxhQUFBRSxLQUFBIiwibmFtZXMiOlsiSWNvblNlbmQiLCJwcm9wcyIsIl9jIiwiSWNvbk1pYyIsIl9jMiIsIkljb25FbW9qaSIsIl9jMyIsIkljb25DYW1lcmEiLCJfYzQiLCJJY29uQ2xvc2UiLCJfYzUiLCJJY29uUGx1cyIsIl9jNiIsIkljb25Eb2N1bWVudCIsIl9jNyIsIkljb25QaXgiLCJfYzgiLCJJY29uU3RpY2tlciIsIl9jOSIsIkljb25TYXZlZFJlcGxpZXMiLCJfYzAiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiY29udmVyc2FDb21wb3Nlckljb25zLmpzeCJdLCJzb3VyY2VzQ29udGVudCI6WyIvKiogw41jb25lcyBkbyBjb21wb3NlciAoZXh0cmHDrWRvcyBkbyBDb252ZXJzYVZpZXcgcGFyYSByZXVzbyBzZW0gZGVwZW5kw6puY2lhIGNpcmN1bGFyKS4gKi9cclxuXHJcbmV4cG9ydCBmdW5jdGlvbiBJY29uU2VuZChwcm9wcykge1xyXG4gIHJldHVybiAoXHJcbiAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiBzdHJva2VXaWR0aD1cIjEuNVwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIGZpbGw9XCJub25lXCIgc3Ryb2tlTGluZWNhcD1cInJvdW5kXCIgc3Ryb2tlTGluZWpvaW49XCJyb3VuZFwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIHsuLi5wcm9wc30+XHJcbiAgICAgIDxwYXRoIGQ9XCJtMjIgMi03IDIwLTQtOS05LTRMMjIgMnpcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTIyIDIgMTEgMTNcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIEljb25NaWMocHJvcHMpIHtcclxuICByZXR1cm4gKFxyXG4gICAgPHN2ZyB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgd2lkdGg9XCIyMFwiIGhlaWdodD1cIjIwXCIgc3Ryb2tlV2lkdGg9XCIxLjVcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBmaWxsPVwibm9uZVwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiB7Li4ucHJvcHN9PlxyXG4gICAgICA8cGF0aCBkPVwiTTEyIDE0YTMgMyAwIDAgMCAzLTNWNmEzIDMgMCAwIDAtNiAwdjVhMyAzIDAgMCAwIDMgM1pcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTE5IDExYTcgNyAwIDAgMS0xNCAwXCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xMiAxOHYzXCIgLz5cclxuICAgICAgPHBhdGggZD1cIk04IDIxaDhcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIEljb25FbW9qaShwcm9wcykge1xyXG4gIHJldHVybiAoXHJcbiAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiBzdHJva2VXaWR0aD1cIjEuNVwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIGZpbGw9XCJub25lXCIgc3Ryb2tlTGluZWNhcD1cInJvdW5kXCIgc3Ryb2tlTGluZWpvaW49XCJyb3VuZFwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIHsuLi5wcm9wc30+XHJcbiAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiOVwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNOC41IDE0LjVzMS41IDIgMy41IDIgMy41LTIgMy41LTJcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTkgMTBoLjAxXCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xNSAxMGguMDFcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIEljb25DYW1lcmEocHJvcHMpIHtcclxuICByZXR1cm4gKFxyXG4gICAgPHN2ZyB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgd2lkdGg9XCIyMFwiIGhlaWdodD1cIjIwXCIgc3Ryb2tlV2lkdGg9XCIxLjVcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBmaWxsPVwibm9uZVwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiB7Li4ucHJvcHN9PlxyXG4gICAgICA8cGF0aCBkPVwiTTIzIDE5YTIgMiAwIDAgMS0yIDJIM2EyIDIgMCAwIDEtMi0yVjhhMiAyIDAgMCAxIDItMmgzbDItM2g4bDIgM2gzYTIgMiAwIDAgMSAyIDJaXCIgLz5cclxuICAgICAgPGNpcmNsZSBjeD1cIjEyXCIgY3k9XCIxM1wiIHI9XCI0XCIgLz5cclxuICAgIDwvc3ZnPlxyXG4gICk7XHJcbn1cclxuXHJcbmV4cG9ydCBmdW5jdGlvbiBJY29uQ2xvc2UocHJvcHMpIHtcclxuICByZXR1cm4gKFxyXG4gICAgPHN2ZyB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgd2lkdGg9XCIxOFwiIGhlaWdodD1cIjE4XCIgc3Ryb2tlV2lkdGg9XCIxLjVcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBmaWxsPVwibm9uZVwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiB7Li4ucHJvcHN9PlxyXG4gICAgICA8cGF0aCBkPVwiTTE4IDYgNiAxOFwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJtNiA2IDEyIDEyXCIgLz5cclxuICAgIDwvc3ZnPlxyXG4gICk7XHJcbn1cclxuXHJcbmV4cG9ydCBmdW5jdGlvbiBJY29uUGx1cyhwcm9wcykge1xyXG4gIHJldHVybiAoXHJcbiAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjI0XCIgaGVpZ2h0PVwiMjRcIiBzdHJva2VXaWR0aD1cIjJcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBmaWxsPVwibm9uZVwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiB7Li4ucHJvcHN9PlxyXG4gICAgICA8cGF0aCBkPVwiTTEyIDV2MTRcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTUgMTJoMTRcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIEljb25Eb2N1bWVudChwcm9wcykge1xyXG4gIHJldHVybiAoXHJcbiAgICA8c3ZnIHZpZXdCb3g9XCIwIDAgMjQgMjRcIiB3aWR0aD1cIjIwXCIgaGVpZ2h0PVwiMjBcIiBzdHJva2VXaWR0aD1cIjEuNlwiIHN0cm9rZT1cImN1cnJlbnRDb2xvclwiIGZpbGw9XCJub25lXCIgc3Ryb2tlTGluZWNhcD1cInJvdW5kXCIgc3Ryb2tlTGluZWpvaW49XCJyb3VuZFwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIHsuLi5wcm9wc30+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTQgM0g3YTIgMiAwIDAgMC0yIDJ2MTRhMiAyIDAgMCAwIDIgMmgxMGEyIDIgMCAwIDAgMi0yVjh6XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xNCAzdjVoNVwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNOSAxM2g2XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk05IDE3aDZcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIEljb25QaXgocHJvcHMpIHtcclxuICByZXR1cm4gKFxyXG4gICAgPHN2ZyB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgd2lkdGg9XCIyMFwiIGhlaWdodD1cIjIwXCIgc3Ryb2tlV2lkdGg9XCIxLjhcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBmaWxsPVwibm9uZVwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiB7Li4ucHJvcHN9PlxyXG4gICAgICA8cGF0aCBkPVwiTTggNSA1IDhsMyAzIDQtNFwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTYgNWwzIDMtMyAzLTQtNFwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNOCAxOWwtMy0zIDMtMyA0IDRcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTE2IDE5bDMtMy0zLTMtNCA0XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xMC44IDEwLjhoMi40djIuNGgtMi40elwiIC8+XHJcbiAgICA8L3N2Zz5cclxuICApO1xyXG59XHJcblxyXG5leHBvcnQgZnVuY3Rpb24gSWNvblN0aWNrZXIocHJvcHMpIHtcclxuICByZXR1cm4gKFxyXG4gICAgPHN2ZyB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgd2lkdGg9XCIyMFwiIGhlaWdodD1cIjIwXCIgc3Ryb2tlV2lkdGg9XCIxLjdcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBmaWxsPVwibm9uZVwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiB7Li4ucHJvcHN9PlxyXG4gICAgICA8cmVjdCB4PVwiNFwiIHk9XCI0XCIgd2lkdGg9XCIxNlwiIGhlaWdodD1cIjE2XCIgcng9XCI0XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xNSA0djRhMS41IDEuNSAwIDAgMCAxLjUgMS41SDIwXCIgLz5cclxuICAgICAgPHBhdGggZD1cIk04LjUgMTQuNXMxLjIgMS41IDMuNSAxLjUgMy41LTEuNSAzLjUtMS41XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk05IDEwaC4wMVwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTUgMTBoLjAxXCIgLz5cclxuICAgIDwvc3ZnPlxyXG4gICk7XHJcbn1cclxuXHJcbi8qKiBSZXNwb3N0YXMgc2FsdmFzIChhdGFsaG8gLykgKi9cclxuZXhwb3J0IGZ1bmN0aW9uIEljb25TYXZlZFJlcGxpZXMocHJvcHMpIHtcclxuICByZXR1cm4gKFxyXG4gICAgPHN2ZyB2aWV3Qm94PVwiMCAwIDI0IDI0XCIgd2lkdGg9XCIyMFwiIGhlaWdodD1cIjIwXCIgc3Ryb2tlV2lkdGg9XCIxLjZcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBmaWxsPVwibm9uZVwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiBhcmlhLWhpZGRlbj1cInRydWVcIiB7Li4ucHJvcHN9PlxyXG4gICAgICA8cGF0aCBkPVwiTTQgNmgxNnYxMkg0elwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNOCAxMGg4XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk04IDE0aDVcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTggNlY0aDh2MlwiIC8+XHJcbiAgICA8L3N2Zz5cclxuICApO1xyXG59XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvTWlndWVsL0RvY3VtZW50cy93aGF0c2FwcC1wbGF0YWZvcm1hL2Zyb250ZW5kL3NyYy9jb252ZXJzYS9jb252ZXJzYUNvbXBvc2VySWNvbnMuanN4In0=

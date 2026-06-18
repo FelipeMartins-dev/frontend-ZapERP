@@ -24,7 +24,6 @@ import { useChatStore } from "../chats/chatsStore";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import InternalChatGlobalSocketBridge from "../internal-chat/InternalChatGlobalSocketBridge";
 import { useInternalChatNotifyStore, selectInternalChatUnreadTotal } from "../internal-chat/internalChatNotifyStore";
-import { isSidebarNavActive } from "./sidebarNavConfig";
 import "../components/layout/skip-link.css";
 
 const THEME_KEY = "theme";
@@ -260,7 +259,6 @@ function SidebarNavItem({ to, label, title, icon: Icon, unreadDot }) {
   return (
     <NavLink
       to={to}
-      isActive={(_, location) => isSidebarNavActive(to, location.pathname)}
       className={({ isActive }) => `sidebar-nav-item${isActive ? " active" : ""}`}
       title={linkTitle}
       aria-label={label}
