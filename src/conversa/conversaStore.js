@@ -1324,6 +1324,13 @@ export const useConversaStore = create((set, get) => {
       }
       get().patchConversa(optimistic)
       chatStore.updateChat(optimistic)
+      chatStore.emitChatListOptimisticMutation?.({
+        type: "reabrir_conversa",
+        id: conversaId,
+        restoreMinhaFila: true,
+        row: src ? { ...src, ...optimistic } : optimistic,
+        patch: optimistic,
+      })
       try {
         const data = await reabrirChat(conversaId)
         const payload = data?.conversa ?? data ?? {}

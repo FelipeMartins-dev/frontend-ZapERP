@@ -88,6 +88,42 @@ function countDistinctConversas(list) {
 
 const CONFIRM_LOTE_AUSENCIA = "FINALIZAR_LOTE_AUSENCIA_CLIENTE";
 const CHAT_LIST_PAGE_LIMIT = 80;
+const OPTIMISTIC_MINHA_FILA_REMOVE_TTL_MS = 12000;
+const TABS_HIDE_OPTIMISTIC_CLOSED = new Set([
+  "minha_fila",
+  "abertas",
+  "em_atendimento",
+  "aguardando_cliente",
+  "aguardando_funcionario",
+  "pagamentos_pendentes",
+  "em_atraso",
+]);
+
+function isClosedAttendancePatch(patch) {
+  const status = String(
+    patch?.status_atendimento_real ?? patch?.status_atendimento ?? ""
+  ).toLowerCase();
+  return status === "fechada" || status === "encerrada";
+}
+
+function shouldHideOptimisticClosedFromTab(tab, mutation) {
+  if (mutation?.type !== "encerrar_conversa") return false;
+  if (!isClosedAttendancePatch(mutation?.patch)) return false;
+  return TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tab || ""));
+}
+
+function getOptimisticRemovedRow(entry) {
+  return entry && typeof entry === "object" && "row" in entry ? entry.row : entry;
+}
+
+function pruneExpiredOptimisticRemoved(map) {
+  const now = Date.now();
+  for (const [id, entry] of map.entries()) {
+    if (entry?.expiresAt != null && Number(entry.expiresAt) <= now) {
+      map.delete(id);
+    }
+  }
+}
 
 function getChatSortTs(c) {
   return (
@@ -390,6 +426,14 @@ export default function ChatList() {
   const optimisticRemovedMinhaFilaRef = useRef(new Map());
   const filterRequestKeyRef = useRef("");
   minhaFilaListRef.current = minhaFilaList;
+  const filterOptimisticRemovedMinhaFila = useCallback((list) => {
+    const arr = Array.isArray(list) ? list : [];
+    const removed = optimisticRemovedMinhaFilaRef.current;
+    if (!removed?.size) return arr;
+    pruneExpiredOptimisticRemoved(removed);
+    if (!removed.size) return arr;
+    return arr.filter((c) => !removed.has(String(c?.id)));
+  }, []);
   const [minhaFilaCount, setMinhaFilaCount] = useState(0);
   /** Contador do chip “Em atendimento”: sempre GET /chats?status_atendimento=em_atendimento (escopo backend). */
   const [emAtendimentoBadgeCount, setEmAtendimentoBadgeCount] = useState(0);
@@ -467,7 +511,7 @@ export default function ChatList() {
       setChats(boot.chats);
     }
     if (boot.minhaFila != null) {
-      setMinhaFilaList((prev) => (prev == null ? boot.minhaFila : prev));
+      setMinhaFilaList((prev) => (prev == null ? filterOptimisticRemovedMinhaFila(boot.minhaFila) : prev));
     }
     if (boot.minhaFilaCount != null) {
       setMinhaFilaCount(boot.minhaFilaCount);
@@ -481,7 +525,7 @@ export default function ChatList() {
     if (boot.mensagensDisparadasCount != null) {
       setMensagensDisparadasCount(boot.mensagensDisparadasCount);
     }
-  }, [filterScopeKey, setChats]);
+  }, [filterScopeKey, setChats, filterOptimisticRemovedMinhaFila]);
 
   /** Supervisão: resumo para badge e lista de conversas pendentes do funcionário. */
   const [supervisaoResumo, setSupervisaoResumo] = useState(null);
@@ -608,7 +652,7 @@ export default function ChatList() {
       }
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
       const data = await fetchMinhaFilaChatsCompleto(params);
-      const list = Array.isArray(data) ? data : [];
+      const list = filterOptimisticRemovedMinhaFila(Array.isArray(data) ? data : []);
       const count = countDistinctConversas(list);
       setMinhaFilaCount((prev) => (prev === count ? prev : count));
       if (tabRef.current === "minha_fila") {
@@ -621,7 +665,7 @@ export default function ChatList() {
     } catch (e) {
       console.error("Erro ao carregar Minha fila:", e);
     }
-  }, [tagFilter, departamentoFilter, atendenteFilter, dataInicio, dataFim, onlyFinalizadasAusencia, tempoParadoFilter, filterScopeKey]);
+  }, [tagFilter, departamentoFilter, atendenteFilter, dataInicio, dataFim, onlyFinalizadasAusencia, tempoParadoFilter, filterScopeKey, filterOptimisticRemovedMinhaFila]);
 
   const refreshEmAtendimentoBadge = useCallback(async () => {
     try {
@@ -962,6 +1006,9 @@ export default function ChatList() {
         : await fetchChats(params, { signal: abortController.signal });
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
+      if (minhaFilaSemPaginacao || TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
+        list = filterOptimisticRemovedMinhaFila(list);
+      }
       const pageState = minhaFilaSemPaginacao
         ? { hasMore: false, nextCursor: null, nextCursorId: null, totalCount: list.length, loading: false, error: "" }
         : buildChatListPageState(data);
@@ -1144,6 +1191,9 @@ export default function ChatList() {
       const adminPorFuncionario =
         adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
       let list = Array.isArray(data) ? data : [];
+      if (TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
+        list = filterOptimisticRemovedMinhaFila(list);
+      }
       if (!adminPorFuncionario && mineOnly && user?.id && !isAppAdmin(user)) {
         list = list.filter((c) => String(c.atendente_id) === String(user.id));
       }
@@ -1186,6 +1236,7 @@ export default function ChatList() {
     emAtendimentoBadgeCount,
     aguardandoClienteBadgeCount,
     mensagensDisparadasCount,
+    filterOptimisticRemovedMinhaFila,
   ]);
 
   useEffect(() => {
@@ -1285,8 +1336,11 @@ export default function ChatList() {
     if (!mutation?.id) return;
     const id = String(mutation.id);
     const patch = mutation.patch && typeof mutation.patch === "object" ? mutation.patch : null;
+    const hideClosedFromActiveList = shouldHideOptimisticClosedFromTab(tabRef.current, mutation);
 
-    if (patch) {
+    if (hideClosedFromActiveList) {
+      setChats((prev) => (Array.isArray(prev) ? prev.filter((c) => String(c?.id) !== id) : []));
+    } else if (patch) {
       setChats((prev) =>
         (Array.isArray(prev) ? prev : []).map((c) =>
           String(c?.id) === id
@@ -1316,11 +1370,32 @@ export default function ChatList() {
 
     if (mutation.removeFromMinhaFila) {
       const current = Array.isArray(minhaFilaListRef.current) ? minhaFilaListRef.current : null;
+      const rowForRestore = mutation.row || (patch ? { id, ...patch } : null);
+      const existingRemovedEntry = optimisticRemovedMinhaFilaRef.current.get(id);
+      const removalReason =
+        existingRemovedEntry?.reason === "encerrar_conversa" ? "encerrar_conversa" : mutation.type || null;
+      const removalExpiresAt =
+        existingRemovedEntry?.reason === "encerrar_conversa" && existingRemovedEntry?.expiresAt != null
+          ? existingRemovedEntry.expiresAt
+          : Date.now() + OPTIMISTIC_MINHA_FILA_REMOVE_TTL_MS;
+      if (rowForRestore) {
+        optimisticRemovedMinhaFilaRef.current.set(id, {
+          row: rowForRestore,
+          reason: removalReason,
+          expiresAt: removalExpiresAt,
+        });
+      }
       if (current) {
         const removed = current.find((c) => String(c?.id) === id);
         const next = current.filter((c) => String(c?.id) !== id);
+        if (removed) {
+          optimisticRemovedMinhaFilaRef.current.set(id, {
+            row: removed,
+            reason: removalReason,
+            expiresAt: removalExpiresAt,
+          });
+        }
         if (removed && next.length !== current.length) {
-          optimisticRemovedMinhaFilaRef.current.set(id, removed);
           setMinhaFilaList(next);
           const nextCount = countDistinctConversas(next);
           setMinhaFilaCount((prev) => (prev === nextCount ? prev : nextCount));
@@ -1329,9 +1404,17 @@ export default function ChatList() {
     }
 
     if (mutation.restoreMinhaFila) {
+      const removedEntry = optimisticRemovedMinhaFilaRef.current.get(id);
+      const isCloseTombstone = removedEntry?.reason === "encerrar_conversa";
+      const isAllowedCloseRestore =
+        mutation.type === "encerrar_conversa_revert" || mutation.type === "reabrir_conversa";
+      if (isCloseTombstone && !isAllowedCloseRestore) {
+        return;
+      }
+      optimisticRemovedMinhaFilaRef.current.delete(id);
       const current = Array.isArray(minhaFilaListRef.current) ? minhaFilaListRef.current : [];
       if (!current.some((c) => String(c?.id) === id)) {
-        const restored = mutation.row || optimisticRemovedMinhaFilaRef.current.get(id);
+        const restored = mutation.row || getOptimisticRemovedRow(removedEntry);
         if (restored) {
           const next = [restored, ...current];
           setMinhaFilaList(next);
