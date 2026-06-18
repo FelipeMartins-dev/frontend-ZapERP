@@ -291,4 +291,26 @@ assert(
   "mensagens com mesmo timestamp devem preservar ordem local estavel mesmo com ids fora de ordem"
 );
 
-console.log("OK - regressao de mensagens sequenciais passou (10 cenarios).");
+// 11) Dois envios otimistas com texto IGUAL, em sequencia, antes de qualquer confirmacao,
+// nao podem colapsar em uma unica bolha (cada um tem tempId proprio = identidade local distinta).
+let listDupOk = [];
+listDupOk = mergeMessageIntoListForTest(listDupOk, CONV, txtTemp("dupA", "ok", 0));
+listDupOk = mergeMessageIntoListForTest(listDupOk, CONV, txtTemp("dupB", "ok", 0));
+assert(
+  listDupOk.length === 2,
+  `dois otimistas 'ok' seguidos: esperado 2, obteve ${listDupOk.length}`
+);
+assert(
+  listDupOk.some((m) => m.tempId === "dupA") && listDupOk.some((m) => m.tempId === "dupB"),
+  "ambos os tempIds otimistas devem permanecer distintos"
+);
+// As confirmacoes (eco de socket com client_temp_id, fora de ordem) devem reconciliar cada uma na bolha certa.
+listDupOk = mergeMessageIntoListForTest(listDupOk, CONV, txtConfirmed(9302, "ok", 0, "dupB"));
+listDupOk = mergeMessageIntoListForTest(listDupOk, CONV, txtConfirmed(9301, "ok", 0, "dupA"));
+const idByTemp = new Map(listDupOk.map((m) => [m.tempId, m.id]));
+assert(
+  listDupOk.length === 2 && idByTemp.get("dupA") === 9301 && idByTemp.get("dupB") === 9302,
+  "confirmacoes de textos repetidos devem reconciliar com o tempId correto, sem trocar nem duplicar"
+);
+
+console.log("OK - regressao de mensagens sequenciais passou (11 cenarios).");

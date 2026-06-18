@@ -1410,17 +1410,23 @@ function applyAnexarOneToList(list, convId, msg) {
       }
     }
 
+    // msg.tempId só existe em mensagens otimistas recém-criadas localmente (nunca em eco de
+    // socket/API). Se já chega com tempId próprio e não casou acima por client_temp_id, é um
+    // envio novo e distinto — não pode ser fundido por texto com outro otimista pendente igual
+    // (ex.: usuário manda "ok" duas vezes em sequência), senão a 2ª bolha "desaparece" da tela.
     const candidates = []
-    for (let i = 0; i < list.length; i++) {
-      const m = list[i]
-      if (!belongsToConv(m)) continue
-      if (!isPendingOutgoingTemp(m)) continue
-      if (!isTipoTextoParaReconciliarPorConteudo(m)) continue
-      const ts = toMillis(m?.criado_em)
-      if (!Number.isFinite(ts) || now - ts >= recentMs) continue
-      const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoIn
-      if (!textoMatch) continue
-      candidates.push({ i, ts, seq: Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity })
+    if (!msg.tempId) {
+      for (let i = 0; i < list.length; i++) {
+        const m = list[i]
+        if (!belongsToConv(m)) continue
+        if (!isPendingOutgoingTemp(m)) continue
+        if (!isTipoTextoParaReconciliarPorConteudo(m)) continue
+        const ts = toMillis(m?.criado_em)
+        if (!Number.isFinite(ts) || now - ts >= recentMs) continue
+        const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoIn
+        if (!textoMatch) continue
+        candidates.push({ i, ts, seq: Number.isFinite(Number(m._stableInsertSeq)) ? Number(m._stableInsertSeq) : Infinity })
+      }
     }
     let replaceIdx = -1
     if (candidates.length === 1) {
