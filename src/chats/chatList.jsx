@@ -165,6 +165,43 @@ function mergeChatRowsPreservingCurrent(current, incoming, order) {
   return sortChatRowsByOrder(Array.from(byKey.values()), order);
 }
 
+const EM_ATENDIMENTO_LIVE_STATUSES = new Set(["em_atendimento", "aguardando_cliente"]);
+
+function rowStillBelongsToEmAtendimentoLiveScope(row, { user, adminAtendenteFilterId }) {
+  if (!row || row.sem_conversa || isGroupConversation(row)) return false;
+  const status = getStatusAtendimentoEffective(row);
+  if (!EM_ATENDIMENTO_LIVE_STATUSES.has(status)) return false;
+
+  const filtroAtendenteAtivo =
+    adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
+  if (filtroAtendenteAtivo) {
+    return row.atendente_id != null && String(row.atendente_id) === String(adminAtendenteFilterId);
+  }
+
+  if (isAppAdmin(user)) return true;
+
+  return (
+    row.atendente_id != null &&
+    user?.id != null &&
+    String(row.atendente_id) === String(user.id)
+  );
+}
+
+function mergeEmAtendimentoBackgroundRows(current, incoming, order, opts) {
+  const incomingKeys = new Set(
+    (Array.isArray(incoming) ? incoming : [])
+      .map((row) => chatRowStableKey(row))
+      .filter(Boolean)
+  );
+  const preserved = (Array.isArray(current) ? current : []).filter((row) => {
+    const key = chatRowStableKey(row);
+    if (!key || incomingKeys.has(key)) return false;
+    return rowStillBelongsToEmAtendimentoLiveScope(row, opts);
+  });
+  if (!preserved.length) return incoming;
+  return mergeChatRowsPreservingCurrent(preserved, incoming, order);
+}
+
 function buildChatListPageState(data) {
   const meta = getChatsPageMeta(data);
   return {
@@ -1072,6 +1109,12 @@ export default function ChatList() {
           "pagamentos_pendentes",
           "em_atraso",
         ]);
+        if (tab === "em_atendimento" && background) {
+          return mergeEmAtendimentoBackgroundRows(arr, merged, order, {
+            user,
+            adminAtendenteFilterId,
+          });
+        }
         if (strictListTabs.has(tab)) return merged;
         if (aguardandoQuery) return merged;
         if (tempoParadoFilter) return merged;
