@@ -232,6 +232,11 @@ export async function enviarMensagem(id, texto) {
   return data;
 }
 
+export async function carregarMensagensAntigasContato(id) {
+  const { data } = await api.post(`/chats/${id}/mensagens/sync-old`);
+  return data;
+}
+
 export async function aplicarTag(id, tag_id) {
   const { data } = await api.post(`/chats/${id}/tags`, { tag_id });
   return data;
@@ -547,6 +552,7 @@ const chatService = {
   listar: fetchChats,
   detalhar: fetchChatById,
   enviarMensagem,
+  carregarMensagensAntigasContato,
   aplicarTag,
   removerTag,
   postFinalizacaoAusenciaLote,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
 import { useEmpresaStore } from "../auth/empresaStore";
@@ -19,6 +19,9 @@ import "../components/ui/switch.css";
 import "./IA.css";
 import "./Configuracoes.css";
 import PushNotificationsCard from "../push/PushNotificationsCard";
+
+/** Limite por página na lista de clientes — evita buscar/renderizar a base inteira de uma vez. */
+const CLIENTES_PAGE_LIMIT = 200;
 
 const TABS = [
   { id: "geral", label: "Geral" },
@@ -64,6 +67,8 @@ export default function Configuracoes() {
   const [respostas, setRespostas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [clientesTotal, setClientesTotal] = useState(0);
+  const [clientesLoadingMore, setClientesLoadingMore] = useState(false);
+  const clientesPageRef = useRef(1);
   const [planos, setPlanos] = useState([]);
   const [auditoria, setAuditoria] = useState([]);
   const [empresasWhatsapp, setEmpresasWhatsapp] = useState([]);
@@ -127,7 +132,7 @@ export default function Configuracoes() {
         cfg.getDepartamentos().catch(() => []),
         cfg.getTags().catch(() => []),
         cfg.getRespostasSalvas().catch(() => []),
-        cfg.getClientesComTotal().catch(() => ({ clientes: [], total: 0 })),
+        cfg.getClientesComTotal({ page: 1, limit: CLIENTES_PAGE_LIMIT }).catch(() => ({ clientes: [], total: 0 })),
         cfg.getPlanos().catch(() => []),
         cfg.getAuditoria(100).catch(() => []),
         cfg.getEmpresasWhatsapp().catch(() => []),
@@ -139,6 +144,7 @@ export default function Configuracoes() {
       setRespostas(resp);
       setClientes(cliRes?.clientes || []);
       setClientesTotal(Number(cliRes?.total) || 0);
+      clientesPageRef.current = 1;
       setPlanos(plan);
       setAuditoria(aud);
       setEmpresasWhatsapp(ew);
@@ -149,17 +155,44 @@ export default function Configuracoes() {
     }
   }, [canAccessConfig, canManageRespostas, respostasOnlyMode]);
 
-  /** Carrega clientes com filtro opcional (nome ou telefone) */
+  /**
+   * Carrega clientes com filtro opcional (nome ou telefone).
+   * Sem busca ativa: pagina (CLIENTES_PAGE_LIMIT por vez) para não buscar/renderizar a base inteira.
+   * Com busca ativa: mantém o comportamento atual (busca já estreita o resultado).
+   */
   const loadClientes = useCallback(async (params = {}) => {
+    const temBusca = String(params?.palavra || "").trim() !== "";
+    const finalParams = temBusca ? params : { page: 1, limit: CLIENTES_PAGE_LIMIT, ...params };
     try {
-      const cliRes = await cfg.getClientesComTotal(params);
+      const cliRes = await cfg.getClientesComTotal(finalParams);
       setClientes(cliRes?.clientes || []);
       setClientesTotal(Number(cliRes?.total) || 0);
+      clientesPageRef.current = 1;
     } catch (e) {
       setClientes([]);
       setClientesTotal(0);
     }
   }, []);
+
+  /** Busca a próxima página e acrescenta à lista atual (só usado sem busca ativa). */
+  const carregarMaisClientes = useCallback(async () => {
+    if (clientesLoadingMore) return;
+    setClientesLoadingMore(true);
+    try {
+      const nextPage = clientesPageRef.current + 1;
+      const cliRes = await cfg.getClientesComTotal({ page: nextPage, limit: CLIENTES_PAGE_LIMIT });
+      const novos = cliRes?.clientes || [];
+      if (novos.length > 0) {
+        setClientes((prev) => [...prev, ...novos]);
+        clientesPageRef.current = nextPage;
+      }
+      if (cliRes?.total != null) setClientesTotal(Number(cliRes.total) || 0);
+    } catch (e) {
+      // silencioso — mantém a lista atual; o usuário pode tentar novamente
+    } finally {
+      setClientesLoadingMore(false);
+    }
+  }, [clientesLoadingMore]);
 
   useEffect(() => {
     loadAll();
@@ -285,6 +318,8 @@ export default function Configuracoes() {
             onRefresh={loadAll}
             onSyncContacts={loadAll}
             onSearchClientes={loadClientes}
+            onLoadMoreClientes={carregarMaisClientes}
+            loadingMoreClientes={clientesLoadingMore}
             empresa={empresa}
             tags={tags}
             onUpdateEmpresa={async (patch) => {
@@ -1403,7 +1438,7 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
   );
 }
 
-function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onSearchClientes, empresa, onUpdateEmpresa, tags }) {
+function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onSearchClientes, onLoadMoreClientes, loadingMoreClientes, empresa, onUpdateEmpresa, tags }) {
   const navigate = useNavigate();
   const addChat = useChatStore((s) => s.addChat);
   const setSelectedId = useConversaStore((s) => s.setSelectedId);
@@ -1411,9 +1446,6 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
   const [syncResult, setSyncResult] = useState(null);
   const [syncingFotos, setSyncingFotos] = useState(false);
   const [syncFotosResult, setSyncFotosResult] = useState(null);
-  const [syncingMensagens, setSyncingMensagens] = useState(false);
-  const [syncMensagensResult, setSyncMensagensResult] = useState(null);
-  const [cancelingMensagens, setCancelingMensagens] = useState(false);
   const [autoSyncSaving, setAutoSyncSaving] = useState(false);
   const [busca, setBusca] = useState("");
   const [searching, setSearching] = useState(false);
@@ -1421,13 +1453,6 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
   const [excluindoId, setExcluindoId] = useState(null);
   const [excluindoTodos, setExcluindoTodos] = useState(false);
   const [clienteModal, setClienteModal] = useState(null); // { mode: "new"|"edit", data }
-  const syncMensagensAtiva = Boolean(
-    syncMensagensResult?.queued ||
-    syncMensagensResult?.running ||
-    syncMensagensResult?.cancel_requested
-  );
-  const syncMensagensEmAndamento = Boolean(syncingMensagens || syncMensagensAtiva);
-
   useEffect(() => {
     if (!onSearchClientes) return;
     const t = setTimeout(() => {
@@ -1449,31 +1474,6 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
     window.addEventListener("zapi_sync_contatos", handler);
     return () => window.removeEventListener("zapi_sync_contatos", handler);
   }, [onSyncContacts]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handler = (ev) => {
-      const detail = ev?.detail;
-      if (!detail) return;
-      setSyncMensagensResult(detail);
-      onRefresh?.();
-    };
-    window.addEventListener("whatsapp_sync_mensagens_antigas", handler);
-    return () => window.removeEventListener("whatsapp_sync_mensagens_antigas", handler);
-  }, [onRefresh]);
-
-  useEffect(() => {
-    let active = true;
-    chatService.statusSincronizarMensagensAntigas()
-      .then((res) => {
-        if (!active) return;
-        if (res?.running || res?.queued || res?.cancel_requested) setSyncMensagensResult(res);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const autoSyncValue = empresa?.zapi_auto_sync_contatos ?? true;
   const handleToggleAutoSync = async (next) => {
@@ -1517,36 +1517,6 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
       setSyncFotosResult({ error: e.response?.data?.error || e.message || "Erro ao sincronizar fotos." });
     } finally {
       setSyncingFotos(false);
-    }
-  };
-
-  const handleSincronizarMensagensAntigas = async () => {
-    setSyncingMensagens(true);
-    setSyncMensagensResult(null);
-    try {
-      const res = await chatService.sincronizarMensagensAntigas();
-      if (res?.ok === false) {
-        setSyncMensagensResult({ error: res.error || res.message || "Erro ao sincronizar mensagens antigas." });
-        return;
-      }
-      setSyncMensagensResult(res);
-    } catch (e) {
-      setSyncMensagensResult({ error: e.response?.data?.error || e.message || "Erro ao sincronizar mensagens antigas." });
-    } finally {
-      setSyncingMensagens(false);
-    }
-  };
-
-  const handlePararSincronizacaoMensagens = async () => {
-    if (!window.confirm("Parar sincronizacao de mensagens antigas? As mensagens ja importadas permanecerao no banco.")) return;
-    setCancelingMensagens(true);
-    try {
-      const res = await chatService.cancelarSincronizarMensagensAntigas();
-      setSyncMensagensResult(res);
-    } catch (e) {
-      setSyncMensagensResult({ error: e.response?.data?.error || e.message || "Erro ao parar sincronizacao de mensagens antigas." });
-    } finally {
-      setCancelingMensagens(false);
     }
   };
 
@@ -1670,43 +1640,6 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
               : syncResult.job_id
                 ? (syncResult.mensagem || "Sincronização enfileirada.")
                 : `OK: ${syncResult.total_contatos ?? 0} contatos; ${syncResult.criados ?? 0} novos, ${syncResult.atualizados ?? 0} atualizados.${syncResult.fotos_atualizadas ? ` ${syncResult.fotos_atualizadas} fotos atualizadas.` : ""}`}
-          </p>
-        )}
-      </div>
-      <div className="ia-field" style={{ marginBottom: 16 }}>
-        <p className="ia-muted">Importe o historico de mensagens disponivel no celular conectado da empresa.</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="ia-btn ia-btn--outline"
-            disabled={syncMensagensEmAndamento}
-            onClick={handleSincronizarMensagensAntigas}
-          >
-            {syncingMensagens ? "Sincronizando mensagens..." : "Sincronizar mensagens antigas"}
-          </button>
-          {syncMensagensAtiva && (
-            <button
-              type="button"
-              className="ia-btn ia-btn--outline"
-              style={{ color: "#dc2626", borderColor: "#dc2626" }}
-              disabled={cancelingMensagens || syncMensagensResult?.cancel_requested}
-              onClick={handlePararSincronizacaoMensagens}
-            >
-              {cancelingMensagens ? "Parando..." : "Parar sincronizacao"}
-            </button>
-          )}
-        </div>
-        {syncMensagensResult && (
-          <p className="ia-muted" style={{ marginTop: 8 }}>
-            {syncMensagensResult.error
-              ? syncMensagensResult.error
-              : syncMensagensResult.cancelled
-                ? (syncMensagensResult.message || "Sincronizacao de mensagens antigas cancelada.")
-              : syncMensagensResult.cancel_requested
-                ? (syncMensagensResult.message || "Cancelamento solicitado. A sincronizacao vai parar em seguranca.")
-              : (syncMensagensResult.queued || syncMensagensResult.running)
-                ? (syncMensagensResult.message || "Sincronizacao de mensagens antigas enfileirada.")
-                : `OK: ${syncMensagensResult.mensagens_importadas ?? 0} mensagens importadas; ${syncMensagensResult.mensagens_ignoradas ?? 0} ja existentes/ignoradas em ${syncMensagensResult.chats_processados ?? 0} chats.`}
           </p>
         )}
       </div>
@@ -1842,6 +1775,20 @@ function SecaoClientes({ clientes, clientesTotal, onRefresh, onSyncContacts, onS
           </tbody>
         </table>
       </div>
+      {!busca.trim() && clientes.length < (Number(clientesTotal) || 0) ? (
+        <div className="ia-btn-row" style={{ justifyContent: "center", marginTop: 12 }}>
+          <button
+            type="button"
+            className="ia-btn ia-btn--outline"
+            onClick={onLoadMoreClientes}
+            disabled={loadingMoreClientes}
+          >
+            {loadingMoreClientes
+              ? "Carregando..."
+              : `Carregar mais clientes (${clientes.length} de ${clientesTotal})`}
+          </button>
+        </div>
+      ) : null}
       {clienteModal ? (
         <ModalCliente
           mode={clienteModal.mode}

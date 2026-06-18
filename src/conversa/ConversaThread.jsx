@@ -53,6 +53,9 @@ export default function ConversaThread({
   showReopenClosedCta,
   reopenClosedBusy,
   onReopenClosed,
+  showContactOldSyncCta,
+  contactOldSyncBusy,
+  onContactOldSync,
   onLoadOlderMessagesClick,
   onVirtualContentResize,
   BubbleComponent,
@@ -312,6 +315,16 @@ export default function ConversaThread({
                 {assumeEmptyBusy ? "Assumindo…" : "Assumir"}
               </button>
             ) : null}
+            {showContactOldSyncCta ? (
+              <button
+                type="button"
+                className="wa-btn wa-btn-secondary"
+                onClick={onContactOldSync}
+                disabled={contactOldSyncBusy}
+              >
+                {contactOldSyncBusy ? "Carregando..." : "Carregar mensagens antigas deste contato"}
+              </button>
+            ) : null}
           </div>
         </div>
       </>
@@ -323,6 +336,18 @@ export default function ConversaThread({
       {closedBanner}
       {!conversa?.mensagens_bloqueadas && safeMensagens.length > 0 && !loading ? (
         <div className="wa-loadOlderHistory">
+          {showContactOldSyncCta ? (
+            <button
+              type="button"
+              className="wa-loadOlderBtn"
+              onClick={onContactOldSync}
+              disabled={contactOldSyncBusy}
+              aria-busy={contactOldSyncBusy}
+              title="Busca no WhatsApp apenas mensagens antigas deste contato"
+            >
+              {contactOldSyncBusy ? "Carregando..." : "Carregar mensagens antigas deste contato"}
+            </button>
+          ) : null}
           {hasMore && cursor ? (
             <button
               type="button"

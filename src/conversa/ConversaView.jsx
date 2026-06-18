@@ -31,7 +31,7 @@ const MsgInfoModal = lazy(() => import("./components/MsgInfoModal"));
 const CallModal = lazy(() => import("./components/CallModal"));
 const AddToGroupModal = lazy(() => import("./components/AddToGroupModal"));
 const MediaViewerOverlay = lazy(() => import("./components/MediaViewerOverlay"));
-import { abrirConversaPorTelefone, conversaFromContatoResponse, fetchChats } from "../chats/chatService";
+import { abrirConversaPorTelefone, carregarMensagensAntigasContato, conversaFromContatoResponse, fetchChats } from "../chats/chatService";
 import { getDisplayName } from "../chats/chatListDisplay";
 import { getSocket } from "../socket/socket";
 import { scheduleAfterInitialPaint } from "../chats/scheduleAfterInitialPaint";
@@ -2629,6 +2629,7 @@ function ConversaViewBody() {
 
   const [assumeEmptyBusy, setAssumeEmptyBusy] = useState(false);
   const [reopenClosedBusy, setReopenClosedBusy] = useState(false);
+  const [oldContactSyncBusy, setOldContactSyncBusy] = useState(false);
 
   const showReopenClosedCta = useMemo(() => {
     if (isGroup) return false;
@@ -2636,6 +2637,13 @@ function ConversaViewBody() {
     if (!canReabrir(user)) return false;
     return isClosedAttendance(conversa);
   }, [conversa, user, isGroup]);
+
+  const showContactOldSyncCta = useMemo(() => {
+    if (isGroup) return false;
+    if (!conversa?.id || conversa?.mensagens_bloqueadas) return false;
+    const phone = conversa?.telefone_exibivel || conversa?.cliente_telefone || conversa?.telefone || "";
+    return !!String(phone || "").trim() && !String(phone || "").trim().toLowerCase().startsWith("lid:");
+  }, [conversa, isGroup]);
 
   const handleAssumeEmpty = useCallback(async () => {
     if (!conversaId || assumeEmptyBusy) return;
@@ -2682,6 +2690,31 @@ function ConversaViewBody() {
       setReopenClosedBusy(false);
     }
   }, [conversaId, reopenClosedBusy, reabrirConversa, refresh, showToast]);
+
+  const handleCarregarMensagensAntigasContato = useCallback(async () => {
+    if (!conversaId || oldContactSyncBusy) return;
+    setOldContactSyncBusy(true);
+    try {
+      const res = await carregarMensagensAntigasContato(conversaId);
+      await refresh({ silent: true });
+      const importadas = Number(res?.mensagens_importadas || 0);
+      showToast({
+        type: importadas > 0 ? "success" : "info",
+        title: importadas > 0 ? "Historico carregado" : "Sem mensagens antigas",
+        message: importadas > 0
+          ? `${importadas} mensagem(ns) importada(s) para este contato.`
+          : (res?.message || "Nenhuma mensagem antiga encontrada para este contato."),
+      });
+    } catch (e) {
+      showToast({
+        type: "error",
+        title: "Falha ao carregar historico",
+        message: e?.response?.data?.error || e?.message || "Tente novamente.",
+      });
+    } finally {
+      setOldContactSyncBusy(false);
+    }
+  }, [conversaId, oldContactSyncBusy, refresh, showToast]);
 
   const setorAtual =
     conversa?.departamento_id != null
@@ -3209,6 +3242,9 @@ function ConversaViewBody() {
             showReopenClosedCta={showReopenClosedCta}
             reopenClosedBusy={reopenClosedBusy}
             onReopenClosed={handleReopenClosed}
+            showContactOldSyncCta={showContactOldSyncCta}
+            contactOldSyncBusy={oldContactSyncBusy}
+            onContactOldSync={handleCarregarMensagensAntigasContato}
             onLoadOlderMessagesClick={handleLoadOlderMessagesClick}
             onVirtualContentResize={snapIfStickBottom}
             BubbleComponent={Bubble}
