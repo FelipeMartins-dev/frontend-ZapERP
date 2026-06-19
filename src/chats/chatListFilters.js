@@ -186,6 +186,24 @@ function applyCotacaoFixadaNaMinhaFila(list, user) {
 }
 
 /**
+ * Grupos do setor vinculados ao atendente (retornados pelo backend via departamento_grupos)
+ * são marcados como fixados no topo da "Minha fila".
+ * O backend já garantiu que apenas grupos do setor do atendente chegam até aqui.
+ */
+function applyGruposSetorFixadosNaMinhaFila(list) {
+  if (!Array.isArray(list) || list.length === 0) return list;
+  return list.map((chat) => {
+    if (!isGroupConversation(chat) || chat.sem_conversa) return chat;
+    return {
+      ...chat,
+      fixada: true,
+      fixada_em: chat.fixada_em ?? chat.ultima_atividade ?? chat.criado_em ?? null,
+      fixada_auto_setor: true,
+    };
+  });
+}
+
+/**
  * Lista filtrada/ordenada exibida em ChatListRows (mesma lógica que estava no useMemo do ChatList).
  */
 export function computeChatsFiltrados({
@@ -352,6 +370,7 @@ export function computeChatsFiltrados({
 
   if (!adminPorFuncionario && tab === "minha_fila") {
     list = applyCotacaoFixadaNaMinhaFila(list, user);
+    list = applyGruposSetorFixadosNaMinhaFila(list);
   }
 
   // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem
