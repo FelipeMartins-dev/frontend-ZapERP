@@ -273,6 +273,25 @@ export async function transferirChat(conversaId, novo_atendente_id, observacao) 
   return data;
 }
 
+export async function listarAtendentesDisponiveisConversa(conversaId) {
+  const { data } = await api.get(`/chats/${conversaId}/atendentes-disponiveis`);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function listarAtendentesConversa(conversaId) {
+  const { data } = await api.get(`/chats/${conversaId}/atendentes`);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function adicionarAtendenteConversa(conversaId, usuarioId) {
+  const paraId = Number(usuarioId);
+  if (!Number.isFinite(paraId) || paraId <= 0) {
+    throw new Error("Atendente invalido.");
+  }
+  const { data } = await api.post(`/chats/${conversaId}/atendentes`, { usuario_id: paraId });
+  return data;
+}
+
 /** * Marca o atendimento humano como aguardando resposta do cliente.
  */
 export async function marcarAguardandoClienteChat(conversaId) {

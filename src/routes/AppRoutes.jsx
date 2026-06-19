@@ -9,6 +9,8 @@ import MainLayout from "../layouts/MainLayout";
 import NotFound from "../pages/NotFound";
 import Atendimento from "../pages/Atendimento";
 
+const ManualZapERP = lazy(() => import("../pages/ManualZapERP"));
+
 const Dashboard = lazy(() => import("../dashboard/Dashboard"));
 const Configuracoes = lazy(() => import("../pages/Configuracoes"));
 const IA = lazy(() => import("../pages/IA"));
@@ -310,6 +312,15 @@ export default function AppRoutes() {
               }
             />
           </Route>
+
+          <Route
+            path="/manual"
+            element={
+              <LazyPage>
+                <ManualZapERP />
+              </LazyPage>
+            }
+          />
 
           <Route path="*" element={<NotFound />} />
         </Route>

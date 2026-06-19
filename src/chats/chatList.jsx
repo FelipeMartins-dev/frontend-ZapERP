@@ -3,7 +3,6 @@ import { shallow } from "zustand/shallow";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import {
   fetchChats,
-  fetchMinhaFilaChatsCompleto,
   fetchChatCounts,
   getChatsPageMeta,
   abrirConversaCliente,
@@ -247,6 +246,14 @@ function isAbortError(err) {
     err?.name === "AbortError" ||
     err?.name === "CanceledError" ||
     err?.code === "ERR_CANCELED"
+  );
+}
+
+function isNetworkError(err) {
+  return (
+    err?.code === "ERR_NETWORK" ||
+    err?.message === "Network Error" ||
+    err?.request?.status === 0
   );
 }
 
@@ -690,9 +697,11 @@ export default function ChatList() {
         params.finalizacao_motivo = "ausencia_cliente";
       }
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
-      const data = await fetchMinhaFilaChatsCompleto(params);
+      params.limit = CHAT_LIST_PAGE_LIMIT;
+      const data = await fetchChats(params, { silent: true });
       const list = filterOptimisticRemovedMinhaFila(Array.isArray(data) ? data : []);
-      const count = countDistinctConversas(list);
+      const pageMeta = getChatsPageMeta(data);
+      const count = pageMeta.totalCount ?? countDistinctConversas(list);
       setMinhaFilaCount((prev) => (prev === count ? prev : count));
       if (tabRef.current === "minha_fila") {
         setMinhaFilaList(list);
@@ -1039,18 +1048,14 @@ export default function ChatList() {
         separarMensagensDisparadasLigado &&
         String(params.status_atendimento || "").toLowerCase() === "mensagem_disparada";
 
-      const minhaFilaSemPaginacao = !adminPorFuncionario && tab === "minha_fila";
-      const data = minhaFilaSemPaginacao
-        ? await fetchMinhaFilaChatsCompleto(params, { signal: abortController.signal })
-        : await fetchChats(params, { signal: abortController.signal });
+      const minhaFilaTab = !adminPorFuncionario && tab === "minha_fila";
+      const data = await fetchChats(params, { signal: abortController.signal });
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
-      if (minhaFilaSemPaginacao || TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
+      if (minhaFilaTab || TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
         list = filterOptimisticRemovedMinhaFila(list);
       }
-      const pageState = minhaFilaSemPaginacao
-        ? { hasMore: false, nextCursor: null, nextCursorId: null, totalCount: list.length, loading: false, error: "" }
-        : buildChatListPageState(data);
+      const pageState = buildChatListPageState(data);
       setChatListPage(pageState);
       if (pageState.totalCount != null) {
         setActiveListTotalCount(pageState.totalCount);
@@ -1160,7 +1165,9 @@ export default function ChatList() {
     } catch (e) {
       if (isAbortError(e)) return;
       if (requestId !== loadRequestIdRef.current) return;
-      console.error("Erro ao carregar conversas:", e);
+      if (!isNetworkError(e)) {
+        console.error("Erro ao carregar conversas:", e);
+      }
       if (!(useChatStore.getState().chats?.length > 0)) {
         setChats([]);
       }
@@ -2034,7 +2041,7 @@ export default function ChatList() {
         onRequestConfirmClear={onRequestConfirmClear}
         onRequestConfirmDelete={onRequestConfirmDelete}
         onReloadList={onReloadList}
-        canLoadMoreChats={tab !== "minha_fila" && chatListPage.hasMore}
+        canLoadMoreChats={chatListPage.hasMore}
         loadingMoreChats={chatListPage.loading}
         loadMoreChatsError={chatListPage.error}
         onLoadMoreChats={handleLoadMoreChats}

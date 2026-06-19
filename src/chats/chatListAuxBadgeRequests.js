@@ -8,6 +8,7 @@ const AUX_BADGE_TTL_MS = 25_000;
 const scopeState = new Map();
 
 const KINDS = [
+  "chatCounts",
   "minhaFila",
   "emAtendimento",
   "aguardandoCliente",

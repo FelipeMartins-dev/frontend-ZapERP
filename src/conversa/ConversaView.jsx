@@ -8,6 +8,8 @@ import {
   enviarReacao,
   removerReacao,
   registrarLigacao,
+  listarAtendentesDisponiveisConversa,
+  adicionarAtendenteConversa,
 } from "./conversaService";
 import {
   isGroupConversation,
@@ -360,6 +362,11 @@ function ConversaViewBody() {
   const [showTransferirSetor, setShowTransferirSetor] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
   const [transferirSetorLoading, setTransferirSetorLoading] = useState(false);
+  const [showAdicionarAtendente, setShowAdicionarAtendente] = useState(false);
+  const [atendentesDisponiveis, setAtendentesDisponiveis] = useState([]);
+  const [atendenteSearch, setAtendenteSearch] = useState("");
+  const [atendentesLoading, setAtendentesLoading] = useState(false);
+  const [adicionarAtendenteLoadingId, setAdicionarAtendenteLoadingId] = useState(null);
   const [showProdutosPanel, setShowProdutosPanel] = useState(false);
 
   const userRole = String(user?.role || user?.perfil || "").toLowerCase();
@@ -603,6 +610,11 @@ function ConversaViewBody() {
   );
 
   const isGroup = useMemo(() => isGroupConversation(conversa), [conversa]);
+  const podeAdicionarAtendente =
+    ["admin", "supervisor", "atendente"].includes(userRole) &&
+    !!conversaId &&
+    !isGroup &&
+    !isClosedAttendance(conversa);
 
   // Nunca exibir LID (lid:xxx) como nome ou número — identificador interno do WhatsApp
   const isLidValue = (v) => v != null && String(v).trim().toLowerCase().startsWith("lid:");
@@ -2225,6 +2237,14 @@ function ConversaViewBody() {
         });
         return;
       }
+      if (!msg?.whatsapp_id) {
+        showToast({
+          type: "warning",
+          title: "Aguarde confirmacao",
+          message: "So e possivel apagar para todos depois que o WhatsApp confirmar a mensagem.",
+        });
+        return;
+      }
       // regra: "para todos" somente para mensagens enviadas por mim
       const souAutor =
         (msg?.autor_usuario_id != null && String(msg.autor_usuario_id) === String(myUserId)) ||
@@ -2287,7 +2307,7 @@ function ConversaViewBody() {
     try {
       for (const id of ids) {
         // eslint-disable-next-line no-await-in-loop
-        await excluirMensagem(conversaId, id);
+        await excluirMensagem(conversaId, id, { scope: "me" });
       }
       showToast({ type: "success", title: "Apagadas", message: `${ids.length} mensagem(ns) removida(s).` });
       exitSelectMode();
@@ -2831,6 +2851,71 @@ function ConversaViewBody() {
     [conversaId, refresh, showToast, transferirSetorLoading]
   );
 
+  const handleOpenAdicionarAtendente = useCallback(async () => {
+    if (!conversaId || atendentesLoading) return;
+    setShowAdicionarAtendente(true);
+    setAtendenteSearch("");
+    setAtendentesLoading(true);
+    try {
+      const data = await listarAtendentesDisponiveisConversa(conversaId);
+      setAtendentesDisponiveis(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Erro ao listar atendentes disponiveis:", e);
+      setAtendentesDisponiveis([]);
+      showToast({
+        type: "error",
+        title: "Falha ao carregar atendentes",
+        message: e?.response?.data?.error || "Tente novamente.",
+      });
+    } finally {
+      setAtendentesLoading(false);
+    }
+  }, [atendentesLoading, conversaId, showToast]);
+
+  const atendentesDisponiveisFiltrados = useMemo(() => {
+    const term = safeString(atendenteSearch).toLowerCase();
+    const list = Array.isArray(atendentesDisponiveis) ? atendentesDisponiveis : [];
+    if (!term) return list;
+    return list.filter((u) => {
+      const hay = `${safeString(u.nome)} ${safeString(u.email)} ${safeString(u.perfil)}`.toLowerCase();
+      return hay.includes(term);
+    });
+  }, [atendenteSearch, atendentesDisponiveis]);
+
+  const handleAdicionarAtendente = useCallback(
+    async (usuarioId) => {
+      if (!conversaId || adicionarAtendenteLoadingId != null) return;
+      const uid = Number(usuarioId);
+      if (!Number.isFinite(uid) || uid <= 0) return;
+      setAdicionarAtendenteLoadingId(uid);
+      try {
+        const res = await adicionarAtendenteConversa(conversaId, uid);
+        const nomeAdicionado = res?.usuario?.nome || "Atendente";
+        setShowAdicionarAtendente(false);
+        setAtendentesDisponiveis([]);
+        await Promise.all([
+          refresh({ silent: true }),
+          carregarAtendimentos(conversaId).catch(() => null),
+        ]);
+        showToast({
+          type: "success",
+          title: "Atendente adicionado",
+          message: `${nomeAdicionado} agora participa deste atendimento.`,
+        });
+      } catch (e) {
+        console.error("Erro ao adicionar atendente:", e);
+        showToast({
+          type: "error",
+          title: "Falha ao adicionar",
+          message: e?.response?.data?.error || e?.message || "Tente novamente.",
+        });
+      } finally {
+        setAdicionarAtendenteLoadingId(null);
+      }
+    },
+    [adicionarAtendenteLoadingId, carregarAtendimentos, conversaId, refresh, showToast]
+  );
+
   const carregarTags = useCallback(
     async (opts = {}) => {
       const showError = opts.showErrorToUser !== false;
@@ -3052,6 +3137,8 @@ function ConversaViewBody() {
           setorAtual={setorAtual}
           podeTransferirSetor={podeTransferirSetor}
           onOpenTransferirSetor={handleOpenTransferirSetor}
+          podeAdicionarAtendente={podeAdicionarAtendente}
+          onOpenAdicionarAtendente={handleOpenAdicionarAtendente}
           isSomeoneTyping={isSomeoneTyping}
           podeGerenciarTags={podeGerenciarTags}
           tagsOpen={tagsOpen}
@@ -3130,6 +3217,69 @@ function ConversaViewBody() {
               </button>
               {transferirSetorLoading && (
                 <div className="wa-muted" style={{ marginTop: 8 }}>Salvando...</div>
+              )}
+            </div>
+          </div>
+          </>
+        )}
+
+        {!isGroup && podeAdicionarAtendente && showAdicionarAtendente && (
+          <>
+            <button
+              type="button"
+              className="wa-floatingSheet-backdrop"
+              aria-label="Fechar painel de atendentes"
+              onClick={() => setShowAdicionarAtendente(false)}
+            />
+          <div
+            className="wa-tagsPanel wa-tagsPanel--setor"
+            role="dialog"
+            aria-label="Adicionar atendente"
+          >
+            <div className="wa-tagsPanel-head">
+              <span className="wa-tagsPanel-title">Adicionar atendente</span>
+              <button
+                type="button"
+                className="wa-iconBtn"
+                onClick={() => setShowAdicionarAtendente(false)}
+                title="Fechar"
+              >
+                <IconClose />
+              </button>
+            </div>
+            <div className="wa-tagsPanel-body">
+              <input
+                className="wa-transferSearch"
+                value={atendenteSearch}
+                onChange={(e) => setAtendenteSearch(e.target.value)}
+                placeholder="Buscar por nome ou email"
+                autoFocus
+              />
+              {atendentesLoading ? (
+                <div className="wa-muted">Carregando atendentes...</div>
+              ) : atendentesDisponiveisFiltrados.length === 0 ? (
+                <div className="wa-muted">Nenhum atendente disponivel.</div>
+              ) : (
+                <div className="wa-tagsList">
+                  {atendentesDisponiveisFiltrados.map((u) => {
+                    const uid = Number(u.usuario_id ?? u.id);
+                    const busy = adicionarAtendenteLoadingId === uid;
+                    return (
+                      <button
+                        key={uid}
+                        type="button"
+                        className="wa-tagItem"
+                        onClick={() => handleAdicionarAtendente(uid)}
+                        disabled={adicionarAtendenteLoadingId != null}
+                        title={u.email || u.nome || "Atendente"}
+                      >
+                        <span>{u.nome || u.email || "Atendente"}</span>
+                        {u.perfil ? <span className="wa-muted"> {u.perfil}</span> : null}
+                        {busy ? " adicionando..." : ""}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>

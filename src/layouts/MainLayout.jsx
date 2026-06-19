@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  IconBook2,
   IconChartBar,
   IconFilter,
   IconGridDots,
@@ -147,6 +148,13 @@ export default function MainLayout() {
           title: "IA / Sparkles",
           icon: IconSparkles,
           show: canAccessDashboard_,
+        },
+        {
+          to: "/manual",
+          label: "Manual",
+          title: "Manual do Atendente",
+          icon: IconBook2,
+          show: true,
         },
       ].filter((item) => item.show),
     [

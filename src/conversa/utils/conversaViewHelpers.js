@@ -285,6 +285,7 @@ export function timelineEventLabel(a, conversaCtx) {
   const paraQuem = a?.para_usuario_nome;
   if (acao === "assumiu") return `${quem} assumiu`;
   if (acao === "transferiu") return paraQuem ? `${quem} transferiu para ${paraQuem}` : `${quem} transferiu`;
+  if (acao === "adicionou_atendente") return paraQuem ? `${quem} adicionou ${paraQuem} ao atendimento` : `${quem} adicionou atendente ao atendimento`;
   if (acao === "transferiu_setor") return a?.observacao ? `${quem} transferiu setor: ${a.observacao}` : `${quem} transferiu setor`;
   if (acao === "encerrou") {
     const motivoLinha = safeString(a?.finalizacao_motivo).toLowerCase();
