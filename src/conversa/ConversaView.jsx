@@ -231,6 +231,51 @@ function ConversaViewBody() {
   const clearComposerAppendQueue = useConversaStore((s) => s.clearComposerAppendQueue);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
 
+  const conversaElegivelAutoAssumir = useMemo(() => {
+    if (!user?.id || !conversa?.id) return false;
+    if (!canAssumir(user)) return false;
+    if (isGroupConversation(conversa)) return false;
+    if (isClosedAttendance(conversa)) return false;
+    if (conversa?.mensagens_bloqueadas) return false;
+
+    const atendenteId = conversa?.atendente_id ?? null;
+    const departamentoId = conversa?.departamento_id ?? null;
+    const semAtendente = atendenteId == null || atendenteId === "";
+    const userRole = String(user?.role || user?.perfil || "").toLowerCase();
+    const isPrivileged = userRole === "admin" || userRole === "supervisor";
+    const userDepIds = Array.isArray(user?.departamento_ids)
+      ? user.departamento_ids.map((id) => Number(id)).filter((id) => Number.isFinite(id))
+      : user?.departamento_id != null
+        ? [Number(user.departamento_id)].filter((id) => Number.isFinite(id))
+        : [];
+    const podeVerSetor =
+      isPrivileged ||
+      departamentoId == null ||
+      departamentoId === "" ||
+      userDepIds.includes(Number(departamentoId));
+
+    return semAtendente && podeVerSetor;
+  }, [
+    user,
+    user?.id,
+    user?.role,
+    user?.perfil,
+    user?.departamento_id,
+    user?.departamento_ids,
+    conversa?.id,
+    conversa?.remoteJid,
+    conversa?.telefone,
+    conversa?.phone,
+    conversa?.is_group,
+    conversa?.isGroup,
+    conversa?.tipo,
+    conversa?.status_atendimento_real,
+    conversa?.status_atendimento,
+    conversa?.mensagens_bloqueadas,
+    conversa?.atendente_id,
+    conversa?.departamento_id,
+  ]);
+
   const podeEnviar = useMemo(() => {
     if (!user?.id || !conversa?.id) return false;
     /** Grupos: qualquer usuário pode enviar sem assumir atendimento (modelo WhatsApp). */
@@ -238,7 +283,7 @@ function ConversaViewBody() {
     if (isClosedAttendance(conversa)) return false;
     if (conversa?.mensagens_bloqueadas) return false;
     const atendenteId = conversa?.atendente_id ?? null;
-    if (atendenteId == null || atendenteId === "") return false;
+    if (atendenteId == null || atendenteId === "") return conversaElegivelAutoAssumir;
     return String(atendenteId) === String(user.id);
   }, [
     user?.id,
@@ -253,6 +298,7 @@ function ConversaViewBody() {
     conversa?.status_atendimento,
     conversa?.mensagens_bloqueadas,
     conversa?.atendente_id,
+    conversaElegivelAutoAssumir,
   ]);
 
   const [showTimeline, setShowTimeline] = useState(false);
@@ -3455,6 +3501,7 @@ function ConversaViewBody() {
             loading={loading}
             sending={sending}
             podeEnviar={podeEnviar}
+            autoAssumirHint={conversaElegivelAutoAssumir}
             mensagensBloqueadasHint={mensagensBloqueadasHint}
             atendimentoEncerradoHint={atendimentoEncerradoHint}
             atendenteNomeHint={atendenteNomeHint}

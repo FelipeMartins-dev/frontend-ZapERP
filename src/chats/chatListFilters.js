@@ -113,6 +113,78 @@ function isAppAdmin(user) {
   return isSupervisorOrAdmin(user);
 }
 
+function normalizeDepartamentoNome(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function isDepartamentoCotacao(value) {
+  return normalizeDepartamentoNome(value).includes("cotacao");
+}
+
+function normalizeDepartamentoId(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? String(n) : String(value).trim();
+}
+
+function getUserDepartamentoIdSet(user) {
+  const ids = [];
+  if (Array.isArray(user?.departamento_ids)) ids.push(...user.departamento_ids);
+  if (user?.departamento_id != null) ids.push(user.departamento_id);
+  if (Array.isArray(user?.departamentos)) {
+    for (const dep of user.departamentos) {
+      ids.push(dep?.id ?? dep?.departamento_id ?? dep);
+    }
+  }
+  const set = new Set();
+  for (const id of ids) {
+    const normalized = normalizeDepartamentoId(id);
+    if (normalized) set.add(normalized);
+  }
+  return set;
+}
+
+function getChatDepartamentoId(chat) {
+  return normalizeDepartamentoId(chat?.departamento_id ?? chat?.departamento?.id ?? chat?.departamentos?.id);
+}
+
+function getChatDepartamentoNome(chat) {
+  return chat?.setor ?? chat?.departamento?.nome ?? chat?.departamentos?.nome ?? "";
+}
+
+function shouldAutoFixarCotacaoNaMinhaFila(chat, userDepartamentoIds) {
+  if (!chat || chat.sem_conversa || isGroupConversation(chat)) return false;
+  const chatDepartamentoId = getChatDepartamentoId(chat);
+  if (!chatDepartamentoId) return false;
+  if (!isDepartamentoCotacao(getChatDepartamentoNome(chat))) return false;
+  return userDepartamentoIds.has(chatDepartamentoId);
+}
+
+function applyCotacaoFixadaNaMinhaFila(list, user) {
+  if (!Array.isArray(list) || list.length === 0) return list;
+  const userDepartamentoIds = getUserDepartamentoIdSet(user);
+  if (userDepartamentoIds.size === 0) return list;
+  return list.map((chat) => {
+    if (!shouldAutoFixarCotacaoNaMinhaFila(chat, userDepartamentoIds)) return chat;
+    return {
+      ...chat,
+      fixada: true,
+      fixada_em:
+        chat.fixada_em ??
+        chat.ultima_atividade ??
+        chat.ultima_mensagem?.criado_em ??
+        getLastMessage(chat)?.criado_em ??
+        chat.criado_em ??
+        null,
+      fixada_auto_cotacao: true,
+    };
+  });
+}
+
 /**
  * Lista filtrada/ordenada exibida em ChatListRows (mesma lógica que estava no useMemo do ChatList).
  */
@@ -278,6 +350,10 @@ export function computeChatsFiltrados({
     list = list.filter((c) => conversaIdsPendenciaAtiva.has(String(c?.id)));
   }
 
+  if (!adminPorFuncionario && tab === "minha_fila") {
+    list = applyCotacaoFixadaNaMinhaFila(list, user);
+  }
+
   // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem
   list.sort((a, b) => {
     const aPinned = a?.fixada === true ? 1 : 0;
@@ -328,6 +404,7 @@ export function buildChatListUiFilterDeps(params) {
     userId: user?.id,
     userRole: user?.role,
     userPerfil: user?.perfil,
+    userDepartamentoIds: Array.from(getUserDepartamentoIdSet(user)).sort().join(","),
     adminAtendenteFilterId: params.adminAtendenteFilterId,
     onlyFinalizadasAusencia: params.onlyFinalizadasAusencia,
     aguardandoClienteOnly: params.aguardandoClienteOnly,
@@ -351,6 +428,7 @@ export function areChatListUiFilterDepsEqual(a, b) {
     a.userId === b.userId &&
     a.userRole === b.userRole &&
     a.userPerfil === b.userPerfil &&
+    a.userDepartamentoIds === b.userDepartamentoIds &&
     a.adminAtendenteFilterId === b.adminAtendenteFilterId &&
     a.onlyFinalizadasAusencia === b.onlyFinalizadasAusencia &&
     a.aguardandoClienteOnly === b.aguardandoClienteOnly &&

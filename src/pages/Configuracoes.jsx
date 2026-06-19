@@ -29,6 +29,7 @@ export const FONTES_OPCOES = [
   { value: "plus-jakarta-sans",  label: "Plus Jakarta Sans"        },
   { value: "poppins",            label: "Poppins"                  },
   { value: "montserrat",         label: "Montserrat"               },
+  { value: "orbitron",           label: "Orbitron (estilo Brasão & Prata)" },
   { value: "nunito",             label: "Nunito"                   },
   { value: "raleway",            label: "Raleway"                  },
   { value: "playfair-display",   label: "Playfair Display (Serif)" },
@@ -40,6 +41,7 @@ export const FONT_FAMILIES = {
   "plus-jakarta-sans": '"Plus Jakarta Sans", sans-serif',
   "poppins":           '"Poppins", sans-serif',
   "montserrat":        '"Montserrat", sans-serif',
+  "orbitron":          '"Orbitron", "Montserrat", sans-serif',
   "nunito":            '"Nunito", sans-serif',
   "raleway":           '"Raleway", sans-serif',
   "playfair-display":  '"Playfair Display", Georgia, serif',
@@ -279,6 +281,7 @@ export default function Configuracoes() {
               const updated = await cfg.putEmpresa(v);
               const nextEmpresa = updated || v;
               setEmpresa(nextEmpresa);
+              useEmpresaStore.getState().setEmpresa(nextEmpresa);
               const crmHabilitado = nextEmpresa?.crm_habilitado;
               if (crmHabilitado !== undefined) {
                 // Atualiza imediatamente o estado global para refletir no chat sem refresh.

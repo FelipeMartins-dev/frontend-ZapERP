@@ -97,6 +97,7 @@ function composerPropsAreEqual(prev, next) {
   if (prev.loading !== next.loading) return false;
   if (prev.sending !== next.sending) return false;
   if (prev.podeEnviar !== next.podeEnviar) return false;
+  if (prev.autoAssumirHint !== next.autoAssumirHint) return false;
   if (prev.headerCompact !== next.headerCompact) return false;
   if (prev.composerEnterInsertsNewline !== next.composerEnterInsertsNewline) return false;
   if (prev.autocorrectToggleInMenu !== next.autocorrectToggleInMenu) return false;
@@ -126,6 +127,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     loading,
     sending,
     podeEnviar,
+    autoAssumirHint,
     mensagensBloqueadasHint,
     atendimentoEncerradoHint,
     atendenteNomeHint,
@@ -1088,16 +1090,23 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const hasDraft = Boolean(safeString(texto).trim());
 
-  const placeholderText = podeEnviar
-    ? "Digite uma mensagem"
+  const autoAssumirText =
+    "Envie uma mensagem para assumir esta conversa e iniciar o atendimento.";
+
+  const placeholderText = autoAssumirHint
+    ? autoAssumirText
+    : podeEnviar
+      ? "Digite uma mensagem"
     : atendimentoEncerradoHint
       ? "Reabra o atendimento para enviar mensagens"
       : mensagensBloqueadasHint
         ? "Este atendimento foi assumido por outro usuário."
         : "Assuma esta conversa para responder";
 
-  const inputAriaLabel = podeEnviar
-    ? composerEnterInsertsNewline
+  const inputAriaLabel = autoAssumirHint
+    ? autoAssumirText
+    : podeEnviar
+      ? composerEnterInsertsNewline
       ? "Digite sua resposta. Retorno ou Enter para nova linha; use o botão enviar para mandar a mensagem. Esc para fechar painéis."
       : "Digite sua resposta. Enter para enviar, Shift+Enter para nova linha, Esc para fechar painéis."
     : atendimentoEncerradoHint
@@ -1106,8 +1115,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens."
         : "Assuma esta conversa para responder.";
 
-  const footerHint = !podeEnviar
-    ? atendimentoEncerradoHint
+  const footerHint = autoAssumirHint
+    ? autoAssumirText
+    : !podeEnviar
+      ? atendimentoEncerradoHint
       ? "Reabra o atendimento para enviar mensagens"
       : mensagensBloqueadasHint
         ? `Este atendimento foi assumido por ${atendenteNomeHint?.trim() ? atendenteNomeHint : "outro usuário"}.`

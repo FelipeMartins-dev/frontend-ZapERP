@@ -7,6 +7,7 @@ import "../components/feedback/skeleton.css";
 import { useConversaStore } from "../conversa/conversaStore";
 import { useChatStore } from "../chats/chatsStore";
 import { useWhatsappInstancesStore } from "../chats/whatsappInstancesStore";
+import { useEmpresaStore } from "../auth/empresaStore";
 import { applyDocumentTitle } from "../socket/socket";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import { WA_ATENDIMENTO_CHAT_HISTORY_KEY } from "../atendimento/atendimentoMobileHistory";
@@ -56,6 +57,9 @@ function ConversaPanelFallback() {
 
 /** Desktop sem conversa selecionada — evita baixar o chunk ConversaView no login. */
 function AtendimentoChatPlaceholder() {
+  const logoUrl = useEmpresaStore((s) => s.empresa?.logo_url);
+  const nome = useEmpresaStore((s) => s.empresa?.nome);
+
   return (
     <div
       style={{
@@ -71,6 +75,8 @@ function AtendimentoChatPlaceholder() {
       <EmptyState
         title="Selecione uma conversa"
         description="Abra uma conversa na lista à esquerda para visualizar e responder às mensagens."
+        brandLogoUrl={logoUrl}
+        brandName={nome}
       />
     </div>
   );

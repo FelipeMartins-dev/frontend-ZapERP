@@ -1,5 +1,7 @@
 /* EmptyState — Design System ZapERP */
 .ds-empty-state {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -7,11 +9,84 @@
   text-align: center;
   padding: var(--ds-space-12);
   min-height: 200px;
+  overflow: hidden;
+}
+
+.ds-empty-state > :not(.ds-empty-state__brand) {
+  position: relative;
+  z-index: 1;
+}
+
+.ds-empty-state__brand {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: 0;
+  width: clamp(280px, 34vw, 560px);
+  height: clamp(180px, 26vw, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0.1;
+  transform: translate(-50%, -56%);
+  filter:
+    saturate(0.95)
+    contrast(1.06)
+    drop-shadow(0 28px 56px rgba(0, 0, 0, 0.22));
+}
+
+.ds-empty-state__brand::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 64%),
+    radial-gradient(circle, rgba(20, 184, 166, 0.12), transparent 70%);
+  filter: blur(4px);
+}
+
+.ds-empty-state__brand img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  image-rendering: auto;
+}
+
+.ds-empty-state__brand.is-hidden {
+  display: none;
+}
+
+.ds-empty-state--branded {
+  width: 100%;
+  min-height: min(640px, 100%);
+}
+
+[data-theme="dark"] .ds-empty-state__brand {
+  opacity: 0.13;
+  filter:
+    saturate(1.05)
+    contrast(1.08)
+    drop-shadow(0 34px 68px rgba(0, 0, 0, 0.42));
+}
+
+[data-theme="dark"] .ds-empty-state__brand::before {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 64%),
+    radial-gradient(circle, rgba(20, 184, 166, 0.16), transparent 70%);
 }
 
 .ds-empty-state__icon {
   color: var(--ds-text-muted);
   margin-bottom: var(--ds-space-4);
+}
+
+.ds-empty-state--branded .ds-empty-state__icon {
+  margin-bottom: var(--ds-space-5);
+  opacity: 0.72;
 }
 
 .ds-empty-state__title {
@@ -31,4 +106,12 @@
 
 .ds-empty-state__action {
   margin-top: var(--ds-space-2);
+}
+
+@media (max-width: 640px) {
+  .ds-empty-state__brand {
+    width: clamp(220px, 70vw, 360px);
+    height: clamp(150px, 48vw, 280px);
+    transform: translate(-50%, -60%);
+  }
 }

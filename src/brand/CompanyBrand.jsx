@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ZapERPLogo from "./ZapERPLogo";
 import { FONT_FAMILIES } from "../pages/Configuracoes";
 import "./CompanyBrand.css";
@@ -37,9 +37,14 @@ function getInitials(nome) {
  */
 export default function CompanyBrand({ logoUrl, nome, nomeFonte, className = "" }) {
   const [imgError, setImgError] = useState(false);
+  const normalizedLogoUrl = typeof logoUrl === "string" ? logoUrl.trim() : "";
 
-  const showLogo = Boolean(logoUrl) && !imgError;
-  const hasCustomBrand = Boolean(logoUrl || nome);
+  useEffect(() => {
+    setImgError(false);
+  }, [normalizedLogoUrl]);
+
+  const showLogo = Boolean(normalizedLogoUrl) && !imgError;
+  const hasCustomBrand = Boolean(normalizedLogoUrl || nome);
 
   // Sem dados ainda (store carregando) → ZapERPLogo padrão
   if (!hasCustomBrand) {
@@ -66,14 +71,14 @@ export default function CompanyBrand({ logoUrl, nome, nomeFonte, className = "" 
       <div className={`cb-mark ${showLogo ? "cb-mark--logo" : "cb-mark--initials"}`}>
         {showLogo ? (
           <img
-            src={logoUrl}
+            src={normalizedLogoUrl}
             alt={nome || "Logo da empresa"}
             className="cb-img"
             draggable={false}
             onError={() => setImgError(true)}
           />
         ) : (
-          <span className="cb-initials" aria-hidden="true">
+          <span className="cb-initials" data-len={initials.length} aria-hidden="true">
             {initials}
           </span>
         )}
