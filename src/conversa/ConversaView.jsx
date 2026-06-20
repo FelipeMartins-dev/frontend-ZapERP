@@ -2903,27 +2903,11 @@ function ConversaViewBody() {
           message: `${nomeAdicionado} agora participa deste atendimento.`,
         });
       } catch (e) {
-        const errorData = e?.response?.data || null;
-        const errorDebug = {
-          status: e?.response?.status,
-          data: errorData,
-          message: e?.message,
-        };
-        const errorMessage = [
-          errorData?.error || e?.message || "Tente novamente.",
-          errorData?.code ? `Codigo: ${errorData.code}` : "",
-          errorData?.details ? `Detalhes: ${errorData.details}` : "",
-          errorData?.hint ? `Dica: ${errorData.hint}` : "",
-        ].filter(Boolean).join(" | ");
-        console.error("Erro ao adicionar atendente:", {
-          ...errorDebug,
-          error: e,
-        });
-        console.error("Erro ao adicionar atendente detalhes:", JSON.stringify(errorDebug));
+        console.error("Erro ao adicionar atendente:", e);
         showToast({
           type: "error",
           title: "Falha ao adicionar",
-          message: errorMessage,
+          message: e?.response?.data?.error || e?.message || "Tente novamente.",
         });
       } finally {
         setAdicionarAtendenteLoadingId(null);
