@@ -259,6 +259,8 @@ a { color: inherit; text-decoration: none; }
 
 /* CompanyBrand ocupa o espaço sem overflow */
 .chat-list-header-left .cb {
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: 100%;
   overflow: hidden;
 }
@@ -4138,6 +4140,17 @@ a { color: inherit; text-decoration: none; }
     min-height: 56px;
     padding: 10px 12px;
     padding-top: calc(10px + env(safe-area-inset-top, 0));
+    gap: 8px;
+  }
+
+  .chat-list-header-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .chat-list-header-actions {
+    gap: 6px;
   }
 
   .chat-list-header-btn {

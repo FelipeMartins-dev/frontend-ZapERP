@@ -7783,11 +7783,13 @@ main.main-content--crm .wa-mediaPreview-composer {
 .wa-mediaPreview--imageUnified {
   z-index: 90;
   background: #000;
-  height: 100dvh;
-  max-height: 100dvh;
+  /* inset: 0 (do .wa-mediaPreview) já define top/bottom/left/right — não sobrescrever com height
+     para evitar conflito que causa container maior que a área visível em Android Chrome */
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: manipulation;
+  /* iOS: respeitar home indicator / área de gesto inferior */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .wa-mediaPreview--imageUnified .wa-mediaPreview-head--overlay {
@@ -8085,6 +8087,11 @@ main.main-content--crm .wa-mediaPreview-composer {
   z-index: 6;
   background: #0b141a;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  /* safe-area-inset-bottom é tratado no root (.wa-mediaPreview--imageUnified).
+     Aqui só tratamos o inset do teclado virtual para evitar double-count. */
+  padding-bottom: calc(10px + var(--wa-media-preview-kb-inset, 0px));
+  padding-left: calc(14px + env(safe-area-inset-left, 0));
+  padding-right: calc(14px + env(safe-area-inset-right, 0));
 }
 
 .wa-mediaPreview--imageUnified .wa-mediaPreview-inputWrap {
@@ -8096,10 +8103,19 @@ main.main-content--crm .wa-mediaPreview-composer {
   .wa-mediaPreview--imageUnified {
     padding-left: env(safe-area-inset-left, 0);
     padding-right: env(safe-area-inset-right, 0);
+    /* padding-bottom já vem da regra base (safe-area-inset-bottom) */
   }
 
   .wa-mediaPreview--imageUnified .wa-mediaPreview-stage--crop {
     padding: 8px 12px !important;
+  }
+
+  .wa-mediaPreview--imageUnified .wa-mediaPreview-composer {
+    padding: 8px 10px;
+    padding-left: calc(10px + env(safe-area-inset-left, 0));
+    padding-right: calc(10px + env(safe-area-inset-right, 0));
+    /* safe-area-inset-bottom está no root; --wa-media-preview-kb-inset = apenas altura do teclado */
+    padding-bottom: calc(8px + var(--wa-media-preview-kb-inset, 0px));
   }
 
   .wa-imageSendEditBar {
