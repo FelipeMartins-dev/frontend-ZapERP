@@ -1882,10 +1882,7 @@ function ConversaViewBody() {
             fileToSend = inputFile;
           }
         }
-        const mime = String(fileToSend.type || "").toLowerCase();
-        const ext = String(fileToSend.name || "").toLowerCase();
-        const isWebp = mime === "image/webp" || ext.endsWith(".webp");
-        await handleEnviarArquivo(fileToSend, { forceStickerType: !isWebp, waitSocketOnly: true });
+        await handleEnviarArquivo(fileToSend, { forceStickerType: true, waitSocketOnly: true });
         await persistRecentSticker(fileToSend);
         composerRef.current?.closePanels?.();
       } catch {

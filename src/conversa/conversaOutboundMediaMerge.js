@@ -349,7 +349,20 @@ function areLikelySameMessageBubble(prev, incoming) {
   }
   const tipoP = String(prev.tipo || "").toLowerCase().trim()
   const tipoI = String(incoming.tipo || "").toLowerCase().trim()
-  if (tipoP && tipoP === tipoI && isMediaTipo(tipoP)) {
+  const famP = mediaFamilyFromMsg(prev)
+  const famI = mediaFamilyFromMsg(incoming)
+  if (famP && famI && famP === famI && famP === "imagem") {
+    const nomeP = String(prev.nome_arquivo || "").trim()
+    const nomeI = String(incoming.nome_arquivo || "").trim()
+    if (nomeP && nomeI && nomeP === nomeI) {
+      if (matchesClientTempCorrelation(prev, incoming)) return true
+      const prevPersist = hasPersistedMessageIdentity(prev)
+      const incPersist = hasPersistedMessageIdentity(incoming)
+      if (!prevPersist && !incPersist) return false
+      return sameMediaStrongHint(prev, incoming)
+    }
+    if (isLikelyOutboundStickerImageEcho(prev, incoming)) return true
+  } else if (tipoP && tipoP === tipoI && isMediaTipo(tipoP)) {
     const nomeP = String(prev.nome_arquivo || "").trim()
     const nomeI = String(incoming.nome_arquivo || "").trim()
     if (nomeP && nomeI && nomeP === nomeI) {
@@ -372,6 +385,82 @@ function areLikelySameMessageBubble(prev, incoming) {
   if (isOutgoingMediaReconcilePair(prev, incoming)) return true
   if (isOutgoingAudioReconcilePair(prev, incoming)) return true
   return false
+}
+
+function isStickerOrImageOutboundTipo(m) {
+  const t = String(m?.tipo || "").toLowerCase().trim()
+  return t === "sticker" || t === "imagem" || t === "image"
+}
+
+function isStickerPlaceholderText(texto) {
+  const s = String(texto || "").trim().toLowerCase()
+  return s === "(figurinha)" || s === "(imagem)" || s === "(mídia)"
+}
+
+/** Eco outbound CRM + webhook/socket com ids distintos (figurinha/imagem). */
+function isLikelyOutboundStickerImageEcho(a, b) {
+  if (!a || !b) return false
+  if (!isOutgoingLike(a) || !isOutgoingLike(b)) return false
+  if (!sameExplicitConversation(a, b)) return false
+  if (hasConflictingClientTempCorrelation(a, b)) return false
+  if (!isStickerOrImageOutboundTipo(a) || !isStickerOrImageOutboundTipo(b)) return false
+
+  const tsA = toMillis(a?.criado_em)
+  const tsB = toMillis(b?.criado_em)
+  if (!Number.isFinite(tsA) || !Number.isFinite(tsB)) return false
+  if (Math.abs(tsA - tsB) > 120_000) return false
+
+  if (matchesClientTempCorrelation(a, b)) return true
+  if (sameMediaStrongHint(a, b)) return true
+
+  const idA = a?.id != null && String(a.id).trim() !== "" ? String(a.id) : null
+  const idB = b?.id != null && String(b.id).trim() !== "" ? String(b.id) : null
+  if (idA && idB && idA === idB) return true
+
+  const prevLm = a?.file_last_modified ?? null
+  const incLm = b?.file_last_modified ?? null
+  const prevSize = a?.tamanho ?? a?.tamanho_bytes ?? null
+  const incSize = b?.tamanho ?? b?.tamanho_bytes ?? null
+  if (
+    prevLm != null &&
+    incLm != null &&
+    Number.isFinite(Number(prevLm)) &&
+    Number(prevLm) === Number(incLm) &&
+    prevSize != null &&
+    incSize != null &&
+    Number.isFinite(Number(prevSize)) &&
+    Number(prevSize) === Number(incSize)
+  ) {
+    return true
+  }
+
+  const aLocal = isLocalUploadMediaMessage(a) && hasRenderableUrl(a)
+  const bLocal = isLocalUploadMediaMessage(b) && hasRenderableUrl(b)
+  if (aLocal !== bLocal && Math.abs(tsA - tsB) <= 20_000) {
+    if (isStickerPlaceholderText(a?.texto) || isStickerPlaceholderText(b?.texto)) return true
+    if (a?.tempId || b?.tempId) return true
+  }
+
+  return false
+}
+
+function pruneRedundantOutgoingStickerImageEchoes(list) {
+  if (!Array.isArray(list) || list.length < 2) return list
+  const remove = new Set()
+  for (let i = 0; i < list.length; i++) {
+    if (remove.has(i)) continue
+    for (let j = i + 1; j < list.length; j++) {
+      if (remove.has(j)) continue
+      const a = list[i]
+      const b = list[j]
+      if (!isLikelyOutboundStickerImageEcho(a, b) && !isLikelyOutboundStickerImageEcho(b, a)) continue
+      const keepIdx =
+        persistedIdentityDedupeScore(a) >= persistedIdentityDedupeScore(b) ? i : j
+      remove.add(keepIdx === i ? j : i)
+    }
+  }
+  if (!remove.size) return list
+  return list.filter((_, idx) => !remove.has(idx))
 }
 
 function findMergeableMapKey(map, copy) {
@@ -526,7 +615,8 @@ function pruneRedundantOutgoingMediaEchoes(list) {
 function finalizeMensagensList(list) {
   const beforePrune = list.length
   const afterTemps = pruneRedundantOutgoingTemps(list)
-  const afterOutgoingEchoes = pruneRedundantOutgoingMediaEchoes(afterTemps)
+  const afterStickerEchoes = pruneRedundantOutgoingStickerImageEchoes(afterTemps)
+  const afterOutgoingEchoes = pruneRedundantOutgoingMediaEchoes(afterStickerEchoes)
   const afterIncomingEchoes = pruneRedundantIncomingClientMediaEchoes(afterOutgoingEchoes)
   const afterAutomatedTextEchoes = pruneRedundantAutomatedTextEchoes(afterIncomingEchoes)
   const afterIdentityDedupe = dedupeListByPersistedIdentity(afterAutomatedTextEchoes)

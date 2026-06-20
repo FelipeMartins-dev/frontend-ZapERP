@@ -50,7 +50,8 @@ function previewLabelForTipo(tipo, file, caption) {
   const t = String(tipo || "").toLowerCase();
   if (t === "audio" || t === "ptt" || t === "voice") return "(áudio)";
   if (t === "video" || t === "vídeo") return "(vídeo)";
-  if (t === "imagem" || t === "sticker") return "(imagem)";
+  if (t === "sticker") return "(figurinha)";
+  if (t === "imagem") return "(imagem)";
   return file?.name || "arquivo";
 }
 

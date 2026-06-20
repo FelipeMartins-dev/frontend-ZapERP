@@ -476,6 +476,8 @@ let socket = null
 let pushProbeCache = { at: 0, value: false }
 /** Ref para idempotência de join — evita joins duplicados ao reconectar ou trocar conversa */
 let currentConversationId = null
+/** true enquanto o socket está desconectado/falhando — usado para avisar e depois confirmar reconexão */
+let lostConnectionToastShown = false
 let socketAwakeListenersBound = false
 let onWindowFocusReconnect = null
 let onWindowOnlineReconnect = null
@@ -670,6 +672,38 @@ export function initSocket(token) {
     if (convId) joinConversaIfNeeded(convId)
     useChatStore.getState().requestChatListResync?.()
     updateDocumentTitleFromChats()
+    if (lostConnectionToastShown) {
+      useNotificationStore.getState().showToast({
+        type: "success",
+        title: "Conexão restabelecida",
+        message: "Você está online novamente.",
+      })
+      lostConnectionToastShown = false
+    }
+  })
+
+  // Avisa o usuário quando a conexão em tempo real cai — sem isso, a tela fica "viva" sem
+  // receber mensagens/atualizações até reconectar, sem nenhum sinal visível para quem usa.
+  // "io client disconnect" é desconexão intencional (logout/troca de usuário) — não avisar.
+  // Listener adicional (não remove o de DEV registrado acima — ambos coexistem normalmente).
+  socket.on("disconnect", (reason) => {
+    if (reason === "io client disconnect") return
+    lostConnectionToastShown = true
+    useNotificationStore.getState().showToast({
+      type: "warning",
+      title: "Conexão perdida",
+      message: "Tentando reconectar... mensagens em tempo real podem atrasar até a conexão voltar.",
+    })
+  })
+
+  socket.on("connect_error", () => {
+    if (lostConnectionToastShown) return
+    lostConnectionToastShown = true
+    useNotificationStore.getState().showToast({
+      type: "warning",
+      title: "Conexão perdida",
+      message: "Não foi possível conectar em tempo real. Tentando novamente...",
+    })
   })
 
   /* ===========================
@@ -870,6 +904,11 @@ export function initSocket(token) {
     }
     convStore.clearTyping(conversaId)
     convStore.anexarMensagem(msg)
+    if (!msg.fromMe && msg.direcao === "in") {
+      try {
+        socket.emit("marcar_conversa_lida", { conversa_id: conversaId })
+      } catch (_) {}
+    }
   })
 
   /* ===========================
