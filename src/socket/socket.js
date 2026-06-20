@@ -1063,8 +1063,8 @@ export function initSocket(token) {
       if (payload.ultima_atividade != null) next.ultima_atividade = payload.ultima_atividade
       if (payload.contato_nome != null && payload.contato_nome !== "") next.contato_nome = payload.contato_nome
       if (payload.nome_contato_cache != null && payload.nome_contato_cache !== "") next.nome_contato_cache = payload.nome_contato_cache
-      if (payload.foto_perfil != null && payload.foto_perfil !== "" && (!cur?.foto_perfil || !String(cur.foto_perfil).trim())) next.foto_perfil = payload.foto_perfil
-      if (payload.foto_perfil_contato_cache != null && payload.foto_perfil_contato_cache !== "" && (!cur?.foto_perfil_contato_cache || !String(cur.foto_perfil_contato_cache).trim())) next.foto_perfil_contato_cache = payload.foto_perfil_contato_cache
+      if (payload.foto_perfil != null && payload.foto_perfil !== "") next.foto_perfil = payload.foto_perfil
+      if (payload.foto_perfil_contato_cache != null && payload.foto_perfil_contato_cache !== "") next.foto_perfil_contato_cache = payload.foto_perfil_contato_cache
       if (payload.status_atendimento != null) next.status_atendimento = payload.status_atendimento
       if ("status_atendimento_real" in payload) next.status_atendimento_real = payload.status_atendimento_real
       if (payload.telefone != null) next.telefone = payload.telefone

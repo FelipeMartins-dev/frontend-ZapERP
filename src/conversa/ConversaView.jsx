@@ -2903,12 +2903,7 @@ function ConversaViewBody() {
           message: `${nomeAdicionado} agora participa deste atendimento.`,
         });
       } catch (e) {
-        console.error("Erro ao adicionar atendente:", {
-          status: e?.response?.status,
-          data: e?.response?.data,
-          message: e?.message,
-          error: e,
-        });
+        console.error("Erro ao adicionar atendente:", e);
         showToast({
           type: "error",
           title: "Falha ao adicionar",

@@ -121,12 +121,8 @@ function PendingMediaPreview({
         root.style.setProperty("--wa-media-preview-kb-inset", "0px");
         return;
       }
-      const totalInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      // O safe-area-inset-bottom já é tratado via padding-bottom no root (CSS).
-      // Aqui reportamos apenas a altura do teclado virtual para evitar double-count.
-      const safeAreaBottom = parseFloat(getComputedStyle(root).paddingBottom) || 0;
-      const kbOnly = Math.max(0, totalInset - safeAreaBottom);
-      root.style.setProperty("--wa-media-preview-kb-inset", `${Math.round(kbOnly)}px`);
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      root.style.setProperty("--wa-media-preview-kb-inset", `${Math.round(inset)}px`);
     };
     syncKbInset();
     const vv = window.visualViewport;
