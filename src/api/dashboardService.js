@@ -54,16 +54,50 @@ export async function getSlaConfig() {
   return data
 }
 
-export async function setSlaConfig(minutos) {
-  const { data } = await api.put('/dashboard/sla/config', {
-    sla_minutos_sem_resposta: minutos,
-  })
+export async function setSlaConfig(payload) {
+  const body = typeof payload === 'number' || typeof payload === 'string'
+    ? { sla_minutos_sem_resposta: Number(payload) || 30 }
+    : payload
+  const { data } = await api.put('/dashboard/sla/config', body)
   return data
 }
 
 export async function getSlaAlertas() {
   const { data } = await api.get('/dashboard/sla/alertas')
   return data || { limite_min: 30, alertas: [] }
+}
+
+export async function getSlaResumo(params = {}) {
+  const { data } = await api.get('/dashboard/sla/resumo', { params })
+  return data || null
+}
+
+export async function getSlaDiaria(params = {}) {
+  const { data } = await api.get('/dashboard/sla/diaria', { params })
+  return data || null
+}
+
+export async function validateSlaConversa(conversaId) {
+  const { data } = await api.get(`/dashboard/sla/validacao/${conversaId}`)
+  return data
+}
+
+/** Exporta SLA (csv/xlsx) com os mesmos filtros da tela */
+export async function exportSla(format = 'csv', params = {}, tipo = 'detalhado') {
+  const f = (format || 'csv').toLowerCase()
+  const { data } = await api.get('/dashboard/sla/export', {
+    params: { ...params, format: f === 'excel' ? 'xlsx' : f, tipo },
+    responseType: 'blob',
+  })
+  const ext = f === 'xlsx' || f === 'excel' ? 'xlsx' : 'csv'
+  const filename = `sla-${tipo}.${ext}`
+  const url = URL.createObjectURL(new Blob([data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+  return filename
 }
 
 /** Lista atendentes (para filtros de relatório) */

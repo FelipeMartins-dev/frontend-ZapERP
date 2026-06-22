@@ -126,8 +126,10 @@ export async function excluirTag(id) {
 }
 
 // Respostas salvas
-export async function getRespostasSalvas(departamentoId) {
-  const params = departamentoId ? { departamento_id: departamentoId } : {}
+export async function getRespostasSalvas(departamentoId, { contexto } = {}) {
+  const params = {}
+  if (departamentoId) params.departamento_id = departamentoId
+  if (contexto) params.contexto = contexto
   const { data } = await api.get('/dashboard/respostas-salvas', { params })
   return data || []
 }

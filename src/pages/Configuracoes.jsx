@@ -1361,12 +1361,13 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
         <div className="ia-callout-body">
           <p className="ia-callout-title">Para o atalho <kbd>/</kbd> no atendimento</p>
           <p className="ia-callout-text">
-            Cadastre aqui modelos <strong>pessoais</strong> que você insere na conversa (o cliente não recebe automaticamente).
+            Cadastre modelos para inserir na conversa com o atalho <kbd>/</kbd> (o cliente não recebe automaticamente).
+            Com setor <strong>Todos</strong>, a resposta fica disponível para todos os atendentes da empresa.
             Não confundir com <Link to="/ia?tab=respostas" className="ia-callout-link">IA → Respostas automáticas</Link> do bot.
           </p>
         </div>
       </div>
-      <p className="ia-muted">Setor opcional limita quando a resposta aparece no menu. Só você vê e edita as suas.</p>
+      <p className="ia-muted">Setor &quot;Todos&quot; compartilha com toda a empresa. Setor específico limita a resposta ao seu usuário naquele setor.</p>
       {(errorMsg || okMsg) && (
         <div className={`ia-error-banner ${okMsg ? "is-ok" : ""}`} role="alert" style={{ marginBottom: 12 }}>
           {errorMsg || okMsg}

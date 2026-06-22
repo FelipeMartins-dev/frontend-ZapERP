@@ -525,7 +525,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     let cancelled = false;
     setSavedRepliesLoading(true);
     setSavedRepliesError(null);
-    getRespostasSalvas(departamentoId ?? null)
+    getRespostasSalvas(departamentoId ?? null, { contexto: 'atendimento' })
       .then((list) => {
         if (cancelled) return;
         const arr = Array.isArray(list) ? list : [];
