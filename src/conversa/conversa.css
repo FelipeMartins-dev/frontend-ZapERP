@@ -7335,7 +7335,7 @@
      ocupa a tela inteira com header próprio (Cancelar) e composer com legenda. */
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   background: #0b141a;
@@ -7781,10 +7781,17 @@ main.main-content--crm .wa-mediaPreview-composer {
 
 /* Preview unificado: crop + legenda na mesma tela (mobile) — layout fixo sem cortar margens */
 .wa-mediaPreview--imageUnified {
-  z-index: 90;
+  z-index: 100;
   background: #000;
-  height: 100dvh;
-  max-height: 100dvh;
+  /* inset:0 no .wa-mediaPreview cobre a viewport; evitar height/max-height 100dvh
+     que em alguns Android/iOS deixa faixa clara (composer do chat) abaixo do overlay. */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: manipulation;
@@ -8085,6 +8092,12 @@ main.main-content--crm .wa-mediaPreview-composer {
   z-index: 6;
   background: #0b141a;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  /* Overlay em tela cheia: safe-area só aqui (main-content não duplica). */
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0) + var(--wa-media-preview-kb-inset, 0px));
+}
+
+main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer {
+  padding-bottom: calc(10px + var(--wa-media-preview-kb-inset, 0px));
 }
 
 .wa-mediaPreview--imageUnified .wa-mediaPreview-inputWrap {
@@ -8106,6 +8119,17 @@ main.main-content--crm .wa-mediaPreview-composer {
     padding: 10px 20px 6px;
     padding-left: calc(20px + env(safe-area-inset-left, 0));
     padding-right: calc(20px + env(safe-area-inset-right, 0));
+  }
+
+  /* Composer do chat por baixo do preview gerava faixa branca sobre a legenda */
+  .wa-shell:has(.wa-mediaPreview) .wa-composerStack {
+    display: none !important;
+  }
+
+  .main-content:has(.wa-mediaPreview),
+  .main-content.main-content--crm:has(.wa-mediaPreview),
+  .app-layout:has(.wa-mediaPreview) .main-content {
+    padding-bottom: 0 !important;
   }
 }
 

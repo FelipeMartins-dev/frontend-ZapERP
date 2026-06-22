@@ -492,6 +492,19 @@ function ConversaViewBody() {
       shell.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
       root.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
 
+      const mediaPreviewOpen = Boolean(shell.querySelector(".wa-mediaPreview"));
+      if (mediaPreviewOpen) {
+        shell.classList.remove("wa-keyboard-visible");
+        mobileKeyboardWasVisibleRef.current = false;
+        setViewportCssVars({
+          "--wa-vv-top": null,
+          "--wa-keyboard-inset": null,
+          "--wa-visual-height": null,
+          "--wa-composer-stack-h": null,
+        });
+        return;
+      }
+
       const vvNow = window.visualViewport;
       const input = getComposerInput();
       const inputFocused = Boolean(input && document.activeElement === input);

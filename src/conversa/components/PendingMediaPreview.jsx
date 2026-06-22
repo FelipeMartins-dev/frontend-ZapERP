@@ -116,6 +116,13 @@ function PendingMediaPreview({
     document.addEventListener("keydown", onTrapKeyDown, true);
 
     const syncKbInset = () => {
+      const captionEl = captionRef?.current;
+      const captionFocused =
+        captionEl instanceof HTMLElement && document.activeElement === captionEl;
+      if (!captionFocused) {
+        root.style.setProperty("--wa-media-preview-kb-inset", "0px");
+        return;
+      }
       const vv = window.visualViewport;
       if (!vv) {
         root.style.setProperty("--wa-media-preview-kb-inset", "0px");
@@ -128,12 +135,17 @@ function PendingMediaPreview({
     const vv = window.visualViewport;
     vv?.addEventListener("resize", syncKbInset);
     vv?.addEventListener("scroll", syncKbInset);
+    const onCaptionFocusChange = () => syncKbInset();
+    document.addEventListener("focusin", onCaptionFocusChange, true);
+    document.addEventListener("focusout", onCaptionFocusChange, true);
 
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("keydown", onTrapKeyDown, true);
       vv?.removeEventListener("resize", syncKbInset);
       vv?.removeEventListener("scroll", syncKbInset);
+      document.removeEventListener("focusin", onCaptionFocusChange, true);
+      document.removeEventListener("focusout", onCaptionFocusChange, true);
       root.style.removeProperty("--wa-media-preview-kb-inset");
       if (previousActive && typeof previousActive.focus === "function") {
         try {
@@ -143,7 +155,7 @@ function PendingMediaPreview({
         }
       }
     };
-  }, [pendingFile, rootRef]);
+  }, [pendingFile, rootRef, captionRef]);
 
   if (!pendingFile) return null;
 
