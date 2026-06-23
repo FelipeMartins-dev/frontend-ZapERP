@@ -54,7 +54,7 @@ import {
 import ConversaThread from "./ConversaThread";
 import ConversaComposer from "./ConversaComposer";
 
-import { FORWARD_SELECT_MAX, STICKER_RECENTS_LIMIT } from "./conversaConstants";
+import { FORWARD_SELECT_MAX, MAX_DOCUMENTOS_LOTE_ENVIO, STICKER_RECENTS_LIMIT } from "./conversaConstants";
 import {
   parseToDate,
   formatDia,
@@ -1805,6 +1805,169 @@ function ConversaViewBody() {
       debugMessageBoundary,
       podeEnviar,
       showToast,
+      focusMessageInput,
+      marcarMensagemTempErro,
+      reconciliarMensagem,
+      appendOutgoingOptimisticMessage,
+      applyOutgoingStatusOptimistic,
+      scheduleArquivoSendConsistencyCheck,
+      setSendingTracked,
+    ]
+  );
+
+  const handleDocumentInputChange = useCallback(
+    async (e) => {
+      let files = e.target.files ? Array.from(e.target.files) : [];
+      e.target.value = "";
+      if (!files.length || !conversaId) return;
+
+      const blocked = files.filter((f) => isArquivoBloqueadoWhatsApp(f));
+      if (blocked.length) {
+        showToast({
+          type: "error",
+          title: "Arquivo não permitido",
+          message: mensagemArquivoBloqueadoWhatsApp(blocked[0]),
+        });
+        files = files.filter((f) => !isArquivoBloqueadoWhatsApp(f));
+        if (!files.length) return;
+      }
+
+      if (files.length > MAX_DOCUMENTOS_LOTE_ENVIO) {
+        showToast({
+          type: "warning",
+          title: "Limite de documentos",
+          message: `Selecione no máximo ${MAX_DOCUMENTOS_LOTE_ENVIO} documentos por vez. Apenas os primeiros ${MAX_DOCUMENTOS_LOTE_ENVIO} serão enviados.`,
+        });
+        files = files.slice(0, MAX_DOCUMENTOS_LOTE_ENVIO);
+      }
+
+      if (files.length === 1) {
+        handleDropFile(files[0]);
+        return;
+      }
+
+      if (!podeEnviar) {
+        showToast({
+          type: "warning",
+          title: "Conversa não assumida",
+          message: "Clique em Assumir para enviar mensagens.",
+        });
+        return;
+      }
+
+      const tempIds = [];
+      shouldStickToBottomRef.current = true;
+      const revertOutgoingStatus = applyOutgoingStatusOptimistic();
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f });
+        tempIds.push(optimisticMsg.tempId);
+        debugMessageBoundary("send_media", {
+          conversa_id: conversaId,
+          atendimento_id: conversa?.atendimento_id ?? conversa?.atendimento?.id,
+          cliente_id: conversa?.cliente_id ?? conversa?.cliente?.id,
+          phone: conversa?.phone ?? conversa?.telefone ?? conversa?.cliente_telefone,
+          message_id: optimisticMsg.tempId,
+        });
+        appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append("file", files[i]);
+      }
+      formData.append("client_temp_ids", JSON.stringify(tempIds));
+      formData.append("conversa_id", String(conversaId));
+      if (conversa?.atendimento_id != null) formData.append("atendimento_id", String(conversa.atendimento_id));
+      if (conversa?.cliente_id != null) formData.append("cliente_id", String(conversa.cliente_id));
+      if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
+      setSendingTracked(true);
+      try {
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
+          headers: { "Content-Type": false },
+        });
+        const reconciliations = extractArquivoApiReconciliations(data, conversaId, tempIds);
+        reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
+
+        const failures = extractArquivoApiFailures(data, tempIds);
+        failures.forEach(({ tempId, error }) =>
+          marcarMensagemTempErro(tempId, { erro_mensagem: error })
+        );
+
+        const reconciledTempIds = new Set(reconciliations.map((r) => String(r.tempId)));
+        const failedTempIds = new Set(failures.map((f) => String(f.tempId)));
+        const pendingTempIds = tempIds.filter(
+          (tid) => !reconciledTempIds.has(String(tid)) && !failedTempIds.has(String(tid))
+        );
+
+        if (pendingTempIds.length > 0) {
+          const targetId = conversaId;
+          scheduleAfterInitialPaint(() => {
+            const st = useConversaStore.getState();
+            if (String(st.selectedId) !== String(targetId)) return;
+            void st.refresh({ silent: true });
+          }, 400);
+        }
+        const knownIds = [
+          data?.id,
+          ...(Array.isArray(data?.ids) ? data.ids : []),
+          ...(Array.isArray(data?.results) ? data.results.map((r) => r?.id) : []),
+        ];
+        const tempIdsToCheck = tempIds.filter((tid) => !failedTempIds.has(String(tid)));
+        if (tempIdsToCheck.length > 0) {
+          scheduleArquivoSendConsistencyCheck(conversaId, tempIdsToCheck, { knownIds });
+        }
+
+        if (failures.length > 0) {
+          const okCount = reconciliations.length;
+          showToast({
+            type: okCount > 0 ? "warning" : "error",
+            title: okCount > 0 ? "Envio parcial" : "Falha ao enviar",
+            message:
+              okCount > 0
+                ? `${okCount} documento(s) enviado(s). ${failures.length} falhou(aram).`
+                : failures[0]?.error || "Não foi possível enviar os documentos. Tente novamente.",
+          });
+        }
+      } catch (err) {
+        revertOutgoingStatus?.();
+        const is403 = err?.response?.status === 403;
+        const apiMsg = err?.response?.data?.error;
+        const partialFailures = extractArquivoApiFailures(err?.response?.data, tempIds);
+        if (partialFailures.length) {
+          const reconciliations = extractArquivoApiReconciliations(err?.response?.data, conversaId, tempIds);
+          reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
+          partialFailures.forEach(({ tempId, error }) =>
+            marcarMensagemTempErro(tempId, { erro_mensagem: error })
+          );
+          showToast({
+            type: reconciliations.length > 0 ? "warning" : "error",
+            title: reconciliations.length > 0 ? "Envio parcial" : is403 ? "Acesso restrito" : "Falha ao enviar",
+            message:
+              reconciliations.length > 0
+                ? `${reconciliations.length} documento(s) enviado(s). ${partialFailures.length} falhou(aram).`
+                : apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar os documentos. Tente novamente."),
+          });
+        } else {
+          tempIds.forEach((tid) => marcarMensagemTempErro(tid, { erro_mensagem: apiMsg || err?.message }));
+          showToast({
+            type: "error",
+            title: is403 ? "Acesso restrito" : "Falha ao enviar",
+            message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar os documentos. Tente novamente."),
+          });
+        }
+      } finally {
+        setSendingTracked(false);
+        focusMessageInput();
+      }
+    },
+    [
+      conversaId,
+      conversa,
+      debugMessageBoundary,
+      podeEnviar,
+      showToast,
+      handleDropFile,
       focusMessageInput,
       marcarMensagemTempErro,
       reconciliarMensagem,
@@ -3676,6 +3839,7 @@ function ConversaViewBody() {
             onPasteImageFile={handleComposerPasteImage}
             onFileInputChange={handleFileInputChange}
             onFototecaInputChange={handleFototecaInputChange}
+            onDocumentInputChange={handleDocumentInputChange}
             onCameraInputChange={handleCameraInputChange}
             onStickerInputChange={handleStickerInputChange}
             onSendStickerFile={sendStickerFile}

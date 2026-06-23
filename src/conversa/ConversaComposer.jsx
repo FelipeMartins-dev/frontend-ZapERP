@@ -142,6 +142,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     onPasteImageFile,
     onFileInputChange,
     onFototecaInputChange,
+    onDocumentInputChange,
     onCameraInputChange,
     onStickerInputChange,
     onSendStickerFile,
@@ -1560,7 +1561,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               type="file"
               style={{ display: "none" }}
               accept="*/*"
-              onChange={onFileInputChange}
+              multiple
+              onChange={onDocumentInputChange}
             />
             <input
               ref={stickerInputRef}
