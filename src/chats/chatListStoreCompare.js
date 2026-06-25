@@ -5,6 +5,7 @@ import {
   getLastDirection,
   getListaUltimaMensagemCriadoEm,
 } from "./chatListRowAtendimento";
+import { pickHigherStatus } from "../socket/statusMensagemBatch";
 
 /**
  * Assinatura leve de um chat na store — campos que afetam card, ordem e filtros laterais.
@@ -71,7 +72,7 @@ export function chatListIdsInOrder(list) {
 /** Status normalizado para ticks (lista + guards de status_mensagem). */
 export function normalizeMensagemStatusKey(m) {
   if (!m) return "";
-  return String(m?.status_mensagem ?? m?.status ?? "")
+  return String(pickHigherStatus(m?.status_mensagem, m?.status) ?? "")
     .toLowerCase()
     .trim();
 }

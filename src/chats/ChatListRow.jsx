@@ -31,6 +31,7 @@ import {
   formatEsperaDuracaoFromMinutes,
   formatEsperaDuracaoTooltip,
 } from "../utils/formatEsperaDuracao";
+import { normalizeStatusValue, pickHigherStatus } from "../socket/statusMensagemBatch";
 
 export const CHAT_ROW_TOUCH_MOVE_PX = 12;
 
@@ -390,7 +391,7 @@ function getPreview(chat, { audioDurationSec } = {}) {
 
 function ChatTicks({ status, isGroup }) {
   const raw = status;
-  const s = String(raw ?? "").trim();
+  const s = String(normalizeStatusValue(raw) ?? raw ?? "").trim();
   const lower = s.toLowerCase();
 
   // Alguns providers retornam ack numérico (0..4)
@@ -409,6 +410,7 @@ function ChatTicks({ status, isGroup }) {
     !lower || lower === "sent" || lower === "enviado" || lower === "enviada" || lower === "send" || lower === "sending";
   const isDelivered =
     lower === "received" ||
+    lower === "device" ||
     lower === "delivered" ||
     lower === "entregue" ||
     lower === "entregada" ||
@@ -435,7 +437,7 @@ function PreviewLine({ chat, audioDurationSec }) {
   if (!last) return <span className="chat-list-previewText">Sem mensagens</span>;
 
   const out = String(last?.direcao || "").toLowerCase() === "out";
-  const status = last?.status ?? last?.status_mensagem ?? chat?.status ?? "";
+  const status = pickHigherStatus(last?.status_mensagem, last?.status) ?? chat?.status ?? "";
   const isGroup = isGroupConversation(chat);
   const atendentePrefix = out && last?.enviado_por_usuario && last?.usuario_nome
     ? `${last.usuario_nome}: `

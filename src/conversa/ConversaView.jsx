@@ -36,6 +36,7 @@ const MediaViewerOverlay = lazy(() => import("./components/MediaViewerOverlay"))
 import { abrirConversaPorTelefone, carregarMensagensAntigasContato, conversaFromContatoResponse, fetchChats } from "../chats/chatService";
 import { getDisplayName } from "../chats/chatListDisplay";
 import { getSocket } from "../socket/socket";
+import { pickHigherStatus } from "../socket/statusMensagemBatch";
 import { scheduleAfterInitialPaint } from "../chats/scheduleAfterInitialPaint";
 import { saveReplyMeta } from "./replyMeta";
 import {
@@ -935,7 +936,7 @@ function ConversaViewBody() {
       (msg?.id != null && String(msg.id).trim() !== "") ||
       (msg?.whatsapp_id != null && String(msg.whatsapp_id).trim() !== "");
     const isStillPending = (msg) => {
-      const s = String(msg?.status_mensagem ?? msg?.status ?? "").toLowerCase();
+      const s = String(pickHigherStatus(msg?.status_mensagem, msg?.status) ?? "").toLowerCase();
       return s === "" || s === "pending" || s === "sending" || s === "enviando";
     };
 

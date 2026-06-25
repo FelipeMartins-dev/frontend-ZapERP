@@ -282,10 +282,11 @@ export default function Configuracoes() {
               const nextEmpresa = updated || v;
               setEmpresa(nextEmpresa);
               useEmpresaStore.getState().setEmpresa(nextEmpresa);
-              const crmHabilitado = nextEmpresa?.crm_habilitado;
-              if (crmHabilitado !== undefined) {
-                // Atualiza imediatamente o estado global para refletir no chat sem refresh.
-                useAuthStore.getState().updateUser({ crm_habilitado: crmHabilitado });
+              const authPatch = {};
+              if (nextEmpresa?.crm_habilitado !== undefined) authPatch.crm_habilitado = nextEmpresa.crm_habilitado;
+              if (nextEmpresa?.separar_mensagens_disparadas !== undefined) authPatch.separar_mensagens_disparadas = nextEmpresa.separar_mensagens_disparadas;
+              if (Object.keys(authPatch).length > 0) {
+                useAuthStore.getState().updateUser(authPatch);
               }
               loadAll();
             }}
@@ -518,6 +519,19 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
                 checked={v.crm_habilitado !== false}
                 onChange={(on) => setV((c) => ({ ...c, crm_habilitado: on }))}
                 aria-label="Módulo CRM ativo para a empresa"
+              />
+            </div>
+            <div className="config-geral-toggle">
+              <div className="config-geral-toggle-text">
+                <span className="config-geral-toggle-label">Separar mensagens disparadas</span>
+                <span className="config-geral-toggle-hint">
+                  Quando ativado, mensagens enviadas pelo WhatsApp fora do ZapERP (pelo celular ou por campanha) ficam numa aba separada «Mensagens Disparadas» em vez de aparecer em «Abertas».
+                </span>
+              </div>
+              <Switch
+                checked={!!v.separar_mensagens_disparadas}
+                onChange={(on) => setV((c) => ({ ...c, separar_mensagens_disparadas: on }))}
+                aria-label="Separar mensagens disparadas"
               />
             </div>
           </div>
