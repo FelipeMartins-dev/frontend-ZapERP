@@ -1075,8 +1075,8 @@ export const useConversaStore = create((set, get) => {
           let merged = preserveLocalMediaFields(cur, { ...cur, ...partial })
           if (partial.status != null || partial.status_mensagem != null) {
             const higher = pickHigherStatus(
-              pickHigherStatus(cur.status_mensagem, cur.status),
-              pickHigherStatus(partial.status_mensagem, partial.status)
+              cur.status_mensagem ?? cur.status,
+              partial.status_mensagem ?? partial.status
             )
             if (higher != null) {
               merged = { ...merged, status: higher, status_mensagem: higher }

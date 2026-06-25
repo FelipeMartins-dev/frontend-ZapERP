@@ -3,8 +3,6 @@
  * Não compara callbacks (assumidos estáveis via useCallback no pai).
  */
 
-import { pickHigherStatus } from "../socket/statusMensagemBatch";
-
 function safeStr(v) {
   return v == null ? "" : String(v);
 }
@@ -28,7 +26,7 @@ export function messageRowVisualSignature(item) {
     safeStr(item.tempId),
     safeStr(item.client_temp_id),
     safeStr(item.whatsapp_id),
-    safeStr(pickHigherStatus(item.status_mensagem, item.status)),
+    safeStr(item.status ?? item.status_mensagem),
     safeStr(item.tipo),
     safeStr(item.texto ?? item.conteudo).slice(0, 512),
     safeStr(item._optimisticBlobUrl).slice(0, 200),

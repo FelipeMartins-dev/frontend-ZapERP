@@ -33,7 +33,6 @@ import {
   IconEmoji,
   TickSvg,
 } from "./conversaViewIcons";
-import { pickHigherStatus } from "../socket/statusMensagemBatch";
 
 let __waCurrentAudio = null;
 const WA_AUDIO_SPEEDS = [1, 1.5, 2];
@@ -83,7 +82,7 @@ function MessageTicks({ msg, isGroup }) {
   const out = isOutgoingMessage(msg);
   if (!out) return null;
 
-  const raw = pickHigherStatus(msg?.status_mensagem, msg?.status) ?? msg?.situacao;
+  const raw = msg?.status_mensagem ?? msg?.status ?? msg?.situacao;
   const maybeNum = typeof raw === "number" && Number.isFinite(raw) ? raw : (/^\d+$/.test(String(raw || "").trim()) ? Number(raw) : null);
   const rawStatus = raw != null && maybeNum == null ? safeString(raw).toLowerCase() : String(maybeNum ?? "");
   const hasReadAt = !!(msg?.lida_em || msg?.lidaEm || msg?.read_at || msg?.readAt);
@@ -99,7 +98,7 @@ function MessageTicks({ msg, isGroup }) {
 
   const s = rawStatus;
   const hasReadKeyword = /lida|read|seen|visualiz|played/.test(s);
-  const hasDeliveredKeyword = /entregue|deliver|receiv|device/.test(s);
+  const hasDeliveredKeyword = /entregue|deliver|receiv/.test(s);
   const isErr = s === "erro" || s === "error" || s === "failed" || s === "falhou";
   const isPending = s === "pending" || s === "enviando" || s === "sending";
   let isRead =
@@ -110,12 +109,12 @@ function MessageTicks({ msg, isGroup }) {
   if (isGroup) isRead = false; // grupos: cap em delivered, nunca azul
   const isDelivered =
     isRead ||
-    s === "entregue" || s === "delivered" || s === "received" || s === "device" ||
+    s === "entregue" || s === "delivered" || s === "received" ||
     hasDeliveredAt ||
     hasDeliveredKeyword;
   // sent: mensagem confirmada pelo servidor WA mas ainda não entregue ao dispositivo
   const isSent = !isErr && !isPending && !isDelivered && !isRead &&
-    (!s || s === "sent" || s === "enviada" || s === "enviado" || s === "server");
+    (!s || s === "sent" || s === "enviada" || s === "enviado");
 
   return (
     <span className={`wa-ticks ${isDelivered ? "isDelivered" : ""} ${isRead ? "isRead" : ""} ${isErr ? "isErr" : ""} ${isPending ? "isPending" : ""}`}>

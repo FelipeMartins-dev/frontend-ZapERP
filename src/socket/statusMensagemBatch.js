@@ -8,14 +8,11 @@ const STATUS_RANK = {
   enviando: 0,
   sending: 0,
   sent: 1,
-  server: 1,
   enviada: 1,
   enviado: 1,
   delivered: 2,
-  device: 2,
   entregue: 2,
   received: 2,
-  receivedcallback: 2,
   read: 3,
   lida: 3,
   seen: 3,
@@ -25,40 +22,17 @@ const STATUS_RANK = {
   reproduzida: 4,
 };
 
-export function normalizeStatusValue(value) {
-  const raw = String(value ?? "").toLowerCase().trim();
-  if (!raw) return null;
-  if (ERROR_STATUSES.has(raw)) return "erro";
-  if (/^\d+$/.test(raw)) {
-    const n = Number(raw);
-    if (n <= 0) return "pending";
-    if (n === 1) return "sent";
-    if (n === 2) return "delivered";
-    if (n === 3) return "read";
-    return "played";
-  }
-  if (raw === "enviada" || raw === "enviado" || raw === "server") return "sent";
-  if (raw === "entregue" || raw === "entregada" || raw === "received" || raw === "receivedcallback" || raw === "device") {
-    return "delivered";
-  }
-  if (raw === "lida" || raw === "seen" || raw === "visualizada" || raw === "read_by_me") return "read";
-  if (raw === "reproduzida") return "played";
-  return raw;
-}
-
 function statusRank(s) {
-  const raw = normalizeStatusValue(s);
+  const raw = String(s ?? "").toLowerCase().trim();
   if (!raw) return -1;
   if (ERROR_STATUSES.has(raw)) return 200;
   return STATUS_RANK[raw] ?? 1;
 }
 
 export function pickHigherStatus(a, b) {
-  const statusA = normalizeStatusValue(a);
-  const statusB = normalizeStatusValue(b);
-  if (!statusA) return statusB ?? null;
-  if (!statusB) return statusA;
-  return statusRank(statusB) >= statusRank(statusA) ? statusB : statusA;
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return statusRank(b) >= statusRank(a) ? b : a;
 }
 
 /**
@@ -91,7 +65,17 @@ export function normalizeStatusMensagemFromPayload(payload) {
     p.whatsapp_id ?? p.wamid ?? p.wa_id ?? p.whatsappMessageId ?? payload?.whatsapp_id ?? payload?.wamid;
   if (!mensagem_id && !whatsapp_id && !status) return null;
 
-  const s = normalizeStatusValue(status);
+  const raw = status != null ? String(status).toLowerCase().trim() : "";
+  const s =
+    raw === "enviada" || raw === "enviado"
+      ? "sent"
+      : raw === "entregue" || raw === "received"
+        ? "delivered"
+        : raw === "lida" || raw === "seen" || raw === "visualizada" || raw === "read_by_me"
+          ? "read"
+          : raw === "played" || raw === "reproduzida"
+            ? "played"
+            : raw || null;
 
   return {
     mensagem_id: mensagem_id ?? null,

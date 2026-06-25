@@ -1,5 +1,4 @@
 import { useChatStore } from "../chats/chatsStore";
-import { pickHigherStatus } from "../socket/statusMensagemBatch";
 import {
   fileToPreviewURL,
   getAudioFilename,
@@ -178,8 +177,8 @@ function buildArquivoReconcileRow(row, conversaId) {
     ...(id != null && String(id).trim() !== "" ? { id } : {}),
     conversa_id: convId,
     direcao: row.direcao ?? "out",
-    status: pickHigherStatus(row.status_mensagem, row.status) ?? "pending",
-    status_mensagem: pickHigherStatus(row.status_mensagem, row.status) ?? "pending",
+    status: row.status ?? row.status_mensagem ?? "pending",
+    status_mensagem: row.status_mensagem ?? row.status ?? "pending",
     ...(row.tipo ? { tipo: row.tipo } : {}),
     ...(trustedUrl ? { url: trustedUrl, url_absoluta: trustedUrl } : {}),
     ...(row.nome_arquivo ? { nome_arquivo: row.nome_arquivo } : {}),
@@ -207,8 +206,8 @@ export function normalizeTextSendApiToMessage(data, conversaId) {
     client_temp_id: m.client_temp_id ?? data.client_temp_id ?? data.clientTempId,
     whatsapp_id: m.whatsapp_id ?? data.whatsapp_id,
     id: m.id ?? data.id,
-    status: pickHigherStatus(m.status_mensagem, m.status) ?? pickHigherStatus(data.status_mensagem, data.status),
-    status_mensagem: pickHigherStatus(m.status_mensagem, m.status) ?? pickHigherStatus(data.status_mensagem, data.status),
+    status: m.status ?? m.status_mensagem ?? data.status,
+    status_mensagem: m.status_mensagem ?? m.status ?? data.status_mensagem ?? data.status,
   };
   
   // ⭐ OTIMIZAÇÃO: buildArquivoReconcileRow já lida com todas as propriedades necessárias ou retorna null.
