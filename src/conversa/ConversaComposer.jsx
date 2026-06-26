@@ -1171,6 +1171,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           fototecaInputRef.current?.click();
           setAttachMenuOpen(false);
         }}
+        disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">
           📄
@@ -1185,6 +1186,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           fototecaInputRef.current?.click();
           setAttachMenuOpen(false);
         }}
+        disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">
           🖼️
@@ -1215,6 +1217,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           cameraInputRef.current?.click();
           setAttachMenuOpen(false);
         }}
+        disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">
           📷
@@ -1274,6 +1277,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           onShareContact?.();
           setAttachMenuOpen(false);
         }}
+        disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-contact" aria-hidden="true">
           👤
@@ -1288,6 +1292,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           onShareLocation?.();
           setAttachMenuOpen(false);
         }}
+        disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-location" aria-hidden="true">
           📍
