@@ -4,7 +4,38 @@ import {
   isVideoFile,
   isAudioFile,
   isEditableImageForSend,
+  formatFileSize,
 } from "../utils/conversaViewHelpers";
+
+/** Deriva cor, label e extensão a partir do arquivo para o card de preview. */
+function getFileTypeInfo(file) {
+  const name = String(file?.name || "").toLowerCase();
+  const mime = String(file?.type || "").toLowerCase();
+  const rawExt = name.includes(".") ? name.split(".").pop().toUpperCase() : "FILE";
+  const ext = rawExt.slice(0, 5);
+
+  if (isAudioFile(file))
+    return { ext, label: "Áudio", color: "#a78bfa", bg: "rgba(167,139,250,0.14)" };
+  if (mime.includes("pdf") || name.endsWith(".pdf"))
+    return { ext: "PDF", label: "PDF", color: "#f87171", bg: "rgba(248,113,113,0.13)" };
+  if (mime.includes("word") || mime.includes("msword") || name.endsWith(".doc") || name.endsWith(".docx"))
+    return { ext, label: "Word", color: "#60a5fa", bg: "rgba(96,165,250,0.13)" };
+  if (mime.includes("sheet") || mime.includes("excel") || name.endsWith(".xls") || name.endsWith(".xlsx"))
+    return { ext, label: "Excel", color: "#34d399", bg: "rgba(52,211,153,0.13)" };
+  if (name.endsWith(".csv"))
+    return { ext: "CSV", label: "Planilha CSV", color: "#34d399", bg: "rgba(52,211,153,0.13)" };
+  if (mime.includes("presentation") || name.endsWith(".ppt") || name.endsWith(".pptx"))
+    return { ext, label: "PowerPoint", color: "#fb923c", bg: "rgba(251,146,60,0.13)" };
+  if (name.endsWith(".txt"))
+    return { ext: "TXT", label: "Texto", color: "#94a3b8", bg: "rgba(148,163,184,0.13)" };
+  if (name.endsWith(".xml"))
+    return { ext: "XML", label: "XML", color: "#fbbf24", bg: "rgba(251,191,36,0.13)" };
+  if (name.endsWith(".json"))
+    return { ext: "JSON", label: "JSON", color: "#fbbf24", bg: "rgba(251,191,36,0.13)" };
+  if (name.endsWith(".zip") || name.endsWith(".rar") || name.endsWith(".7z") || name.endsWith(".tar") || name.endsWith(".gz"))
+    return { ext, label: "Compactado", color: "#fbbf24", bg: "rgba(251,191,36,0.13)" };
+  return { ext, label: "Arquivo", color: "#94a3b8", bg: "rgba(148,163,184,0.13)" };
+}
 import { IconSend, IconClose } from "../conversaViewIcons";
 
 const ImageSendPreviewMobile = lazy(() => import("../ImageSendPreviewMobile.jsx"));
@@ -239,21 +270,63 @@ function PendingMediaPreview({
             alt="Pré-visualização da imagem a enviar"
             className="wa-mediaPreview-media"
           />
-        ) : (
-          <div className="wa-fileSendPreview-card">
-            <div className="wa-fileSendPreview-icon" aria-hidden="true">
-              {isAudioFile(pendingFile) ? "🎧" : "📎"}
-            </div>
-            <div className="wa-fileSendPreview-meta">
-              <div className="wa-fileSendPreview-name">{pendingFile.name}</div>
-              <div className="wa-fileSendPreview-sub">
-                {isAudioFile(pendingFile) ? "Áudio pronto para envio" : "Arquivo pronto para envio"}
-                <span className="wa-dotSep">•</span>
-                {(pendingFile.size / 1024 / 1024).toFixed(2)} MB
+        ) : (() => {
+          const typeInfo = getFileTypeInfo(pendingFile);
+          const sizeStr = formatFileSize(pendingFile.size) || "—";
+          return (
+            <div
+              className="wa-fileSendPreview-card"
+              style={{ "--fsp-clr": typeInfo.color, "--fsp-bg": typeInfo.bg }}
+            >
+              {/* Ícone do tipo de arquivo */}
+              <div className="wa-fileSendPreview-iconArea" aria-hidden="true">
+                <div className="wa-fileSendPreview-iconBox">
+                  <svg
+                    className="wa-fileSendPreview-docShape"
+                    viewBox="0 0 48 60"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M6 0h24l12 12v42a6 6 0 01-6 6H6a6 6 0 01-6-6V6a6 6 0 016-6z"
+                      fill="var(--fsp-clr)"
+                      opacity="0.18"
+                    />
+                    <path
+                      d="M30 0l12 12H35a5 5 0 01-5-5V0z"
+                      fill="var(--fsp-clr)"
+                      opacity="0.3"
+                    />
+                    <rect x="8" y="26" width="18" height="2.5" rx="1.25" fill="rgba(255,255,255,0.22)" />
+                    <rect x="8" y="33" width="24" height="2.5" rx="1.25" fill="rgba(255,255,255,0.22)" />
+                    <rect x="8" y="40" width="14" height="2.5" rx="1.25" fill="rgba(255,255,255,0.22)" />
+                  </svg>
+                  <span className="wa-fileSendPreview-extLabel">{typeInfo.ext}</span>
+                </div>
+              </div>
+
+              {/* Nome e metadados */}
+              <div className="wa-fileSendPreview-info">
+                <div className="wa-fileSendPreview-filename" title={pendingFile.name}>
+                  {pendingFile.name}
+                </div>
+                <div className="wa-fileSendPreview-details">
+                  <span className="wa-fileSendPreview-typeBadge">{typeInfo.label}</span>
+                  <span className="wa-fileSendPreview-detailDot" aria-hidden="true">·</span>
+                  <span className="wa-fileSendPreview-sizeText">{sizeStr}</span>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="wa-fileSendPreview-readyBadge">
+                <span className="wa-fileSendPreview-readyDot" aria-hidden="true" />
+                <span>
+                  {isAudioFile(pendingFile) ? "Áudio pronto para envio" : "Arquivo pronto para envio"}
+                </span>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       <div className="wa-mediaPreview-composer">

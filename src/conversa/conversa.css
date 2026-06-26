@@ -7344,45 +7344,182 @@
   animation: wa-mediaPreview-fadeIn 0.16s ease-out;
 }
 
-/* Variante: PDF / áudio / outros — fundo um pouco mais claro, cartão central */
+/* =========================================================
+   FILE SEND PREVIEW — card de envio de arquivo/áudio
+   ========================================================= */
+
+/* Variante: PDF / áudio / outros — fundo gradiente escuro suave */
 .wa-mediaPreview--file {
-  background: linear-gradient(180deg, #1a2329 0%, #0b141a 45%);
+  background: linear-gradient(160deg, #1a2530 0%, #0f1d25 50%, #0b141a 100%);
 }
 
+/* Stage no modo arquivo: fundo transparente + glow central suave */
+.wa-mediaPreview--file .wa-mediaPreview-stage {
+  background: transparent;
+  padding: 32px 24px;
+  position: relative;
+}
+
+.wa-mediaPreview--file .wa-mediaPreview-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 55% 45% at 50% 50%, rgba(0, 168, 132, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Card principal */
 .wa-fileSendPreview-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: min(500px, calc(100vw - 32px));
+  padding: 32px 28px 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.5),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+/* Linha decorativa superior com a cor do tipo de arquivo */
+.wa-fileSendPreview-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--fsp-clr, #94a3b8);
+  opacity: 0.55;
+}
+
+/* Área do ícone */
+.wa-fileSendPreview-iconArea {
+  margin-bottom: 20px;
+}
+
+.wa-fileSendPreview-iconBox {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 20px;
+  background: var(--fsp-bg, rgba(148, 163, 184, 0.13));
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
-  gap: 16px;
-  max-width: 100%;
-  padding: 20px 22px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
-.wa-fileSendPreview-icon {
-  font-size: 40px;
+.wa-fileSendPreview-docShape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 12px 14px;
+  pointer-events: none;
+}
+
+.wa-fileSendPreview-extLabel {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: var(--fsp-clr, #94a3b8);
+  text-transform: uppercase;
   line-height: 1;
-  flex-shrink: 0;
 }
 
-.wa-fileSendPreview-meta {
-  min-width: 0;
-  text-align: left;
+/* Info: nome e detalhes */
+.wa-fileSendPreview-info {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 16px;
 }
 
-.wa-fileSendPreview-name {
-  font-size: 15px;
+.wa-fileSendPreview-filename {
+  font-size: 15.5px;
   font-weight: 600;
   color: #e9edef;
+  line-height: 1.45;
+  margin-bottom: 9px;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.wa-fileSendPreview-sub {
-  margin-top: 6px;
+.wa-fileSendPreview-details {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.wa-fileSendPreview-typeBadge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 9px;
+  border-radius: 6px;
+  background: var(--fsp-bg, rgba(148, 163, 184, 0.13));
+  color: var(--fsp-clr, #94a3b8);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.wa-fileSendPreview-detailDot {
+  color: rgba(233, 237, 239, 0.25);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.wa-fileSendPreview-sizeText {
   font-size: 13px;
-  color: rgba(233, 237, 239, 0.65);
+  color: rgba(233, 237, 239, 0.5);
+  white-space: nowrap;
+}
+
+/* Badge de status */
+.wa-fileSendPreview-readyBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 12.5px;
+  color: rgba(233, 237, 239, 0.5);
+}
+
+.wa-fileSendPreview-readyDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  border-radius: 50%;
+  background: #00a884;
+  box-shadow: 0 0 7px rgba(0, 168, 132, 0.6);
+  animation: wa-fsp-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes wa-fsp-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 7px rgba(0, 168, 132, 0.6); }
+  50%       { opacity: 0.6; box-shadow: 0 0 3px rgba(0, 168, 132, 0.3); }
 }
 
 @keyframes wa-mediaPreview-fadeIn {

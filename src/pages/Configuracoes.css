@@ -854,6 +854,50 @@
 
 /* ======================================================= */
 
+/* =========================================================
+   RESPOSTAS SALVAS — Contador de limite por atendente
+========================================================= */
+.config-respostas-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  white-space: nowrap;
+}
+.config-respostas-counter--alerta {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.config-respostas-counter--cheio {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+[data-theme="dark"] .config-respostas-counter {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+[data-theme="dark"] .config-respostas-counter--alerta {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.25);
+}
+[data-theme="dark"] .config-respostas-counter--cheio {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.25);
+}
+
+/* ======================================================= */
+
 @media (max-width: 800px) {
   .config-geral-grid {
     grid-template-columns: 1fr;

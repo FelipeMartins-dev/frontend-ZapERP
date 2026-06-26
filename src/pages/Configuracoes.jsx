@@ -321,7 +321,7 @@ export default function Configuracoes() {
           <SecaoTags tags={tags} onRefresh={loadAll} />
         )}
         {tab === "respostas" && (
-          <SecaoRespostas respostas={respostas} departamentos={departamentos} onRefresh={loadAll} />
+          <SecaoRespostas respostas={respostas} departamentos={departamentos} onRefresh={loadAll} user={user} />
         )}
         {tab === "bot" && (
           <div className="ia-section">
@@ -1266,7 +1266,9 @@ function SecaoTags({ tags, onRefresh }) {
   );
 }
 
-function SecaoRespostas({ respostas, departamentos, onRefresh }) {
+const LIMITE_RESPOSTAS_ATENDENTE = 5;
+
+function SecaoRespostas({ respostas, departamentos, onRefresh, user }) {
   const [titulo, setTitulo] = useState("");
   const [texto, setTexto] = useState("");
   const [depId, setDepId] = useState("");
@@ -1278,9 +1280,25 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState({ titulo: "", texto: "", departamento_id: "" });
 
+  // Determina se é atendente (sem acesso à config completa)
+  const perfil = String(user?.perfil || "").toLowerCase();
+  const isAtendente = perfil !== "admin" && perfil !== "administrador" && perfil !== "supervisor";
+  const userId = user?.id != null ? Number(user.id) : null;
+
+  // Conta apenas as respostas que pertencem ao próprio usuário
+  const minhasRespostas = useMemo(() => {
+    const list = Array.isArray(respostas) ? respostas : [];
+    if (userId == null) return list;
+    return list.filter((r) => Number(r.usuario_id) === userId);
+  }, [respostas, userId]);
+
+  const totalProprias = minhasRespostas.length;
+  const limitAtingido = isAtendente && totalProprias >= LIMITE_RESPOSTAS_ATENDENTE;
+
   const handleCriar = async (e) => {
     e.preventDefault();
     if (!titulo.trim() || !texto.trim()) return;
+    if (limitAtingido) return;
     setSaving(true);
     setErrorMsg(null);
     setOkMsg(null);
@@ -1369,52 +1387,85 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
 
   return (
     <div className="ia-section">
-      <h4>Respostas salvas</h4>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 4 }}>
+        <h4 style={{ margin: 0 }}>Respostas salvas</h4>
+        {isAtendente && (
+          <span
+            className={`config-respostas-counter${limitAtingido ? " config-respostas-counter--cheio" : totalProprias >= LIMITE_RESPOSTAS_ATENDENTE - 1 ? " config-respostas-counter--alerta" : ""}`}
+            title={limitAtingido ? "Limite atingido. Exclua uma resposta para criar outra." : `Você usou ${totalProprias} de ${LIMITE_RESPOSTAS_ATENDENTE} respostas salvas`}
+          >
+            {totalProprias}/{LIMITE_RESPOSTAS_ATENDENTE} respostas salvas
+          </span>
+        )}
+      </div>
       <div className="ia-callout ia-callout--info ia-respostas-salvas-callout" role="note">
         <div className="ia-callout-icon ia-callout-icon--info" aria-hidden="true">/</div>
         <div className="ia-callout-body">
           <p className="ia-callout-title">Para o atalho <kbd>/</kbd> no atendimento</p>
           <p className="ia-callout-text">
             Cadastre modelos para inserir na conversa com o atalho <kbd>/</kbd> (o cliente não recebe automaticamente).
-            Com setor <strong>Todos</strong>, a resposta fica disponível para todos os atendentes da empresa.
-            Não confundir com <Link to="/ia?tab=respostas" className="ia-callout-link">IA → Respostas automáticas</Link> do bot.
+            {isAtendente
+              ? <> Você pode salvar até <strong>{LIMITE_RESPOSTAS_ATENDENTE} respostas</strong> pessoais.</>
+              : <> Com setor <strong>Todos</strong>, a resposta fica disponível para todos os atendentes da empresa.</>
+            }
+            {" "}Não confundir com <Link to="/ia?tab=respostas" className="ia-callout-link">IA → Respostas automáticas</Link> do bot.
           </p>
         </div>
       </div>
-      <p className="ia-muted">Setor &quot;Todos&quot; compartilha com toda a empresa. Setor específico limita a resposta ao seu usuário naquele setor.</p>
+      {!isAtendente && (
+        <p className="ia-muted">Setor &quot;Todos&quot; compartilha com toda a empresa. Setor específico limita a resposta ao seu usuário naquele setor.</p>
+      )}
       {(errorMsg || okMsg) && (
         <div className={`ia-error-banner ${okMsg ? "is-ok" : ""}`} role="alert" style={{ marginBottom: 12 }}>
           {errorMsg || okMsg}
           <button type="button" onClick={() => { setErrorMsg(null); setOkMsg(null); }}>×</button>
         </div>
       )}
-      <form onSubmit={handleCriar}>
-        <div className="ia-field">
-          <label>Título</label>
-          <input className="ia-input" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+
+      {limitAtingido ? (
+        <div className="ia-callout ia-callout--warn" role="alert" style={{ marginBottom: 16 }}>
+          <div className="ia-callout-icon" aria-hidden="true">⚠️</div>
+          <div className="ia-callout-body">
+            <p className="ia-callout-title">Limite atingido ({LIMITE_RESPOSTAS_ATENDENTE}/{LIMITE_RESPOSTAS_ATENDENTE})</p>
+            <p className="ia-callout-text">Você atingiu o limite de {LIMITE_RESPOSTAS_ATENDENTE} respostas salvas. Exclua uma existente para poder criar uma nova.</p>
+          </div>
         </div>
-        <div className="ia-field">
-          <label>Texto</label>
-          <textarea className="ia-textarea" value={texto} onChange={(e) => setTexto(e.target.value)} rows={3} />
-        </div>
-        <div className="ia-field">
-          <label>Setor (opcional)</label>
-          <select className="ia-select" value={depId} onChange={(e) => setDepId(e.target.value)}>
-            <option value="">Todos</option>
-            {departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
-          </select>
-        </div>
-        <button type="submit" className="ia-btn ia-btn--primary" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</button>
-      </form>
+      ) : (
+        <form onSubmit={handleCriar}>
+          <div className="ia-field">
+            <label>Título</label>
+            <input className="ia-input" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex.: Saudação inicial, Prazo de entrega…" />
+          </div>
+          <div className="ia-field">
+            <label>Texto</label>
+            <textarea className="ia-textarea" value={texto} onChange={(e) => setTexto(e.target.value)} rows={3} placeholder="Texto que será inserido na conversa ao usar o atalho /" />
+          </div>
+          {!isAtendente && (
+            <div className="ia-field">
+              <label>Setor (opcional)</label>
+              <select className="ia-select" value={depId} onChange={(e) => setDepId(e.target.value)}>
+                <option value="">Todos</option>
+                {departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
+              </select>
+            </div>
+          )}
+          <button type="submit" className="ia-btn ia-btn--primary" disabled={saving || !titulo.trim() || !texto.trim()}>
+            {saving ? "Salvando..." : "Salvar resposta"}
+          </button>
+        </form>
+      )}
+
       <div className="config-toolbar" style={{ marginTop: 18 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <label className="config-inlineLabel">
-            Setor:
-            <select className="ia-select" value={filterDepId} onChange={(e) => setFilterDepId(e.target.value)} style={{ marginLeft: 8, minWidth: 180 }}>
-              <option value="">Todos</option>
-              {departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
-            </select>
-          </label>
+          {!isAtendente && (
+            <label className="config-inlineLabel">
+              Setor:
+              <select className="ia-select" value={filterDepId} onChange={(e) => setFilterDepId(e.target.value)} style={{ marginLeft: 8, minWidth: 180 }}>
+                <option value="">Todos</option>
+                {departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
+              </select>
+            </label>
+          )}
           <input
             className="ia-input"
             value={query}
@@ -1429,12 +1480,15 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
       <ul className="ia-list" style={{ marginTop: 12 }}>
         {filtered.length === 0 ? (
           <li className="config-emptyRow">
-            Nenhuma resposta salva encontrada para este filtro.
+            {isAtendente && totalProprias === 0
+              ? "Você ainda não tem respostas salvas. Crie sua primeira resposta acima."
+              : "Nenhuma resposta salva encontrada para este filtro."}
           </li>
         ) : null}
         {filtered.map((r) => {
           const snippet = String(r.texto || "").trim().slice(0, 140);
           const depNome = r.departamentos?.nome ? String(r.departamentos.nome) : null;
+          const isPropriaDoUsuario = userId != null && Number(r.usuario_id) === userId;
           return (
             <li key={r.id} className="ia-list-item">
               {editingId === r.id ? (
@@ -1449,13 +1503,15 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
                         <label>Texto</label>
                         <textarea className="ia-textarea" rows={3} value={edit.texto} onChange={(e) => setEdit((c) => ({ ...c, texto: e.target.value }))} />
                       </div>
-                      <div className="ia-field" style={{ marginBottom: 0 }}>
-                        <label>Setor (opcional)</label>
-                        <select className="ia-select" value={edit.departamento_id} onChange={(e) => setEdit((c) => ({ ...c, departamento_id: e.target.value }))}>
-                          <option value="">Todos</option>
-                          {departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
-                        </select>
-                      </div>
+                      {!isAtendente && (
+                        <div className="ia-field" style={{ marginBottom: 0 }}>
+                          <label>Setor (opcional)</label>
+                          <select className="ia-select" value={edit.departamento_id} onChange={(e) => setEdit((c) => ({ ...c, departamento_id: e.target.value }))}>
+                            <option value="">Todos</option>
+                            {departamentos.map((d) => <option key={d.id} value={d.id}>{d.nome}</option>)}
+                          </select>
+                        </div>
+                      )}
                     </div>
                     <div className="config-inlineEditActions">
                       <button type="button" className="ia-btn ia-btn--small ia-btn--primary" onClick={handleSalvarEdicao} disabled={saving}>
@@ -1472,7 +1528,12 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                       <strong>{r.titulo}</strong>
-                      {depNome ? <span className="config-pill">{depNome}</span> : <span className="config-pill config-pill--muted">Global</span>}
+                      {!isAtendente && (
+                        depNome ? <span className="config-pill">{depNome}</span> : <span className="config-pill config-pill--muted">Global</span>
+                      )}
+                      {isAtendente && !isPropriaDoUsuario && (
+                        <span className="config-pill config-pill--muted">Empresa</span>
+                      )}
                     </div>
                     <div className="ia-muted" style={{ marginTop: 6 }}>
                       {snippet}{String(r.texto || "").length > 140 ? "…" : ""}
@@ -1482,12 +1543,26 @@ function SecaoRespostas({ respostas, departamentos, onRefresh }) {
                     <button className="ia-btn ia-btn--small ia-btn--outline" type="button" onClick={() => copyToClipboard(r.texto)} title="Copiar texto">
                       Copiar
                     </button>
-                    <button className="ia-btn ia-btn--small ia-btn--outline" type="button" onClick={() => startEdit(r)} title="Editar">
-                      Editar
-                    </button>
-                    <button className="ia-btn ia-btn--small ia-btn--outline" type="button" onClick={() => handleExcluir(r.id)} title="Excluir">
-                      Excluir
-                    </button>
+                    {isPropriaDoUsuario && (
+                      <>
+                        <button className="ia-btn ia-btn--small ia-btn--outline" type="button" onClick={() => startEdit(r)} title="Editar">
+                          Editar
+                        </button>
+                        <button className="ia-btn ia-btn--small ia-btn--outline" type="button" onClick={() => handleExcluir(r.id)} title="Excluir">
+                          Excluir
+                        </button>
+                      </>
+                    )}
+                    {!isPropriaDoUsuario && !isAtendente && (
+                      <>
+                        <button className="ia-btn ia-btn--small ia-btn--outline" type="button" onClick={() => startEdit(r)} title="Editar">
+                          Editar
+                        </button>
+                        <button className="ia-btn ia-btn--small ia-btn--outline" type="button" onClick={() => handleExcluir(r.id)} title="Excluir">
+                          Excluir
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               )}
