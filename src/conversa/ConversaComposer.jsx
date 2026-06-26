@@ -26,6 +26,15 @@ import {
   IconSend,
   IconSticker,
 } from "./conversaComposerIcons";
+import {
+  IconCamera as TablerCamera,
+  IconFileText,
+  IconLayoutGrid,
+  IconMapPin,
+  IconPhoto,
+  IconSettings2,
+  IconUser,
+} from "@tabler/icons-react";
 
 const WA_INPUT_MAX_HEIGHT_PX = 160;
 const STICKER_RECENTS_LIMIT = 36;
@@ -1163,6 +1172,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         </span>
         <span>Respostas salvas</span>
       </button>
+      <div className="wa-attachDivider" role="separator" />
       <button
         type="button"
         className="wa-attachItem"
@@ -1174,7 +1184,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">
-          📄
+          <IconPhoto size={16} strokeWidth={1.6} />
         </span>
         <span>Fototeca/Galeria</span>
       </button>
@@ -1189,7 +1199,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">
-          🖼️
+          <IconLayoutGrid size={16} strokeWidth={1.6} />
         </span>
         <span>Galeria</span>
       </button>
@@ -1220,10 +1230,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">
-          📷
+          <TablerCamera size={16} strokeWidth={1.6} />
         </span>
         <span>Câmera</span>
       </button>
+      <div className="wa-attachDivider" role="separator" />
       <button
         type="button"
         className="wa-attachItem"
@@ -1235,7 +1246,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-document" aria-hidden="true">
-          <IconDocument />
+          <IconFileText size={16} strokeWidth={1.6} />
         </span>
         <span>Documentos</span>
       </button>
@@ -1265,10 +1276,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         disabled={pixConfigLoading || sending}
       >
         <span className="wa-attachItem-icon wa-attachIcon-clip" aria-hidden="true">
-          ⚙️
+          <IconSettings2 size={16} strokeWidth={1.6} />
         </span>
         <span>Configurar Pix</span>
       </button>
+      <div className="wa-attachDivider" role="separator" />
       <button
         type="button"
         className="wa-attachItem"
@@ -1280,7 +1292,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-contact" aria-hidden="true">
-          👤
+          <IconUser size={16} strokeWidth={1.6} />
         </span>
         <span>Contato</span>
       </button>
@@ -1295,7 +1307,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-location" aria-hidden="true">
-          📍
+          <IconMapPin size={16} strokeWidth={1.6} />
         </span>
         <span>Localização</span>
       </button>

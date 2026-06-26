@@ -8470,17 +8470,17 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
-  min-width: 220px;
-  padding: 8px 0;
+  min-width: 200px;
+  padding: 5px;
   background: var(--wa-attach-menu-bg, var(--wa-glass-strong));
   border: 1px solid color-mix(in srgb, var(--wa-panel-border) 80%, transparent);
-  border-radius: 8px;
-  box-shadow: 0 18px 46px -22px rgba(15, 23, 42, 0.48);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(16px);
   z-index: 1200;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   list-style: none;
   margin: 0;
   animation: wa-attachSlideUp 0.2s ease-out;
@@ -8551,50 +8551,63 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
 .wa-attachItem {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
-  padding: 12px 18px;
+  padding: 7px 10px;
   border: none;
   background: transparent;
   color: var(--wa-attach-menu-text, #e9edef);
-  font-size: 15px;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: background 0.12s ease;
-  border-radius: 0;
+  transition: background 0.1s ease;
+  border-radius: 10px;
 }
 
 .wa-attachItem:hover {
   background: color-mix(in srgb, var(--wa-green) 8%, transparent);
 }
 
+.wa-attachItem:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
 .wa-attachItem-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 15px;
   flex-shrink: 0;
 }
 
-.wa-attachIcon-doc { background: rgba(136, 99, 207, 0.25); }
-.wa-attachIcon-savedReplies { background: rgba(20, 184, 166, 0.24); color: var(--wa-green); }
-.wa-attachIcon-gallery { background: rgba(47, 158, 226, 0.25); }
-.wa-attachIcon-link { background: rgba(76, 175, 80, 0.25); }
-.wa-attachIcon-camera { background: rgba(226, 68, 92, 0.25); }
-.wa-attachIcon-audio { background: rgba(207, 147, 60, 0.25); }
-.wa-attachIcon-contact { background: rgba(77, 178, 201, 0.25); }
-.wa-attachIcon-location { background: rgba(214, 152, 62, 0.28); }
-.wa-attachIcon-clip { background: rgba(79, 195, 127, 0.25); }
+.wa-attachDivider {
+  height: 1px;
+  background: color-mix(in srgb, var(--wa-panel-border) 60%, transparent);
+  margin: 3px 8px;
+}
+
+.wa-attachIcon-doc { background: rgba(136, 99, 207, 0.18); color: #8863cf; }
+.wa-attachIcon-savedReplies { background: rgba(20, 184, 166, 0.18); color: var(--wa-green); }
+.wa-attachIcon-gallery { background: rgba(47, 158, 226, 0.18); color: #2f9ee2; }
+.wa-attachIcon-link { background: rgba(76, 175, 80, 0.18); color: #4caf50; }
+.wa-attachIcon-camera { background: rgba(226, 68, 92, 0.15); color: #e2445c; }
+.wa-attachIcon-audio { background: rgba(207, 147, 60, 0.18); color: #cf933c; }
+.wa-attachIcon-contact { background: rgba(77, 178, 201, 0.18); color: #4db2c9; }
+.wa-attachIcon-location { background: rgba(214, 152, 62, 0.18); color: #d6983e; }
+.wa-attachIcon-clip { background: rgba(100, 100, 100, 0.12); color: var(--wa-text-muted); }
+.wa-attachIcon-document { background: rgba(136, 99, 207, 0.18); color: #8863cf; }
 .wa-attachIcon-pix {
-  background: rgba(0, 168, 132, 0.24);
-  color: rgba(24, 245, 178, 0.95);
+  background: rgba(0, 168, 132, 0.18);
+  color: #00a884;
 }
 .wa-attachIcon-pix svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 /* Barra de gravação — mesma altura do input (44px) para alinhamento */
@@ -11218,16 +11231,17 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   }
 
   .wa-attachItem {
-    padding: 10px 16px;
+    padding: 9px 14px;
     min-height: 44px;
     font-size: 14px;
     gap: 12px;
   }
 
   .wa-attachItem-icon {
-    width: 34px;
-    height: 34px;
-    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    border-radius: 8px;
   }
 
   .wa-autocorrectToggle {
