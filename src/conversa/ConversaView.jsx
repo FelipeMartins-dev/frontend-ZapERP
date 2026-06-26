@@ -1588,9 +1588,7 @@ function ConversaViewBody() {
 
       setSendingTracked(true);
       try {
-        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
-          headers: { "Content-Type": false },
-        });
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData);
 
         const reconciliations = extractArquivoApiReconciliations(data, conversaId, [tempId]);
         if (reconciliations.length) {
@@ -1721,9 +1719,7 @@ function ConversaViewBody() {
       if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
       setSendingTracked(true);
       try {
-        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
-          headers: { "Content-Type": false },
-        });
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData);
         const reconciliations = extractArquivoApiReconciliations(data, conversaId, tempIds);
         reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
 
@@ -1883,9 +1879,7 @@ function ConversaViewBody() {
       if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
       setSendingTracked(true);
       try {
-        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
-          headers: { "Content-Type": false },
-        });
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData);
         const reconciliations = extractArquivoApiReconciliations(data, conversaId, tempIds);
         reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
 
