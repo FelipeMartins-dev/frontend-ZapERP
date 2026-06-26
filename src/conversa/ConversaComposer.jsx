@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 import { acquireMicStream, invalidateMicStream, isMicSupported, queryMicPermissionState, shouldShowMicPersistenceHint } from "../media/micStreamService";
 import { getRespostasSalvas } from "../api/configService";
 import { getSocket } from "../socket/socket";
-import { getAutocorrectEdit } from "../utils/autocorrectText";
+import { capitalizeMessageStart, getAutocorrectEdit } from "../utils/autocorrectText";
 import {
   IconCamera,
   IconClose,
@@ -726,7 +726,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const handleInputChange = useCallback(
     (e) => {
-      const nextValue = String(e.target.value || "");
+      const nextValue = capitalizeMessageStart(texto, e.target.value);
       const tracked = autoCorrectTrackedRef.current;
 
       if (tracked.length > 0) {
@@ -768,7 +768,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         closeSavedReplies();
       }
     },
-    [closeSavedReplies, hasWordWithContext, resetAutocorrectTracking, savedRepliesOpen]
+    [closeSavedReplies, hasWordWithContext, resetAutocorrectTracking, savedRepliesOpen, texto]
   );
 
   const handleSendFromComposer = useCallback(
@@ -1585,6 +1585,9 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               aria-label={composerInputAriaLabel}
               rows={1}
               enterKeyHint={composerEnterInsertsNewline ? "enter" : "send"}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
             />
 
             {!headerCompact ? (

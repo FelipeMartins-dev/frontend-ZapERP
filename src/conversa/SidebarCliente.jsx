@@ -133,9 +133,11 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
   const canEdit = useMemo(() => {
     if (isGroup) return false;
     if (user?.id == null) return false;
+    const perfil = String(user?.perfil || "").toLowerCase();
+    if (perfil === "admin" || perfil === "supervisor") return true;
     if (conversa?.atendente_id == null || conversa?.atendente_id === "") return false;
     return String(conversa.atendente_id) === String(user.id);
-  }, [isGroup, user?.id, conversa?.atendente_id]);
+  }, [isGroup, user?.id, user?.perfil, conversa?.atendente_id]);
 
   const [cliente, setCliente] = useState(null);
   const [clienteLoading, setClienteLoading] = useState(false);
@@ -1148,6 +1150,7 @@ export default function SidebarCliente({ open, onClose, conversa, tags, tempoSem
                 !canEdit ||
                 savingAny ||
                 (!clienteId && !telefoneCadastro) ||
+                (!clienteId && !hasAnyChanges) ||
                 (clienteId && !hasAnyChanges)
               }
               aria-busy={savingAny}

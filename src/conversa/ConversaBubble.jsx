@@ -18,6 +18,8 @@ import {
   getVisualViewportLayout,
   seedFromAny,
   makeWaveBars,
+  resolveDownloadFilename,
+  buildMediaDownloadHref,
 } from "./utils/conversaViewHelpers";
 import { renderTextWithLinks } from "./utils/conversaViewFormat";
 import {
@@ -128,7 +130,7 @@ function MessageTicks({ msg, isGroup }) {
  * timestamp, ticks e links "Abrir" / "Salvar como..."
  */
 function FileBubbleContent({ msg, mediaUrl, selectMode, onOpenMedia, isGroup, out }) {
-  const nome = msg?.nome_arquivo || "Arquivo";
+  const nome = resolveDownloadFilename(msg?.nome_arquivo ?? msg?.n, mediaUrl);
   const ext = getFileExt(nome);
   const bytes = msg?.tamanho ?? msg?.tamanho_bytes;
   const size = formatFileSize(bytes);
@@ -172,7 +174,7 @@ function FileBubbleContent({ msg, mediaUrl, selectMode, onOpenMedia, isGroup, ou
           <>
             <span className="wa-bubble-fileActionSep" aria-hidden="true">·</span>
             <a
-              href={mediaUrl}
+              href={buildMediaDownloadHref(msg?.url, msg?.url_absoluta, nome) || mediaUrl}
               download={nome}
               className="wa-bubble-fileAction"
               onClick={(e) => e.stopPropagation()}

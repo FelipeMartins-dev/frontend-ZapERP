@@ -82,6 +82,8 @@ function ConversaHeader({
     };
   }, [moreMenuOpen]);
 
+  const dadosContatoLabel = isGroup ? "Dados do grupo" : "Dados do contato";
+
   const renderTagsHistoryProductsItems = useCallback(
     (close) => (
       <>
@@ -210,7 +212,8 @@ function ConversaHeader({
         ) : null}
         <HeaderOverflowSheetBtn
           icon={<IconContact />}
-          label="Dados do contato"
+          label={dadosContatoLabel}
+          disabled={!conversaId}
           onClick={() => {
             onOpenClienteSide();
             close();
@@ -220,6 +223,7 @@ function ConversaHeader({
     ),
     [
       conversaId,
+      dadosContatoLabel,
       isGroup,
       mostrarEnviarCrm,
       onOpenClienteSide,
@@ -418,7 +422,8 @@ function ConversaHeader({
                       {renderTagsHistoryProductsItems(closeMoreMenu)}
                       <HeaderOverflowSheetBtn
                         icon={<IconContact />}
-                        label="Dados do contato"
+                        label={dadosContatoLabel}
+                        disabled={!conversaId}
                         onClick={() => {
                           onOpenClienteSide();
                           closeMoreMenu();

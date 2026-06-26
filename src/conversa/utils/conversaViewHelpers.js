@@ -643,6 +643,84 @@ export function getAudioFilename(file) {
   return `audio-${Date.now()}.webm`;
 }
 
+const KNOWN_EXT_RE = /\.[a-z0-9]{2,8}(\?|#|$)/i;
+
+/**
+ * Tenta extrair um nome de arquivo com extensão de uma URL.
+ * Suporta proxy URLs no formato /media/proxy?url=... (extrai da URL interna).
+ */
+function filenameFromUrl(urlStr) {
+  if (!urlStr) return "";
+  try {
+    const u = new URL(String(urlStr), window.location.href);
+    // Se é proxy, extrai da URL interna
+    let pathname = u.pathname;
+    if (pathname.includes("/proxy")) {
+      const inner = u.searchParams.get("url");
+      if (inner) {
+        try {
+          pathname = new URL(inner).pathname;
+        } catch {
+          /* usa pathname original */
+        }
+      }
+    }
+    const parts = pathname.split("/");
+    const last = decodeURIComponent(parts[parts.length - 1] || "");
+    if (last && KNOWN_EXT_RE.test(last)) return last.replace(/\?.*/, "");
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
+/**
+ * Resolve o melhor filename para download, com extensão correta.
+ * Prioriza nome_arquivo do banco; fallback extrai da URL.
+ */
+export function resolveDownloadFilename(nomeArquivo, mediaUrl) {
+  const nome = String(nomeArquivo || "").trim();
+  if (nome && nome !== "Arquivo" && KNOWN_EXT_RE.test(nome)) return nome;
+
+  const fromUrl = filenameFromUrl(mediaUrl);
+  if (fromUrl) return fromUrl;
+
+  // Mantém nome original mesmo sem extensão (melhor que "Arquivo")
+  return nome || "Arquivo";
+}
+
+/**
+ * Constrói URL de download via proxy autenticado com filename correto.
+ * Garante que o backend defina Content-Disposition + Content-Type corretos.
+ * Só usa o proxy para URLs externas (cross-origin); retorna a URL original para /uploads.
+ */
+export function buildMediaDownloadHref(rawUrl, rawUrlAbsoluta, filename) {
+  const abs = getMediaUrl(rawUrl, rawUrlAbsoluta);
+  if (!abs) return abs;
+
+  // Proxy já está na URL (foi construído em getMediaPlaybackUrl)
+  if (abs.includes("/media/proxy")) {
+    try {
+      const u = new URL(abs, window.location.href);
+      if (filename) u.searchParams.set("filename", filename);
+      u.searchParams.set("disposition", "attachment");
+      return u.toString();
+    } catch {
+      return abs;
+    }
+  }
+
+  // URL local (/uploads ou same-origin) — não precisa de proxy
+  if (!needsProxiedMediaPlayback(abs)) return abs;
+
+  // URL externa — roteia pelo proxy com filename + disposition=attachment
+  const token = getAuthTokenFromStorage();
+  const q = new URLSearchParams({ url: abs, disposition: "attachment" });
+  if (token) q.set("access_token", token);
+  if (filename) q.set("filename", filename);
+  return `${getApiBaseUrl().replace(/\/$/, "")}/media/proxy?${q.toString()}`;
+}
+
 
 export function buildStickerStorageKey(user) {
   const companyId = user?.company_id ?? user?.empresa_id ?? user?.companyId ?? user?.empresaId ?? "default";

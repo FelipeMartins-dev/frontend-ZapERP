@@ -3,6 +3,17 @@ import autocorrectDictionary from "./autocorrectDictionary";
 const WORD_END_TRIGGERS = new Set([" ", "\n", ".", ",", "!", "?", ";", ":"]);
 const WORD_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]+$/;
 const UPPERCASE_WORD_PATTERN = /^[A-ZÀ-ÖØ-Þ]+$/;
+const MESSAGE_START_LETTER_PATTERN = /^[a-zà-öø-ÿ]/;
+
+/** Maiúscula automática apenas no primeiro caractere da mensagem (campo vazio). */
+export function capitalizeMessageStart(prevText, nextText) {
+  const prev = String(prevText ?? "");
+  const next = String(nextText ?? "");
+  if (prev.length > 0 || next.length === 0) return next;
+  const first = next.charAt(0);
+  if (!MESSAGE_START_LETTER_PATTERN.test(first)) return next;
+  return first.toUpperCase() + next.slice(1);
+}
 
 function hasUnsafePattern(word) {
   const lower = word.toLowerCase();

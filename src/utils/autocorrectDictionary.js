@@ -36,7 +36,6 @@ const autocorrectDictionary = {
   "ate": "até",
   "apos": "após",
   "so": "só",
-  "e": "é",
   "esta": "está",
   "estao": "estão",
   "sao": "são",
