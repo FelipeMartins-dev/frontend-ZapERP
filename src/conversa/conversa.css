@@ -7331,9 +7331,9 @@
 ========================================================= */
 
 .wa-mediaPreview {
-  /* Cobre toda a viewport, igual ao WhatsApp Web/Mobile: preview de mídia
-     ocupa a tela inteira com header próprio (Cancelar) e composer com legenda. */
-  position: fixed;
+  /* Cobre apenas a área da conversa (.wa-shell tem position:relative + overflow:hidden).
+     Usando absolute para não invadir a sidebar/lista de conversas. */
+  position: absolute;
   inset: 0;
   z-index: 100;
   display: flex;

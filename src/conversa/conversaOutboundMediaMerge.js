@@ -444,6 +444,76 @@ function isLikelyOutboundStickerImageEcho(a, b) {
   return false
 }
 
+function isWeakLocalUploadStickerImageEcho(a, b) {
+  if (!a || !b) return false
+  if (!isLikelyOutboundStickerImageEcho(a, b)) return false
+  if (matchesClientTempCorrelation(a, b)) return false
+  if (sameMediaStrongHint(a, b)) return false
+
+  const idA = a?.id != null && String(a.id).trim() !== "" ? String(a.id) : null
+  const idB = b?.id != null && String(b.id).trim() !== "" ? String(b.id) : null
+  if (idA && idB && idA === idB) return false
+
+  const prevLm = a?.file_last_modified ?? null
+  const incLm = b?.file_last_modified ?? null
+  const prevSize = a?.tamanho ?? a?.tamanho_bytes ?? null
+  const incSize = b?.tamanho ?? b?.tamanho_bytes ?? null
+  if (
+    prevLm != null &&
+    incLm != null &&
+    Number.isFinite(Number(prevLm)) &&
+    Number(prevLm) === Number(incLm) &&
+    prevSize != null &&
+    incSize != null &&
+    Number.isFinite(Number(prevSize)) &&
+    Number(prevSize) === Number(incSize)
+  ) {
+    return false
+  }
+
+  const tsA = toMillis(a?.criado_em)
+  const tsB = toMillis(b?.criado_em)
+  const aLocal = isLocalUploadMediaMessage(a) && hasRenderableUrl(a)
+  const bLocal = isLocalUploadMediaMessage(b) && hasRenderableUrl(b)
+  return (
+    Number.isFinite(tsA) &&
+    Number.isFinite(tsB) &&
+    aLocal !== bLocal &&
+    Math.abs(tsA - tsB) <= 20_000 &&
+    (isStickerPlaceholderText(a?.texto) || isStickerPlaceholderText(b?.texto) || a?.tempId || b?.tempId)
+  )
+}
+
+function countPendingOutgoingStickerImageFamily(list, msg) {
+  const family = mediaFamilyFromMsg(msg)
+  const conv = msg?.conversa_id != null ? String(msg.conversa_id) : null
+  if (!family || !conv) return false
+  return list.filter((m) =>
+    m &&
+    isPendingOutgoingTemp(m) &&
+    isOutgoingLike(m) &&
+    isStickerOrImageOutboundTipo(m) &&
+    mediaFamilyFromMsg(m) === family &&
+    m.conversa_id != null &&
+    String(m.conversa_id) === conv
+  ).length
+}
+
+function shouldKeepWeakStickerImageCandidates(list, a, b) {
+  if (!isWeakLocalUploadStickerImageEcho(a, b) && !isWeakLocalUploadStickerImageEcho(b, a)) return false
+  const pending = isPendingOutgoingTemp(a) ? a : isPendingOutgoingTemp(b) ? b : null
+  const persisted = hasPersistedMessageIdentity(a) ? a : hasPersistedMessageIdentity(b) ? b : null
+  if (!pending || !persisted) return false
+  return countPendingOutgoingStickerImageFamily(list, pending) > 1
+}
+
+function hasAmbiguousPendingStickerImageMerge(list, msg) {
+  if (!msg || !isOutgoingLike(msg) || !hasPersistedMessageIdentity(msg)) return false
+  if (!isStickerOrImageOutboundTipo(msg)) return false
+  if (resolveClientTempId(msg)) return false
+  return countPendingOutgoingStickerImageFamily(list, msg) > 1
+}
+
 function pruneRedundantOutgoingStickerImageEchoes(list) {
   if (!Array.isArray(list) || list.length < 2) return list
   const remove = new Set()
@@ -454,6 +524,7 @@ function pruneRedundantOutgoingStickerImageEchoes(list) {
       const a = list[i]
       const b = list[j]
       if (!isLikelyOutboundStickerImageEcho(a, b) && !isLikelyOutboundStickerImageEcho(b, a)) continue
+      if (shouldKeepWeakStickerImageCandidates(list, a, b)) continue
       const keepIdx =
         persistedIdentityDedupeScore(a) >= persistedIdentityDedupeScore(b) ? i : j
       remove.add(keepIdx === i ? j : i)
@@ -513,6 +584,7 @@ function pruneRedundantOutgoingTemps(list) {
     
     return !confirmed.some((c) => {
       if (matchesClientTempCorrelation(m, c)) return true
+      if (shouldKeepWeakStickerImageCandidates(list, m, c)) return false
       /* Texto: não remover otimista só porque o texto coincide — exige correlação explícita. */
       if (isTipoTextoParaReconciliarPorConteudo(m) && isTipoTextoParaReconciliarPorConteudo(c)) {
         return false
@@ -1394,6 +1466,7 @@ function applyAnexarOneToList(list, convId, msg) {
   if (!msg || !convId) return list
   if (msg.conversa_id == null || String(msg.conversa_id) !== String(convId)) return list
   const belongsToConv = (m) => m?.conversa_id != null && String(m.conversa_id) === String(convId)
+  const hasMultiplePendingStickerImageFamily = (incoming) => hasAmbiguousPendingStickerImageMerge(list, incoming)
 
   const findExisting = () => {
     if (msg.tempId) {
@@ -1417,7 +1490,12 @@ function applyAnexarOneToList(list, convId, msg) {
       if (byClient >= 0) return byClient
     }
     if (msg.id != null && String(msg.id).trim() !== "") {
-      const byId = list.findIndex((m) => belongsToConv(m) && shouldMergeExistingMessages(m, msg))
+      const ambiguousPendingMedia = hasMultiplePendingStickerImageFamily(msg)
+      const byId = list.findIndex((m) =>
+        belongsToConv(m) &&
+        !(ambiguousPendingMedia && isPendingOutgoingTemp(m) && mediaFamilyFromMsg(m) === mediaFamilyFromMsg(msg)) &&
+        shouldMergeExistingMessages(m, msg)
+      )
       if (byId >= 0) return byId
     }
     const waId = msg.whatsapp_id || null
@@ -1458,6 +1536,7 @@ function applyAnexarOneToList(list, convId, msg) {
   const now = Date.now()
 
   if (isFromMe && mediaFamilyFromMsg(msg) && hasPersistedMessageIdentity(msg)) {
+    const ambiguousPendingStickerImage = hasMultiplePendingStickerImageFamily(msg)
     const mergePendingMediaAt = (i) => {
       const m = list[i]
       const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
@@ -1473,7 +1552,7 @@ function applyAnexarOneToList(list, convId, msg) {
     }
 
     let mergeIdx = findPendingOutgoingMediaMergeIndex(list, msg)
-    if (mergeIdx < 0) {
+    if (mergeIdx < 0 && !ambiguousPendingStickerImage) {
       mergeIdx = findPendingOutgoingMediaMergeIndex(list, msg, { allowLoose: true })
     }
     if (mergeIdx >= 0 && belongsToConv(list[mergeIdx])) return mergePendingMediaAt(mergeIdx)
@@ -1631,6 +1710,7 @@ function applyAnexarOneToList(list, convId, msg) {
       return false
     })
 
+  const ambiguousPendingStickerImageCross = hasMultiplePendingStickerImageFamily(candNew)
   const crossIdx =
     isOutgoingLike(candNew) && mediaFamilyFromMsg(candNew) === "audio"
       ? findAudioCrossMergeIndex()
@@ -1650,6 +1730,14 @@ function applyAnexarOneToList(list, convId, msg) {
               : null
           if (pwa && iwa && pwa === iwa) return persistedIdentityMarksSameBubble(m, candNew)
           if (isTipoTextoParaReconciliarPorConteudo(m) && isTipoTextoParaReconciliarPorConteudo(candNew)) {
+            return false
+          }
+          if (
+            ambiguousPendingStickerImageCross &&
+            isPendingOutgoingTemp(m) &&
+            isStickerOrImageOutboundTipo(m) &&
+            mediaFamilyFromMsg(m) === mediaFamilyFromMsg(candNew)
+          ) {
             return false
           }
           return areLikelySameMessageBubble(m, candNew)
