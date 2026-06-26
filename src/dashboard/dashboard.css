@@ -1243,37 +1243,6 @@
   color: var(--dash-muted);
 }
 
-  .dash-kpi-grid,
-  .dash-kpi-grid--compact {
-    grid-template-columns: repeat(3, minmax(180px, 1fr));
-  }
-
-  .dash-filter-grid {
-    grid-template-columns: repeat(3, minmax(160px, 1fr));
-  }
-
-  .dash-sla-filter-grid {
-    grid-template-columns: repeat(3, minmax(160px, 1fr));
-  }
-
-  .dash-sla-summary {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
-  }
-
-  .dash-sla-summary-details {
-    width: 100%;
-  }
-
-  .dash-sla-summary-chips {
-    justify-content: center;
-  }
-}
-
-  grid-template-columns: repeat(5, minmax(140px, 1fr));
-}
-
 .dash-sla-config-panel {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);

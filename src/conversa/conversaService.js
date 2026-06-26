@@ -117,6 +117,7 @@ export async function enviarLink(conversaId, { url, titulo, descricao, imagem, t
   const body = {
     texto: texto || linkUrl,
     link: {
+      linkUrl,
       url: linkUrl,
       ...(titulo ? { title: titulo } : {}),
       ...(descricao ? { description: descricao } : {}),
