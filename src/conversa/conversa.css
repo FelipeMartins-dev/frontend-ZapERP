@@ -6164,13 +6164,12 @@
   top: 0;
   z-index: 3;
   margin: 0 0 8px 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(0,0,0,.06);
-  box-shadow: var(--wa-shadow-subtle);
-  backdrop-filter: blur(8px);
-  /* Superfície sempre clara: texto escuro (tema escuro usa --wa-text claro no resto da tela) */
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(0,0,0,.07);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+  backdrop-filter: blur(12px);
   color: #0f172a;
 }
 
@@ -6192,6 +6191,19 @@
   font-size: 13px;
   color: #475569;
   white-space: nowrap;
+}
+
+.wa-selectBar-countBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--wa-green, #00a884);
+  background: color-mix(in srgb, var(--wa-green, #00a884) 11%, transparent);
+  border-radius: 20px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 
 .wa-selectBar-actions {
@@ -6287,11 +6299,19 @@
   min-width: 0;
 }
 
+.wa-selectBar-deleteBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 /* Apagar ao lado de Encaminhar: contraste sólido (evita rosa “lavado”). */
 .wa-selectBar--forwardIntent .wa-selectBar-actions .wa-btn-danger {
   background: #c5342d;
   color: #fff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 999px !important;
 }
 .wa-selectBar--forwardIntent .wa-selectBar-actions .wa-btn-danger:hover:not(:disabled) {
   background: #ae2e28;

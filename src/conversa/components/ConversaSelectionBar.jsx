@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { IconClose, IconForward } from "../conversaViewIcons";
+import { IconTrash } from "@tabler/icons-react";
 
 /**
  * Camada visual do modo seleção: overlay de escurecimento + barra de ações.
@@ -46,7 +47,9 @@ function ConversaSelectionBar({
               Cancelar
             </button>
           ) : null}
-          <span className="wa-selectBar-count">{selectedCount} selecionada(s)</span>
+          <span className="wa-selectBar-countBadge">
+            {selectedCount} selecionada{selectedCount !== 1 ? "s" : ""}
+          </span>
         </div>
         <div className="wa-selectBar-actions">
           {forwardSelectIntent ? (
@@ -63,10 +66,11 @@ function ConversaSelectionBar({
           ) : null}
           <button
             type="button"
-            className="wa-btn wa-btn-danger"
+            className="wa-btn wa-btn-danger wa-selectBar-deleteBtn"
             onClick={onDelete}
             disabled={deleteDisabled}
           >
+            <IconTrash size={15} strokeWidth={1.8} aria-hidden="true" />
             Apagar
           </button>
         </div>
