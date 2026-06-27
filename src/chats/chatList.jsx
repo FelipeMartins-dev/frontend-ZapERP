@@ -7,7 +7,6 @@ import {
   getChatsPageMeta,
   abrirConversaCliente,
   getZapiStatus,
-  sincronizarFotosPerfil,
   postFinalizacaoAusenciaLote,
 } from "./chatService";
 import { useChatStore } from "./chatsStore";
@@ -603,7 +602,7 @@ export default function ChatList() {
     if (!isAppAdmin(user)) clearAdminAtendenteFilter();
   }, [user?.perfil, user?.role, clearAdminAtendenteFilter]);
 
-  // Status UltraMSG (nome legado getZapiStatus) + sync de fotos — só após paint/idle, sem competir com GET da lista
+  // Status UltraMSG (nome legado getZapiStatus) só após paint/idle, sem competir com GET da lista.
   useEffect(() => {
     let cancelled = false;
 
@@ -619,14 +618,9 @@ export default function ChatList() {
         });
     }, 400);
 
-    const cancelFotos = scheduleAfterInitialPaint(() => {
-      if (!cancelled) sincronizarFotosPerfil().catch(() => {});
-    }, 2200);
-
     return () => {
       cancelled = true;
       cancelStatus();
-      cancelFotos();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
