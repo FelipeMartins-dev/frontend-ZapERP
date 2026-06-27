@@ -3,8 +3,8 @@ import {
   fetchVapidPublicKey,
   pushSupported,
   subscribeWebPush,
-  syncPushSubscriptionSilently,
 } from "./webPushClient"
+import { runAfterPushEntryReady, schedulePushSubscriptionSync } from "./deferredPushSync"
 import "./push-permission-prompt.css"
 
 const STORAGE_DISMISS_UNTIL = "zaperp_push_optin_dismissed_until"
@@ -22,22 +22,22 @@ export default function PushPermissionPrompt() {
   useEffect(() => {
     let cancelled = false
 
-    void (async () => {
+    const cancelReady = runAfterPushEntryReady(() => void (async () => {
       if (!pushSupported() || typeof Notification === "undefined") {
         if (!cancelled) setUi("none")
+        return
+      }
+
+      const perm = Notification.permission
+      if (perm === "granted") {
+        schedulePushSubscriptionSync()
+        setUi("none")
         return
       }
 
       const v = await fetchVapidPublicKey()
       if (cancelled) return
       if (!v.publicKey) {
-        setUi("none")
-        return
-      }
-
-      const perm = Notification.permission
-      if (perm === "granted") {
-        void syncPushSubscriptionSilently().catch(() => {})
         setUi("none")
         return
       }
@@ -67,10 +67,11 @@ export default function PushPermissionPrompt() {
       }
 
       setUi("modal")
-    })()
+    })())
 
     return () => {
       cancelled = true
+      cancelReady()
     }
   }, [])
 

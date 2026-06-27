@@ -1,6 +1,6 @@
 import { useConversaStore } from "../conversa/conversaStore"
 import { isAppUiFullyFocusedForSuppress, isConversationRouteActive } from "../notifications/chatNotificationService"
-import { syncPushSubscriptionSilently } from "./webPushClient"
+import { schedulePushSubscriptionSync } from "./deferredPushSync"
 
 const OPEN_CONVERSATION_EVENT = "zaperp:open-conversation-from-notification"
 let initialized = false
@@ -92,7 +92,7 @@ function handleServiceWorkerMessage(event) {
   }
 
   if (type === "ZAP_PUSH_RESYNC_REQUIRED") {
-    void syncPushSubscriptionSilently()
+    schedulePushSubscriptionSync()
   }
 }
 

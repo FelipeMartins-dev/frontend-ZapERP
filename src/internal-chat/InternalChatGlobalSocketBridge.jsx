@@ -15,6 +15,13 @@ import { useInternalChatNotifyStore } from "./internalChatNotifyStore";
 import { playInternalChatMessagePing } from "./internalChatMessagePing";
 
 const INTERNAL_CHAT_DESKTOP_LS = "internal_chat_desktop_notif";
+const INTERNAL_CHAT_HYDRATE_DELAY_DESKTOP_MS = 900;
+const INTERNAL_CHAT_HYDRATE_DELAY_MOBILE_MS = 4500;
+
+function isMobileViewport() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(max-width: 640px)").matches;
+}
 
 function tryDesktopNotify(title, body) {
   try {
@@ -49,13 +56,16 @@ export default function InternalChatGlobalSocketBridge() {
       return undefined;
     }
     let cancelled = false;
+    const delay = isMobileViewport()
+      ? INTERNAL_CHAT_HYDRATE_DELAY_MOBILE_MS
+      : INTERNAL_CHAT_HYDRATE_DELAY_DESKTOP_MS;
     const cancelSchedule = scheduleAfterInitialPaint(() => {
       listInternalConversations(user?.id)
         .then((convs) => {
           if (!cancelled) useInternalChatNotifyStore.getState().hydrateFromConversations(convs);
         })
         .catch(() => {});
-    }, 900);
+    }, delay);
     return () => {
       cancelled = true;
       cancelSchedule();

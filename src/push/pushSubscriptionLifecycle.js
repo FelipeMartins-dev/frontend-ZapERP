@@ -1,4 +1,4 @@
-import { syncPushSubscriptionSilently } from "./webPushClient"
+import { schedulePushSubscriptionSync } from "./deferredPushSync"
 
 const RESYNC_MIN_INTERVAL_MS = 60_000
 const PERIODIC_RESYNC_MS = 10 * 60_000
@@ -13,7 +13,7 @@ async function runSync(reason) {
   running = true
   lastRunAt = now
   try {
-    await syncPushSubscriptionSilently()
+    schedulePushSubscriptionSync()
   } catch (e) {
     console.warn("[push] sync lifecycle:", reason, e?.message || e)
   } finally {

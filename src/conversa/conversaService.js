@@ -59,7 +59,7 @@ export async function getChatById(conversaId, opts = {}) {
   if (opts?.cursorId != null && opts?.cursorId !== "") params.cursor_id = String(opts.cursorId);
   
   const limit = Number(opts?.limit);
-  if (Number.isFinite(limit) && limit > 0 && limit !== 50) params.limit = limit;
+  if (Number.isFinite(limit) && limit > 0) params.limit = limit;
 
   const config = { params };
   if (opts?.signal) config.signal = opts.signal;

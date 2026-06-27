@@ -42,6 +42,7 @@ import {
 export { stableSyntheticMessageKey, mapDedupeKey, getMessageListReactKey, isPendingOutgoingTemp }
 
 const PAGE_LIMIT = 100
+const MOBILE_INITIAL_PAGE_LIMIT = 50
 
 function mensagemStatusPatchChanges(cur, merged, partial) {
   if (!cur || !merged || !partial) return true
@@ -193,6 +194,10 @@ function isMobileViewport() {
     typeof window.matchMedia === "function" &&
     window.matchMedia("(max-width: 640px)").matches
   )
+}
+
+function getInitialMessagesLimit() {
+  return isMobileViewport() ? MOBILE_INITIAL_PAGE_LIMIT : PAGE_LIMIT
 }
 
 function scheduleSilentRefreshAfterOpen(normalizedId, generation, opts = {}) {
@@ -569,7 +574,7 @@ export const useConversaStore = create((set, get) => {
 
       try {
         const data = await getChatById(normalizedId, {
-          limit: PAGE_LIMIT,
+          limit: getInitialMessagesLimit(),
           signal: abortController.signal,
         })
 

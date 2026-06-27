@@ -3,10 +3,22 @@ import { login as loginService } from "./authService"
 import { getUsuarioMe } from "../api/configService"
 import { initSocket, disconnectSocket } from "../socket/socket"
 import { useChatStore } from "../chats/chatsStore"
+import { clearChatListSidebarSessionCache } from "../chats/chatListSidebarCache"
 import { useConversaStore } from "../conversa/conversaStore"
 import { usePermissoesStore } from "./permissoesStore"
-import { unsubscribeWebPush, syncPushSubscriptionSilently, resetPushRegistrationDebounce } from "../push/webPushClient"
+import { unsubscribeWebPush, resetPushRegistrationDebounce } from "../push/webPushClient"
+import { schedulePushSubscriptionSync } from "../push/deferredPushSync"
 import { useEmpresaStore } from "./empresaStore"
+
+function buildUsuarioMePatch(me) {
+  if (!me || typeof me !== "object") return null
+  const patch = {}
+  if (me.crm_habilitado !== undefined) patch.crm_habilitado = me.crm_habilitado
+  if (me.separar_mensagens_disparadas !== undefined) {
+    patch.separar_mensagens_disparadas = me.separar_mensagens_disparadas
+  }
+  return Object.keys(patch).length > 0 ? patch : null
+}
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -60,7 +72,7 @@ export const useAuthStore = create((set, get) => ({
 
       // Notificações: o evento `storage` não dispara na mesma aba — re-registar subscription/token após login.
       resetPushRegistrationDebounce()
-      void syncPushSubscriptionSilently().catch(() => {})
+      schedulePushSubscriptionSync()
 
       // Carrega permissões do usuário (menus e proteção de rotas)
       usePermissoesStore.getState().fetchPermissoes().catch(() => {})
@@ -84,6 +96,7 @@ export const useAuthStore = create((set, get) => ({
     disconnectSocket()
     try {
       useChatStore.getState().limpar()
+      clearChatListSidebarSessionCache()
       useConversaStore.getState().limpar()
       usePermissoesStore.getState().clearPermissoes()
       useEmpresaStore.getState().clear()
@@ -109,8 +122,8 @@ export const useAuthStore = create((set, get) => ({
     const { token } = get()
     if (!token) return false
     try {
-      await getUsuarioMe()
-      return true
+      const me = await getUsuarioMe()
+      return me || true
     } catch (err) {
       if (err?.response?.status === 401) {
         get().clearSession({ redirect: false })
@@ -120,18 +133,19 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  applyUsuarioMeFlags: (me) => {
+    const patch = buildUsuarioMePatch(me)
+    if (!patch) return
+    get().updateUser(patch)
+  },
+
   /** Atualiza flags do utilizador a partir de GET /usuarios/me (ex.: crm_habilitado). */
   syncUsuarioMe: async () => {
     const { token, user } = get()
     if (!token || !user) return
     try {
       const me = await getUsuarioMe()
-      if (!me || typeof me !== "object") return
-      const patch = {}
-      if (me.crm_habilitado !== undefined) patch.crm_habilitado = me.crm_habilitado
-      if (me.separar_mensagens_disparadas !== undefined) patch.separar_mensagens_disparadas = me.separar_mensagens_disparadas
-      if (Object.keys(patch).length === 0) return
-      get().updateUser(patch)
+      get().applyUsuarioMeFlags(me)
     } catch (_) {
       /* rede / sessão — ignorar */
     }
@@ -180,10 +194,14 @@ export const useAuthStore = create((set, get) => ({
       queueMicrotask(() => {
         get()
           .validateSession()
-          .then((ok) => {
-            if (!ok) return
+          .then((session) => {
+            if (!session) return
             usePermissoesStore.getState().fetchPermissoes().catch(() => {})
-            get().syncUsuarioMe?.().catch(() => {})
+            if (typeof session === "object") {
+              get().applyUsuarioMeFlags(session)
+            } else {
+              get().syncUsuarioMe?.().catch(() => {})
+            }
             useEmpresaStore.getState().fetchEmpresa().catch(() => {})
           })
           .catch(() => {})

@@ -1,0 +1,1 @@
+import{r as a}from"./vendor-react-DOBzNqAb.js";function i(e){const[s,c]=a.useState(()=>typeof window<"u"?window.matchMedia(e).matches:!1);return a.useEffect(()=>{const t=window.matchMedia(e),n=()=>c(t.matches);return n(),t.addEventListener("change",n),()=>t.removeEventListener("change",n)},[e]),s}export{i as u};

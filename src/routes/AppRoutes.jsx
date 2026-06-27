@@ -5,10 +5,10 @@ import { can, canGerenciarRespostasSalvas, isSupervisorOrAdmin } from "../auth/p
 import ProtectedRoute from "./ProtectedRoute";
 
 import Login from "../pages/Login";
-import MainLayout from "../layouts/MainLayout";
 import NotFound from "../pages/NotFound";
-import Atendimento from "../pages/Atendimento";
 
+const MainLayout = lazy(() => import("../layouts/MainLayout"));
+const Atendimento = lazy(() => import("../pages/Atendimento"));
 const ManualZapERP = lazy(() => import("../pages/ManualZapERP"));
 
 const Dashboard = lazy(() => import("../dashboard/Dashboard"));
@@ -83,7 +83,13 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<MainLayout />}>
+        <Route
+          element={
+            <LazyPage>
+              <MainLayout />
+            </LazyPage>
+          }
+        >
           <Route path="/" element={<Navigate to="/atendimento" replace />} />
           <Route
             path="/dashboard"
@@ -105,7 +111,14 @@ export default function AppRoutes() {
               </ProtectedRoute>
             }
           />
-          <Route path="/atendimento" element={<Atendimento />} />
+          <Route
+            path="/atendimento"
+            element={
+              <LazyPage>
+                <Atendimento />
+              </LazyPage>
+            }
+          />
           <Route
             path="/chat-interno"
             element={

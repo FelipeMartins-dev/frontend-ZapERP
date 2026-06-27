@@ -54,8 +54,11 @@ import {
   setChatListFiltersScope,
 } from "./chatListFiltersData";
 import {
+  clearChatListRowsFilterSessionCache,
+  hydrateChatListRowsForFilterFromSession,
   hydrateChatListSidebarFromSession,
   persistChatListSidebarToSession,
+  persistChatListRowsForFilterToSession,
 } from "./chatListSidebarCache";
 import {
   resetAuxBadgeRequestsForScope,
@@ -66,6 +69,7 @@ import ChatListHeaderBar from "./ChatListHeaderBar";
 import ChatListAdvancedFiltersPanel from "./ChatListAdvancedFiltersPanel";
 import MinhasPendenciasCard from "./MinhasPendenciasCard";
 import { useMinhasPendencias } from "./hooks/useMinhasPendencias";
+import { markPushEntryReady } from "../push/deferredPushSync";
 import { getClientesPendentesSupervisao, getResumoSupervisao } from "../api/supervisaoService";
 import { clearConversation, deleteConversation } from "./conversationActionsService";
 import { chatRowStableKey } from "./chatRowStableKey";
@@ -87,6 +91,14 @@ function countDistinctConversas(list) {
 
 const CONFIRM_LOTE_AUSENCIA = "FINALIZAR_LOTE_AUSENCIA_CLIENTE";
 const CHAT_LIST_PAGE_LIMIT = 80;
+const MOBILE_ZAPI_STATUS_DELAY_MS = 3200;
+const MOBILE_SECONDARY_REFRESH_DELAY_MS = 2800;
+const MOBILE_COUNTS_DELAY_MS = 2600;
+const MOBILE_FILTERS_BOOT_DELAY_MS = 3600;
+const MOBILE_FILTERS_PREWARM_DELAY_MS = 5200;
+const MOBILE_SUPERVISAO_POLL_DELAY_MS = 6000;
+const MOBILE_PENDENCIAS_INITIAL_DELAY_MS = 2600;
+const MOBILE_PENDENCIAS_RESYNC_DELAY_MS = 1400;
 const OPTIMISTIC_MINHA_FILA_REMOVE_TTL_MS = 12000;
 const TABS_HIDE_OPTIMISTIC_CLOSED = new Set([
   "minha_fila",
@@ -283,6 +295,8 @@ export default function ChatList() {
   const carregarConversa = useConversaStore((s) => s.carregarConversa);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
   const isMobileLayout = useMatchMedia("(max-width: 640px)");
+  const listLoading = useChatStore((s) => s.loading);
+  const hasListRows = useChatStore((s) => (s.chats?.length ?? 0) > 0);
 
   const { user, rowCurrentUserId, separarMensagensDisparadasLigado, userRole } = useAuthStore(
     (s) => {
@@ -307,7 +321,11 @@ export default function ChatList() {
     onPendenciaClick,
     clearPendenciaAtiva,
     refresh: refreshMinhasPendencias,
-  } = useMinhasPendencias(filterScopeKey);
+  } = useMinhasPendencias(filterScopeKey, {
+    skipInitial: isMobileLayout,
+    initialDelayMs: isMobileLayout ? MOBILE_PENDENCIAS_INITIAL_DELAY_MS : 0,
+    resyncDelayMs: isMobileLayout ? MOBILE_PENDENCIAS_RESYNC_DELAY_MS : 0,
+  });
   const refreshMinhasPendenciasRef = useRef(refreshMinhasPendencias);
   refreshMinhasPendenciasRef.current = refreshMinhasPendencias;
   const conversaIdsPendenciaQuery = useMemo(() => {
@@ -341,6 +359,7 @@ export default function ChatList() {
   const loadAbortRef = useRef(null);
   const countsAbortRef = useRef(null);
   const countsRequestIdRef = useRef(0);
+  const mobileCountsBootSkippedRef = useRef(false);
   /** Evita GET /chats paralelos quando vários resyncs disparam load() na mesma janela */
   const loadInFlightRef = useRef(false);
   const loadQueuedRef = useRef(null);
@@ -606,6 +625,7 @@ export default function ChatList() {
   useEffect(() => {
     let cancelled = false;
 
+    const delay = isMobileLayout ? MOBILE_ZAPI_STATUS_DELAY_MS : 400;
     const cancelStatus = scheduleAfterInitialPaint(() => {
       getZapiStatus()
         .then((s) => {
@@ -616,14 +636,13 @@ export default function ChatList() {
         .catch(() => {
           if (!cancelled) setZapiStatusLoaded(true);
         });
-    }, 400);
+    }, delay);
 
     return () => {
       cancelled = true;
       cancelStatus();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isMobileLayout]);
 
   // Atualização automática da lista (nomes, novas conversas) a cada 5 min — evita "refresh" constante
   useEffect(() => {
@@ -904,16 +923,17 @@ export default function ChatList() {
   useEffect(() => {
     if (!isSupervisorOrAdmin(user)) return undefined;
     let intervalId;
+    const delay = isMobileLayout ? MOBILE_SUPERVISAO_POLL_DELAY_MS : 800;
     const cancelSchedule = scheduleAfterInitialPaint(() => {
       intervalId = window.setInterval(() => {
         void runAuxBadgeFetch(filterScopeKey, "supervisao", () => refreshSupervisaoData());
       }, 30000);
-    }, 800);
+    }, delay);
     return () => {
       cancelSchedule();
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [user, refreshSupervisaoData, filterScopeKey]);
+  }, [user, refreshSupervisaoData, filterScopeKey, isMobileLayout]);
 
   async function load(opts = {}) {
     if (loadInFlightRef.current) {
@@ -1043,6 +1063,18 @@ export default function ChatList() {
         String(params.status_atendimento || "").toLowerCase() === "mensagem_disparada";
 
       const minhaFilaTab = !adminPorFuncionario && tab === "minha_fila";
+      if (!background && isMobileLayout) {
+        const cachedRows = hydrateChatListRowsForFilterFromSession(filterScopeKey, filterRequestKey);
+        if (cachedRows?.length) {
+          const cachedList = sortChatRowsByOrder(dedupeChatRowsByStableKey(cachedRows), order);
+          if (minhaFilaTab) {
+            setMinhaFilaList((prev) => (Array.isArray(prev) && prev.length > 0 ? prev : cachedList));
+            setChats((prev) => (Array.isArray(prev) && prev.length > 0 ? prev : cachedList));
+          } else {
+            setChats((prev) => (Array.isArray(prev) && prev.length > 0 ? prev : cachedList));
+          }
+        }
+      }
       const data = await fetchChats(params, { signal: abortController.signal });
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
@@ -1128,6 +1160,10 @@ export default function ChatList() {
         return combined;
       });
       if (requestId === loadRequestIdRef.current) {
+        if (!background) markPushEntryReady();
+        if (isMobileLayout && list.length > 0) {
+          persistChatListRowsForFilterToSession(filterScopeKey, filterRequestKey, list);
+        }
         const storeChats = useChatStore.getState().chats || [];
         persistChatListSidebarToSession(filterScopeKey, storeChats, {
           emAtendimentoBadgeCount,
@@ -1151,7 +1187,9 @@ export default function ChatList() {
           chatFilterCounts,
         });
       }
-      const secondaryRefreshDelay = tabRef.current === "todas" ? 450 : 120;
+      const secondaryRefreshDelay = isMobileLayout
+        ? MOBILE_SECONDARY_REFRESH_DELAY_MS
+        : tabRef.current === "todas" ? 450 : 120;
       loadSecondaryScheduleCancelRef.current = scheduleAfterInitialPaint(
         runSecondaryRefreshes,
         secondaryRefreshDelay
@@ -1358,16 +1396,19 @@ export default function ChatList() {
     if (loadInFlightRef.current) {
       loadQueuedRef.current = { background: true };
       void refreshChatFilterCounts({ silent: true });
+      if (isMobileLayout) clearChatListRowsFilterSessionCache(filterScopeKey);
       return;
     }
     const hasVisibleChats = (useChatStore.getState().chats?.length ?? 0) > 0;
     if (hasVisibleChats && Date.now() - lastLoadFinishedAtRef.current < 2500) {
       void refreshChatFilterCounts({ silent: true });
+      if (isMobileLayout) clearChatListRowsFilterSessionCache(filterScopeKey);
       return;
     }
     loadRef.current?.({ background: true });
     void refreshChatFilterCounts({ silent: true });
-  }, [chatListResyncNonce, refreshChatFilterCounts]);
+    if (isMobileLayout) clearChatListRowsFilterSessionCache(filterScopeKey);
+  }, [chatListResyncNonce, refreshChatFilterCounts, isMobileLayout, filterScopeKey]);
 
   /** Supervisão: ao atualizar IDs pendentes, refetch da aba "Aguardando atendente". */
   useEffect(() => {
@@ -1499,20 +1540,53 @@ export default function ChatList() {
       return undefined;
     }
     let cancelled = false;
-    void loadChatListFiltersDataOnce({ listarTags, api, scopeKey: filterScopeKey }).then((data) => {
-      if (cancelled || !data) return;
-      if (Array.isArray(data.departamentos) && data.departamentos.length > 0) {
-        setDepartamentos(data.departamentos);
-      }
-    });
+    const run = () => {
+      loadChatListFiltersDataOnce({ listarTags, api, scopeKey: filterScopeKey }).then((data) => {
+        if (cancelled || !data) return;
+        if (Array.isArray(data.departamentos) && data.departamentos.length > 0) {
+          setDepartamentos(data.departamentos);
+        }
+      });
+    };
+    if (isMobileLayout) {
+      const cancel = scheduleAfterInitialPaint(run, MOBILE_FILTERS_BOOT_DELAY_MS);
+      return () => {
+        cancelled = true;
+        cancel();
+      };
+    }
+    run();
     return () => {
       cancelled = true;
     };
-  }, [filterScopeKey]);
+  }, [filterScopeKey, isMobileLayout]);
 
   useEffect(() => {
     if (!filterScopeKey) return undefined;
-    void refreshChatFilterCounts();
+    if (isMobileLayout && !hasListRows) {
+      mobileCountsBootSkippedRef.current = true;
+      return undefined;
+    }
+    if (isMobileLayout && mobileCountsBootSkippedRef.current) {
+      mobileCountsBootSkippedRef.current = false;
+      return undefined;
+    }
+    let cancelled = false;
+    const delay = isMobileLayout ? MOBILE_COUNTS_DELAY_MS : 0;
+    const run = () => {
+      if (!cancelled) void refreshChatFilterCounts();
+    };
+    if (delay > 0) {
+      const cancel = scheduleAfterInitialPaint(run, delay);
+      return () => {
+        cancelled = true;
+        cancel();
+      };
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [
     filterScopeKey,
     tagFilter,
@@ -1522,6 +1596,8 @@ export default function ChatList() {
     debouncedSearch,
     adminAtendenteFilterId,
     refreshChatFilterCounts,
+    isMobileLayout,
+    hasListRows,
   ]);
 
   /** Tags/atendentes/setores: sob demanda ao abrir painel; fetch imediato se cache incompleto. */
@@ -1552,8 +1628,6 @@ export default function ChatList() {
   }, [showFilters, filterScopeKey, applyFiltersDataToState]);
 
   /** Pré-aquece tags/atendentes em idle (departamentos já no mount para chips Financeiro). */
-  const listLoading = useChatStore((s) => s.loading);
-  const hasListRows = useChatStore((s) => (s.chats?.length ?? 0) > 0);
   useEffect(() => {
     if (listLoading && !hasListRows) return undefined;
     const cached = getChatListFiltersDataCache();
@@ -1561,7 +1635,9 @@ export default function ChatList() {
       return undefined;
     }
     let cancelled = false;
-    const delay = hasListRows ? 400 : 900;
+    const delay = isMobileLayout
+      ? MOBILE_FILTERS_PREWARM_DELAY_MS
+      : hasListRows ? 400 : 900;
     const cancel = scheduleAfterInitialPaint(() => {
       loadChatListFiltersDataOnce({ listarTags, api, scopeKey: filterScopeKey }).then((data) => {
         if (cancelled) return;
@@ -1574,7 +1650,7 @@ export default function ChatList() {
       cancelled = true;
       cancel();
     };
-  }, [listLoading, hasListRows, filterScopeKey]);
+  }, [listLoading, hasListRows, filterScopeKey, isMobileLayout]);
 
   /** Admin “Por funcionário”: só /usuarios, ao abrir o painel (não no mount). */
   useEffect(() => {

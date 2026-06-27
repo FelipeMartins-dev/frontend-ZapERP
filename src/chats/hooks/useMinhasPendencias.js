@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { shallow } from "zustand/shallow";
 import { useChatStore } from "../chatsStore";
+import { scheduleAfterInitialPaint } from "../scheduleAfterInitialPaint";
 import {
   fetchMinhasPendenciasCategoria,
   fetchMinhasPendenciasResumo,
@@ -16,7 +17,10 @@ const EMPTY_RESUMO = {
 /**
  * Contadores e filtro clicável de pendências — confia 100% no backend.
  */
-export function useMinhasPendencias(scopeKey) {
+export function useMinhasPendencias(scopeKey, opts = {}) {
+  const skipInitial = opts.skipInitial === true;
+  const initialDelayMs = Math.max(0, Number(opts.initialDelayMs) || 0);
+  const resyncDelayMs = Math.max(0, Number(opts.resyncDelayMs) || 0);
   const [minhasPendencias, setMinhasPendencias] = useState(EMPTY_RESUMO);
   const [pendenciaAtiva, setPendenciaAtiva] = useState(null);
   const [conversaIdsRaw, setConversaIdsRaw] = useState([]);
@@ -107,18 +111,47 @@ export function useMinhasPendencias(scopeKey) {
   }, []);
 
   useEffect(() => {
-    if (!scopeKey) return;
+    if (!scopeKey) return undefined;
     categoriaRequestIdRef.current += 1;
     setPendenciaAtiva(null);
     setConversaIdsRaw([]);
     setMinhasPendencias(EMPTY_RESUMO);
-    void refreshContadores();
-  }, [scopeKey, refreshContadores]);
+    if (skipInitial) return undefined;
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void refreshContadores();
+    };
+    if (initialDelayMs > 0) {
+      const cancel = scheduleAfterInitialPaint(run, initialDelayMs);
+      return () => {
+        cancelled = true;
+        cancel();
+      };
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [scopeKey, refreshContadores, initialDelayMs, skipInitial]);
 
   useEffect(() => {
-    if (!chatListResyncNonce) return;
-    void refresh();
-  }, [chatListResyncNonce, refresh]);
+    if (!chatListResyncNonce) return undefined;
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void refresh();
+    };
+    if (resyncDelayMs > 0) {
+      const cancel = scheduleAfterInitialPaint(run, resyncDelayMs);
+      return () => {
+        cancelled = true;
+        cancel();
+      };
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatListResyncNonce, refresh, resyncDelayMs]);
 
   return {
     minhasPendencias,

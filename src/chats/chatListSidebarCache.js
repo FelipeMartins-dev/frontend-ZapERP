@@ -9,8 +9,10 @@
  */
 
 const SIDEBAR_TTL_MS = 2 * 60 * 1000;
+const FILTER_ROWS_TTL_MS = 45 * 1000;
 
 const STORAGE_PREFIX = "zap_erp_chat_sidebar_v1";
+const FILTER_ROWS_STORAGE_PREFIX = "zap_erp_chat_rows_by_filter_v1";
 
 const MAX_CHATS = 120;
 
@@ -19,6 +21,28 @@ const MAX_CHATS = 120;
 function storageKey(scopeKey) {
 
   return `${STORAGE_PREFIX}:${scopeKey}`;
+
+}
+
+function filterRowsStorageKey(scopeKey, filterKey) {
+
+  return `${FILTER_ROWS_STORAGE_PREFIX}:${scopeKey}:${filterKey}`;
+
+}
+
+function safeSessionKeys() {
+
+  if (typeof sessionStorage === "undefined") return [];
+
+  try {
+
+    return Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i)).filter(Boolean);
+
+  } catch {
+
+    return [];
+
+  }
 
 }
 
@@ -269,6 +293,120 @@ export function hydrateChatListSidebarFromSession(scopeKey) {
         : null,
 
   };
+
+}
+
+export function hydrateChatListRowsForFilterFromSession(scopeKey, filterKey) {
+
+  if (typeof sessionStorage === "undefined" || !scopeKey || !filterKey) return null;
+
+  try {
+
+    const key = filterRowsStorageKey(scopeKey, filterKey);
+
+    const raw = sessionStorage.getItem(key);
+
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (!parsed || Date.now() - (parsed.t || 0) > FILTER_ROWS_TTL_MS) {
+
+      sessionStorage.removeItem(key);
+
+      return null;
+
+    }
+
+    const rows = Array.isArray(parsed.rows) ? parsed.rows.slice(0, MAX_CHATS) : [];
+
+    return rows.length ? rows : null;
+
+  } catch {
+
+    return null;
+
+  }
+
+}
+
+export function persistChatListRowsForFilterToSession(scopeKey, filterKey, rows) {
+
+  if (typeof sessionStorage === "undefined" || !scopeKey || !filterKey) return;
+
+  const slim = slimList(rows);
+
+  if (!slim.length) return;
+
+  try {
+
+    sessionStorage.setItem(
+
+      filterRowsStorageKey(scopeKey, filterKey),
+
+      JSON.stringify({ t: Date.now(), rows: slim })
+
+    );
+
+  } catch {
+
+    /* quota */
+
+  }
+
+}
+
+export function clearChatListRowsFilterSessionCache(scopeKey) {
+
+  if (typeof sessionStorage === "undefined") return;
+
+  const prefix = scopeKey
+
+    ? `${FILTER_ROWS_STORAGE_PREFIX}:${scopeKey}:`
+
+    : `${FILTER_ROWS_STORAGE_PREFIX}:`;
+
+  for (const key of safeSessionKeys()) {
+
+    if (key.startsWith(prefix)) {
+
+      try {
+
+        sessionStorage.removeItem(key);
+
+      } catch {
+
+        /* ignore */
+
+      }
+
+    }
+
+  }
+
+}
+
+export function clearChatListSidebarSessionCache() {
+
+  if (typeof sessionStorage === "undefined") return;
+
+  for (const key of safeSessionKeys()) {
+
+    if (key.startsWith(`${STORAGE_PREFIX}:`) || key.startsWith(`${FILTER_ROWS_STORAGE_PREFIX}:`)) {
+
+      try {
+
+        sessionStorage.removeItem(key);
+
+      } catch {
+
+        /* ignore */
+
+      }
+
+    }
+
+  }
 
 }
 

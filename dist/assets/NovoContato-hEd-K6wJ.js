@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-DOBzNqAb.js";import{N as o}from"./vendor-router-qzGk8MO-.js";function r(){return t.jsx(o,{to:"/atendimento",replace:!0,state:{openNovoContatoModal:!0}})}export{r as default};
