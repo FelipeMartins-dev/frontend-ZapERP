@@ -6,6 +6,7 @@ import { ConversaMessageStaticList, ConversaMessageVirtualList } from "./Convers
 import ThreadRow from "./ThreadRow";
 import { messageRowVisualSignature } from "./threadRowCompare";
 import ClosedAttendancePanel from "./ClosedAttendancePanel";
+import { SkeletonMessages } from "../components/feedback/Skeleton";
 
 const EMPTY_SET = new Set();
 const EMPTY_OBJECT = Object.freeze({});
@@ -289,11 +290,7 @@ export default function ConversaThread({
     return (
       <>
         {closedBanner}
-        <div className="wa-messages-empty">
-          <div className="wa-messages-emptyCard wa-messages-emptyCard--loading">
-            <p className="wa-messages-emptyText">Carregando mensagens…</p>
-          </div>
-        </div>
+        <SkeletonMessages />
       </>
     );
   }

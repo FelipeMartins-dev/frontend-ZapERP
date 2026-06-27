@@ -54,3 +54,25 @@ export function SkeletonChatList({ count = 8, className = "" }) {
 export function SkeletonLine({ width = "100%" }) {
   return <Skeleton variant="line" width={width} />;
 }
+
+/** Skeleton de lista de mensagens — bolhas alternadas entrada/saída */
+export function SkeletonMessages() {
+  const rows = [
+    { dir: "in",  width: "52%" },
+    { dir: "out", width: "38%" },
+    { dir: "in",  width: "68%" },
+    { dir: "in",  width: "44%" },
+    { dir: "out", width: "58%" },
+    { dir: "out", width: "32%" },
+    { dir: "in",  width: "50%" },
+  ];
+  return (
+    <div className="ds-skeleton-messages" aria-hidden>
+      {rows.map((r, i) => (
+        <div key={i} className={`ds-skeleton-msg-row ds-skeleton-msg-row--${r.dir}`}>
+          <Skeleton variant="bubble" width={r.width} />
+        </div>
+      ))}
+    </div>
+  );
+}

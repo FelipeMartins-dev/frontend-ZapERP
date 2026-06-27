@@ -44,3 +44,31 @@
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
 }
+
+.ds-skeleton--bubble {
+  height: 40px;
+  border-radius: 18px;
+  min-width: 60px;
+}
+
+.ds-skeleton-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 14px 12px;
+  flex: 1;
+}
+
+.ds-skeleton-msg-row {
+  display: flex;
+}
+
+.ds-skeleton-msg-row--in {
+  justify-content: flex-start;
+  padding-left: 4px;
+}
+
+.ds-skeleton-msg-row--out {
+  justify-content: flex-end;
+  padding-right: 4px;
+}
