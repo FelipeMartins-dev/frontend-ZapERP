@@ -2902,6 +2902,23 @@ function ConversaViewBody() {
     }
   }, [conversaId, assumeEmptyBusy, assumirConversa, refresh, showToast]);
 
+  const autoAssumirAoDigitarPendingRef = useRef(false);
+  useEffect(() => {
+    autoAssumirAoDigitarPendingRef.current = false;
+  }, [conversaId]);
+  const handleAutoAssumirAoDigitar = useCallback(async () => {
+    if (!conversaElegivelAutoAssumir) return;
+    if (autoAssumirAoDigitarPendingRef.current) return;
+    autoAssumirAoDigitarPendingRef.current = true;
+    try {
+      await assumirConversa(conversaId);
+    } catch {
+      // Silencioso — o backend assume automaticamente ao enviar de qualquer forma
+    } finally {
+      autoAssumirAoDigitarPendingRef.current = false;
+    }
+  }, [conversaElegivelAutoAssumir, conversaId, assumirConversa]);
+
   const handleReopenClosed = useCallback(async () => {
     if (!conversaId || reopenClosedBusy) return;
     setReopenClosedBusy(true);
@@ -3849,6 +3866,7 @@ function ConversaViewBody() {
             onTextMetrics={handleComposerTextMetrics}
             clearTyping={clearTyping}
             showToast={showToast}
+            onTypingStart={handleAutoAssumirAoDigitar}
           />
         ) : null}
 

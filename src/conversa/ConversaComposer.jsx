@@ -168,6 +168,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     onTextMetrics,
     clearTyping,
     showToast,
+    onTypingStart,
   },
   ref
 ) {
@@ -763,6 +764,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
       setTexto(nextValue);
 
+      if (nextValue.trim() && autoAssumirHint) {
+        onTypingStart?.();
+      }
+
       const cursor =
         typeof e.target.selectionStart === "number" ? e.target.selectionStart : nextValue.length;
       const slashCtx = getSlashContext(nextValue, cursor);
@@ -777,7 +782,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         closeSavedReplies();
       }
     },
-    [closeSavedReplies, hasWordWithContext, resetAutocorrectTracking, savedRepliesOpen, texto]
+    [closeSavedReplies, hasWordWithContext, resetAutocorrectTracking, savedRepliesOpen, texto, autoAssumirHint, onTypingStart]
   );
 
   const handleSendFromComposer = useCallback(
