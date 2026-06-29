@@ -6,7 +6,7 @@
 // Observação: no Vite, `import.meta.env.VITE_*` é resolvido em build/dev server.
 
 export const FALLBACK_API_URL =
-  "https://zaperpapi.wmsistemas.inf.br"
+  "https://zapapi.wmsistemas.inf.br"
 
 const DEFAULT_LOCAL_BACKEND_PORT = "3000"
 
