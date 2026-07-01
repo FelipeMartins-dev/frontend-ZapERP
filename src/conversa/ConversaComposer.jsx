@@ -1598,6 +1598,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               ref={inputRef}
               value={texto}
               onChange={handleInputChange}
+              onFocus={() => { if (autoAssumirHint) onTypingStart?.(); }}
               onBlur={emitTypingStop}
               onPaste={handlePaste}
               placeholder={composerPlaceholderText}
