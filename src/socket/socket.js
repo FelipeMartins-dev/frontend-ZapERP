@@ -669,7 +669,12 @@ export function initSocket(token) {
       } catch (_) {}
     }
     const convId = useConversaStore.getState().selectedId
-    if (convId) joinConversaIfNeeded(convId)
+    if (convId) {
+      joinConversaIfNeeded(convId)
+      try {
+        useConversaStore.getState().refresh?.({ silent: true })
+      } catch (_) {}
+    }
     useChatStore.getState().requestChatListResync?.()
     updateDocumentTitleFromChats()
   })
