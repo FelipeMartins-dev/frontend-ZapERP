@@ -135,6 +135,30 @@ import "../components/feedback/toast.css";
    Hooks
 ========================================================= */
 
+function normalizeDepartamentoIdForAccess(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? String(n) : String(value).trim();
+}
+
+function getUserDepartamentoIdSet(user) {
+  const ids = [];
+  if (Array.isArray(user?.departamento_ids)) ids.push(...user.departamento_ids);
+  if (user?.departamento_id != null) ids.push(user.departamento_id);
+  if (Array.isArray(user?.departamentos)) {
+    for (const dep of user.departamentos) {
+      ids.push(dep?.id ?? dep?.departamento_id ?? dep);
+    }
+  }
+
+  const set = new Set();
+  for (const id of ids) {
+    const normalized = normalizeDepartamentoIdForAccess(id);
+    if (normalized) set.add(normalized);
+  }
+  return set;
+}
+
 
 function ConversaViewBody() {
   const {
@@ -241,20 +265,15 @@ function ConversaViewBody() {
     if (conversa?.mensagens_bloqueadas) return false;
 
     const atendenteId = conversa?.atendente_id ?? null;
-    const departamentoId = conversa?.departamento_id ?? null;
+    const departamentoId = normalizeDepartamentoIdForAccess(conversa?.departamento_id);
     const semAtendente = atendenteId == null || atendenteId === "";
     const userRole = String(user?.role || user?.perfil || "").toLowerCase();
     const isPrivileged = userRole === "admin" || userRole === "supervisor";
-    const userDepIds = Array.isArray(user?.departamento_ids)
-      ? user.departamento_ids.map((id) => Number(id)).filter((id) => Number.isFinite(id))
-      : user?.departamento_id != null
-        ? [Number(user.departamento_id)].filter((id) => Number.isFinite(id))
-        : [];
+    const userDepIds = getUserDepartamentoIdSet(user);
     const podeVerSetor =
       isPrivileged ||
-      departamentoId == null ||
-      departamentoId === "" ||
-      userDepIds.includes(Number(departamentoId));
+      !departamentoId ||
+      userDepIds.has(departamentoId);
 
     return semAtendente && podeVerSetor;
   }, [
@@ -264,6 +283,7 @@ function ConversaViewBody() {
     user?.perfil,
     user?.departamento_id,
     user?.departamento_ids,
+    user?.departamentos,
     conversa?.id,
     conversa?.remoteJid,
     conversa?.telefone,
@@ -278,11 +298,35 @@ function ConversaViewBody() {
     conversa?.departamento_id,
   ]);
 
+  const conversaElegivelAutoReabrir = useMemo(() => {
+    if (!user?.id || !conversa?.id) return false;
+    if (!canReabrir(user)) return false;
+    if (isGroupConversation(conversa)) return false;
+    if (!isClosedAttendance(conversa)) return false;
+    if (conversa?.mensagens_bloqueadas) return false;
+    return true;
+  }, [
+    user,
+    user?.id,
+    user?.role,
+    user?.perfil,
+    conversa?.id,
+    conversa?.remoteJid,
+    conversa?.telefone,
+    conversa?.phone,
+    conversa?.is_group,
+    conversa?.isGroup,
+    conversa?.tipo,
+    conversa?.status_atendimento_real,
+    conversa?.status_atendimento,
+    conversa?.mensagens_bloqueadas,
+  ]);
+
   const podeEnviar = useMemo(() => {
     if (!user?.id || !conversa?.id) return false;
     /** Grupos: qualquer usuário pode enviar sem assumir atendimento (modelo WhatsApp). */
     if (isGroupConversation(conversa)) return true;
-    if (isClosedAttendance(conversa)) return false;
+    if (isClosedAttendance(conversa)) return conversaElegivelAutoReabrir;
     if (conversa?.mensagens_bloqueadas) return false;
     const atendenteId = conversa?.atendente_id ?? null;
     if (atendenteId == null || atendenteId === "") return conversaElegivelAutoAssumir;
@@ -301,6 +345,7 @@ function ConversaViewBody() {
     conversa?.mensagens_bloqueadas,
     conversa?.atendente_id,
     conversaElegivelAutoAssumir,
+    conversaElegivelAutoReabrir,
   ]);
 
   const [showTimeline, setShowTimeline] = useState(false);
@@ -1526,6 +1571,23 @@ function ConversaViewBody() {
     [handleDropFile]
   );
 
+  const garantirConversaAbertaParaEnvio = useCallback(async () => {
+    const atual = useConversaStore.getState().conversa;
+    const alvo = atual && String(atual.id) === String(conversaId) ? atual : conversa;
+    if (!isClosedAttendance(alvo)) return true;
+    try {
+      await reabrirConversa(conversaId);
+      return true;
+    } catch (e) {
+      showToast({
+        type: "error",
+        title: "Erro ao reabrir",
+        message: e?.response?.data?.error || e?.message || "Tente novamente.",
+      });
+      return false;
+    }
+  }, [conversaId, conversa, reabrirConversa, showToast]);
+
   const handleEnviarArquivo = useCallback(
     async (file, opts = {}) => {
       if (!file || !conversaId) return;
@@ -1544,6 +1606,11 @@ function ConversaViewBody() {
           title: "Conversa não assumida",
           message: "Clique em Assumir para enviar mensagens.",
         });
+        clearPending();
+        return;
+      }
+      const conversaAberta = await garantirConversaAbertaParaEnvio();
+      if (!conversaAberta) {
         clearPending();
         return;
       }
@@ -1642,6 +1709,7 @@ function ConversaViewBody() {
       showToast,
       clearPending,
       podeEnviar,
+      garantirConversaAbertaParaEnvio,
       focusMessageInput,
       reconciliarMensagem,
       marcarMensagemTempErro,
@@ -1691,6 +1759,8 @@ function ConversaViewBody() {
         });
         return;
       }
+      const conversaAberta = await garantirConversaAbertaParaEnvio();
+      if (!conversaAberta) return;
       const tempIds = [];
       shouldStickToBottomRef.current = true;
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
@@ -1801,6 +1871,7 @@ function ConversaViewBody() {
       debugMessageBoundary,
       podeEnviar,
       showToast,
+      garantirConversaAbertaParaEnvio,
       focusMessageInput,
       marcarMensagemTempErro,
       reconciliarMensagem,
@@ -1851,6 +1922,8 @@ function ConversaViewBody() {
         return;
       }
 
+      const conversaAberta = await garantirConversaAbertaParaEnvio();
+      if (!conversaAberta) return;
       const tempIds = [];
       shouldStickToBottomRef.current = true;
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
@@ -1962,6 +2035,7 @@ function ConversaViewBody() {
       podeEnviar,
       showToast,
       handleDropFile,
+      garantirConversaAbertaParaEnvio,
       focusMessageInput,
       marcarMensagemTempErro,
       reconciliarMensagem,
@@ -2098,6 +2172,8 @@ function ConversaViewBody() {
       ("nativeEvent" in forcedText || "preventDefault" in forcedText || "currentTarget" in forcedText);
     const t = safeString(forcedLooksLikeEvent ? undefined : forcedText).trim();
     if (!t) return;
+    const conversaAberta = await garantirConversaAbertaParaEnvio();
+    if (!conversaAberta) return;
     const socket = getSocket();
     if (socket?.connected) socket.emit("typing_stop", { conversa_id: conversaId });
     const chatParaNome = fromChat ?? conversa;
@@ -2170,6 +2246,7 @@ function ConversaViewBody() {
     conversa,
     fromChat,
     podeEnviar,
+    garantirConversaAbertaParaEnvio,
     focusMessageInput,
     setSendingTracked,
   ]);
@@ -3826,49 +3903,47 @@ function ConversaViewBody() {
           </Suspense>
         ) : null}
 
-        {!atendimentoEncerradoHint ? (
-          <ConversaComposer
-            ref={composerRef}
-            conversaId={conversaId}
-            departamentoId={conversa?.departamento_id ?? null}
-            scrollThreadId={scrollThreadId}
-            loading={loading}
-            sending={sending}
-            podeEnviar={podeEnviar}
-            autoAssumirHint={conversaElegivelAutoAssumir}
-            mensagensBloqueadasHint={mensagensBloqueadasHint}
-            atendimentoEncerradoHint={atendimentoEncerradoHint}
-            atendenteNomeHint={atendenteNomeHint}
-            headerCompact={headerCompact}
-            composerEnterInsertsNewline={composerEnterInsertsNewline}
-            autocorrectToggleInMenu={autocorrectToggleInMenu}
-            user={user}
-            replyBarPreview={replyBarPreview}
-            onCancelReply={handleComposerCancelReply}
-            onSendMessage={handleEnviar}
-            onSendAudioFile={handleComposerSendAudio}
-            onPasteImageFile={handleComposerPasteImage}
-            onFileInputChange={handleFileInputChange}
-            onFototecaInputChange={handleFototecaInputChange}
-            onDocumentInputChange={handleDocumentInputChange}
-            onCameraInputChange={handleCameraInputChange}
-            onStickerInputChange={handleStickerInputChange}
-            onSendStickerFile={sendStickerFile}
-            onPixMenuClick={handlePixMenuClick}
-            onOpenPixConfig={handleComposerOpenPixConfig}
-            onShareContact={openShareContact}
-            onShareLocation={openShareLocation}
-            pixActionBusy={pixActionBusy}
-            pixConfigLoading={pixConfigLoading}
-            appendTextQueue={composerAppendQueue}
-            onAppendConsumed={handleComposerAppendConsumed}
-            onAppendTextApplied={handleComposerAppendApplied}
-            onTextMetrics={handleComposerTextMetrics}
-            clearTyping={clearTyping}
-            showToast={showToast}
-            onTypingStart={handleAutoAssumirAoDigitar}
-          />
-        ) : null}
+        <ConversaComposer
+          ref={composerRef}
+          conversaId={conversaId}
+          departamentoId={conversa?.departamento_id ?? null}
+          scrollThreadId={scrollThreadId}
+          loading={loading}
+          sending={sending}
+          podeEnviar={podeEnviar}
+          autoAssumirHint={conversaElegivelAutoAssumir}
+          mensagensBloqueadasHint={mensagensBloqueadasHint}
+          atendimentoEncerradoHint={atendimentoEncerradoHint}
+          atendenteNomeHint={atendenteNomeHint}
+          headerCompact={headerCompact}
+          composerEnterInsertsNewline={composerEnterInsertsNewline}
+          autocorrectToggleInMenu={autocorrectToggleInMenu}
+          user={user}
+          replyBarPreview={replyBarPreview}
+          onCancelReply={handleComposerCancelReply}
+          onSendMessage={handleEnviar}
+          onSendAudioFile={handleComposerSendAudio}
+          onPasteImageFile={handleComposerPasteImage}
+          onFileInputChange={handleFileInputChange}
+          onFototecaInputChange={handleFototecaInputChange}
+          onDocumentInputChange={handleDocumentInputChange}
+          onCameraInputChange={handleCameraInputChange}
+          onStickerInputChange={handleStickerInputChange}
+          onSendStickerFile={sendStickerFile}
+          onPixMenuClick={handlePixMenuClick}
+          onOpenPixConfig={handleComposerOpenPixConfig}
+          onShareContact={openShareContact}
+          onShareLocation={openShareLocation}
+          pixActionBusy={pixActionBusy}
+          pixConfigLoading={pixConfigLoading}
+          appendTextQueue={composerAppendQueue}
+          onAppendConsumed={handleComposerAppendConsumed}
+          onAppendTextApplied={handleComposerAppendApplied}
+          onTextMetrics={handleComposerTextMetrics}
+          clearTyping={clearTyping}
+          showToast={showToast}
+          onTypingStart={handleAutoAssumirAoDigitar}
+        />
 
         {/* ESC handler central */}
         <button

@@ -1958,6 +1958,7 @@
 
 .wa-shell .wa-footer textarea.wa-input::placeholder {
   text-align: center;
+  white-space: nowrap;
 }
 
 /* z-index 0 (não -1): com -1 o padrão ficava atrás do próprio gradiente e sumia */

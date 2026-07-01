@@ -290,6 +290,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const syncTextareaHeight = useCallback(() => {
     const el = inputRef.current;
     if (!el || el.tagName !== "TEXTAREA") return;
+    if (!String(el.value || "").trim()) {
+      el.style.height = "";
+      return;
+    }
     el.style.height = "auto";
     const maxPx = parseFloat(getComputedStyle(el).maxHeight);
     const cap =
@@ -1131,7 +1135,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         : "Assuma esta conversa para responder.";
 
   const footerHint = autoAssumirHint
-    ? autoAssumirText
+    ? null
     : !podeEnviar
       ? atendimentoEncerradoHint
       ? "Reabra o atendimento para enviar mensagens"
@@ -1140,13 +1144,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         : "Assuma esta conversa para enviar mensagens"
     : null;
 
-  const composerPlaceholderText = atendimentoEncerradoHint
+  const composerPlaceholderText = atendimentoEncerradoHint && !podeEnviar
     ? "Reabra o atendimento para enviar mensagens"
     : placeholderText;
-  const composerInputAriaLabel = atendimentoEncerradoHint
+  const composerInputAriaLabel = atendimentoEncerradoHint && !podeEnviar
     ? "Reabra o atendimento para enviar mensagens."
     : inputAriaLabel;
-  const composerFooterHint = atendimentoEncerradoHint
+  const composerFooterHint = atendimentoEncerradoHint && !podeEnviar
     ? "Reabra o atendimento para enviar mensagens"
     : footerHint;
 
@@ -1602,7 +1606,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               onBlur={emitTypingStop}
               onPaste={handlePaste}
               placeholder={composerPlaceholderText}
-              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""} ${atendimentoEncerradoHint ? "wa-input--closedAttendance" : ""}`}
+              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""} ${atendimentoEncerradoHint && !podeEnviar ? "wa-input--closedAttendance" : ""}`}
               onKeyDown={handleKeyDownInput}
               disabled={!conversaId || !podeEnviar}
               aria-label={composerInputAriaLabel}
