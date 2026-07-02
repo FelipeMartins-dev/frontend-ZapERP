@@ -154,11 +154,6 @@ export async function excluirMensagem(conversaId, mensagemId, opts = {}) {
   return data;
 }
 
-export async function reenviarMensagem(conversaId, mensagemId) {
-  const { data } = await api.post(`/chats/${conversaId}/mensagens/${mensagemId}/reenviar`);
-  return data;
-}
-
 const ENC_TIPO = "auto";
 const ENC_MAX_IDS = 30;
 

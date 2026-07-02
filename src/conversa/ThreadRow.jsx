@@ -38,7 +38,6 @@ function ThreadRow({
   onStartSelect,
   onDeleteForMe,
   onDeleteForEveryone,
-  onRetrySend,
   onJumpToReply,
   onOpenMedia,
   onReact,
@@ -93,7 +92,6 @@ function ThreadRow({
       onStartSelect={onStartSelect}
       onDeleteForMe={onDeleteForMe}
       onDeleteForEveryone={onDeleteForEveryone}
-      onRetrySend={onRetrySend}
       isPinned={isPinned}
       isStarred={isStarred}
       currentUserId={currentUserId}

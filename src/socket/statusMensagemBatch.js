@@ -63,11 +63,6 @@ export function normalizeStatusMensagemFromPayload(payload) {
   const status = p.status ?? payload?.status;
   const whatsapp_id =
     p.whatsapp_id ?? p.wamid ?? p.wa_id ?? p.whatsappMessageId ?? payload?.whatsapp_id ?? payload?.wamid;
-  const em_retry = p.em_retry ?? payload?.em_retry ?? p.retry ?? payload?.retry ?? null;
-  const send_status = p.send_status ?? payload?.send_status ?? null;
-  const falha_recuperavel = p.falha_recuperavel ?? payload?.falha_recuperavel ?? null;
-  const falha_definitiva = p.falha_definitiva ?? payload?.falha_definitiva ?? null;
-  const erro = p.erro ?? p.error ?? payload?.erro ?? payload?.error ?? null;
   if (!mensagem_id && !whatsapp_id && !status) return null;
 
   const raw = status != null ? String(status).toLowerCase().trim() : "";
@@ -87,11 +82,6 @@ export function normalizeStatusMensagemFromPayload(payload) {
     conversa_id: conversa_id ?? null,
     status: s,
     whatsapp_id: whatsapp_id ?? null,
-    em_retry,
-    send_status,
-    falha_recuperavel,
-    falha_definitiva,
-    erro,
   };
 }
 
@@ -113,11 +103,6 @@ function mergeQueuedEvents(prev, next) {
     conversa_id: next.conversa_id ?? prev.conversa_id ?? null,
     whatsapp_id: next.whatsapp_id ?? prev.whatsapp_id ?? null,
     status: mergedStatus ?? next.status ?? prev.status ?? null,
-    em_retry: next.em_retry ?? prev.em_retry ?? null,
-    send_status: next.send_status ?? prev.send_status ?? null,
-    falha_recuperavel: next.falha_recuperavel ?? prev.falha_recuperavel ?? null,
-    falha_definitiva: next.falha_definitiva ?? prev.falha_definitiva ?? null,
-    erro: next.erro ?? prev.erro ?? null,
   };
 }
 

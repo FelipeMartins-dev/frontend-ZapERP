@@ -557,26 +557,12 @@ export function joinConversaIfNeeded(id) {
 
 /** Aplica um evento status_mensagem normalizado (conversa aberta + lista). */
 function applyStatusMensagemEvent(evt) {
-  const {
-    mensagem_id,
-    conversa_id,
-    status: s,
-    whatsapp_id,
-    em_retry,
-    send_status,
-    falha_recuperavel,
-    falha_definitiva,
-    erro,
-  } = evt
+  const { mensagem_id, conversa_id, status: s, whatsapp_id, em_retry } = evt
 
   const convStore = useConversaStore.getState()
   const partial = { status_mensagem: s, status: s }
   if (whatsapp_id) partial.whatsapp_id = whatsapp_id
   if (em_retry != null) partial.em_retry = em_retry
-  if (send_status != null) partial.send_status = send_status
-  if (falha_recuperavel != null) partial.falha_recuperavel = falha_recuperavel
-  if (falha_definitiva != null) partial.falha_definitiva = falha_definitiva
-  if (erro != null) partial.erro_mensagem = erro
 
   const selectedId = convStore.selectedId
   const isConversaAberta = selectedId != null
@@ -609,10 +595,6 @@ function applyStatusMensagemEvent(evt) {
         const nextUm = { ...targetMsg, status_mensagem: s, status: s }
         if (whatsapp_id) nextUm.whatsapp_id = whatsapp_id
         if (em_retry != null) nextUm.em_retry = em_retry
-        if (send_status != null) nextUm.send_status = send_status
-        if (falha_recuperavel != null) nextUm.falha_recuperavel = falha_recuperavel
-        if (falha_definitiva != null) nextUm.falha_definitiva = falha_definitiva
-        if (erro != null) nextUm.erro_mensagem = erro
         if (
           !(
             ultimaMensagemRefsEqual(targetMsg, nextUm) &&
