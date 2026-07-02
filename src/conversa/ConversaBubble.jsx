@@ -102,7 +102,8 @@ function MessageTicks({ msg, isGroup }) {
   const hasReadKeyword = /lida|read|seen|visualiz|played/.test(s);
   const hasDeliveredKeyword = /entregue|deliver|receiv/.test(s);
   const isErr = s === "erro" || s === "error" || s === "failed" || s === "falhou";
-  const isPending = s === "pending" || s === "enviando" || s === "sending";
+  const isRetry = !isErr && !!(msg?.em_retry);
+  const isPending = !isRetry && (s === "pending" || s === "enviando" || s === "sending");
   let isRead =
     s === "lida" || s === "read" || s === "seen" ||
     s === "visualizada" || s === "played" ||
@@ -119,8 +120,11 @@ function MessageTicks({ msg, isGroup }) {
     (!s || s === "sent" || s === "enviada" || s === "enviado");
 
   return (
-    <span className={`wa-ticks ${isDelivered ? "isDelivered" : ""} ${isRead ? "isRead" : ""} ${isErr ? "isErr" : ""} ${isPending ? "isPending" : ""}`}>
-      <TickSvg kind={isErr ? "err" : isPending ? "pending" : isRead ? "read" : isDelivered ? "delivered" : isSent ? "sent" : "sent"} />
+    <span
+      className={`wa-ticks ${isDelivered ? "isDelivered" : ""} ${isRead ? "isRead" : ""} ${isErr ? "isErr" : ""} ${isPending ? "isPending" : ""} ${isRetry ? "isPending isRetry" : ""}`}
+      title={isRetry ? "Aguardando reenvio automático" : undefined}
+    >
+      <TickSvg kind={isErr ? "err" : (isPending || isRetry) ? "pending" : isRead ? "read" : isDelivered ? "delivered" : isSent ? "sent" : "sent"} />
     </span>
   );
 }

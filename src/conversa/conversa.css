@@ -3382,6 +3382,10 @@
 .wa-ticks.isPending{
   opacity: .85;
 }
+.wa-ticks.isRetry{
+  color: rgba(245, 158, 11, .9);
+  opacity: 1;
+}
 
 .wa-bubble-remetente {
   display: flex;

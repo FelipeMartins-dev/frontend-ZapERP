@@ -557,11 +557,12 @@ export function joinConversaIfNeeded(id) {
 
 /** Aplica um evento status_mensagem normalizado (conversa aberta + lista). */
 function applyStatusMensagemEvent(evt) {
-  const { mensagem_id, conversa_id, status: s, whatsapp_id } = evt
+  const { mensagem_id, conversa_id, status: s, whatsapp_id, em_retry } = evt
 
   const convStore = useConversaStore.getState()
   const partial = { status_mensagem: s, status: s }
   if (whatsapp_id) partial.whatsapp_id = whatsapp_id
+  if (em_retry != null) partial.em_retry = em_retry
 
   const selectedId = convStore.selectedId
   const isConversaAberta = selectedId != null
@@ -593,6 +594,7 @@ function applyStatusMensagemEvent(evt) {
       if (targetMsg) {
         const nextUm = { ...targetMsg, status_mensagem: s, status: s }
         if (whatsapp_id) nextUm.whatsapp_id = whatsapp_id
+        if (em_retry != null) nextUm.em_retry = em_retry
         if (
           !(
             ultimaMensagemRefsEqual(targetMsg, nextUm) &&

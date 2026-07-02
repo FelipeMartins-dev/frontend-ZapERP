@@ -223,6 +223,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const lastConversaIdRef = useRef(conversaId);
   const prevTextLenRef = useRef(0);
   const prevTextConversaRef = useRef(null);
+  // Trava síncrona contra double-submit (Enter duplo ou clique duplo antes do re-render do React).
+  const sendLockedRef = useRef(false);
 
   const normalizeAutoWord = useCallback((value) => String(value || "").toLowerCase(), []);
 
@@ -392,6 +394,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     }
     lastConversaIdRef.current = conversaId;
   }, [conversaId, closeSavedReplies, handleCancelRecording]);
+
+  // Libera a trava de envio quando o envio em andamento termina (sucesso ou erro).
+  useEffect(() => {
+    if (!sending) sendLockedRef.current = false;
+  }, [sending]);
 
   useEffect(() => {
     return () => {
@@ -787,13 +794,16 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const handleSendFromComposer = useCallback(
     (textToSend) => {
       if (!conversaId || !podeEnviar) return;
+      // Trava síncrona: impede duplo envio se o React ainda não re-renderizou com sending=true.
+      if (sendLockedRef.current || sending) return;
       const t = safeString(textToSend).trim();
       if (!t) return;
+      sendLockedRef.current = true;
       resetAutocorrectTracking();
       setTexto("");
       onSendMessage?.(t);
     },
-    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking]
+    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking, sending]
   );
 
   const insertSavedReply = useCallback(
@@ -1652,7 +1662,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                       e.preventDefault();
                     }}
                     onClick={() => handleSendFromComposer(texto)}
-                    disabled={!hasDraft || !conversaId || !podeEnviar}
+                    disabled={!hasDraft || !conversaId || !podeEnviar || sending}
                     className="wa-sendBtn"
                     title="Enviar"
                     aria-label="Enviar mensagem"
@@ -1690,7 +1700,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                       e.preventDefault();
                     }}
                     onClick={() => handleSendFromComposer(texto)}
-                    disabled={!hasDraft || !conversaId || !podeEnviar}
+                    disabled={!hasDraft || !conversaId || !podeEnviar || sending}
                     className="wa-sendBtn"
                     title="Enviar"
                     aria-label="Enviar mensagem"
