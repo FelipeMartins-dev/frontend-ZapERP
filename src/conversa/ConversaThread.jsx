@@ -85,6 +85,7 @@ export default function ConversaThread({
   onStartSelect,
   onDeleteForMe,
   onDeleteForEveryone,
+  onRetrySend,
   onJumpToReply,
   onOpenMedia,
   onReact,
@@ -149,6 +150,7 @@ export default function ConversaThread({
             onStartSelect={onStartSelect}
             onDeleteForMe={onDeleteForMe}
             onDeleteForEveryone={onDeleteForEveryone}
+            onRetrySend={onRetrySend}
             onJumpToReply={onJumpToReply}
             onOpenMedia={onOpenMedia}
             onReact={onReact}
@@ -195,6 +197,7 @@ export default function ConversaThread({
           onStartSelect={onStartSelect}
           onDeleteForMe={onDeleteForMe}
           onDeleteForEveryone={onDeleteForEveryone}
+          onRetrySend={onRetrySend}
           onJumpToReply={onJumpToReply}
           onOpenMedia={onOpenMedia}
           onReact={onReact}
@@ -233,6 +236,7 @@ export default function ConversaThread({
       onStartSelect,
       onDeleteForMe,
       onDeleteForEveryone,
+      onRetrySend,
       onJumpToReply,
       onOpenMedia,
       onReact,

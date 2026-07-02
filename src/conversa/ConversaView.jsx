@@ -5,6 +5,7 @@ import { useConversaStore, getMessageListReactKey, isPendingOutgoingTemp } from 
 import {
   enviarMensagem,
   excluirMensagem,
+  reenviarMensagem,
   enviarReacao,
   removerReacao,
   registrarLigacao,
@@ -2469,6 +2470,37 @@ function ConversaViewBody() {
     [conversaId, showToast, removerMensagem]
   );
 
+  const handleRetrySend = useCallback(
+    async (msg) => {
+      if (!conversaId || !msg?.id) return;
+      try {
+        await reenviarMensagem(conversaId, msg.id);
+        useConversaStore.getState().patchMensagem(msg.id, {
+          status: "pending",
+          status_mensagem: "pending",
+          send_status: "queued",
+          em_retry: true,
+          falha_recuperavel: false,
+          falha_definitiva: false,
+          erro_mensagem: null,
+        });
+        showToast({
+          type: "success",
+          title: "Mensagem reenfileirada",
+          message: "O envio sera tentado novamente pela fila segura.",
+        });
+      } catch (e) {
+        const apiMsg = e?.response?.data?.error;
+        showToast({
+          type: "error",
+          title: "Falha ao reenviar",
+          message: apiMsg || "Nao foi possivel reenfileirar a mensagem.",
+        });
+      }
+    },
+    [conversaId, showToast]
+  );
+
   const handleDeleteForEveryone = useCallback(
     async (msg) => {
       if (!conversaId || msg?.apagada_para_todos) return;
@@ -3715,6 +3747,7 @@ function ConversaViewBody() {
             onStartSelect={startSelect}
             onDeleteForMe={handleDeleteForMe}
             onDeleteForEveryone={handleDeleteForEveryone}
+            onRetrySend={handleRetrySend}
             onJumpToReply={jumpToReply}
             onOpenMedia={openMediaViewer}
             onReact={handleSendReaction}

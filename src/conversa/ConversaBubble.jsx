@@ -738,6 +738,7 @@ const Bubble = memo(function Bubble({
   onStartSelect,
   onDeleteForMe,
   onDeleteForEveryone,
+  onRetrySend,
   isPinned,
   isStarred,
   currentUserId,
@@ -862,6 +863,15 @@ const Bubble = memo(function Bubble({
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
   const isCall = !isApagadaParaTodos && tipoMsg === "call";
+  const sendStatus = safeString(msg?.send_status).toLowerCase();
+  const canRetrySend =
+    out &&
+    !isApagadaParaTodos &&
+    !msg?.whatsapp_id &&
+    (sendStatus === "failed_retryable" ||
+      sendStatus === "expired" ||
+      msg?.falha_recuperavel === true ||
+      (msg?.em_retry === false && (msg?.status === "erro" || msg?.status_mensagem === "failed")));
   const [audioDur, setAudioDur] = useState(0);
   const audioDurLabel = useMemo(() => (audioDur > 0 ? formatMmSs(audioDur) : null), [audioDur]);
 
@@ -1095,8 +1105,9 @@ const Bubble = memo(function Bubble({
       if (action === "select") onStartSelect?.(msg);
       if (action === "deleteForMe") onDeleteForMe?.(msg);
       if (action === "deleteForEveryone") onDeleteForEveryone?.(msg);
+      if (action === "retrySend") onRetrySend?.(msg);
     },
-    [msg, onInfo, onReply, doCopy, onForward, onTogglePin, onToggleStar, onStartSelect, onDeleteForMe, onDeleteForEveryone]
+    [msg, onInfo, onReply, doCopy, onForward, onTogglePin, onToggleStar, onStartSelect, onDeleteForMe, onDeleteForEveryone, onRetrySend]
   );
 
   return (
@@ -1564,6 +1575,19 @@ const Bubble = memo(function Bubble({
                 </>
               ) : null}
               <div className="wa-msgMenuSep" aria-hidden="true" />
+              {canRetrySend ? (
+                <>
+                  <button
+                    type="button"
+                    className="wa-msgMenuItem"
+                    onClick={() => runAction("retrySend")}
+                    role="menuitem"
+                  >
+                    Reenviar
+                  </button>
+                  <div className="wa-msgMenuSep" aria-hidden="true" />
+                </>
+              ) : null}
               <button
                 type="button"
                 className="wa-msgMenuItem"
