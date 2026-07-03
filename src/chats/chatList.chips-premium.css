@@ -229,27 +229,49 @@
 
 @media (max-width: 640px) {
   .chat-list-toolbar-row--search.chat-list-search-wrap {
-    padding: 6px 10px;
+    padding: 8px 10px 6px;
+  }
+
+  .chat-list-search-row {
+    gap: 8px;
+  }
+
+  .chat-list-search-row .chat-list-search-box {
+    min-height: 42px;
+    padding: 8px 11px;
   }
 
   .chat-list-chips-scroll {
-    padding: 4px 10px 5px;
+    padding: 5px 10px 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .chat-list-chips-scroll::-webkit-scrollbar {
+    display: none;
   }
 
   .chat-list-toolbar-row--meta {
-    padding: 2px 10px 5px;
+    padding: 3px 10px 7px;
   }
 
   .chat-list-chips--scroll {
-    gap: 4px 5px;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: max-content;
+    min-width: 100%;
   }
 
   .chat-list-chips-wrap--compact .chat-list-chip--primary,
   .chat-list-chips-wrap--compact .chat-list-chips--scroll .chat-list-chip:not(.chat-list-chip--primary) {
     font-size: 11px;
-    padding: 2px 8px;
-    min-height: 24px;
+    padding: 6px 11px;
+    min-height: 34px;
     line-height: 1.25;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .chat-list-search-row .admin-atendente-filter {
