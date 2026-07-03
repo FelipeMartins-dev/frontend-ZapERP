@@ -347,7 +347,7 @@ function ConversaHeader({
 
       {headerCompact && !isGroup ? (
         <div className="wa-header-mobileRow2" aria-label="Setor e ações de atendimento">
-          <div className="wa-header-mobileRow2-sector">{renderSetorControls()}</div>
+          <div className="wa-header-mobileRow2-sector">{renderSetorControls({ omitSetorPrefix: true })}</div>
           <div className="wa-header-mobileRow2-actions">
             <div className="wa-actions">
               <AtendimentoActions

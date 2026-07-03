@@ -1449,10 +1449,10 @@ function SecaoChatbotTriagem({
                   rows={4}
                   value={v.finalizar_por_ausencia_mensagem ?? ""}
                   onChange={(e) => setV((c) => ({ ...c, finalizar_por_ausencia_mensagem: e.target.value }))}
-                  placeholder="Vazio = o sistema usa o texto padrão definido no servidor."
+                  placeholder="Vazio = finaliza sem enviar mensagem ao cliente."
                 />
                 <p className="chatbot-hint" style={{ marginTop: 6 }}>
-                  Personalize o aviso de encerramento por falta de resposta. Se deixar em branco, o backend aplica a mensagem padrão.
+                  Preencha para avisar o cliente antes de encerrar. Deixe em branco para apenas finalizar sem enviar aviso.
                 </p>
               </div>
               <div className="ds-switch-row" style={{ marginTop: 16 }}>

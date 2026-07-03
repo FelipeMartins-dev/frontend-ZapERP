@@ -2213,7 +2213,13 @@ function ConversaViewBody() {
         const is403 = err?.response?.status === 403;
         const apiMsg = err?.response?.data?.error;
         marcarMensagemTempErro(tempId, { erro_mensagem: apiMsg || err?.message });
-        composerRef.current?.setText?.(t);
+        // Restaura o texto no composer SOMENTE se estiver vazio — se o atendente já
+        // continuou digitando um novo rascunho, não sobrescrever/misturar com o texto
+        // que falhou (ele fica preservado na bolha de erro, com botão de retry).
+        const draftAtual = String(composerRef.current?.getText?.() ?? "").trim();
+        if (!draftAtual) {
+          composerRef.current?.setText?.(t);
+        }
         if (replyTo) setReplyTo(replyTo);
         showToast({
           type: "error",
