@@ -1232,7 +1232,7 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 640px) {
   .chat-list-row.zap-conversation-card {
     padding-right: 46px;
-    min-height: 82px;
+    min-height: 68px;
     border-width: 1px;
     border-color: rgba(11, 20, 26, 0.14);
     box-shadow:
@@ -3681,13 +3681,63 @@ a { color: inherit; text-decoration: none; }
     min-width: 0;
   }
 
+  .chat-list-header {
+    min-height: 48px;
+    gap: 8px;
+    padding: 6px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top, 0));
+  }
+
+  .chat-list-header-left {
+    gap: 8px;
+  }
+
+  .chat-list-header-left .cb {
+    gap: 8px;
+  }
+
+  .chat-list-header-left .cb-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .chat-list-header-left .cb-mark--logo::before {
+    inset: 4px;
+    border-radius: 10px;
+  }
+
+  .chat-list-header-left .cb-img {
+    width: calc(100% - 9px);
+    height: calc(100% - 9px);
+    border-radius: 9px;
+  }
+
+  .chat-list-header-left .cb-initials {
+    font-size: 18px;
+  }
+
+  .chat-list-header-actions {
+    gap: 6px;
+  }
+
   .chat-list-header-btn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .chat-list-header-btn .chat-list-icon,
+  .chat-list-header-btn .chat-list-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .chat-list-header-btnEmoji {
+    font-size: 13px;
   }
 
   .chat-list-novo-item {
@@ -3707,9 +3757,9 @@ a { color: inherit; text-decoration: none; }
   /* Balões no telefone: flex-start evita “nome colado no topo” quando a coluna
      direita (hora + status em 2 linhas) fica mais alta que o bloco do nome. */
   .chat-list-row {
-    gap: 11px;
-    padding: 15px 12px;
-    min-height: 84px;
+    gap: 8px;
+    padding: 8px 10px;
+    min-height: 68px;
     align-items: flex-start;
     touch-action: pan-y;
     content-visibility: visible;
@@ -3725,26 +3775,26 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-statusRow--await-solo),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--staff),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--await-client) {
-    min-height: 96px;
-    padding-top: 16px;
-    padding-bottom: 16px;
+    min-height: 80px;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 
   .chat-list-row-main {
-    gap: 6px;
+    gap: 3px;
     min-width: 0;
   }
 
   .chat-list-avatar {
-    margin-top: 3px;
-    width: 56px;
-    height: 56px;
-    min-width: 56px;
+    margin-top: 1px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
   }
 
   .chat-list-title {
-    font-size: 15px;
-    line-height: 1.3;
+    font-size: 13.5px;
+    line-height: 1.2;
   }
 
   .chat-list-row-meta {
@@ -3773,16 +3823,16 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-preview {
-    font-size: 15px;
-    line-height: 1.35;
+    font-size: 12.5px;
+    line-height: 1.18;
   }
 
   /* Pills de status: sem truncar etiquetas longas */
   .chat-list-status {
-    min-height: 20px;
+    min-height: 19px;
     height: auto;
     padding: 3px 8px;
-    font-size: 10px;
+    font-size: 9.5px;
     line-height: 1.15;
     font-weight: 600;
     min-width: 0;
@@ -3792,8 +3842,8 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-status.open.chat-list-status--hud-open {
-    min-height: 22px;
-    padding: 5px 15px;
+    min-height: 19px;
+    padding: 3px 10px;
   }
 
   .chat-list-status.in.chat-list-status--hud-in,
@@ -3830,7 +3880,7 @@ a { color: inherit; text-decoration: none; }
       "title time"
       "badge badge";
     column-gap: 8px;
-    row-gap: 5px;
+    row-gap: 4px;
     align-items: start;
   }
 
@@ -3878,11 +3928,11 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row-top:has(.chat-list-status-tech--await-client) .chat-list-status-tech--await-client {
-    min-height: 24px;
+    min-height: 19px;
     height: auto;
-    padding: 6px 12px 6px 10px;
-    font-size: 9.5px;
-    line-height: 1.2;
+    padding: 3px 8px 3px 7px;
+    font-size: 8.8px;
+    line-height: 1.15;
     width: max-content;
     max-width: 100% !important;
     flex-shrink: 0;
@@ -3910,7 +3960,7 @@ a { color: inherit; text-decoration: none; }
       "title time"
       "badge badge";
     column-gap: 8px;
-    row-gap: 5px;
+    row-gap: 4px;
     align-items: start;
   }
 
@@ -3991,8 +4041,8 @@ a { color: inherit; text-decoration: none; }
     gap: 0;
     width: max-content;
     max-width: 100%;
-    min-height: 24px;
-    padding: 5px 10px 5px 9px;
+    min-height: 19px;
+    padding: 3px 7px 3px 7px;
     border-radius: 999px;
     box-sizing: border-box;
     color: #f0f9ff;
@@ -4151,14 +4201,21 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-header {
-    min-height: 56px;
-    padding: 10px 12px;
-    padding-top: calc(10px + env(safe-area-inset-top, 0));
+    min-height: 46px;
+    padding: 5px 10px;
+    padding-top: calc(5px + env(safe-area-inset-top, 0));
   }
 
   .chat-list-header-btn {
-    min-width: 44px;
-    min-height: 44px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .chat-list-header-left .cb-mark {
+    width: 42px;
+    height: 42px;
   }
 
   .chat-list-header-title {
@@ -4181,8 +4238,8 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-row {
-    padding: 13px 14px;
-    min-height: 88px;
+    padding: 8px 10px;
+    min-height: 68px;
     align-items: flex-start;
   }
 
@@ -4195,7 +4252,9 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-statusRow--await-solo),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--staff),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--await-client) {
-    min-height: 102px;
+    min-height: 80px;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 
   .chat-list-chips--primary::after {
@@ -4205,14 +4264,14 @@ a { color: inherit; text-decoration: none; }
   }
 
   .chat-list-avatar {
-    width: 56px;
-    height: 56px;
-    min-width: 56px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
   }
 
   .chat-list-preview {
-    font-size: 15px;
-    line-height: 1.35;
+    font-size: 12.5px;
+    line-height: 1.18;
   }
 
   .chat-list-unread {
@@ -4228,8 +4287,8 @@ a { color: inherit; text-decoration: none; }
 /* Mobile muito estreito (320px) */
 @media (max-width: 360px) {
   .chat-list-row {
-    padding: 12px 12px;
-    min-height: 84px;
+    padding: 7px 9px;
+    min-height: 66px;
     align-items: flex-start;
   }
 
@@ -4242,14 +4301,16 @@ a { color: inherit; text-decoration: none; }
   .chat-list-row:has(.chat-list-statusRow--await-solo),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--staff),
   .chat-list-row:has(.chat-list-status.in):has(.chat-list-status-tech--await-client) {
-    min-height: 98px;
+    min-height: 78px;
+    padding-top: 7px;
+    padding-bottom: 7px;
   }
 
   .chat-list-avatar {
-    margin-top: 2px;
-    width: 52px;
-    height: 52px;
-    min-width: 52px;
+    margin-top: 1px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
   }
 }
 

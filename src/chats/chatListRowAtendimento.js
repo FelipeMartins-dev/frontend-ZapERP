@@ -228,16 +228,16 @@ const VIRTUAL_ROW_METRICS = {
     titleWrapWidth: 210,
   },
   mobile: {
-    padY: 30,
-    avatar: 56,
-    titleLine: 19.5,
-    setor: 15,
-    empresa: 15,
-    preview: 20,
-    mainGap: 6,
-    badgeGridExtra: 33,
-    statusSubLine: 20,
-    minRow: 84,
+    padY: 16,
+    avatar: 46,
+    titleLine: 16.2,
+    setor: 12.5,
+    empresa: 13.5,
+    preview: 14.8,
+    mainGap: 3,
+    badgeGridExtra: 23,
+    statusSubLine: 17,
+    minRow: 68,
     titleWrapWidth: 168,
   },
 };
@@ -333,9 +333,9 @@ export function estimateChatListRowSize(chat, isMobileLayout, pendentesIdSet = n
   let rowHeight = Math.max(m.avatar, mainBlock) + m.padY;
   rowHeight = Math.max(rowHeight, m.minRow);
 
-  if (mobileBadgeGrid) rowHeight = Math.max(rowHeight, isMobileLayout ? 96 : 80);
+  if (mobileBadgeGrid) rowHeight = Math.max(rowHeight, isMobileLayout ? 80 : 80);
   if (hasSetor && status === "em_atendimento" && chat?.atendente_id != null) {
-    rowHeight = Math.max(rowHeight, isMobileLayout ? 96 : 80);
+    rowHeight = Math.max(rowHeight, isMobileLayout ? 80 : 80);
   }
 
   return Math.ceil(rowHeight) + 3;

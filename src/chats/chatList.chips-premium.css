@@ -229,31 +229,31 @@
 
 @media (max-width: 640px) {
   .chat-list-toolbar-row--search.chat-list-search-wrap {
-    padding: 8px 10px 6px;
+    padding: 6px 10px 4px;
   }
 
   .chat-list-search-row {
-    gap: 8px;
+    gap: 6px;
   }
 
   .chat-list-search-row .chat-list-search-box {
-    min-height: 42px;
-    padding: 8px 11px;
+    min-height: 38px;
+    padding: 6px 10px;
   }
 
   .chat-list-search-row .chat-list-search-input {
-    font-size: 16px;
-    line-height: 22px;
+    font-size: 15px;
+    line-height: 20px;
   }
 
   .chat-list-search-row .admin-atendente-filter__trigger {
-    min-height: 42px;
-    border-radius: 12px;
+    min-height: 38px;
+    border-radius: 10px;
     touch-action: manipulation;
   }
 
   .chat-list-chips-scroll {
-    padding: 5px 10px 6px;
+    padding: 3px 10px 4px;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
@@ -265,24 +265,28 @@
   }
 
   .chat-list-toolbar-row--meta {
-    padding: 3px 10px 7px;
+    padding: 2px 10px 5px;
   }
 
   .chat-list-chips--scroll {
     flex-wrap: nowrap;
-    gap: 6px;
+    gap: 5px;
     width: max-content;
     min-width: 100%;
   }
 
   .chat-list-chips-wrap--compact .chat-list-chip--primary,
   .chat-list-chips-wrap--compact .chat-list-chips--scroll .chat-list-chip:not(.chat-list-chip--primary) {
-    font-size: 11px;
-    padding: 6px 11px;
-    min-height: 34px;
-    line-height: 1.25;
+    font-size: 10.5px;
+    padding: 4px 9px;
+    min-height: 28px;
+    line-height: 1.15;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .chat-list-chips-wrap--compact .chat-list-chips--scroll .chat-list-chip-count {
+    font-size: 10.5px;
   }
 
   .chat-list-search-row .admin-atendente-filter {
