@@ -1723,36 +1723,19 @@ export default function ChatList() {
   // posiciona menu abaixo do botão Novo
   useEffect(() => {
     if (!showNovoMenu || !novoBtnRef.current) return;
-    const updatePosition = () => {
-      const btn = novoBtnRef.current;
-      if (!btn) return;
-      const rect = btn.getBoundingClientRect();
-      const menuWidth = Math.min(240, Math.max(160, window.innerWidth - 16));
-      const left = Math.min(
-        Math.max(8, rect.right - menuWidth),
-        Math.max(8, window.innerWidth - menuWidth - 8)
-      );
-      const top = Math.min(
-        Math.max(8, rect.bottom + 6),
-        Math.max(8, window.innerHeight - 168)
-      );
-      setMenuPosition({ top, left, width: menuWidth });
-    };
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
+    const btn = novoBtnRef.current;
+    const rect = btn.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.bottom + 4,
+      left: rect.right - 200,
+    });
   }, [showNovoMenu]);
 
   // fecha menu "Novo" ao clicar fora
   useEffect(() => {
     if (!showNovoMenu) return;
 
-    function onPointerDown(e) {
+    function onMouseDown(e) {
       const btn = novoBtnRef.current;
       const menu = novoMenuRef.current;
       const target = e.target;
@@ -1764,8 +1747,8 @@ export default function ChatList() {
       setShowNovoMenu(false);
     }
 
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
+    window.addEventListener("mousedown", onMouseDown);
+    return () => window.removeEventListener("mousedown", onMouseDown);
   }, [showNovoMenu]);
 
   const emitNovoAction = useCallback(

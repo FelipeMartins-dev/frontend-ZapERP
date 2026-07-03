@@ -11,7 +11,6 @@ function HeaderButton({ title, onClick, children, innerRef, disabled }) {
       onClick={onClick}
       className="chat-list-header-btn"
       title={title}
-      aria-label={title}
       type="button"
       disabled={disabled}
     >
@@ -97,7 +96,7 @@ function ChatListHeaderBar({
               position: "fixed",
               top: menuPosition.top,
               left: menuPosition.left,
-              width: menuPosition.width || 200,
+              minWidth: 200,
             }}
           >
             <button
@@ -145,7 +144,6 @@ function headerPropsAreEqual(prev, next) {
   if (prev.canConsultarProdutos !== next.canConsultarProdutos) return false;
   if (prev.menuPosition?.top !== next.menuPosition?.top) return false;
   if (prev.menuPosition?.left !== next.menuPosition?.left) return false;
-  if (prev.menuPosition?.width !== next.menuPosition?.width) return false;
   if (prev.novoBtnRef !== next.novoBtnRef) return false;
   if (prev.novoMenuRef !== next.novoMenuRef) return false;
   if (prev.onToggleNovoMenu !== next.onToggleNovoMenu) return false;
