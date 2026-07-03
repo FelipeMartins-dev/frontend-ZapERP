@@ -12178,3 +12178,86 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
     max-width: 100%;
   }
 }
+
+/* Mobile polish: larger touch targets and safer fixed menus in Atendimento. */
+@media (max-width: 640px) {
+  .wa-header.wa-header--atendMobile {
+    column-gap: 8px;
+    row-gap: 7px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-header-mobileRow2-sector {
+    min-height: 34px;
+    padding: 4px 9px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-primaryRow--headerRow2 {
+    gap: 6px;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar-overflowTrigger.wa-header-btn--micro,
+  .wa-atendToolbar-overflowTrigger.wa-header-btn--micro {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    border-radius: 12px !important;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-primary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-transferir,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-danger,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-secondary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-btn-aguardar-cliente,
+  .wa-atendToolbar--compact .wa-btn-primary,
+  .wa-atendToolbar--compact .wa-btn-transferir,
+  .wa-atendToolbar--compact .wa-btn-danger,
+  .wa-atendToolbar--compact .wa-btn-secondary,
+  .wa-atendToolbar--compact .wa-btn-aguardar-cliente {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 0 10px !important;
+    border-radius: 10px !important;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-primary,
+  .wa-header.wa-header--atendMobile .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-assumir-destaque,
+  .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-primary,
+  .wa-atendToolbar--compact .wa-atendBtn--assumir-hero.wa-btn-assumir-destaque {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  .wa-messages {
+    overscroll-behavior: contain;
+  }
+
+  .wa-atendToolbar-dropdown--portal,
+  .wa-header-moreDropdown {
+    max-width: calc(100vw - 16px);
+    max-height: min(62vh, 440px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .wa-header-btn,
+  .wa-actions button,
+  .wa-iconBtn,
+  .wa-sendBtn,
+  .wa-micBtn {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .wa-header-btn:active:not(:disabled),
+  .wa-actions button:active:not(:disabled),
+  .wa-iconBtn:active:not(:disabled),
+  .wa-sendBtn:active:not(:disabled),
+  .wa-micBtn:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+}

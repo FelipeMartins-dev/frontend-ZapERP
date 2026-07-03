@@ -22,6 +22,7 @@ export function Chip({ active, onClick, children, variant = "default", className
         active ? " is-active" : ""
       } ${className}`.trim()}
       onClick={onClick}
+      aria-pressed={active ? "true" : "false"}
     >
       {children}
       {showCount ? <span className="chat-list-chip-count">{normalizedCount}</span> : null}
