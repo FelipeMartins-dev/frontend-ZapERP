@@ -31,6 +31,7 @@ function ChatListBody({
   searchRef,
   searchClearNonce,
   onSearchDebounced,
+  onClearSearch,
   isMobileLayout,
   rowCurrentUserId,
   user,
@@ -233,9 +234,10 @@ function ChatListBody({
   const activateMainTab = useCallback(
     (nextTab) => {
       if (hasActivePendencia) onClearPendenciaAtiva?.();
+      onClearSearch?.();
       setTab(nextTab);
     },
-    [hasActivePendencia, onClearPendenciaAtiva, setTab]
+    [hasActivePendencia, onClearPendenciaAtiva, onClearSearch, setTab]
   );
 
   const onTabMinhaFila = useCallback(() => activateMainTab("minha_fila"), [activateMainTab]);
@@ -254,9 +256,10 @@ function ChatListBody({
   const onAdminSelectUser = useCallback(
     (u) => {
       if (u?.id == null) return;
+      onClearSearch?.();
       setAdminAtendenteFilterId(String(u.id));
     },
-    [setAdminAtendenteFilterId]
+    [onClearSearch, setAdminAtendenteFilterId]
   );
 
   const onAdminBeforeOpen = useCallback(() => {

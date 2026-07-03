@@ -394,6 +394,10 @@ export default function ChatList() {
   const handleSearchDebounced = useCallback((t) => {
     setDebouncedSearch(t);
   }, []);
+  const clearChatSearch = useCallback(() => {
+    setDebouncedSearch("");
+    setSearchClearNonce((n) => n + 1);
+  }, []);
 
   const [statusFilter, setStatusFilter] = useState("todos");
   const [allTags, setAllTags] = useState([]);
@@ -447,10 +451,11 @@ export default function ChatList() {
   const [tab, setTab] = useState("minha_fila");
   const handlePendenciaClick = useCallback(
     (categoria) => {
+      clearChatSearch();
       setTab("todas");
       void onPendenciaClick(categoria);
     },
-    [onPendenciaClick, setTab]
+    [clearChatSearch, onPendenciaClick, setTab]
   );
   const [zapFilterSkeleton, setZapFilterSkeleton] = useState(false);
   const tabRef = useRef(tab);
@@ -1939,10 +1944,76 @@ export default function ChatList() {
   const showSetorFilter = isAppAdmin(user);
   const showAusenciaLote = isSupervisorOrAdmin(user);
 
+  const handleStatusFilterChange = useCallback((value) => {
+    clearChatSearch();
+    setStatusFilter(value);
+  }, [clearChatSearch]);
+
+  const handleTagFilterChange = useCallback((value) => {
+    clearChatSearch();
+    setTagFilter(value);
+  }, [clearChatSearch]);
+
+  const handleDepartamentoFilterChange = useCallback((value) => {
+    clearChatSearch();
+    setDepartamentoFilter(value);
+  }, [clearChatSearch]);
+
+  const handleAtendenteFilterChange = useCallback((value) => {
+    clearChatSearch();
+    setAtendenteFilter(value);
+  }, [clearChatSearch]);
+
+  const handleDataInicioChange = useCallback((value) => {
+    clearChatSearch();
+    setDataInicio(value);
+  }, [clearChatSearch]);
+
+  const handleDataFimChange = useCallback((value) => {
+    clearChatSearch();
+    setDataFim(value);
+  }, [clearChatSearch]);
+
+  const handleMineOnlyChange = useCallback((on) => {
+    clearChatSearch();
+    setMineOnly(on);
+  }, [clearChatSearch]);
+
   const handleOnlyFinalizadasAusenciaChange = useCallback((on) => {
+    clearChatSearch();
     setOnlyFinalizadasAusencia(on);
     if (on) setStatusFilter("fechada");
-  }, []);
+  }, [clearChatSearch]);
+
+  const handleAguardandoClienteOnlyChange = useCallback((on) => {
+    clearChatSearch();
+    setAguardandoClienteOnly(on);
+  }, [clearChatSearch]);
+
+  const handlePagamentosPendentesOnlyChange = useCallback((on) => {
+    clearChatSearch();
+    setPagamentosPendentesOnly(on);
+  }, [clearChatSearch]);
+
+  const handleEmAtrasoOnlyChange = useCallback((on) => {
+    clearChatSearch();
+    setEmAtrasoOnly(on);
+  }, [clearChatSearch]);
+
+  const handleOrderChange = useCallback((value) => {
+    clearChatSearch();
+    setOrder(value);
+  }, [clearChatSearch]);
+
+  const handleTempoParadoFilterChange = useCallback((value) => {
+    clearChatSearch();
+    setTempoParadoFilter(value);
+  }, [clearChatSearch]);
+
+  const handleClearAdminAtendenteFilter = useCallback(() => {
+    clearChatSearch();
+    clearAdminAtendenteFilter();
+  }, [clearAdminAtendenteFilter, clearChatSearch]);
 
   const advancedFiltersSlot = useMemo(
     () => (
@@ -1951,36 +2022,36 @@ export default function ChatList() {
         filtersAuxLoading={filtersAuxLoading}
         separarMensagensDisparadasLigado={separarMensagensDisparadasLigado}
         statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
+        onStatusFilterChange={handleStatusFilterChange}
         tagFilter={tagFilter}
-        onTagFilterChange={setTagFilter}
+        onTagFilterChange={handleTagFilterChange}
         allTags={allTags}
         showSetorFilter={showSetorFilter}
         departamentoFilter={departamentoFilter}
-        onDepartamentoFilterChange={setDepartamentoFilter}
+        onDepartamentoFilterChange={handleDepartamentoFilterChange}
         departamentos={departamentos}
         atendenteFilter={atendenteFilter}
-        onAtendenteFilterChange={setAtendenteFilter}
+        onAtendenteFilterChange={handleAtendenteFilterChange}
         atendentes={atendentes}
         dataInicio={dataInicio}
-        onDataInicioChange={setDataInicio}
+        onDataInicioChange={handleDataInicioChange}
         dataFim={dataFim}
-        onDataFimChange={setDataFim}
+        onDataFimChange={handleDataFimChange}
         mineOnly={mineOnly}
-        onMineOnlyChange={setMineOnly}
+        onMineOnlyChange={handleMineOnlyChange}
         onlyFinalizadasAusencia={onlyFinalizadasAusencia}
         onOnlyFinalizadasAusenciaChange={handleOnlyFinalizadasAusenciaChange}
         aguardandoClienteOnly={aguardandoClienteOnly}
-        onAguardandoClienteOnlyChange={setAguardandoClienteOnly}
+        onAguardandoClienteOnlyChange={handleAguardandoClienteOnlyChange}
         showFinanceiroFilters={isFinanceiroUser}
         pagamentosPendentesOnly={pagamentosPendentesOnly}
-        onPagamentosPendentesOnlyChange={setPagamentosPendentesOnly}
+        onPagamentosPendentesOnlyChange={handlePagamentosPendentesOnlyChange}
         emAtrasoOnly={emAtrasoOnly}
-        onEmAtrasoOnlyChange={setEmAtrasoOnly}
+        onEmAtrasoOnlyChange={handleEmAtrasoOnlyChange}
         order={order}
-        onOrderChange={setOrder}
+        onOrderChange={handleOrderChange}
         tempoParadoFilter={tempoParadoFilter}
-        onTempoParadoFilterChange={setTempoParadoFilter}
+        onTempoParadoFilterChange={handleTempoParadoFilterChange}
         showAusenciaLote={showAusenciaLote}
         loteAusenciaBusy={loteAusenciaBusy}
         loteAusenciaMsg={loteAusenciaMsg}
@@ -1996,24 +2067,36 @@ export default function ChatList() {
       filtersAuxLoading,
       separarMensagensDisparadasLigado,
       statusFilter,
+      handleStatusFilterChange,
       tagFilter,
+      handleTagFilterChange,
       allTags,
       showSetorFilter,
       departamentoFilter,
+      handleDepartamentoFilterChange,
       departamentos,
       atendenteFilter,
+      handleAtendenteFilterChange,
       atendentes,
       dataInicio,
+      handleDataInicioChange,
       dataFim,
+      handleDataFimChange,
       mineOnly,
+      handleMineOnlyChange,
       onlyFinalizadasAusencia,
       handleOnlyFinalizadasAusenciaChange,
       aguardandoClienteOnly,
+      handleAguardandoClienteOnlyChange,
       isFinanceiroUser,
       pagamentosPendentesOnly,
+      handlePagamentosPendentesOnlyChange,
       emAtrasoOnly,
+      handleEmAtrasoOnlyChange,
       order,
+      handleOrderChange,
       tempoParadoFilter,
+      handleTempoParadoFilterChange,
       showAusenciaLote,
       loteAusenciaBusy,
       loteAusenciaMsg,
@@ -2080,6 +2163,7 @@ export default function ChatList() {
         searchRef={searchRef}
         searchClearNonce={searchClearNonce}
         onSearchDebounced={handleSearchDebounced}
+        onClearSearch={clearChatSearch}
         isMobileLayout={isMobileLayout}
         rowCurrentUserId={rowCurrentUserId}
         user={user}
@@ -2117,7 +2201,7 @@ export default function ChatList() {
         adminAtendentePanelOpen={adminAtendentePanelOpen}
         setAdminAtendentePanelOpen={setAdminAtendentePanelOpen}
         setAdminAtendenteFilterId={setAdminAtendenteFilterId}
-        clearAdminAtendenteFilter={clearAdminAtendenteFilter}
+        clearAdminAtendenteFilter={handleClearAdminAtendenteFilter}
         setShowNovoMenu={setShowNovoMenu}
         setShowFilters={setShowFilters}
         setTab={setTab}

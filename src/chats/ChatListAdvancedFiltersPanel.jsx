@@ -295,6 +295,8 @@ function panelPropsAreEqual(prev, next) {
   if (prev.onMineOnlyChange !== next.onMineOnlyChange) return false;
   if (prev.onOnlyFinalizadasAusenciaChange !== next.onOnlyFinalizadasAusenciaChange) return false;
   if (prev.onAguardandoClienteOnlyChange !== next.onAguardandoClienteOnlyChange) return false;
+  if (prev.onPagamentosPendentesOnlyChange !== next.onPagamentosPendentesOnlyChange) return false;
+  if (prev.onEmAtrasoOnlyChange !== next.onEmAtrasoOnlyChange) return false;
   if (prev.onOrderChange !== next.onOrderChange) return false;
   if (prev.onTempoParadoFilterChange !== next.onTempoParadoFilterChange) return false;
   if (prev.onLoteAusenciaConfirmChange !== next.onLoteAusenciaConfirmChange) return false;
