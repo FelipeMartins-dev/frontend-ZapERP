@@ -1,12 +1,24 @@
 import { memo } from "react";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, ShieldCheck, UserCheck } from "lucide-react";
 import DaySeparator from "./DaySeparator";
 import { threadRowPropsAreEqual } from "./threadRowCompare";
 import { formatHora } from "./utils/conversaViewHelpers";
 
+function textLooksInternalMovement(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return false;
+  const firstLine = raw.split(/\r?\n/)[0]?.trim() || raw;
+  const normalized = firstLine
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return normalized.includes("movimentacao interna");
+}
+
 function isInternalMovementMessage(item) {
   return item?.mensagem_interna === true ||
-    String(item?.tipo || "").toLowerCase() === "movimentacao_interna_atendimento";
+    String(item?.tipo || "").toLowerCase() === "movimentacao_interna_atendimento" ||
+    textLooksInternalMovement(item?.texto || item?.conteudo || item?.message || item?.body);
 }
 
 function InternalMovementCard({ item, zapAnimateIn }) {
@@ -18,6 +30,9 @@ function InternalMovementCard({ item, zapAnimateIn }) {
   const title = meta.titulo || "Movimentação interna";
   const body = meta.corpo || fallbackBody || "Este atendimento teve uma movimentação interna.";
   const footer = meta.rodape || "Mensagem invisível para o cliente.";
+  const action = String(meta.acao || (body.toLowerCase().includes("assumiu") ? "assumiu" : "transferiu")).toLowerCase();
+  const isAssume = action === "assumiu";
+  const ActionIcon = isAssume ? UserCheck : ArrowLeftRight;
 
   return (
     <div
@@ -26,12 +41,16 @@ function InternalMovementCard({ item, zapAnimateIn }) {
       role="note"
       aria-label="Movimentação interna"
     >
-      <div className="wa-internalMovement-card">
+      <div className={`wa-internalMovement-card ${isAssume ? "is-assume" : "is-transfer"}`}>
         <span className="wa-internalMovement-icon" aria-hidden="true">
-          <ArrowLeftRight size={16} strokeWidth={2.2} />
+          <ActionIcon size={17} strokeWidth={2.25} />
         </span>
         <div className="wa-internalMovement-content">
-          <div className="wa-internalMovement-title">✨ {title}</div>
+          <div className="wa-internalMovement-kicker">
+            <ShieldCheck size={12} strokeWidth={2.2} />
+            <span>LOG ADMIN</span>
+          </div>
+          <div className="wa-internalMovement-title">{title}</div>
           <div className="wa-internalMovement-body">{body}</div>
           <div className="wa-internalMovement-footer">
             <span>{footer}</span>

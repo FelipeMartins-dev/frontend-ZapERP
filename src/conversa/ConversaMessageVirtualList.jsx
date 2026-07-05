@@ -2,9 +2,22 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, us
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { getMessageListReactKey } from "./conversaStore";
 
+function isInternalMovementEstimate(item) {
+  if (!item) return false;
+  if (item?.mensagem_interna === true) return true;
+  if (String(item?.tipo || "").toLowerCase() === "movimentacao_interna_atendimento") return true;
+  const firstLine = String(item?.texto ?? item?.conteudo ?? "").trim().split(/\r?\n/)[0] || "";
+  return firstLine
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .includes("movimentacao interna");
+}
+
 function estimateThreadRowSize(item, mobileThread) {
   if (!item) return mobileThread ? 112 : 96;
   if (item.__type === "day") return mobileThread ? 34 : 32;
+  if (isInternalMovementEstimate(item)) return mobileThread ? 132 : 116;
   const tipo = String(item.tipo || "").toLowerCase();
   if (["imagem", "image", "video", "sticker"].includes(tipo)) return mobileThread ? 200 : 240;
   if (["audio", "ptt", "voice"].includes(tipo)) return mobileThread ? 72 : 68;
