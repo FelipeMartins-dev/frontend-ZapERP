@@ -1,6 +1,47 @@
 import { memo } from "react";
+import { ArrowLeftRight } from "lucide-react";
 import DaySeparator from "./DaySeparator";
 import { threadRowPropsAreEqual } from "./threadRowCompare";
+import { formatHora } from "./utils/conversaViewHelpers";
+
+function isInternalMovementMessage(item) {
+  return item?.mensagem_interna === true ||
+    String(item?.tipo || "").toLowerCase() === "movimentacao_interna_atendimento";
+}
+
+function InternalMovementCard({ item, zapAnimateIn }) {
+  const meta = item?.movimentacao_interna && typeof item.movimentacao_interna === "object"
+    ? item.movimentacao_interna
+    : {};
+  const rawText = String(item?.texto || "");
+  const fallbackBody = rawText.split("\n").slice(1).join("\n").trim();
+  const title = meta.titulo || "Movimentação interna";
+  const body = meta.corpo || fallbackBody || "Este atendimento teve uma movimentação interna.";
+  const footer = meta.rodape || "Mensagem invisível para o cliente.";
+
+  return (
+    <div
+      className={`wa-row wa-row-internalMovement${zapAnimateIn ? " zap-message-enter" : ""}`}
+      data-msg-id={item?.id}
+      role="note"
+      aria-label="Movimentação interna"
+    >
+      <div className="wa-internalMovement-card">
+        <span className="wa-internalMovement-icon" aria-hidden="true">
+          <ArrowLeftRight size={16} strokeWidth={2.2} />
+        </span>
+        <div className="wa-internalMovement-content">
+          <div className="wa-internalMovement-title">✨ {title}</div>
+          <div className="wa-internalMovement-body">{body}</div>
+          <div className="wa-internalMovement-footer">
+            <span>{footer}</span>
+            <span className="wa-internalMovement-time">{formatHora(item?.criado_em)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Uma linha do thread virtualizado: separador de dia ou bolha de mensagem.
@@ -70,6 +111,10 @@ function ThreadRow({
   }
   if (seenMsgKeys && messageKey != null) {
     seenMsgKeys.add(messageKey);
+  }
+
+  if (isInternalMovementMessage(item)) {
+    return <InternalMovementCard item={item} zapAnimateIn={zapAnimateIn} />;
   }
 
   return (

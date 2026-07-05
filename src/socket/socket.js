@@ -208,6 +208,23 @@ function getCurrentUserId() {
   }
 }
 
+function getCurrentUserRole() {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("zap_erp_auth") : null
+    if (!raw) return ""
+    const parsed = JSON.parse(raw)
+    const u = parsed?.user
+    return String(u?.role || u?.perfil || "").toLowerCase()
+  } catch {
+    return ""
+  }
+}
+
+function canViewInternalAttendanceMessage() {
+  const role = getCurrentUserRole()
+  return role === "admin" || role === "administrador" || role === "supervisor"
+}
+
 /** Ignora evento se payload.company_id não bater com o do usuário (multi-tenant) */
 function shouldIgnoreByCompany(payload) {
   const payloadCompany = payload?.company_id ?? payload?.empresa_id
@@ -642,6 +659,7 @@ export function initSocket(token) {
   off("tag_adicionada")
   off("tag_removida")
   off("nova_conversa")
+  off(SOCKET_EVENTS.MENSAGEM_INTERNA_ATENDIMENTO)
   off(SOCKET_EVENTS.NOVA_MENSAGEM)
   off("mensagem_excluida")
   off("mensagem_editada")
@@ -738,6 +756,19 @@ export function initSocket(token) {
   socket.on("nova_conversa", (payload) => {
     if (!payload?.id) return
     useChatStore.getState().addChat(payload)
+  })
+
+  socket.on(SOCKET_EVENTS.MENSAGEM_INTERNA_ATENDIMENTO, (rawMsg) => {
+    if (!canViewInternalAttendanceMessage()) return
+    const msg = normalizeNovaMensagemPayload(rawMsg)
+    const conversaId = msg?.conversa_id
+    if (!conversaId) return
+    if (shouldIgnoreByCompany(msg)) return
+
+    const convStore = useConversaStore.getState()
+    if (!convStore.selectedId || String(convStore.selectedId) !== String(conversaId)) return
+    if (convStore.conversa?.mensagens_bloqueadas && String(convStore.conversa?.id) === String(conversaId)) return
+    convStore.anexarMensagem(msg)
   })
 
   /* ===========================
