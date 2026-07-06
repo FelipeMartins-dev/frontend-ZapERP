@@ -47,10 +47,49 @@ function buildForwardText(m) {
   if (!m) return "";
   const t = safeString(m?.texto);
   if (t) return `[Encaminhado]\n${t}`;
-  const url = getMediaUrl(m?.url, m?.url_absoluta);
+  const url = getForwardMediaUrl(m);
   const nome = safeString(m?.nome_arquivo);
   if (url) return `[Encaminhado]\n${nome ? `${nome}\n` : ""}${url}`;
   return "[Encaminhado]\n(mídia)";
+}
+
+const FORWARD_MEDIA_TYPES = new Set([
+  "arquivo",
+  "audio",
+  "document",
+  "documento",
+  "file",
+  "foto",
+  "image",
+  "imagem",
+  "pdf",
+  "photo",
+  "ptt",
+  "sticker",
+  "video",
+  "voice",
+]);
+
+function normalizeForwardMessageType(tipo) {
+  return String(tipo || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function isForwardMediaMessage(msg) {
+  return FORWARD_MEDIA_TYPES.has(normalizeForwardMessageType(msg?.tipo));
+}
+
+function getForwardMediaUrl(msg) {
+  if (!msg || typeof msg !== "object") return "";
+  return (
+    getMediaUrl(msg?.url, msg?.url_absoluta) ||
+    getMediaUrl(msg?.media_url ?? msg?.mediaUrl, null) ||
+    getMediaUrl(msg?.file_url ?? msg?.fileUrl, null) ||
+    getMediaUrl(msg?.download_url ?? msg?.downloadUrl, null)
+  );
 }
 
 /**
@@ -317,6 +356,14 @@ export function useForwardFlow({ conversa, conversaId, user, showToast, exitSele
       const orderedIds = list.map((m) => m.id).filter((id) => id != null);
       if (!orderedIds.length) {
         for (const m of list) {
+          if (isForwardMediaMessage(m)) {
+            if (!getForwardMediaUrl(m)) {
+              throw new Error("Esta mídia não possui URL disponível para encaminhar.");
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await encaminharArquivo(destConversaId, m, getMediaUrl);
+            continue;
+          }
           // eslint-disable-next-line no-await-in-loop
           await enviarMensagem(destConversaId, buildForwardText(m));
         }
@@ -325,22 +372,24 @@ export function useForwardFlow({ conversa, conversaId, user, showToast, exitSele
 
       if (orderedIds.length === 1) {
         const forwardMsg = list[0];
-        const tipo = String(forwardMsg?.tipo || "").toLowerCase();
-        const hasMediaUrl = !!(forwardMsg?.url || forwardMsg?.url_absoluta);
+        const isMediaForward = isForwardMediaMessage(forwardMsg);
+        const hasMediaUrl = !!getForwardMediaUrl(forwardMsg);
         try {
           const apiRes = await encaminharMensagemViaAPI(destConversaId, forwardMsg.id);
           if (apiRes?.kind === "single") return apiRes;
           return { kind: "single", mensagem: apiRes?.mensagem ?? apiRes };
         } catch (e) {
           console.warn("Encaminhar via API falhou, tentando fallback:", e?.response?.data?.error || e?.message);
-          if (hasMediaUrl && (tipo === "arquivo" || tipo === "imagem" || tipo === "video" || tipo === "vídeo")) {
+          if (hasMediaUrl && isMediaForward) {
             try {
               await encaminharArquivo(destConversaId, forwardMsg, getMediaUrl);
               return null;
             } catch (e2) {
               console.warn("Fallback arquivo também falhou:", e2);
+              throw e2;
             }
           }
+          if (isMediaForward) throw e;
           await enviarMensagem(destConversaId, buildForwardText(forwardMsg));
         }
         return null;

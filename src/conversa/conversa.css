@@ -12717,40 +12717,42 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   display: flex;
   justify-content: center !important;
   align-items: center !important;
-  padding: 10px 14px;
-  margin: 9px 0;
+  padding: 8px 14px;
+  margin: 7px 0;
 }
 
 .wa-internalMovement-card {
-  --im-accent: #06b6d4;
-  --im-accent-2: #8b5cf6;
-  --im-surface: rgba(9, 18, 32, 0.88);
-  width: min(520px, 74%);
+  --im-accent: #67e8f9;
+  --im-accent-2: #a78bfa;
+  --im-surface: rgba(8, 15, 28, 0.9);
+  width: min(470px, 66%);
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
   position: relative;
   overflow: hidden;
-  padding: 13px 15px 12px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  padding: 11px 13px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
   background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(17, 24, 39, 0.88)),
+    linear-gradient(135deg, rgba(10, 17, 31, 0.96), rgba(18, 24, 39, 0.91)),
     var(--im-surface);
   border-radius: 8px;
   box-shadow:
-    0 18px 40px -28px rgba(2, 6, 23, 0.8),
-    0 0 0 1px rgba(255, 255, 255, 0.035) inset,
-    0 1px 0 rgba(255, 255, 255, 0.09) inset;
+    0 14px 34px -28px rgba(2, 6, 23, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.028) inset,
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
   color: #f8fafc;
-  backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(135%);
+  font-family: "Inter", "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "tnum";
 }
 
 .wa-internalMovement-card::before {
   content: "";
   position: absolute;
   inset: 0 0 auto;
-  height: 2px;
+  height: 1px;
   background: linear-gradient(90deg, var(--im-accent), var(--im-accent-2));
 }
 
@@ -12760,22 +12762,22 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.1), transparent 34%, rgba(255, 255, 255, 0.045) 72%, transparent);
+    linear-gradient(115deg, rgba(255, 255, 255, 0.075), transparent 34%, rgba(255, 255, 255, 0.035) 72%, transparent);
 }
 
 .wa-internalMovement-card.is-assume {
-  --im-accent: #22c55e;
-  --im-accent-2: #14b8a6;
+  --im-accent: #86efac;
+  --im-accent-2: #2dd4bf;
 }
 
 .wa-internalMovement-card.is-transfer {
-  --im-accent: #38bdf8;
-  --im-accent-2: #a855f7;
+  --im-accent: #7dd3fc;
+  --im-accent-2: #c084fc;
 }
 
 .wa-internalMovement-icon {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -12787,8 +12789,8 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
     linear-gradient(135deg, color-mix(in srgb, var(--im-accent) 84%, #ffffff), var(--im-accent-2));
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow:
-    0 10px 22px -14px var(--im-accent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    0 9px 18px -14px var(--im-accent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .wa-internalMovement-content {
@@ -12800,32 +12802,32 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
 .wa-internalMovement-kicker {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   width: fit-content;
-  margin-bottom: 5px;
-  padding: 2px 7px;
-  border: 1px solid color-mix(in srgb, var(--im-accent) 45%, rgba(255, 255, 255, 0.18));
-  border-radius: 6px;
-  color: color-mix(in srgb, var(--im-accent) 64%, #ffffff);
-  background: rgba(255, 255, 255, 0.055);
-  font-size: 9px;
-  font-weight: 800;
+  margin-bottom: 4px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--im-accent) 36%, rgba(255, 255, 255, 0.14));
+  border-radius: 5px;
+  color: color-mix(in srgb, var(--im-accent) 58%, #ffffff);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 8.5px;
+  font-weight: 700;
   line-height: 1.15;
   letter-spacing: 0;
 }
 
 .wa-internalMovement-title {
-  font-size: 12.5px;
-  font-weight: 800;
-  line-height: 1.25;
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.22;
   color: #ffffff;
 }
 
 .wa-internalMovement-body {
-  margin-top: 5px;
-  font-size: 12.75px;
-  line-height: 1.45;
-  color: rgba(226, 232, 240, 0.94);
+  margin-top: 4px;
+  font-size: 11.75px;
+  line-height: 1.42;
+  color: rgba(226, 232, 240, 0.9);
   overflow-wrap: anywhere;
 }
 
@@ -12833,12 +12835,12 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
-  color: rgba(203, 213, 225, 0.76);
-  font-size: 10.5px;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  color: rgba(203, 213, 225, 0.68);
+  font-size: 9.75px;
   line-height: 1.25;
 }
 
@@ -12849,30 +12851,30 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
 }
 
 [data-theme="dark"] .wa-internalMovement-card {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: linear-gradient(135deg, rgba(8, 13, 24, 0.96), rgba(15, 23, 42, 0.9));
+  border-color: rgba(148, 163, 184, 0.2);
+  background: linear-gradient(135deg, rgba(7, 12, 24, 0.97), rgba(14, 21, 36, 0.92));
   box-shadow:
-    0 18px 42px -26px rgba(0, 0, 0, 0.96),
-    0 0 0 1px rgba(255, 255, 255, 0.035) inset,
-    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+    0 14px 34px -26px rgba(0, 0, 0, 0.96),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 1px 0 rgba(255, 255, 255, 0.075) inset;
 }
 
 @media (max-width: 640px) {
   .wa-row-internalMovement {
-    padding: 8px 7px;
-    margin: 8px 0;
+    padding: 7px 7px;
+    margin: 7px 0;
   }
 
   .wa-internalMovement-card {
-    width: min(94%, 520px);
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 10px;
-    padding: 12px;
+    width: min(92%, 460px);
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 9px;
+    padding: 10px 11px;
   }
 
   .wa-internalMovement-icon {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
   }
 
   .wa-internalMovement-footer {
@@ -12910,4 +12912,96 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
     max-width: 128px;
     font-size: 10px;
   }
+}
+
+.wa-cameraCapture {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: #05070a;
+  color: #ffffff;
+}
+
+.wa-cameraCapture-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: #000000;
+}
+
+.wa-cameraCapture-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.wa-cameraCapture-status,
+.wa-cameraCapture-error {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: min(86vw, 420px);
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.78);
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.wa-cameraCapture-error {
+  background: rgba(127, 29, 29, 0.86);
+}
+
+.wa-cameraCapture-canvas {
+  display: none;
+}
+
+.wa-cameraCapture-actions {
+  min-height: 112px;
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  gap: 16px;
+  padding: 18px max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  background: #05070a;
+}
+
+.wa-cameraCapture-close {
+  grid-column: 1;
+  width: 46px;
+  height: 46px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.wa-cameraCapture-shot {
+  grid-column: 2;
+  justify-self: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  border: 4px solid #ffffff;
+  padding: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.wa-cameraCapture-shot span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #ffffff;
+}
+
+.wa-cameraCapture-shot:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }

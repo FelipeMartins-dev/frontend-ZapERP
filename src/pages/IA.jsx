@@ -75,9 +75,9 @@ const DEFAULT_CONFIG = {
 
 const DEFAULT_ALERTA_SEM_RESPOSTA = {
   alerta_sem_resposta_ativo: false,
-  tempo_primeiro_alerta_minutos: 2,
-  tempo_alerta_critico_minutos: 10,
-  tempo_notificar_gestor_minutos: 15,
+  tempo_primeiro_alerta_minutos: 1,
+  tempo_alerta_critico_minutos: 3,
+  tempo_notificar_gestor_minutos: 5,
   notificar_por_whatsapp: false,
   notificar_por_email: false,
   notificar_interno: true,
@@ -1825,9 +1825,9 @@ function normalizeAlertaSemRespostaFromApi(raw) {
     ...DEFAULT_ALERTA_SEM_RESPOSTA,
     ...s,
     alerta_sem_resposta_ativo: bool(s.alerta_sem_resposta_ativo, bool(s.ativo, false)),
-    tempo_primeiro_alerta_minutos: num(s.tempo_primeiro_alerta_minutos, 2),
-    tempo_alerta_critico_minutos: num(s.tempo_alerta_critico_minutos, 10),
-    tempo_notificar_gestor_minutos: num(s.tempo_notificar_gestor_minutos, 15),
+    tempo_primeiro_alerta_minutos: num(s.tempo_primeiro_alerta_minutos, 1),
+    tempo_alerta_critico_minutos: num(s.tempo_alerta_critico_minutos, 3),
+    tempo_notificar_gestor_minutos: num(s.tempo_notificar_gestor_minutos, 5),
     notificar_por_whatsapp: bool(s.notificar_por_whatsapp, false),
     notificar_por_email: bool(s.notificar_por_email, false),
     notificar_interno: bool(s.notificar_interno, true),
@@ -2041,9 +2041,9 @@ function SecaoAlertasAtendimento() {
   }, [load]);
 
   const validation = validateAlertaSemResposta(cfg);
-  const previewFirst = Number(cfg.tempo_primeiro_alerta_minutos) || 2;
-  const previewCritical = Number(cfg.tempo_alerta_critico_minutos) || 10;
-  const previewManager = Number(cfg.tempo_notificar_gestor_minutos) || 15;
+  const previewFirst = Number(cfg.tempo_primeiro_alerta_minutos) || 1;
+  const previewCritical = Number(cfg.tempo_alerta_critico_minutos) || 3;
+  const previewManager = Number(cfg.tempo_notificar_gestor_minutos) || 5;
   const horarioComercialResumo = getHorarioComercialResumo(cfg);
   const tagResumo =
     cfg.aplicar_tag_automatica && String(cfg.nome_tag_automatica || "").trim()

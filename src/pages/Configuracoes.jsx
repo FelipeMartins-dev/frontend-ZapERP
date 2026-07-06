@@ -285,6 +285,7 @@ export default function Configuracoes() {
               const authPatch = {};
               if (nextEmpresa?.crm_habilitado !== undefined) authPatch.crm_habilitado = nextEmpresa.crm_habilitado;
               if (nextEmpresa?.separar_mensagens_disparadas !== undefined) authPatch.separar_mensagens_disparadas = nextEmpresa.separar_mensagens_disparadas;
+              if (nextEmpresa?.atendimento_modo_simples !== undefined) authPatch.atendimento_modo_simples = nextEmpresa.atendimento_modo_simples;
               if (Object.keys(authPatch).length > 0) {
                 useAuthStore.getState().updateUser(authPatch);
               }
@@ -532,6 +533,19 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
                 checked={!!v.separar_mensagens_disparadas}
                 onChange={(on) => setV((c) => ({ ...c, separar_mensagens_disparadas: on }))}
                 aria-label="Separar mensagens disparadas"
+              />
+            </div>
+            <div className="config-geral-toggle">
+              <div className="config-geral-toggle-text">
+                <span className="config-geral-toggle-label">Modo simples de atendimento</span>
+                <span className="config-geral-toggle-hint">
+                  Quando ativado, cada conversa mostra apenas «Aguardando atendente» ou «Aguardando cliente» conforme a última mensagem real. Não exige assumir nem encerrar para continuar respondendo.
+                </span>
+              </div>
+              <Switch
+                checked={!!v.atendimento_modo_simples}
+                onChange={(on) => setV((c) => ({ ...c, atendimento_modo_simples: on }))}
+                aria-label="Modo simples de atendimento"
               />
             </div>
           </div>

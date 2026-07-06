@@ -17,6 +17,9 @@ function buildUsuarioMePatch(me) {
   if (me.separar_mensagens_disparadas !== undefined) {
     patch.separar_mensagens_disparadas = me.separar_mensagens_disparadas
   }
+  if (me.atendimento_modo_simples !== undefined) {
+    patch.atendimento_modo_simples = me.atendimento_modo_simples
+  }
   return Object.keys(patch).length > 0 ? patch : null
 }
 

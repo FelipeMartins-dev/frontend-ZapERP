@@ -65,6 +65,32 @@ export function exibirBadgePagamentoConcluido(conversa) {
   return em != null && String(em).trim() !== ''
 }
 
+/** Empresa com módulo "Modo simples de atendimento" ativo (controle por última mensagem). */
+export function isEmpresaModoSimplesAtivo(source) {
+  if (!source || typeof source !== 'object') return false
+  return source.atendimento_modo_simples === true
+}
+
+/** Conversa ou utilizador indica modo simples ligado. */
+export function isConversaModoSimplesAtiva(conversa, user) {
+  return isEmpresaModoSimplesAtivo(conversa) || isEmpresaModoSimplesAtivo(user)
+}
+
+export function getModoSimplesAguardando(conversa) {
+  const raw = conversa?.modo_simples_aguardando
+  return raw != null ? String(raw).toLowerCase().trim() : ''
+}
+
+export function isModoSimplesAguardandoAtendente(conversa, user) {
+  if (!isConversaModoSimplesAtiva(conversa, user)) return false
+  return getModoSimplesAguardando(conversa) === 'atendente'
+}
+
+export function isModoSimplesAguardandoCliente(conversa, user) {
+  if (!isConversaModoSimplesAtiva(conversa, user)) return false
+  return getModoSimplesAguardando(conversa) === 'cliente'
+}
+
 /** Detecta texto bruto de vCard em mensagens WhatsApp (às vezes sem `tipo: contact`). */
 export function isVCardText(text) {
   if (!text || typeof text !== 'string') return false

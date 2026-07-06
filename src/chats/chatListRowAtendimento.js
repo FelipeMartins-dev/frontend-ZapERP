@@ -3,6 +3,8 @@ import {
   getStatusAtendimentoEffective,
   isAguardandoClienteManual,
   isCobrancaFinanceiraStatus,
+  isModoSimplesAguardandoAtendente,
+  isModoSimplesAguardandoCliente,
 } from "../utils/conversaUtils";
 import { getContactDisplay } from "./chatListDisplay";
 
@@ -76,8 +78,10 @@ export function getListaUltimaMensagemCriadoEm(c) {
   return last ? String(last).trim() || null : null;
 }
 
-export function isConversaAguardandoCliente(c) {
-  if (!c || c?.atendente_id == null) return false;
+export function isConversaAguardandoCliente(c, user) {
+  if (!c) return false;
+  if (isModoSimplesAguardandoCliente(c, user)) return true;
+  if (c?.atendente_id == null) return false;
   if (isAguardandoClienteManual(c)) return true;
   return (
     getStatusAtendimentoEffective(c) === "em_atendimento" &&
@@ -122,8 +126,9 @@ export function isConversaAguardandoClienteEmCobranca(c) {
   return cobrancaFinanceiraPorUltimaMensagem(c) === "cliente";
 }
 
-export function isConversaAguardandoFuncionario(c, pendentesIdSet) {
+export function isConversaAguardandoFuncionario(c, pendentesIdSet, user) {
   if (!c || isGroupConversation(c)) return false;
+  if (isModoSimplesAguardandoAtendente(c, user)) return true;
   if (c?.id != null && pendentesIdSet?.has?.(String(c.id))) return true;
   if (c?.atendente_id == null) return false;
 
@@ -140,8 +145,10 @@ export function isConversaAguardandoFuncionario(c, pendentesIdSet) {
   return lastDir === "in" || hintNovaMsg;
 }
 
-export function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow, currentUserId) {
+export function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow, currentUserId, user) {
   if (!c || semConversaRow || isGroupConversation(c)) return "";
+  if (isModoSimplesAguardandoAtendente(c, user)) return "chat-list-row--atendimento-alerta";
+  if (isModoSimplesAguardandoCliente(c, user)) return "chat-list-row--atendimento-calm";
   const isResponsavel =
     currentUserId != null &&
     c?.atendente_id != null &&
@@ -182,8 +189,13 @@ export function isEmAtendimentoUltimaDoCliente(c) {
   return lastDir === "in" || hintNovaMsg;
 }
 
-export function getEsperaMinutosAnchorIso(c, pendentesIdSet) {
+export function getEsperaMinutosAnchorIso(c, pendentesIdSet, user) {
   if (!c || isGroupConversation(c)) return "";
+  if (isModoSimplesAguardandoAtendente(c, user)) {
+    const lastMsgTs = getListaUltimaMensagemCriadoEm(c);
+    const ultimaAtiv = c?.ultima_atividade != null ? String(c.ultima_atividade).trim() : "";
+    return lastMsgTs || ultimaAtiv || "";
+  }
   if (c?.atendente_id == null) return "";
   const st = getStatusAtendimentoEffective(c);
   const cobrancaStaff = st === "pagamento_pendente" || st === "em_atraso";

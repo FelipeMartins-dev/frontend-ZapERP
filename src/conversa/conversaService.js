@@ -203,10 +203,15 @@ export async function encaminharMensagemViaAPI(conversaId, mensagemIdOrIds) {
  * Encaminha um arquivo baixando seu binário local e re-enviando via upload (Fallback de segurança).
  */
 export async function encaminharArquivo(conversaId, msg, getMediaUrl) {
-  if (!msg?.url && !msg?.url_absoluta) throw new Error("Arquivo sem URL disponível para encaminhar.");
-  const mediaUrl = getMediaUrl
-    ? getMediaUrl(msg.url, msg.url_absoluta)
-    : (msg?.url_absoluta || msg?.url);
+  const resolve = (url, urlAbsoluta) => {
+    if (getMediaUrl) return getMediaUrl(url, urlAbsoluta);
+    return urlAbsoluta || url || "";
+  };
+  const mediaUrl =
+    resolve(msg?.url, msg?.url_absoluta) ||
+    resolve(msg?.media_url ?? msg?.mediaUrl, null) ||
+    resolve(msg?.file_url ?? msg?.fileUrl, null) ||
+    resolve(msg?.download_url ?? msg?.downloadUrl, null);
   if (!mediaUrl) throw new Error("URL do arquivo não disponível.");
 
   const urlToFetch = /^https?:\/\//i.test(mediaUrl)

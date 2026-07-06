@@ -153,6 +153,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     onFototecaInputChange,
     onDocumentInputChange,
     onCameraInputChange,
+    onCameraCaptureFile,
     onStickerInputChange,
     onSendStickerFile,
     onPixMenuClick,
@@ -193,6 +194,9 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   });
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [cameraCaptureOpen, setCameraCaptureOpen] = useState(false);
+  const [cameraCaptureStarting, setCameraCaptureStarting] = useState(false);
+  const [cameraCaptureError, setCameraCaptureError] = useState("");
 
   const savedRepliesPanelRef = useRef(null);
   const savedRepliesCacheRef = useRef({ depKey: null, list: null });
@@ -208,6 +212,9 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const fileInputRef = useRef(null);
   const fototecaInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const cameraVideoRef = useRef(null);
+  const cameraCanvasRef = useRef(null);
+  const cameraStreamRef = useRef(null);
   const audioInputRef = useRef(null);
   const documentInputRef = useRef(null);
   const stickerInputRef = useRef(null);
@@ -364,6 +371,34 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     return closed;
   }, [attachMenuOpen, closeSavedReplies, emojiOpen, savedRepliesOpen, stickerOpen]);
 
+  const stopCameraStream = useCallback(() => {
+    const stream = cameraStreamRef.current;
+    cameraStreamRef.current = null;
+    if (stream) {
+      stream.getTracks?.().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          /* ignore */
+        }
+      });
+    }
+    if (cameraVideoRef.current) {
+      try {
+        cameraVideoRef.current.srcObject = null;
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  const closeCameraCapture = useCallback(() => {
+    stopCameraStream();
+    setCameraCaptureOpen(false);
+    setCameraCaptureStarting(false);
+    setCameraCaptureError("");
+  }, [stopCameraStream]);
+
   const handleCancelRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       recordingCanceledRef.current = true;
@@ -419,6 +454,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
     };
   }, []);
+
+  useEffect(() => {
+    return () => stopCameraStream();
+  }, [stopCameraStream]);
 
   useImperativeHandle(
     ref,
@@ -976,6 +1015,124 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     [conversaId, onPasteImageFile]
   );
 
+  const openNativeCameraFallback = useCallback(() => {
+    cameraInputRef.current?.click();
+  }, []);
+
+  const handleOpenCameraCapture = useCallback(async () => {
+    if (!conversaId || sending || !podeEnviar || isRecording) return;
+    closeSavedReplies();
+    setAttachMenuOpen(false);
+    setEmojiOpen(false);
+    setStickerOpen(false);
+
+    const mediaDevices =
+      typeof navigator !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+        ? navigator.mediaDevices
+        : null;
+
+    if (!mediaDevices || (typeof window !== "undefined" && !window.isSecureContext)) {
+      openNativeCameraFallback();
+      if (!mediaDevices) {
+        showToast?.({
+          type: "warning",
+          title: "Câmera",
+          message: "Este navegador não oferece câmera direta. Tentando abrir a câmera do sistema.",
+        });
+      }
+      return;
+    }
+
+    setCameraCaptureOpen(true);
+    setCameraCaptureStarting(true);
+    setCameraCaptureError("");
+    stopCameraStream();
+
+    try {
+      let stream;
+      try {
+        stream = await mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { exact: "environment" } },
+        });
+      } catch (err) {
+        const name = String(err?.name || "");
+        if (name !== "OverconstrainedError" && name !== "ConstraintNotSatisfiedError") throw err;
+        stream = await mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: "environment" } },
+        });
+      }
+
+      cameraStreamRef.current = stream;
+      const video = cameraVideoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        try {
+          await video.play();
+        } catch {
+          /* Chrome Android às vezes inicia após o primeiro frame. */
+        }
+      }
+      setCameraCaptureStarting(false);
+    } catch (err) {
+      stopCameraStream();
+      setCameraCaptureOpen(false);
+      setCameraCaptureStarting(false);
+      const name = String(err?.name || "");
+      const message =
+        name === "NotAllowedError"
+          ? "Permissão negada. Toque no cadeado do navegador e permita a câmera para este site."
+          : name === "NotFoundError"
+            ? "Nenhuma câmera foi encontrada neste dispositivo."
+            : "Não foi possível acessar a câmera. Verifique as permissões do navegador.";
+      showToast?.({ type: "error", title: "Câmera", message });
+    }
+  }, [
+    closeSavedReplies,
+    conversaId,
+    isRecording,
+    openNativeCameraFallback,
+    podeEnviar,
+    sending,
+    showToast,
+    stopCameraStream,
+  ]);
+
+  const handleCaptureCameraPhoto = useCallback(() => {
+    const video = cameraVideoRef.current;
+    const canvas = cameraCanvasRef.current;
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
+      setCameraCaptureError("A câmera ainda não está pronta.");
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setCameraCaptureError("Não foi possível capturar a foto.");
+      return;
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          setCameraCaptureError("Não foi possível capturar a foto.");
+          return;
+        }
+        const file = new File([blob], `camera-${Date.now()}.jpg`, {
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        });
+        closeCameraCapture();
+        onCameraCaptureFile?.(file);
+      },
+      "image/jpeg",
+      0.92
+    );
+  }, [closeCameraCapture, onCameraCaptureFile]);
+
   const handleStartRecording = useCallback(async () => {
     if (!conversaId || sending || isRecording) return;
     if (!podeEnviar) {
@@ -1221,26 +1378,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         type="button"
         className="wa-attachItem"
         role="menuitem"
-        onClick={() => {
-          try {
-            const hasMediaDevices =
-              typeof navigator !== "undefined" &&
-              navigator.mediaDevices &&
-              navigator.mediaDevices.getUserMedia;
-            if (!hasMediaDevices) {
-              showToast?.({
-                type: "error",
-                title: "Câmera indisponível",
-                message: "Seu navegador não permite acesso à câmera neste dispositivo.",
-              });
-              return;
-            }
-          } catch {
-            /* ignore */
-          }
-          cameraInputRef.current?.click();
-          setAttachMenuOpen(false);
-        }}
+        onClick={handleOpenCameraCapture}
         disabled={sending || !conversaId || !podeEnviar}
       >
         <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">
@@ -1568,7 +1706,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               ref={fototecaInputRef}
               type="file"
               style={{ display: "none" }}
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               onChange={onFototecaInputChange}
             />
@@ -1576,7 +1714,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               ref={cameraInputRef}
               type="file"
               style={{ display: "none" }}
-              accept="image/*,video/*"
+              accept="image/*"
               capture="environment"
               onChange={onCameraInputChange}
             />
@@ -1591,7 +1729,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               ref={documentInputRef}
               type="file"
               style={{ display: "none" }}
-              accept="*/*"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,.html,.htm,.rtf,.zip,.rar,.7z,.xml,.json,.sql,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv,text/markdown,text/html,application/rtf,application/zip,application/x-zip-compressed,application/vnd.rar,application/x-rar-compressed,application/x-7z-compressed,application/xml,text/xml,application/json,application/sql"
               multiple
               onChange={onDocumentInputChange}
             />
@@ -1641,7 +1779,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
             {headerCompact && !hasDraft ? (
               <button
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={handleOpenCameraCapture}
                 disabled={sending || !conversaId || !podeEnviar}
                 className="wa-iconBtn wa-cameraQuickBtn"
                 title="Câmera"
@@ -1714,6 +1852,55 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         )}
       </div>
       </div>
+
+      {cameraCaptureOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="wa-cameraCapture" role="dialog" aria-modal="true" aria-label="Câmera">
+              <div className="wa-cameraCapture-stage">
+                <video
+                  ref={cameraVideoRef}
+                  className="wa-cameraCapture-video"
+                  playsInline
+                  muted
+                  autoPlay
+                />
+                {cameraCaptureStarting ? (
+                  <div className="wa-cameraCapture-status" role="status">
+                    Abrindo câmera...
+                  </div>
+                ) : null}
+                {cameraCaptureError ? (
+                  <div className="wa-cameraCapture-error" role="alert">
+                    {cameraCaptureError}
+                  </div>
+                ) : null}
+              </div>
+              <canvas ref={cameraCanvasRef} className="wa-cameraCapture-canvas" aria-hidden="true" />
+              <div className="wa-cameraCapture-actions">
+                <button
+                  type="button"
+                  className="wa-cameraCapture-close wa-iconBtn"
+                  onClick={closeCameraCapture}
+                  title="Cancelar"
+                  aria-label="Cancelar câmera"
+                >
+                  <IconClose />
+                </button>
+                <button
+                  type="button"
+                  className="wa-cameraCapture-shot"
+                  onClick={handleCaptureCameraPhoto}
+                  disabled={cameraCaptureStarting}
+                  title="Tirar foto"
+                  aria-label="Tirar foto"
+                >
+                  <span aria-hidden="true" />
+                </button>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {!isRecording && stickerOpen
         ? createPortal(

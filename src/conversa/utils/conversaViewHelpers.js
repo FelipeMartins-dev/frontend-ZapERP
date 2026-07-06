@@ -408,6 +408,7 @@ export const EXTENSOES_BLOQUEADAS_WHATSAPP = new Set([
   "com",
   "scr",
   "ps1",
+  "sh",
   "vbs",
   "reg",
   "dll",

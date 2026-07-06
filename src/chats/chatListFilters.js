@@ -3,6 +3,7 @@ import {
   getStatusAtendimentoEffective,
   isAguardandoClienteManual,
   isGroupConversation,
+  isModoSimplesAguardandoCliente,
 } from "../utils/conversaUtils";
 import { getDisplayName, getPhone } from "./chatListDisplay";
 import { getLastMessage, isConversaAguardandoFuncionario } from "./chatListRowAtendimento";
@@ -77,6 +78,8 @@ export function mergeMinhaFilaPrefsFromChats(rows, chatsCanon) {
         "finalizacao_motivo",
         "finalizada_automaticamente",
         "ui_status_optimistic_at",
+        "modo_simples_aguardando",
+        "atendimento_modo_simples",
       ]);
     }
     return {
@@ -305,6 +308,7 @@ export function computeChatsFiltrados({
   }
   if (!adminPorFuncionario && aguardandoClienteOnly && tab !== "aguardando_cliente") {
     list = list.filter((c) => {
+      if (isModoSimplesAguardandoCliente(c, user)) return true;
       if (isAguardandoClienteManual(c) && c?.atendente_id != null) return true;
       return (
         getStatusAtendimentoEffective(c) === "em_atendimento" &&

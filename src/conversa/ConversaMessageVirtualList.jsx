@@ -17,7 +17,7 @@ function isInternalMovementEstimate(item) {
 function estimateThreadRowSize(item, mobileThread) {
   if (!item) return mobileThread ? 112 : 96;
   if (item.__type === "day") return mobileThread ? 34 : 32;
-  if (isInternalMovementEstimate(item)) return mobileThread ? 132 : 116;
+  if (isInternalMovementEstimate(item)) return mobileThread ? 116 : 98;
   const tipo = String(item.tipo || "").toLowerCase();
   if (["imagem", "image", "video", "sticker"].includes(tipo)) return mobileThread ? 200 : 240;
   if (["audio", "ptt", "voice"].includes(tipo)) return mobileThread ? 72 : 68;

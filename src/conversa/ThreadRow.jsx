@@ -43,12 +43,12 @@ function InternalMovementCard({ item, zapAnimateIn }) {
     >
       <div className={`wa-internalMovement-card ${isAssume ? "is-assume" : "is-transfer"}`}>
         <span className="wa-internalMovement-icon" aria-hidden="true">
-          <ActionIcon size={17} strokeWidth={2.25} />
+          <ActionIcon size={15} strokeWidth={2.25} />
         </span>
         <div className="wa-internalMovement-content">
           <div className="wa-internalMovement-kicker">
-            <ShieldCheck size={12} strokeWidth={2.2} />
-            <span>LOG ADMIN</span>
+            <ShieldCheck size={11} strokeWidth={2.2} />
+            <span>Registro interno</span>
           </div>
           <div className="wa-internalMovement-title">{title}</div>
           <div className="wa-internalMovement-body">{body}</div>

@@ -222,7 +222,7 @@ function getCurrentUserRole() {
 
 function canViewInternalAttendanceMessage() {
   const role = getCurrentUserRole()
-  return role === "admin" || role === "administrador"
+  return role === "admin" || role === "administrador" || role === "supervisor"
 }
 
 /** Ignora evento se payload.company_id não bater com o do usuário (multi-tenant) */

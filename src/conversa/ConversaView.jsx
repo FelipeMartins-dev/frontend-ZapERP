@@ -329,11 +329,22 @@ function ConversaViewBody() {
     if (isClosedAttendance(conversa)) return conversaElegivelAutoReabrir;
     if (conversa?.mensagens_bloqueadas) return false;
     const atendenteId = conversa?.atendente_id ?? null;
-    if (atendenteId == null || atendenteId === "") return conversaElegivelAutoAssumir;
+    if (atendenteId == null || atendenteId === "") {
+      if (user?.atendimento_modo_simples === true || conversa?.atendimento_modo_simples === true) {
+        const departamentoId = normalizeDepartamentoIdForAccess(conversa?.departamento_id);
+        const userRole = String(user?.role || user?.perfil || "").toLowerCase();
+        const isPrivileged = userRole === "admin" || userRole === "supervisor";
+        const userDepIds = getUserDepartamentoIdSet(user);
+        return isPrivileged || !departamentoId || userDepIds.has(departamentoId);
+      }
+      return conversaElegivelAutoAssumir;
+    }
     return String(atendenteId) === String(user.id);
   }, [
     user?.id,
+    user?.atendimento_modo_simples,
     conversa?.id,
+    conversa?.atendimento_modo_simples,
     conversa?.remoteJid,
     conversa?.telefone,
     conversa?.phone,
@@ -3917,6 +3928,7 @@ function ConversaViewBody() {
           onFototecaInputChange={handleFototecaInputChange}
           onDocumentInputChange={handleDocumentInputChange}
           onCameraInputChange={handleCameraInputChange}
+          onCameraCaptureFile={handleDropFile}
           onStickerInputChange={handleStickerInputChange}
           onSendStickerFile={sendStickerFile}
           onPixMenuClick={handlePixMenuClick}
