@@ -2,7 +2,9 @@ import { isSupervisorOrAdmin } from "../auth/permissions";
 import {
   getStatusAtendimentoEffective,
   isAguardandoClienteManual,
+  isEmpresaModoSimplesAtivo,
   isGroupConversation,
+  isModoSimplesAguardandoAtendente,
   isModoSimplesAguardandoCliente,
 } from "../utils/conversaUtils";
 import { getDisplayName, getPhone } from "./chatListDisplay";
@@ -368,8 +370,12 @@ export function computeChatsFiltrados({
   }
 
   if (!adminPorFuncionario && tab === "minha_fila") {
-    list = clearGrupoSetorAutoPinNaMinhaFila(list);
-    list = applyCotacaoFixadaNaMinhaFila(list, user);
+    if (isEmpresaModoSimplesAtivo(user)) {
+      list = list.filter((c) => isModoSimplesAguardandoAtendente(c, user));
+    } else {
+      list = clearGrupoSetorAutoPinNaMinhaFila(list);
+      list = applyCotacaoFixadaNaMinhaFila(list, user);
+    }
   }
 
   // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem
