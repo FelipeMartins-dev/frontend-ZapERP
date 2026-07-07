@@ -447,7 +447,13 @@ export function applyModoSimplesClienteOnOutgoingSend(conversaId, optimisticMsg,
       }
     : null;
 
-  convStore.patchConversa({ id: conversaId, ...patch });
+  convStore.patchConversa({
+    id: conversaId,
+    ...patch,
+    ...(optimisticMsg
+      ? { ultima_mensagem: optimisticMsg, ultima_mensagem_preview: optimisticMsg }
+      : {}),
+  });
 
   if (bumpList && optimisticMsg) {
     bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, conversaMeta, patch);

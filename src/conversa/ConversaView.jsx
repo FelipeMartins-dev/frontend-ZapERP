@@ -784,14 +784,19 @@ function ConversaViewBody() {
   const [avatarImgError, setAvatarImgError] = useState(false);
   const showAvatarImg = Boolean(avatarUrl && !avatarImgError);
 
+  const conversaModoSimplesUi = useMemo(
+    () => buildConversaModoSimplesUiSource(conversa, fromChat, mensagens),
+    [conversa, fromChat, mensagens]
+  );
+
   const badge = useMemo(() => {
     if (modoSimplesAtivo && !isGroup) {
-      const ag = resolveModoSimplesAguardandoEffective(conversa, user);
+      const ag = resolveModoSimplesAguardandoEffective(conversaModoSimplesUi, user);
       if (ag === "atendente") {
-        return statusBadge("aguardando_atendente", false, conversa?.finalizacao_motivo);
+        return statusBadge("aguardando_atendente", false, conversaModoSimplesUi?.finalizacao_motivo);
       }
       if (ag === "cliente") {
-        return statusBadge("aguardando_cliente", false, conversa?.finalizacao_motivo);
+        return statusBadge("aguardando_cliente", false, conversaModoSimplesUi?.finalizacao_motivo);
       }
       return null;
     }
@@ -808,9 +813,9 @@ function ConversaViewBody() {
   }, [
     modoSimplesAtivo,
     user,
+    isGroup,
+    conversaModoSimplesUi,
     conversa,
-    conversa?.modo_simples_aguardando,
-    conversa?.ultima_mensagem_preview,
     conversa?.status_atendimento,
     conversa?.status_atendimento_real,
     conversa?.atendente_id,
@@ -3036,34 +3041,11 @@ function ConversaViewBody() {
     return mesmaSetorOuSemRestricao;
   }, [modoSimplesAtivo, conversa, user, isGroup]);
 
-  const conversaModoSimplesUi = useMemo(
-    () => buildConversaModoSimplesUiSource(conversa, fromChat, mensagens),
-    [conversa, fromChat, mensagens]
-  );
-
-  const [modoSimplesMarcarLidaAtivo, setModoSimplesMarcarLidaAtivo] = useState(false);
-  const modoSimplesMarcarLidaConversaRef = useRef(null);
-
-  useEffect(() => {
-    if (String(conversaId ?? "") !== String(modoSimplesMarcarLidaConversaRef.current ?? "")) {
-      modoSimplesMarcarLidaConversaRef.current = conversaId ?? null;
-      setModoSimplesMarcarLidaAtivo(false);
-    }
-    if (!modoSimplesAtivo || !conversaId) return;
-    const merged = buildConversaModoSimplesUiSource(conversa, fromChat, mensagens);
-    if (isClosedAttendance(merged)) {
-      setModoSimplesMarcarLidaAtivo(false);
-      return;
-    }
-    setModoSimplesMarcarLidaAtivo(isModoSimplesAguardandoAtendente(merged, user));
-  }, [conversaId, modoSimplesAtivo, fromChat, conversa, mensagens, user]);
-
   const showMarcarLidaModoSimplesBar = useMemo(() => {
     if (!modoSimplesAtivo) return false;
     if (!conversaId || isClosedAttendance(conversaModoSimplesUi)) return false;
-    if (modoSimplesMarcarLidaAtivo) return true;
     return isModoSimplesAguardandoAtendente(conversaModoSimplesUi, user);
-  }, [modoSimplesAtivo, conversaId, conversaModoSimplesUi, user, modoSimplesMarcarLidaAtivo]);
+  }, [modoSimplesAtivo, conversaId, conversaModoSimplesUi, user]);
 
   const [marcarLidaModoSimplesBusy, setMarcarLidaModoSimplesBusy] = useState(false);
 
@@ -3084,7 +3066,6 @@ function ConversaViewBody() {
       useConversaStore.getState().patchConversa(patch);
       useChatStore.getState().setUnread(conversa.id, 0);
       useChatStore.getState().updateChat({ id: conversa.id, ...patch });
-      setModoSimplesMarcarLidaAtivo(false);
       showToast({
         type: "success",
         title: data?.already_cleared ? "Já estava marcada como lida" : "Marcada como lida",

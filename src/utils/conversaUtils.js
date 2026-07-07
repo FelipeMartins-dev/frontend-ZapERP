@@ -91,13 +91,26 @@ function normalizeMessageDirection(v) {
 
 function pickUltimaMensagemDirecao(conversa) {
   if (!conversa || typeof conversa !== 'object') return ''
+  const candidates = []
+  const push = (dir, criadoEm) => {
+    const d = normalizeMessageDirection(dir)
+    if (!d) return
+    const t = new Date(criadoEm || 0).getTime()
+    candidates.push({ dir: d, ts: Number.isFinite(t) ? t : 0 })
+  }
+  push(conversa?.ultima_mensagem_preview?.direcao, conversa?.ultima_mensagem_preview?.criado_em)
+  push(conversa?.ultima_mensagem?.direcao, conversa?.ultima_mensagem?.criado_em)
   const list = Array.isArray(conversa.mensagens) ? conversa.mensagens : []
   if (list.length > 0) {
-    const last = list[list.length - 1]
-    const dir = normalizeMessageDirection(last?.direcao)
-    if (dir) return dir
+    push(list[0]?.direcao, list[0]?.criado_em)
+    push(list[list.length - 1]?.direcao, list[list.length - 1]?.criado_em)
   }
-  return ''
+  if (!candidates.length) return ''
+  let best = candidates[0]
+  for (let i = 1; i < candidates.length; i++) {
+    if (candidates[i].ts >= best.ts) best = candidates[i]
+  }
+  return best.dir
 }
 
 /** Mescla lista + detalhe + histórico carregado para regras de UI do modo simples. */
@@ -130,15 +143,20 @@ export function resolveModoSimplesAguardandoEffective(conversa, user) {
   if (!isConversaModoSimplesAtiva(conversa, user)) return ''
   // Grupos: sem badge de modo simples (fila usa unread, estilo WhatsApp).
   if (isGroupConversation(conversa)) return ''
-  if (conversa && Object.prototype.hasOwnProperty.call(conversa, 'modo_simples_aguardando')) {
-    const stored = getModoSimplesAguardando(conversa)
-    if (stored === 'atendente' || stored === 'cliente') return stored
-    // null explícito = marcada como lida; não inferir pela última mensagem antiga
-    if (conversa.modo_simples_aguardando === null) return ''
+  // null explícito = marcada como lida; não inferir pela última mensagem antiga
+  if (
+    conversa &&
+    Object.prototype.hasOwnProperty.call(conversa, 'modo_simples_aguardando') &&
+    conversa.modo_simples_aguardando === null
+  ) {
+    return ''
   }
+  // Última mensagem visível prevalece (tempo real no chat aberto / preview atualizado)
+  const inferred = inferModoSimplesAguardandoFromPreview(conversa)
+  if (inferred === 'cliente' || inferred === 'atendente') return inferred
   const stored = getModoSimplesAguardando(conversa)
   if (stored === 'atendente' || stored === 'cliente') return stored
-  return inferModoSimplesAguardandoFromPreview(conversa)
+  return ''
 }
 
 export function isModoSimplesAguardandoAtendente(conversa, user) {
