@@ -376,12 +376,13 @@ export default function AtendimentoActions({
       : hasAtendente && isMinha);
 
   const podeEncerrar =
-    !modoSimplesAtivo &&
     typeof canEncerrar === "function" &&
     canEncerrar(user) &&
     !isFechada &&
-    (isEmAtendimentoOuAguardandoManual || hasAtendente) &&
-    (isPrivileged ? true : isMinha);
+    (modoSimplesAtivo
+      ? mesmaSetorOuSemRestricao
+      : (isEmAtendimentoOuAguardandoManual || hasAtendente) &&
+        (isPrivileged ? true : isMinha));
 
   const podeMarcarAguardandoCliente =
     !atendenteFinanceiro &&
