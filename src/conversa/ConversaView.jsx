@@ -451,6 +451,13 @@ function ConversaViewBody() {
   /** Ordem em que as mensagens foram marcadas (ids como string), para respeitar na API. */
   const [selectionOrder, setSelectionOrder] = useState([]);
   const selectionOrderRef = useRef([]);
+  /**
+   * Âncora de scroll capturada imediatamente antes de ligar/desligar o modo seleção.
+   * A barra de seleção é sticky e ocupa espaço no fluxo do container de mensagens;
+   * ao entrar/sair ela empurra as mensagens (o "pulo"). Reposicionamos o scroll para
+   * manter o conteúdo fixo. Ver useLayoutEffect abaixo.
+   */
+  const selectModeAnchorRef = useRef(null);
   /** True quando o modo seleção foi aberto por "Encaminhar" (mostra fluxo até o destino). */
   const [forwardSelectIntent, setForwardSelectIntent] = useState(false);
   const [pinnedIds, setPinnedIds] = useState([]);
@@ -890,6 +897,7 @@ function ConversaViewBody() {
 
   useEffect(() => {
     // reset por conversa
+    selectModeAnchorRef.current = null;
     setReplyTo(null);
     setSelectMode(false);
     setSelectedMsgIds({});
@@ -948,6 +956,18 @@ function ConversaViewBody() {
     }
     snapThreadToBottom(c, virtualThreadRef, { followUpFrame: false, ...guard });
   }, [loadingMore]);
+
+  /**
+   * Compensa o deslocamento causado pela barra de seleção (sticky, em fluxo) ao
+   * entrar/sair do modo seleção — mantém as mensagens visualmente fixas (sem "pulo").
+   * Roda antes do paint (useLayoutEffect) para não haver flash visível.
+   */
+  useLayoutEffect(() => {
+    const anchor = selectModeAnchorRef.current;
+    if (!anchor) return;
+    selectModeAnchorRef.current = null;
+    restoreMessagesScrollAnchor(messagesContainerRef.current, anchor);
+  }, [selectMode]);
 
   const snapOptimisticSendToBottom = useCallback(() => {
     if (userScrollLockRef.current) return;
@@ -2400,6 +2420,7 @@ function ConversaViewBody() {
 
   const startSelect = useCallback((msg) => {
     if (!msg?.id || msg.apagada_para_todos) return;
+    selectModeAnchorRef.current = captureMessagesScrollAnchor(messagesContainerRef.current);
     setForwardSelectIntent(false);
     setSelectMode(true);
     const key = String(msg.id);
@@ -2439,6 +2460,7 @@ function ConversaViewBody() {
   );
 
   const exitSelectMode = useCallback(() => {
+    selectModeAnchorRef.current = captureMessagesScrollAnchor(messagesContainerRef.current);
     selectionOrderRef.current = [];
     setSelectionOrder([]);
     setSelectedMsgIds({});
@@ -2526,6 +2548,7 @@ function ConversaViewBody() {
       }
       return;
     }
+    selectModeAnchorRef.current = captureMessagesScrollAnchor(messagesContainerRef.current);
     setForwardSelectIntent(true);
     setSelectMode(true);
     const key = String(msg.id);
