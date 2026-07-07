@@ -10,6 +10,7 @@ const EMPTY_COUNTS = {
   finalizadas: 0,
   por_ausencia: 0,
   aguardando_cliente: 0,
+  aguardando_atendente: 0,
   pagamentos_pendentes: 0,
   em_atraso: 0,
   mensagens_disparadas: 0,
@@ -33,6 +34,7 @@ export function useChatListCounts({
   const countFinalizadas = Number(counts.finalizadas) || 0;
   const countFinalizadasAuto = Number(counts.por_ausencia) || 0;
   const countAguardandoCliente = Number(counts.aguardando_cliente) || 0;
+  const countAguardandoAtendente = Number(counts.aguardando_atendente) || 0;
   const countPagamentosPendentes = Number(counts.pagamentos_pendentes) || 0;
   const countEmAtraso = Number(counts.em_atraso) || 0;
   const mensagensDisparadasCount = separarMensagensDisparadasLigado
@@ -63,6 +65,7 @@ export function useChatListCounts({
     countFinalizadas,
     countFinalizadasAuto,
     countAguardandoCliente,
+    countAguardandoAtendente,
     countPagamentosPendentes,
     countEmAtraso,
     countAguardandoFuncionario,
@@ -99,6 +102,7 @@ export function getActiveFilterTotalCount({
     finalizadas: Number(c.finalizadas) || 0,
     finalizadas_auto: Number(c.por_ausencia) || 0,
     aguardando_cliente: Number(c.aguardando_cliente) || 0,
+    aguardando_atendente: Number(c.aguardando_atendente) || 0,
     pagamentos_pendentes: Number(c.pagamentos_pendentes) || 0,
     em_atraso: Number(c.em_atraso) || 0,
     mensagens_disparadas: Number(c.mensagens_disparadas) || 0,

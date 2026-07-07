@@ -105,6 +105,7 @@ const TABS_HIDE_OPTIMISTIC_CLOSED = new Set([
   "abertas",
   "em_atendimento",
   "aguardando_cliente",
+  "aguardando_atendente",
   "aguardando_funcionario",
   "pagamentos_pendentes",
   "em_atraso",
@@ -470,6 +471,12 @@ export default function ChatList() {
       setTab("minha_fila");
     }
   }, [user, tab]);
+
+  useEffect(() => {
+    if (!user?.atendimento_modo_simples && tab === "aguardando_atendente") {
+      setTab("minha_fila");
+    }
+  }, [user?.atendimento_modo_simples, tab]);
 
   useEffect(() => {
     if (!separarMensagensDisparadasLigado && tab === "mensagens_disparadas") {
@@ -972,6 +979,7 @@ export default function ChatList() {
 
       const finalAutoQuery = tab === "finalizadas_auto" || onlyFinalizadasAusencia;
       const aguardandoQuery = tab === "aguardando_cliente" || aguardandoClienteOnly;
+      const aguardandoAtendenteQuery = tab === "aguardando_atendente";
       const pagamentoPendenteQuery =
         isFinanceiroUser && (tab === "pagamentos_pendentes" || pagamentosPendentesOnly);
       const emAtrasoQuery = isFinanceiroUser && (tab === "em_atraso" || emAtrasoOnly);
@@ -1023,6 +1031,10 @@ export default function ChatList() {
           params.aguardando_cliente = "1";
           delete params.status_atendimento;
           // Escopo por sessão; atendente_id só quando gestor usa "Por funcionário".
+          delete params.atendente_id;
+        } else if (aguardandoAtendenteQuery) {
+          params.aguardando_atendente = "1";
+          delete params.status_atendimento;
           delete params.atendente_id;
         } else if (pagamentoPendenteQuery) {
           params.pagamento_pendente = "1";
@@ -1143,6 +1155,7 @@ export default function ChatList() {
           "finalizadas",
           "finalizadas_auto",
           "aguardando_cliente",
+          "aguardando_atendente",
           "aguardando_funcionario",
           "pagamentos_pendentes",
           "em_atraso",
@@ -1155,7 +1168,7 @@ export default function ChatList() {
           });
         }
         if (strictListTabs.has(tab)) return merged;
-        if (aguardandoQuery) return merged;
+        if (aguardandoQuery || aguardandoAtendenteQuery) return merged;
         if (tempoParadoFilter) return merged;
         if (strictMensagemDisparadaQuery) return merged;
         if (extra.length === 0) return merged;

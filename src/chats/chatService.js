@@ -104,6 +104,9 @@ export async function fetchChats(params = {}, options = {}) {
   if (params.aguardando_cliente === true || params.aguardando_cliente === 1 || params.aguardando_cliente === "1") {
     q.set("aguardando_cliente", "1");
   }
+  if (params.aguardando_atendente === true || params.aguardando_atendente === 1 || params.aguardando_atendente === "1") {
+    q.set("aguardando_atendente", "1");
+  }
   if (params.pagamento_pendente === true || params.pagamento_pendente === 1 || params.pagamento_pendente === "1") {
     q.set("pagamento_pendente", "1");
   }

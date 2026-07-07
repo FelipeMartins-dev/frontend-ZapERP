@@ -2,7 +2,6 @@ import { isSupervisorOrAdmin } from "../auth/permissions";
 import {
   getStatusAtendimentoEffective,
   isAguardandoClienteManual,
-  isEmpresaModoSimplesAtivo,
   isGroupConversation,
   isModoSimplesAguardandoAtendente,
   isModoSimplesAguardandoCliente,
@@ -251,6 +250,7 @@ export function computeChatsFiltrados({
       "finalizadas",
       "finalizadas_auto",
       "aguardando_cliente",
+      "aguardando_atendente",
       "aguardando_funcionario",
       "pagamentos_pendentes",
       "em_atraso",
@@ -288,6 +288,7 @@ export function computeChatsFiltrados({
     tab === "finalizadas_auto" ||
     onlyFinalizadasAusencia ||
     tab === "aguardando_cliente" ||
+    tab === "aguardando_atendente" ||
     tab === "pagamentos_pendentes" ||
     tab === "em_atraso" ||
     aguardandoClienteOnly ||
@@ -308,6 +309,10 @@ export function computeChatsFiltrados({
         (String(c?.finalizacao_motivo) === "ausencia_cliente" || c?.finalizada_automaticamente === true)
     );
   }
+  if (!adminPorFuncionario && tab === "aguardando_atendente") {
+    list = list.filter((c) => isModoSimplesAguardandoAtendente(c, user));
+  }
+
   if (!adminPorFuncionario && aguardandoClienteOnly && tab !== "aguardando_cliente") {
     list = list.filter((c) => {
       if (isModoSimplesAguardandoCliente(c, user)) return true;
@@ -370,12 +375,8 @@ export function computeChatsFiltrados({
   }
 
   if (!adminPorFuncionario && tab === "minha_fila") {
-    if (isEmpresaModoSimplesAtivo(user)) {
-      list = list.filter((c) => isModoSimplesAguardandoAtendente(c, user));
-    } else {
-      list = clearGrupoSetorAutoPinNaMinhaFila(list);
-      list = applyCotacaoFixadaNaMinhaFila(list, user);
-    }
+    list = clearGrupoSetorAutoPinNaMinhaFila(list);
+    list = applyCotacaoFixadaNaMinhaFila(list, user);
   }
 
   // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem

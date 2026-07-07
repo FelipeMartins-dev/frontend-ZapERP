@@ -134,6 +134,7 @@ function ChatListBody({
     countFinalizadas,
     countFinalizadasAuto,
     countAguardandoCliente,
+    countAguardandoAtendente,
     countPagamentosPendentes,
     countEmAtraso,
     countAguardandoFuncionario,
@@ -247,6 +248,7 @@ function ChatListBody({
 
   const onTabMinhaFila = useCallback(() => activateMainTab("minha_fila"), [activateMainTab]);
   const onTabTodas = useCallback(() => activateMainTab("todas"), [activateMainTab]);
+  const onTabAguardandoAtendente = useCallback(() => activateMainTab("aguardando_atendente"), [activateMainTab]);
   const onTabHoje = useCallback(() => activateMainTab("hoje"), [activateMainTab]);
   const onTabAbertas = useCallback(() => activateMainTab("abertas"), [activateMainTab]);
   const onTabMensagensDisparadas = useCallback(() => activateMainTab("mensagens_disparadas"), [activateMainTab]);
@@ -376,6 +378,7 @@ function ChatListBody({
         countFinalizadas={countFinalizadas}
         countFinalizadasAuto={countFinalizadasAuto}
         countAguardandoCliente={countAguardandoClienteResolved}
+        countAguardandoAtendente={countAguardandoAtendente}
         isFinanceiroUser={isFinanceiroUser}
         countPagamentosPendentes={countPagamentosPendentesResolved}
         countEmAtraso={countEmAtrasoResolved}
@@ -397,6 +400,7 @@ function ChatListBody({
         onAdminBeforeOpen={onAdminBeforeOpen}
         onTabMinhaFila={onTabMinhaFila}
         onTabTodas={onTabTodas}
+        onTabAguardandoAtendente={onTabAguardandoAtendente}
         onTabHoje={onTabHoje}
         onTabAbertas={onTabAbertas}
         onTabMensagensDisparadas={onTabMensagensDisparadas}

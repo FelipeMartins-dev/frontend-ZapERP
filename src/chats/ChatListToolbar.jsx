@@ -26,6 +26,7 @@ function ChatListToolbar({
   countFinalizadas,
   countFinalizadasAuto,
   countAguardandoCliente,
+  countAguardandoAtendente,
   isFinanceiroUser,
   countPagamentosPendentes,
   countEmAtraso,
@@ -47,6 +48,7 @@ function ChatListToolbar({
   onAdminBeforeOpen,
   onTabMinhaFila,
   onTabTodas,
+  onTabAguardandoAtendente,
   onTabHoje,
   onTabAbertas,
   onTabMensagensDisparadas,
@@ -128,6 +130,16 @@ function ChatListToolbar({
             <Chip active={isMainChipActive("todas")} onClick={onTabTodas} count={total}>
               Todas
             </Chip>
+            {user?.atendimento_modo_simples ? (
+              <Chip
+                active={isMainChipActive("aguardando_atendente")}
+                onClick={onTabAguardandoAtendente}
+                className="chat-list-chip--aguardando-atendente"
+                count={countAguardandoAtendente}
+              >
+                Aguardando atendente
+              </Chip>
+            ) : null}
             <Chip active={isMainChipActive("hoje")} onClick={onTabHoje} count={countHoje}>
               Hoje
             </Chip>
@@ -217,6 +229,7 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.countFinalizadas !== next.countFinalizadas) return false;
   if (prev.countFinalizadasAuto !== next.countFinalizadasAuto) return false;
   if (prev.countAguardandoCliente !== next.countAguardandoCliente) return false;
+  if (prev.countAguardandoAtendente !== next.countAguardandoAtendente) return false;
   if (prev.isFinanceiroUser !== next.isFinanceiroUser) return false;
   if (prev.countPagamentosPendentes !== next.countPagamentosPendentes) return false;
   if (prev.countEmAtraso !== next.countEmAtraso) return false;
@@ -237,6 +250,7 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.onSearchDebounced !== next.onSearchDebounced) return false;
   if (prev.onTabMinhaFila !== next.onTabMinhaFila) return false;
   if (prev.onTabTodas !== next.onTabTodas) return false;
+  if (prev.onTabAguardandoAtendente !== next.onTabAguardandoAtendente) return false;
   if (prev.onTabHoje !== next.onTabHoje) return false;
   if (prev.onTabAbertas !== next.onTabAbertas) return false;
   if (prev.onTabMensagensDisparadas !== next.onTabMensagensDisparadas) return false;

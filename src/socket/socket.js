@@ -18,7 +18,7 @@ import {
   flushStatusMensagemBatch,
   resetStatusMensagemBatch,
 } from "./statusMensagemBatch"
-import { getStatusAtendimentoEffective, isConversaModoSimplesAtiva, resolveModoSimplesAguardandoEffective } from "../utils/conversaUtils"
+import { getStatusAtendimentoEffective } from "../utils/conversaUtils"
 
 const TYPING_EXPIRY_MS = 5000
 const typingExpiryTimers = new Map()
@@ -370,7 +370,6 @@ function payloadImpactaListaLateral(payload) {
   if (Object.prototype.hasOwnProperty.call(payload, "departamento_id")) return true
   if (Object.prototype.hasOwnProperty.call(payload, "aguardando_cliente_desde")) return true
   if (Object.prototype.hasOwnProperty.call(payload, "modo_simples_aguardando")) return true
-  if (Object.prototype.hasOwnProperty.call(payload, "atendimento_modo_simples")) return true
   return false
 }
 
@@ -400,25 +399,8 @@ function isGroupPayload(payload) {
   return payload?.is_group === true || tipo === "grupo" || String(payload?.telefone || "").includes("@g.us")
 }
 
-function getCurrentUserFromAuth() {
-  try {
-    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("zap_erp_auth") : null
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    return parsed?.user ?? null
-  } catch {
-    return null
-  }
-}
-
 function shouldBeInMinhaFilaForCurrentUser(payload) {
   if (!payload || isGroupPayload(payload)) return false
-
-  const user = getCurrentUserFromAuth()
-  if (isConversaModoSimplesAtiva(payload, user)) {
-    return resolveModoSimplesAguardandoEffective(payload, user) === "atendente"
-  }
-
   const myId = getCurrentUserId()
   const status = String(
     payload.status_atendimento_real ?? payload.status_atendimento ?? ""
@@ -1161,12 +1143,6 @@ export function initSocket(token) {
       ]
       for (const k of ausenciaKeys) {
         if (k in payload) next[k] = payload[k]
-      }
-      if ("modo_simples_aguardando" in payload) {
-        next.modo_simples_aguardando = payload.modo_simples_aguardando
-      }
-      if ("atendimento_modo_simples" in payload) {
-        next.atendimento_modo_simples = payload.atendimento_modo_simples
       }
       const prevSt = String(cur?.status_atendimento_real ?? cur?.status_atendimento ?? '').toLowerCase()
       const nextSt = String(payload?.status_atendimento ?? next.status_atendimento ?? '').toLowerCase()
