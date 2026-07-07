@@ -317,6 +317,15 @@ export function normalizeTelefone(v) {
 export function statusBadge(status, exibirBadgeAberta, finalizacaoMotivo) {
   const s = safeString(status).toLowerCase();
   const ausencia = safeString(finalizacaoMotivo).toLowerCase() === "ausencia_cliente";
+  if (s === "aguardando_atendente") {
+    return {
+      text: "Aguardando atendente",
+      bg: "rgba(245,158,11,0.12)",
+      color: "#b45309",
+      border: "rgba(245,158,11,0.22)",
+      dot: "#d97706",
+    };
+  }
   if (s === "aguardando_cliente") {
     return {
       text: "Aguardando cliente",

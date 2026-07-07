@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { getMessageListReactKey } from "./conversaStore";
 
@@ -210,8 +210,10 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     };
 
     const onScroll = () => {
-      isScrollingRef.current = true;
-      scrollEl.classList.add("is-scrolling");
+      if (!isScrollingRef.current) {
+        isScrollingRef.current = true;
+        scrollEl.classList.add("is-scrolling");
+      }
       window.clearTimeout(scrollEndTimer);
       scrollEndTimer = window.setTimeout(() => {
         isScrollingRef.current = false;
@@ -339,7 +341,10 @@ export const ConversaMessageStaticList = forwardRef(function ConversaMessageStat
   const rootRef = useRef(null);
   const count = Array.isArray(items) ? items.length : 0;
   const offset = count > MOBILE_STATIC_MAX ? count - MOBILE_STATIC_MAX : 0;
-  const visibleItems = offset > 0 ? items.slice(offset) : items;
+  const visibleItems = useMemo(
+    () => (offset > 0 ? items.slice(offset) : items),
+    [items, offset]
+  );
 
   const getRowByIndex = (index) => rootRef.current?.querySelector?.(`[data-index="${index}"]`) ?? null;
   const getRowByKey = (key) => {

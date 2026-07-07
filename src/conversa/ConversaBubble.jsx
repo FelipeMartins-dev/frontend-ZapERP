@@ -45,6 +45,12 @@ function BubbleImage({ msg, alt, className }) {
     msg?._optimisticBlobUrl,
     msg?.url,
     msg?.url_absoluta,
+    msg?.media_url,
+    msg?.mediaUrl,
+    msg?.file_url,
+    msg?.fileUrl,
+    msg?.download_url,
+    msg?.downloadUrl,
   ]);
   const [idx, setIdx] = useState(0);
   const [exhausted, setExhausted] = useState(false);
@@ -438,6 +444,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
   const [waveBarCount, setWaveBarCount] = useState(34);
   const rafRef = useRef(null);
   const rafLastRef = useRef(0);
+  const pointerToggleRef = useRef(false);
 
   useEffect(() => {
     setSourceIdx(0);
@@ -603,6 +610,29 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     }
   }, [playbackRate, sourceIdx, sourceList.length]);
 
+  const handlePlayPointerUp = useCallback(
+    (e) => {
+      if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+      e.preventDefault();
+      e.stopPropagation();
+      pointerToggleRef.current = true;
+      void toggle();
+    },
+    [toggle]
+  );
+
+  const handlePlayClick = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (pointerToggleRef.current) {
+        pointerToggleRef.current = false;
+        return;
+      }
+      void toggle();
+    },
+    [toggle]
+  );
+
   const seek = useCallback((e) => {
     const el = audioRef.current;
     if (!el) return;
@@ -626,7 +656,8 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       <button
         type="button"
         className={`wa-audioPlayBtn ${playing ? "isPlaying" : ""}`}
-        onClick={toggle}
+        onPointerUp={handlePlayPointerUp}
+        onClick={handlePlayClick}
         aria-label={playing ? "Pausar áudio" : "Tocar áudio"}
       >
         <span className="wa-audioPlayIcon wa-audioPlayIcon--play" aria-hidden="true">
@@ -763,12 +794,33 @@ const Bubble = memo(function Bubble({
   const isApagadaParaTodos = !!msg?.apagada_para_todos;
   const mediaCandidates = useMemo(
     () => resolveBubbleMediaCandidates(msg),
-    [msg?._optimisticBlobUrl, msg?.url, msg?.url_absoluta]
+    [
+      msg?._optimisticBlobUrl,
+      msg?.url,
+      msg?.url_absoluta,
+      msg?.media_url,
+      msg?.mediaUrl,
+      msg?.file_url,
+      msg?.fileUrl,
+      msg?.download_url,
+      msg?.downloadUrl,
+    ]
   );
   const mediaUrl = mediaCandidates[0] || "";
   const audioPlaybackCandidates = useMemo(
     () => resolveAudioPlaybackCandidates(msg),
-    [msg?._optimisticBlobUrl, msg?.url, msg?.url_absoluta, msg?.tipo]
+    [
+      msg?._optimisticBlobUrl,
+      msg?.url,
+      msg?.url_absoluta,
+      msg?.media_url,
+      msg?.mediaUrl,
+      msg?.file_url,
+      msg?.fileUrl,
+      msg?.download_url,
+      msg?.downloadUrl,
+      msg?.tipo,
+    ]
   );
   const videoPlaybackUrl =
     (tipoMsg === "video" || tipoMsg === "vídeo") && mediaUrl
@@ -848,9 +900,30 @@ const Bubble = memo(function Bubble({
   const menuElRef = useRef(null);
   const longPressTimerRef = useRef(null);
   const longPressCleanupRef = useRef(null);
+  const skipNextMediaTapTimerRef = useRef(null);
+  const mediaTapStartRef = useRef(null);
+  const mediaPointerOpenedRef = useRef(false);
+  const mediaPointerOpenedTimerRef = useRef(null);
   const bubbleRef = useRef(null);
   /** Mobile: após long press abrir menu, ignorar o próximo clique na foto/vídeo (evita abrir viewer). */
   const skipNextMediaTapRef = useRef(false);
+
+  const clearSkipNextMediaTap = useCallback(() => {
+    skipNextMediaTapRef.current = false;
+    if (skipNextMediaTapTimerRef.current != null) {
+      clearTimeout(skipNextMediaTapTimerRef.current);
+      skipNextMediaTapTimerRef.current = null;
+    }
+  }, []);
+
+  const armSkipNextMediaTap = useCallback(() => {
+    clearSkipNextMediaTap();
+    skipNextMediaTapRef.current = true;
+    skipNextMediaTapTimerRef.current = window.setTimeout(() => {
+      skipNextMediaTapRef.current = false;
+      skipNextMediaTapTimerRef.current = null;
+    }, 650);
+  }, [clearSkipNextMediaTap]);
 
   useEffect(() => {
     if (!zapAnimateIn || !bubbleRef.current) return undefined;
@@ -859,6 +932,11 @@ const Bubble = memo(function Bubble({
     el.addEventListener("animationend", onEnd, { once: true });
     return () => el.removeEventListener("animationend", onEnd);
   }, [zapAnimateIn]);
+
+  useEffect(() => {
+    if (!menuOpen) clearSkipNextMediaTap();
+  }, [menuOpen, clearSkipNextMediaTap]);
+
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
   const isCall = !isApagadaParaTodos && tipoMsg === "call";
@@ -1049,14 +1127,21 @@ const Bubble = memo(function Bubble({
         try {
           if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(12);
         } catch (_) {}
-        skipNextMediaTapRef.current = true;
+        armSkipNextMediaTap();
         setMenuOpen(true);
       }, LONG_PRESS_MS);
     },
-    [mobileMessageChrome, selectMode, menuOpen, clearLongPressTracking]
+    [mobileMessageChrome, selectMode, menuOpen, clearLongPressTracking, armSkipNextMediaTap]
   );
 
-  useEffect(() => () => clearLongPressTracking(), [clearLongPressTracking]);
+  useEffect(() => () => {
+    clearLongPressTracking();
+    clearSkipNextMediaTap();
+    if (mediaPointerOpenedTimerRef.current != null) {
+      clearTimeout(mediaPointerOpenedTimerRef.current);
+      mediaPointerOpenedTimerRef.current = null;
+    }
+  }, [clearLongPressTracking, clearSkipNextMediaTap]);
 
   useLayoutEffect(() => {
     const el = bubbleRef.current;
@@ -1073,6 +1158,64 @@ const Bubble = memo(function Bubble({
       onToggleSelected?.(msg);
     },
     [onToggleSelected, msg]
+  );
+
+  const handleMediaPointerDown = useCallback((e) => {
+    if (e.pointerType !== "touch" && e.pointerType !== "pen") {
+      mediaTapStartRef.current = null;
+      return;
+    }
+    mediaTapStartRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const openMediaFromEvent = useCallback(
+    (e, url, kind) => {
+      if (selectMode) return;
+      e?.stopPropagation?.();
+      if (skipNextMediaTapRef.current) {
+        clearSkipNextMediaTap();
+        return;
+      }
+      onOpenMedia?.(url, kind);
+    },
+    [clearSkipNextMediaTap, onOpenMedia, selectMode]
+  );
+
+  const handleMediaPointerUp = useCallback(
+    (e, url, kind) => {
+      if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+      if (selectMode) return;
+      const start = mediaTapStartRef.current;
+      mediaTapStartRef.current = null;
+      if (!start) return;
+      const moved =
+        Math.abs(e.clientX - start.x) > 12 ||
+        Math.abs(e.clientY - start.y) > 12;
+      if (moved) return;
+      e.preventDefault();
+      mediaPointerOpenedRef.current = true;
+      if (mediaPointerOpenedTimerRef.current != null) {
+        clearTimeout(mediaPointerOpenedTimerRef.current);
+      }
+      mediaPointerOpenedTimerRef.current = window.setTimeout(() => {
+        mediaPointerOpenedRef.current = false;
+        mediaPointerOpenedTimerRef.current = null;
+      }, 500);
+      openMediaFromEvent(e, url, kind);
+    },
+    [openMediaFromEvent, selectMode]
+  );
+
+  const handleMediaClick = useCallback(
+    (e, url, kind) => {
+      if (mediaPointerOpenedRef.current) {
+        mediaPointerOpenedRef.current = false;
+        e?.stopPropagation?.();
+        return;
+      }
+      openMediaFromEvent(e, url, kind);
+    },
+    [openMediaFromEvent]
   );
 
   const doCopy = useCallback(async () => {
@@ -1250,15 +1393,9 @@ const Bubble = memo(function Bubble({
                   <button
                     type="button"
                     className="wa-bubble-imgLink"
-                    onClick={(e) => {
-                      if (selectMode) return;
-                      e.stopPropagation();
-                      if (skipNextMediaTapRef.current) {
-                        skipNextMediaTapRef.current = false;
-                        return;
-                      }
-                      onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
-                    }}
+                    onPointerDown={handleMediaPointerDown}
+                    onPointerUp={(e) => handleMediaPointerUp(e, mediaUrl, isSticker ? "figurinha" : "imagem")}
+                    onClick={(e) => handleMediaClick(e, mediaUrl, isSticker ? "figurinha" : "imagem")}
                   >
                     <BubbleImage
                       msg={msg}
@@ -1273,15 +1410,9 @@ const Bubble = memo(function Bubble({
                   <button
                     type="button"
                     className="wa-bubble-videoLink"
-                    onClick={(e) => {
-                      if (selectMode) return;
-                      e.stopPropagation();
-                      if (skipNextMediaTapRef.current) {
-                        skipNextMediaTapRef.current = false;
-                        return;
-                      }
-                      onOpenMedia?.(videoPlaybackUrl || mediaUrl, "video");
-                    }}
+                    onPointerDown={handleMediaPointerDown}
+                    onPointerUp={(e) => handleMediaPointerUp(e, videoPlaybackUrl || mediaUrl, "video")}
+                    onClick={(e) => handleMediaClick(e, videoPlaybackUrl || mediaUrl, "video")}
                   >
                     <video
                       src={videoPlaybackUrl || mediaUrl}
@@ -1334,15 +1465,9 @@ const Bubble = memo(function Bubble({
               <button
                 type="button"
                 className="wa-bubble-imgLink"
-                onClick={(e) => {
-                  if (selectMode) return;
-                  e.stopPropagation();
-                  if (skipNextMediaTapRef.current) {
-                    skipNextMediaTapRef.current = false;
-                    return;
-                  }
-                  onOpenMedia?.(mediaUrl, isSticker ? "figurinha" : "imagem");
-                }}
+                onPointerDown={handleMediaPointerDown}
+                onPointerUp={(e) => handleMediaPointerUp(e, mediaUrl, isSticker ? "figurinha" : "imagem")}
+                onClick={(e) => handleMediaClick(e, mediaUrl, isSticker ? "figurinha" : "imagem")}
               >
                 <BubbleImage
                   msg={msg}
@@ -1357,15 +1482,9 @@ const Bubble = memo(function Bubble({
               <button
                 type="button"
                 className="wa-bubble-videoLink"
-                onClick={(e) => {
-                  if (selectMode) return;
-                  e.stopPropagation();
-                  if (skipNextMediaTapRef.current) {
-                    skipNextMediaTapRef.current = false;
-                    return;
-                  }
-                  onOpenMedia?.(videoPlaybackUrl || mediaUrl, "video");
-                }}
+                onPointerDown={handleMediaPointerDown}
+                onPointerUp={(e) => handleMediaPointerUp(e, videoPlaybackUrl || mediaUrl, "video")}
+                onClick={(e) => handleMediaClick(e, videoPlaybackUrl || mediaUrl, "video")}
               >
                 <video src={videoPlaybackUrl || mediaUrl} playsInline className="wa-bubble-videoEl" />
               </button>

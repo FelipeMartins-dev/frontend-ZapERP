@@ -15,6 +15,7 @@ import {
   getStatusAtendimentoEffective,
   isAguardandoClienteManual,
   isCobrancaFinanceiraStatus,
+  isConversaModoSimplesAtiva,
 } from "../utils/conversaUtils";
 import { isAtendenteSetorFinanceiro } from "../utils/financeiroSector";
 import {
@@ -355,7 +356,10 @@ export default function AtendimentoActions({
     convDepId == null ||
     (userDepIds.length > 0 && userDepIds.includes(Number(convDepId)));
 
+  const modoSimplesAtivo = isConversaModoSimplesAtiva(conversa, user);
+
   const podeAssumir =
+    !modoSimplesAtivo &&
     typeof canAssumir === "function" &&
     canAssumir(user) &&
     !isFechada &&
@@ -372,6 +376,7 @@ export default function AtendimentoActions({
       : hasAtendente && isMinha);
 
   const podeEncerrar =
+    !modoSimplesAtivo &&
     typeof canEncerrar === "function" &&
     canEncerrar(user) &&
     !isFechada &&
@@ -586,7 +591,9 @@ export default function AtendimentoActions({
           showToast({
             title: "Atendimento transferido",
             message: paraMim
-              ? "A conversa foi atribuída a você. Use Encerrar ou Transferir quando precisar."
+              ? modoSimplesAtivo
+                ? "A conversa foi atribuída a você."
+                : "A conversa foi atribuída a você. Use Encerrar ou Transferir quando precisar."
               : "A conversa foi atribuída ao atendente selecionado.",
           });
         }

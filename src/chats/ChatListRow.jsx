@@ -10,6 +10,7 @@ import {
   parseVCardMeta,
   isModoSimplesAguardandoAtendente,
   isModoSimplesAguardandoCliente,
+  resolveModoSimplesAguardandoEffective,
 } from "../utils/conversaUtils";
 import {
   formatPrazoPagamentoCompacto,
@@ -899,34 +900,36 @@ function StatusPill({
 
   if (
     chat?.atendimento_modo_simples &&
-    !isClosedAttendanceStatus(status) &&
-    (isModoSimplesAguardandoAtendente(chat) || isModoSimplesAguardandoCliente(chat))
+    !isClosedAttendanceStatus(status)
   ) {
-    const aguardandoAtendente = isModoSimplesAguardandoAtendente(chat);
-    return (
-      <span className="chat-list-statusRow chat-list-statusRow--await-solo">
-        {aguardandoAtendente ? (
-          <span
-            className="chat-list-status-tech chat-list-status-tech--staff"
-            title="Última mensagem do cliente — equipe deve responder"
-          >
-            <span className="chat-list-status-tech-staff-main zap-badge-aguardando-funcionario">
-              <span className="chat-list-status-tech-staff-label">Aguardando atendente</span>
+    const ag = resolveModoSimplesAguardandoEffective(chat);
+    if (ag === 'atendente' || ag === 'cliente') {
+      const aguardandoAtendente = ag === 'atendente';
+      return (
+        <span className="chat-list-statusRow chat-list-statusRow--await-solo">
+          {aguardandoAtendente ? (
+            <span
+              className="chat-list-status-tech chat-list-status-tech--staff"
+              title="Última mensagem do cliente — equipe deve responder"
+            >
+              <span className="chat-list-status-tech-staff-main zap-badge-aguardando-funcionario">
+                <span className="chat-list-status-tech-staff-label">Aguardando atendente</span>
+              </span>
+              {String(esperaMinutosAnchorIso || "").trim() ? (
+                <EsperaMinutosInline
+                  anchorIso={String(esperaMinutosAnchorIso).trim()}
+                  className="chat-list-time-espera-min--staff-pill"
+                  format="hud"
+                  minuteTick={minuteTick}
+                />
+              ) : null}
             </span>
-            {String(esperaMinutosAnchorIso || "").trim() ? (
-              <EsperaMinutosInline
-                anchorIso={String(esperaMinutosAnchorIso).trim()}
-                className="chat-list-time-espera-min--staff-pill"
-                format="hud"
-                minuteTick={minuteTick}
-              />
-            ) : null}
-          </span>
-        ) : (
-          <AwaitClienteBadge title="Aguardando resposta do cliente (modo simples)" auto />
-        )}
-      </span>
-    );
+          ) : (
+            <AwaitClienteBadge title="Aguardando resposta do cliente (modo simples)" auto />
+          )}
+        </span>
+      );
+    }
   }
 
   if (ausenciaFechada) {
@@ -1050,7 +1053,10 @@ function StatusPill({
     );
   }
   // Aberta ou vazio: usar exibir_badge_aberta para decidir se mostra "Aberta"
-  if (exibirBadgeAberta === true) {
+  if (
+    exibirBadgeAberta === true &&
+    !(chat?.atendimento_modo_simples && resolveModoSimplesAguardandoEffective(chat))
+  ) {
     return (
       <span className={`chat-list-statusRow${reabertaFaltaInteracao ? " chat-list-statusRow--reaberta-falta" : ""}`}>
         <span className="chat-list-statusRow-primary">

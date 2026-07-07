@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useConversaStore } from "../conversa/conversaStore";
-import { chatRowListStoreKey } from "./chatListStoreCompare";
 import { CHAT_LIST_ROW_GAP, estimateChatListRowSize } from "./chatListRowAtendimento";
 import MemoChatRow from "./ChatListRow";
 import { useWhatsappInstancesStore } from "./whatsappInstancesStore";
@@ -41,6 +40,7 @@ function renderChatListRow(c, selectedId, props) {
 
 const ChatListRows = memo(function ChatListRows({
   chatsFiltrados,
+  chatsLayoutKey,
   isMobileLayout,
   scrollRef,
   scrollSaveRef,
@@ -103,11 +103,6 @@ const ChatListRows = memo(function ChatListRows({
   );
 
   const prevMobileSelectedRef = useRef(mobileSelectedId);
-
-  const chatsLayoutKey = useMemo(
-    () => chatsFiltrados.map((c) => chatRowListStoreKey(c)).join("\n"),
-    [chatsFiltrados]
-  );
 
   const estimateRowSize = useCallback(
     (index) =>
@@ -217,10 +212,8 @@ const ChatListRows = memo(function ChatListRows({
     </div>
   );
 }, (prev, next) => {
-  const prevLayout = (prev.chatsFiltrados || []).map((c) => chatRowListStoreKey(c)).join("\n");
-  const nextLayout = (next.chatsFiltrados || []).map((c) => chatRowListStoreKey(c)).join("\n");
   return (
-  prevLayout === nextLayout &&
+  prev.chatsLayoutKey === next.chatsLayoutKey &&
   prev.isMobileLayout === next.isMobileLayout &&
   prev.scrollRef === next.scrollRef &&
   prev.scrollSaveRef === next.scrollSaveRef &&

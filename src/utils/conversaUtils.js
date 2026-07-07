@@ -81,14 +81,44 @@ export function getModoSimplesAguardando(conversa) {
   return raw != null ? String(raw).toLowerCase().trim() : ''
 }
 
+function normalizeMessageDirection(v) {
+  const d = String(v || '').toLowerCase().trim()
+  if (!d) return ''
+  if (d === 'inbound' || d === 'recebida' || d === 'entrada') return 'in'
+  if (d === 'outbound' || d === 'enviada' || d === 'saida') return 'out'
+  return d
+}
+
+/** Fallback pela preview/última mensagem quando o socket ainda não trouxe modo_simples_aguardando. */
+export function inferModoSimplesAguardandoFromPreview(conversa) {
+  if (!conversa || typeof conversa !== 'object') return ''
+  const candidates = [
+    conversa?.ultima_mensagem_preview?.direcao,
+    conversa?.ultima_mensagem?.direcao,
+    conversa?.mensagens?.[0]?.direcao,
+  ]
+  for (const raw of candidates) {
+    const dir = normalizeMessageDirection(raw)
+    if (dir === 'in') return 'atendente'
+    if (dir === 'out') return 'cliente'
+  }
+  return ''
+}
+
+/** Valor efetivo para UI: coluna persistida ou inferência pela última mensagem real visível. */
+export function resolveModoSimplesAguardandoEffective(conversa, user) {
+  if (!isConversaModoSimplesAtiva(conversa, user)) return ''
+  const stored = getModoSimplesAguardando(conversa)
+  if (stored === 'atendente' || stored === 'cliente') return stored
+  return inferModoSimplesAguardandoFromPreview(conversa)
+}
+
 export function isModoSimplesAguardandoAtendente(conversa, user) {
-  if (!isConversaModoSimplesAtiva(conversa, user)) return false
-  return getModoSimplesAguardando(conversa) === 'atendente'
+  return resolveModoSimplesAguardandoEffective(conversa, user) === 'atendente'
 }
 
 export function isModoSimplesAguardandoCliente(conversa, user) {
-  if (!isConversaModoSimplesAtiva(conversa, user)) return false
-  return getModoSimplesAguardando(conversa) === 'cliente'
+  return resolveModoSimplesAguardandoEffective(conversa, user) === 'cliente'
 }
 
 /** Detecta texto bruto de vCard em mensagens WhatsApp (às vezes sem `tipo: contact`). */

@@ -12,6 +12,7 @@ function ChatListRowsPane({
   scrollSaveRef,
   scrollTopNoncePrevRef,
   chatsFiltrados,
+  chatsFiltradosLayoutKey,
   loading,
   hasStoreChats,
   tab,
@@ -64,6 +65,7 @@ function ChatListRowsPane({
         ) : (
           <ChatListRows
             chatsFiltrados={chatsFiltrados}
+            chatsLayoutKey={chatsFiltradosLayoutKey}
             isMobileLayout={isMobileLayout}
             scrollRef={scrollRef}
             scrollSaveRef={scrollSaveRef}
@@ -112,6 +114,7 @@ function ChatListRowsPane({
 
 function rowsPanePropsAreEqual(prev, next) {
   if (prev.chatsFiltrados !== next.chatsFiltrados) return false;
+  if (prev.chatsFiltradosLayoutKey !== next.chatsFiltradosLayoutKey) return false;
   if (prev.loading !== next.loading) return false;
   if (prev.hasStoreChats !== next.hasStoreChats) return false;
   if (prev.tab !== next.tab) return false;

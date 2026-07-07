@@ -17,6 +17,8 @@ import {
   isClosedAttendance,
   exibirBadgePagamentoConcluido,
   resolveContactMetaFromMessage,
+  isConversaModoSimplesAtiva,
+  resolveModoSimplesAguardandoEffective,
 } from "../utils/conversaUtils";
 import "./conversa.css";
 import "../styles/zap-animations.css";
@@ -257,7 +259,13 @@ function ConversaViewBody() {
   const clearComposerAppendQueue = useConversaStore((s) => s.clearComposerAppendQueue);
   const queueComposerAppend = useConversaStore((s) => s.queueComposerAppend);
 
+  const modoSimplesAtivo = useMemo(
+    () => isConversaModoSimplesAtiva(conversa, user),
+    [conversa, user, user?.atendimento_modo_simples, conversa?.atendimento_modo_simples]
+  );
+
   const conversaElegivelAutoAssumir = useMemo(() => {
+    if (modoSimplesAtivo) return false;
     if (!user?.id || !conversa?.id) return false;
     if (!canAssumir(user)) return false;
     if (isGroupConversation(conversa)) return false;
@@ -277,6 +285,7 @@ function ConversaViewBody() {
 
     return semAtendente && podeVerSetor;
   }, [
+    modoSimplesAtivo,
     user,
     user?.id,
     user?.role,
@@ -771,6 +780,15 @@ function ConversaViewBody() {
   const showAvatarImg = Boolean(avatarUrl && !avatarImgError);
 
   const badge = useMemo(() => {
+    if (modoSimplesAtivo) {
+      const ag = resolveModoSimplesAguardandoEffective(conversa, user);
+      if (ag === "atendente") {
+        return statusBadge("aguardando_atendente", false, conversa?.finalizacao_motivo);
+      }
+      if (ag === "cliente") {
+        return statusBadge("aguardando_cliente", false, conversa?.finalizacao_motivo);
+      }
+    }
     const status = getStatusAtendimentoEffective(conversa);
     const statusVisual =
       status === "em_atendimento" && conversa?.atendente_id != null && conversa?.aguardando_cliente_desde != null
@@ -782,6 +800,11 @@ function ConversaViewBody() {
       conversa?.finalizacao_motivo
     );
   }, [
+    modoSimplesAtivo,
+    user,
+    conversa,
+    conversa?.modo_simples_aguardando,
+    conversa?.ultima_mensagem_preview,
     conversa?.status_atendimento,
     conversa?.status_atendimento_real,
     conversa?.atendente_id,
@@ -2930,6 +2953,7 @@ function ConversaViewBody() {
   }, [conversaId, mensagens.length]);
 
   const showAssumeEmptyCta = useMemo(() => {
+    if (modoSimplesAtivo) return false;
     if (isGroup) return false;
     if (!conversa?.id || conversa?.mensagens_bloqueadas) return false;
     if (conversa?.exibir_cta_assumir_sem_mensagens !== true) return false;
@@ -2952,7 +2976,7 @@ function ConversaViewBody() {
       convDepId == null ||
       (userDepIds.length > 0 && userDepIds.includes(Number(convDepId)));
     return mesmaSetorOuSemRestricao;
-  }, [conversa, user, isGroup]);
+  }, [modoSimplesAtivo, conversa, user, isGroup]);
 
   const [assumeEmptyBusy, setAssumeEmptyBusy] = useState(false);
   const [reopenClosedBusy, setReopenClosedBusy] = useState(false);
@@ -3911,7 +3935,7 @@ function ConversaViewBody() {
           loading={loading}
           sending={sending}
           podeEnviar={podeEnviar}
-          autoAssumirHint={conversaElegivelAutoAssumir}
+          autoAssumirHint={!modoSimplesAtivo && conversaElegivelAutoAssumir}
           mensagensBloqueadasHint={mensagensBloqueadasHint}
           atendimentoEncerradoHint={atendimentoEncerradoHint}
           atendenteNomeHint={atendenteNomeHint}
