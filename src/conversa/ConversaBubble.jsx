@@ -39,6 +39,7 @@ import {
 let __waCurrentAudio = null;
 const WA_AUDIO_SPEEDS = [1, 1.5, 2];
 const WA_REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "👏"];
+const WA_REACTION_MORE_EMOJIS = ["😍", "🔥", "🎉", "✅", "🤔", "😡"];
 
 /** Imagem na bolha com fallback: blob local → URL do servidor → proxy. */
 function BubbleImage({ msg, alt, className }) {
@@ -941,8 +942,12 @@ const Bubble = memo(function Bubble({
 
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
+  const [reactionExpanded, setReactionExpanded] = useState(false);
   const isCall = !isApagadaParaTodos && tipoMsg === "call";
   const showReactionPicker = !isCall && (reactionOpen || showMobileReactionPicker);
+  const reactionEmojiOptions = reactionExpanded
+    ? [...WA_REACTION_EMOJIS, ...WA_REACTION_MORE_EMOJIS]
+    : WA_REACTION_EMOJIS;
   const [audioDur, setAudioDur] = useState(0);
   const audioDurLabel = useMemo(() => (audioDur > 0 ? formatMmSs(audioDur) : null), [audioDur]);
 
@@ -1245,6 +1250,63 @@ const Bubble = memo(function Bubble({
     [msg, onInfo, onReply, doCopy, onForward, onTogglePin, onToggleStar, onStartSelect, onDeleteForMe, onDeleteForEveryone]
   );
 
+  const reactionPicker = (mobileSelected = false, menuInline = false) => (
+    <div
+      className={`wa-reactionPicker${mobileSelected ? " wa-reactionPicker--selectedMobile" : ""}${
+        menuInline ? " wa-reactionPicker--menuMobile" : ""
+      }${
+        reactionExpanded ? " isExpanded" : ""
+      }`}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      {reactionEmojiOptions.map((emo) => (
+        <button
+          key={emo}
+          type="button"
+          className="wa-reactionPicker-btn"
+          disabled={reactionBusy || !!msg?.apagada_para_todos}
+          onClick={() => {
+            onReact?.(msg, emo);
+            setReactionOpen(false);
+            setReactionExpanded(false);
+            if (menuInline) setMenuOpen(false);
+          }}
+          aria-label={`Reagir com ${emo}`}
+        >
+          {emo}
+        </button>
+      ))}
+      {mobileSelected || menuInline ? (
+        <button
+          type="button"
+          className="wa-reactionPicker-more"
+          disabled={reactionBusy || !!msg?.apagada_para_todos}
+          onClick={() => setReactionExpanded((v) => !v)}
+          aria-label="Mais reações"
+          aria-expanded={reactionExpanded}
+        >
+          +
+        </button>
+      ) : null}
+      {localReaction ? (
+        <button
+          type="button"
+          className="wa-reactionPicker-remove"
+          disabled={reactionBusy || !!msg?.apagada_para_todos}
+          onClick={() => {
+            onRemoveReaction?.(msg);
+            setReactionOpen(false);
+            setReactionExpanded(false);
+            if (menuInline) setMenuOpen(false);
+          }}
+        >
+          Remover reação
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
       <div
         className={`wa-row ${out ? "wa-row-out" : "wa-row-in"}${localReaction ? " wa-row--hasReaction" : ""}${
@@ -1272,9 +1334,11 @@ const Bubble = memo(function Bubble({
         onCommit={() => {
           setMenuOpen(false);
           setReactionOpen(false);
+          setReactionExpanded(false);
           onReply?.(msg);
         }}
       >
+      {showMobileReactionPicker && !isCall ? reactionPicker(true) : null}
       <div
         ref={(node) => {
           menuAnchorRef.current = node;
@@ -1566,6 +1630,7 @@ const Bubble = memo(function Bubble({
               e.preventDefault();
               e.stopPropagation();
               setReactionOpen((v) => !v);
+              setReactionExpanded(false);
             }}
             title="Reagir"
             aria-label="Reagir à mensagem"
@@ -1589,41 +1654,7 @@ const Bubble = memo(function Bubble({
           </div>
         </div>
 
-        {showReactionPicker ? (
-          <div
-            className={`wa-reactionPicker${showMobileReactionPicker ? " wa-reactionPicker--selectedMobile" : ""}`}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            {WA_REACTION_EMOJIS.map((emo) => (
-              <button
-                key={emo}
-                type="button"
-                className="wa-reactionPicker-btn"
-                disabled={reactionBusy || !!msg?.apagada_para_todos}
-                onClick={() => {
-                  onReact?.(msg, emo);
-                  setReactionOpen(false);
-                }}
-              >
-                {emo}
-              </button>
-            ))}
-            {localReaction ? (
-              <button
-                type="button"
-                className="wa-reactionPicker-remove"
-                disabled={reactionBusy || !!msg?.apagada_para_todos}
-                onClick={() => {
-                  onRemoveReaction?.(msg);
-                  setReactionOpen(false);
-                }}
-              >
-                Remover reação
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        {reactionOpen && !isCall ? reactionPicker(false) : null}
 
         {localReaction ? (
           <div className="wa-bubble-reaction" aria-label={`Sua reação: ${localReaction}`}>
@@ -1654,6 +1685,12 @@ const Bubble = memo(function Bubble({
                 onMouseDown={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
               >
+              {mobileMessageChrome && !isCall && !msg?.apagada_para_todos ? (
+                <>
+                  {reactionPicker(false, true)}
+                  <div className="wa-msgMenuSep" aria-hidden="true" />
+                </>
+              ) : null}
               {out ? (
                 <>
                   <button type="button" className="wa-msgMenuItem" onClick={() => runAction("info")} role="menuitem">

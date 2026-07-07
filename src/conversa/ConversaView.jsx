@@ -20,6 +20,7 @@ import {
   resolveContactMetaFromMessage,
   isConversaModoSimplesAtiva,
   resolveModoSimplesAguardandoEffective,
+  buildConversaModoSimplesUiSource,
   isModoSimplesAguardandoAtendente,
 } from "../utils/conversaUtils";
 import "./conversa.css";
@@ -3005,11 +3006,33 @@ function ConversaViewBody() {
     return mesmaSetorOuSemRestricao;
   }, [modoSimplesAtivo, conversa, user, isGroup]);
 
+  const conversaModoSimplesUi = useMemo(
+    () => buildConversaModoSimplesUiSource(conversa, fromChat, mensagens),
+    [conversa, fromChat, mensagens]
+  );
+
+  const [modoSimplesMarcarLidaAtivo, setModoSimplesMarcarLidaAtivo] = useState(false);
+  const modoSimplesMarcarLidaConversaRef = useRef(null);
+
+  useEffect(() => {
+    if (String(conversaId ?? "") !== String(modoSimplesMarcarLidaConversaRef.current ?? "")) {
+      modoSimplesMarcarLidaConversaRef.current = conversaId ?? null;
+      setModoSimplesMarcarLidaAtivo(false);
+    }
+    if (!modoSimplesAtivo || !conversaId) return;
+    const merged = buildConversaModoSimplesUiSource(conversa, fromChat, mensagens);
+    if (isClosedAttendance(merged)) return;
+    if (isModoSimplesAguardandoAtendente(merged, user)) {
+      setModoSimplesMarcarLidaAtivo(true);
+    }
+  }, [conversaId, modoSimplesAtivo, fromChat, conversa, mensagens, user]);
+
   const showMarcarLidaModoSimplesBar = useMemo(() => {
     if (!modoSimplesAtivo) return false;
-    if (!conversa?.id || isClosedAttendance(conversa)) return false;
-    return isModoSimplesAguardandoAtendente(conversa, user);
-  }, [modoSimplesAtivo, conversa, user]);
+    if (!conversaId || isClosedAttendance(conversaModoSimplesUi)) return false;
+    if (modoSimplesMarcarLidaAtivo) return true;
+    return isModoSimplesAguardandoAtendente(conversaModoSimplesUi, user);
+  }, [modoSimplesAtivo, conversaId, conversaModoSimplesUi, user, modoSimplesMarcarLidaAtivo]);
 
   const [marcarLidaModoSimplesBusy, setMarcarLidaModoSimplesBusy] = useState(false);
 
@@ -3030,10 +3053,13 @@ function ConversaViewBody() {
       useConversaStore.getState().patchConversa(patch);
       useChatStore.getState().setUnread(conversa.id, 0);
       useChatStore.getState().updateChat({ id: conversa.id, ...patch });
+      setModoSimplesMarcarLidaAtivo(false);
       showToast({
         type: "success",
-        title: "Marcada como lida",
-        message: "Conversa removida da fila Aguardando atendente.",
+        title: data?.already_cleared ? "Já estava marcada como lida" : "Marcada como lida",
+        message: data?.already_cleared
+          ? "Conversa fora da fila Aguardando atendente."
+          : "Conversa removida da fila Aguardando atendente.",
       });
     } catch (e) {
       console.error("Erro ao marcar como lida (modo simples):", e);
@@ -3768,15 +3794,13 @@ function ConversaViewBody() {
             onDelete={handleDeleteSelected}
           />
           {!selectMode && showMarcarLidaModoSimplesBar ? (
-            <div className="wa-modoSimplesLidaBar" role="region" aria-label="Aguardando atendente">
-              <span className="wa-modoSimplesLidaBar-text">
-                Esta conversa está aguardando atendimento
-              </span>
+            <div className="wa-modoSimplesLidaBar">
               <button
                 type="button"
                 className="wa-modoSimplesLidaBar-btn"
                 onClick={() => void handleMarcarLidaModoSimples()}
                 disabled={marcarLidaModoSimplesBusy}
+                aria-label="Marcar conversa como lida"
               >
                 {marcarLidaModoSimplesBusy ? "Marcando…" : "Marcar como lida"}
               </button>

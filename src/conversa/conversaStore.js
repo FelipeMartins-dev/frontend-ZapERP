@@ -244,6 +244,10 @@ function getCurrentUserFromStorage() {
   }
 }
 
+function isEmpresaModoSimplesAtivoCliente() {
+  return getCurrentUserFromStorage()?.atendimento_modo_simples === true
+}
+
 function resolveMensagensBloqueadasForViewer(conversaLike, apiSaysBlocked) {
   const me = getCurrentUserFromStorage()?.id
   const aid = conversaLike?.atendente_id
@@ -518,10 +522,12 @@ export const useConversaStore = create((set, get) => {
       ) {
         joinConversaIfNeeded(normalizedId)
         const socketEarly = getSocket?.()
-        if (socketEarly) {
+        if (socketEarly && !isEmpresaModoSimplesAtivoCliente()) {
           socketEarly.emit("marcar_conversa_lida", { conversa_id: normalizedId })
         }
-        useChatStore.getState().clearUnread(normalizedId)
+        if (!isEmpresaModoSimplesAtivoCliente()) {
+          useChatStore.getState().clearUnread(normalizedId)
+        }
         return
       }
 
@@ -649,6 +655,20 @@ export const useConversaStore = create((set, get) => {
             if (!merged.foto_perfil && fromList.foto_perfil_contato_cache) merged.foto_perfil = fromList.foto_perfil_contato_cache
             if (!merged.nome_grupo && fromList.nome_grupo) merged.nome_grupo = fromList.nome_grupo
             if (!merged.cliente && fromList.cliente) merged.cliente = fromList.cliente
+            if (fromList.atendimento_modo_simples === true) merged.atendimento_modo_simples = true
+            if (fromList.modo_simples_aguardando != null && merged.modo_simples_aguardando == null) {
+              merged.modo_simples_aguardando = fromList.modo_simples_aguardando
+            }
+            if (fromList.ultima_mensagem_preview && !merged.ultima_mensagem_preview) {
+              merged.ultima_mensagem_preview = fromList.ultima_mensagem_preview
+            }
+            if (fromList.unread_count != null && merged.unread_count == null) {
+              merged.unread_count = fromList.unread_count
+            }
+            if (fromList.lida != null && merged.lida == null) merged.lida = fromList.lida
+            if (fromList.tem_novas_mensagens != null && merged.tem_novas_mensagens == null) {
+              merged.tem_novas_mensagens = fromList.tem_novas_mensagens
+            }
             conversa = merged
           }
         } catch (_) {}
@@ -688,11 +708,15 @@ export const useConversaStore = create((set, get) => {
         writeConversaMensagensCache(normalizedId, nextState)
 
         const socket = getSocket?.()
-        if (socket) {
+        if (socket && !isEmpresaModoSimplesAtivoCliente()) {
           joinConversaIfNeeded(normalizedId)
           socket.emit("marcar_conversa_lida", { conversa_id: normalizedId })
+        } else if (socket) {
+          joinConversaIfNeeded(normalizedId)
         }
-        useChatStore.getState().clearUnread(normalizedId)
+        if (!isEmpresaModoSimplesAtivoCliente()) {
+          useChatStore.getState().clearUnread(normalizedId)
+        }
         if (
           conversa?.status_atendimento != null ||
           conversa?.status_atendimento_real != null ||

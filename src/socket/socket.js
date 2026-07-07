@@ -220,6 +220,17 @@ function getCurrentUserRole() {
   }
 }
 
+function isEmpresaModoSimplesAtivoCliente() {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("zap_erp_auth") : null
+    if (!raw) return false
+    const parsed = JSON.parse(raw)
+    return parsed?.user?.atendimento_modo_simples === true
+  } catch {
+    return false
+  }
+}
+
 function canViewInternalAttendanceMessage() {
   const role = getCurrentUserRole()
   return role === "admin" || role === "administrador" || role === "supervisor"
@@ -911,7 +922,7 @@ export function initSocket(token) {
     }
     convStore.clearTyping(conversaId)
     convStore.anexarMensagem(msg)
-    if (!msg.fromMe && msg.direcao === "in") {
+    if (!msg.fromMe && msg.direcao === "in" && !isEmpresaModoSimplesAtivoCliente()) {
       try {
         socket.emit("marcar_conversa_lida", { conversa_id: conversaId })
       } catch (_) {}

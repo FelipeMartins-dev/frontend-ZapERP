@@ -89,13 +89,33 @@ function normalizeMessageDirection(v) {
   return d
 }
 
+function pickUltimaMensagemDirecao(conversa) {
+  if (!conversa || typeof conversa !== 'object') return ''
+  const list = Array.isArray(conversa.mensagens) ? conversa.mensagens : []
+  if (list.length > 0) {
+    const last = list[list.length - 1]
+    const dir = normalizeMessageDirection(last?.direcao)
+    if (dir) return dir
+  }
+  return ''
+}
+
+/** Mescla lista + detalhe + histórico carregado para regras de UI do modo simples. */
+export function buildConversaModoSimplesUiSource(conversa, fromChat, mensagens) {
+  const merged = { ...(fromChat && typeof fromChat === 'object' ? fromChat : {}), ...(conversa && typeof conversa === 'object' ? conversa : {}) }
+  if (Array.isArray(mensagens) && mensagens.length > 0) {
+    merged.mensagens = mensagens
+  }
+  return merged
+}
+
 /** Fallback pela preview/última mensagem quando o socket ainda não trouxe modo_simples_aguardando. */
 export function inferModoSimplesAguardandoFromPreview(conversa) {
   if (!conversa || typeof conversa !== 'object') return ''
   const candidates = [
     conversa?.ultima_mensagem_preview?.direcao,
     conversa?.ultima_mensagem?.direcao,
-    conversa?.mensagens?.[0]?.direcao,
+    pickUltimaMensagemDirecao(conversa),
   ]
   for (const raw of candidates) {
     const dir = normalizeMessageDirection(raw)
