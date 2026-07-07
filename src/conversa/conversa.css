@@ -6324,7 +6324,7 @@
   top: 0;
   z-index: 3;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   margin: 0 0 6px;
   padding: 4px 0 2px;
   background: none;
@@ -6335,8 +6335,8 @@
 .wa-modoSimplesLidaBar-btn {
   border: none;
   border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: 6px 12px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.25;
   cursor: pointer;

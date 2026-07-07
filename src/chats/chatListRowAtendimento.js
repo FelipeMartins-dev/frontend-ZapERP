@@ -147,8 +147,10 @@ export function isConversaAguardandoFuncionario(c, pendentesIdSet, user) {
 
 export function atendimentoRowVisualClass(c, pendentesIdSet, semConversaRow, currentUserId, user) {
   if (!c || semConversaRow || isGroupConversation(c)) return "";
-  if (isModoSimplesAguardandoAtendente(c, user)) return "chat-list-row--atendimento-alerta";
-  if (isModoSimplesAguardandoCliente(c, user)) return "chat-list-row--atendimento-calm";
+  // Modo simples: só a tag “Aguardando atendente/cliente”, sem card âmbar destacado.
+  if (c?.atendimento_modo_simples === true || user?.atendimento_modo_simples === true) {
+    return "";
+  }
   const isResponsavel =
     currentUserId != null &&
     c?.atendente_id != null &&

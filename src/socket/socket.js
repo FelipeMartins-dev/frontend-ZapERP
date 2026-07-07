@@ -1156,6 +1156,11 @@ export function initSocket(token) {
       for (const k of ausenciaKeys) {
         if (k in payload) next[k] = payload[k]
       }
+      if ('modo_simples_aguardando' in payload) next.modo_simples_aguardando = payload.modo_simples_aguardando
+      if (payload.atendimento_modo_simples === true) next.atendimento_modo_simples = true
+      if ('unread_count' in payload) next.unread_count = payload.unread_count
+      if ('lida' in payload) next.lida = payload.lida
+      if (payload.tem_novas_mensagens === false) next.tem_novas_mensagens = false
       const prevSt = String(cur?.status_atendimento_real ?? cur?.status_atendimento ?? '').toLowerCase()
       const nextSt = String(payload?.status_atendimento ?? next.status_atendimento ?? '').toLowerCase()
       const mot = String(cur?.finalizacao_motivo ?? '').toLowerCase()

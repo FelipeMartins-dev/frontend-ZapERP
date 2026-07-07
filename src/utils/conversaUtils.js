@@ -130,6 +130,12 @@ export function resolveModoSimplesAguardandoEffective(conversa, user) {
   if (!isConversaModoSimplesAtiva(conversa, user)) return ''
   // Grupos: sem badge de modo simples (fila usa unread, estilo WhatsApp).
   if (isGroupConversation(conversa)) return ''
+  if (conversa && Object.prototype.hasOwnProperty.call(conversa, 'modo_simples_aguardando')) {
+    const stored = getModoSimplesAguardando(conversa)
+    if (stored === 'atendente' || stored === 'cliente') return stored
+    // null explícito = marcada como lida; não inferir pela última mensagem antiga
+    if (conversa.modo_simples_aguardando === null) return ''
+  }
   const stored = getModoSimplesAguardando(conversa)
   if (stored === 'atendente' || stored === 'cliente') return stored
   return inferModoSimplesAguardandoFromPreview(conversa)

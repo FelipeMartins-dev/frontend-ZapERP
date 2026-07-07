@@ -143,61 +143,65 @@ function ChatListToolbar({
                 Aguardando atendente
               </Chip>
             ) : null}
-            <Chip active={isMainChipActive("hoje")} onClick={onTabHoje} count={countHoje}>
-              Hoje
-            </Chip>
-            <Chip active={isMainChipActive("abertas")} onClick={onTabAbertas} count={countAbertas}>
-              Abertas
-            </Chip>
-            {separarMensagensDisparadasLigado ? (
-              <Chip active={isMainChipActive("mensagens_disparadas")} onClick={onTabMensagensDisparadas} count={mensagensDisparadasCount}>
-                Mensagens Disparadas
-              </Chip>
-            ) : null}
-            <Chip active={isMainChipActive("em_atendimento")} onClick={onTabEmAtendimento} count={countEmAtendimento}>
-              Em atendimento
-            </Chip>
-            <Chip active={isMainChipActive("finalizadas")} onClick={onTabFinalizadas} count={countFinalizadas}>
-              Finalizadas
-            </Chip>
-            <Chip active={isMainChipActive("finalizadas_auto")} onClick={onTabFinalizadasAuto} count={countFinalizadasAuto}>
-              Por ausência
-            </Chip>
-            <Chip active={isMainChipActive("aguardando_cliente")} onClick={onTabAguardandoCliente} count={countAguardandoCliente}>
-              Aguardando cliente
-            </Chip>
-            {isFinanceiroUser ? (
+            {!user?.atendimento_modo_simples ? (
               <>
-                <Chip
-                  active={isMainChipActive("pagamentos_pendentes")}
-                  onClick={onTabPagamentosPendentes}
-                  className="chat-list-chip--pagamento-pendente"
-                  count={countPagamentosPendentes}
-                >
-                  Pagamentos pendentes
+                <Chip active={isMainChipActive("hoje")} onClick={onTabHoje} count={countHoje}>
+                  Hoje
                 </Chip>
-                <Chip
-                  active={isMainChipActive("em_atraso")}
-                  onClick={onTabEmAtraso}
-                  className="chat-list-chip--em-atraso"
-                  count={countEmAtraso}
-                >
-                  Em atraso
+                <Chip active={isMainChipActive("abertas")} onClick={onTabAbertas} count={countAbertas}>
+                  Abertas
                 </Chip>
-              </>
-            ) : null}
-            {isSupervisorOrAdmin(user) ? (
-              <Chip
-                active={isMainChipActive("aguardando_funcionario")}
-                onClick={onTabAguardandoFuncionario}
-                className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
-                count={countAguardandoFuncionario}
-              >
-                Aguardando atendente
-                {aguardandoFuncionarioVisualState === "critical" ? (
-                  <span className="chat-list-chip-critical-dot" aria-hidden="true" />
+                {separarMensagensDisparadasLigado ? (
+                  <Chip active={isMainChipActive("mensagens_disparadas")} onClick={onTabMensagensDisparadas} count={mensagensDisparadasCount}>
+                    Mensagens Disparadas
+                  </Chip>
                 ) : null}
-              </Chip>
+                <Chip active={isMainChipActive("em_atendimento")} onClick={onTabEmAtendimento} count={countEmAtendimento}>
+                  Em atendimento
+                </Chip>
+                <Chip active={isMainChipActive("finalizadas")} onClick={onTabFinalizadas} count={countFinalizadas}>
+                  Finalizadas
+                </Chip>
+                <Chip active={isMainChipActive("finalizadas_auto")} onClick={onTabFinalizadasAuto} count={countFinalizadasAuto}>
+                  Por ausência
+                </Chip>
+                <Chip active={isMainChipActive("aguardando_cliente")} onClick={onTabAguardandoCliente} count={countAguardandoCliente}>
+                  Aguardando cliente
+                </Chip>
+                {isFinanceiroUser ? (
+                  <>
+                    <Chip
+                      active={isMainChipActive("pagamentos_pendentes")}
+                      onClick={onTabPagamentosPendentes}
+                      className="chat-list-chip--pagamento-pendente"
+                      count={countPagamentosPendentes}
+                    >
+                      Pagamentos pendentes
+                    </Chip>
+                    <Chip
+                      active={isMainChipActive("em_atraso")}
+                      onClick={onTabEmAtraso}
+                      className="chat-list-chip--em-atraso"
+                      count={countEmAtraso}
+                    >
+                      Em atraso
+                    </Chip>
+                  </>
+                ) : null}
+                {isSupervisorOrAdmin(user) ? (
+                  <Chip
+                    active={isMainChipActive("aguardando_funcionario")}
+                    onClick={onTabAguardandoFuncionario}
+                    className={`chat-list-chip--aguardando-funcionario is-${aguardandoFuncionarioVisualState}`}
+                    count={countAguardandoFuncionario}
+                  >
+                    Aguardando atendente
+                    {aguardandoFuncionarioVisualState === "critical" ? (
+                      <span className="chat-list-chip-critical-dot" aria-hidden="true" />
+                    ) : null}
+                  </Chip>
+                ) : null}
+              </>
             ) : null}
           </div>
         </div>
@@ -245,6 +249,7 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.user?.id !== next.user?.id) return false;
   if (prev.user?.role !== next.user?.role) return false;
   if (prev.user?.perfil !== next.user?.perfil) return false;
+  if (prev.user?.atendimento_modo_simples !== next.user?.atendimento_modo_simples) return false;
   if (prev.atendentes !== next.atendentes) return false;
   if (prev.middleSlot !== next.middleSlot) return false;
   if (prev.filtersPanelSlot !== next.filtersPanelSlot) return false;

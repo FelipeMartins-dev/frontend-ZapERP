@@ -792,6 +792,7 @@ function ConversaViewBody() {
       if (ag === "cliente") {
         return statusBadge("aguardando_cliente", false, conversa?.finalizacao_motivo);
       }
+      return null;
     }
     const status = getStatusAtendimentoEffective(conversa);
     const statusVisual =
@@ -833,6 +834,7 @@ function ConversaViewBody() {
   }, [conversa?.status_atendimento, conversa?.status_atendimento_real, conversa]);
 
   const encerramentoAusenciaHint = useMemo(() => {
+    if (modoSimplesAtivo) return null;
     const s = safeString(getStatusAtendimentoEffective(conversa)).toLowerCase();
     if (s !== "fechada") return null;
     if (safeString(conversa?.finalizacao_motivo).toLowerCase() !== "ausencia_cliente" && conversa?.finalizada_automaticamente !== true) {
@@ -840,6 +842,7 @@ function ConversaViewBody() {
     }
     return "Encerrada automaticamente por ausência do cliente.";
   }, [
+    modoSimplesAtivo,
     conversa?.status_atendimento,
     conversa?.status_atendimento_real,
     conversa?.finalizacao_motivo,
@@ -3078,11 +3081,12 @@ function ConversaViewBody() {
   const [oldContactSyncBusy, setOldContactSyncBusy] = useState(false);
 
   const showReopenClosedCta = useMemo(() => {
+    if (modoSimplesAtivo) return false;
     if (isGroup) return false;
     if (!conversa?.id) return false;
     if (!canReabrir(user)) return false;
     return isClosedAttendance(conversa);
-  }, [conversa, user, isGroup]);
+  }, [modoSimplesAtivo, conversa, user, isGroup]);
 
   const showContactOldSyncCta = useMemo(() => {
     if (isGroup) return false;
@@ -3440,7 +3444,7 @@ function ConversaViewBody() {
   }, [conversaId, callSending, callDuration, showToast]);
 
   const mensagensBloqueadasHint = Boolean(conversa?.mensagens_bloqueadas);
-  const atendimentoEncerradoHint = !isGroup && isClosedAttendance(conversa);
+  const atendimentoEncerradoHint = !modoSimplesAtivo && !isGroup && isClosedAttendance(conversa);
   const atendenteNomeHint = conversa?.atendente_nome ?? "";
 
   /* Só tela cheia sem shell; com header da lista o thread mostra “Carregando mensagens…” inline. */

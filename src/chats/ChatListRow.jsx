@@ -898,11 +898,7 @@ function StatusPill({
     Date.now() - chat.ui_hint_reaberto_ausencia_cliente < 120000;
   const reabertaFaltaInteracao = isReabertaPorFaltaInteracao(chat);
 
-  if (
-    chat?.atendimento_modo_simples &&
-    !isGroupConversation(chat) &&
-    !isClosedAttendanceStatus(status)
-  ) {
+  if (chat?.atendimento_modo_simples && !isGroupConversation(chat)) {
     const ag = resolveModoSimplesAguardandoEffective(chat);
     if (ag === 'atendente' || ag === 'cliente') {
       const aguardandoAtendente = ag === 'atendente';
@@ -931,9 +927,14 @@ function StatusPill({
         </span>
       );
     }
+    return null;
   }
 
-  if (ausenciaFechada) {
+  if (chat?.atendimento_modo_simples && isGroupConversation(chat)) {
+    return null;
+  }
+
+  if (ausenciaFechada && !chat?.atendimento_modo_simples) {
     return (
       <span className="chat-list-statusRow">
         <span
@@ -1055,8 +1056,9 @@ function StatusPill({
   }
   // Aberta ou vazio: usar exibir_badge_aberta para decidir se mostra "Aberta"
   if (
+    !chat?.atendimento_modo_simples &&
     exibirBadgeAberta === true &&
-    !(chat?.atendimento_modo_simples && resolveModoSimplesAguardandoEffective(chat))
+    !resolveModoSimplesAguardandoEffective(chat)
   ) {
     return (
       <span className={`chat-list-statusRow${reabertaFaltaInteracao ? " chat-list-statusRow--reaberta-falta" : ""}`}>
@@ -1119,18 +1121,25 @@ function ChatRow({
   const cobrancaFinanceiraRow =
     statusEff === "pagamento_pendente" || statusEff === "em_atraso";
   const aguardandoFuncionarioVisivelRow =
+    !chat?.atendimento_modo_simples &&
     isConversaAguardandoFuncionario(chat, pendentesFuncionarioSet) &&
     (statusEff === "em_atendimento" ||
-      cobrancaFinanceiraRow ||
-      chat?.atendimento_modo_simples) &&
+      cobrancaFinanceiraRow) &&
     !aguardandoClienteAutomaticoRow;
   const aguardandoClienteCobrancaRow = isConversaAguardandoClienteEmCobranca(chat);
   /** Minutos ao lado do relógio só quando não estão na badge “Aguardando atendente”. */
+  const modoSimplesTimerNaBadge =
+    chat?.atendimento_modo_simples &&
+    !isGroupConversation(chat) &&
+    resolveModoSimplesAguardandoEffective(chat) === "atendente";
   const mostrarEsperaMinutosAoLadoDoRelogio =
-    Boolean(esperaMinutosAnchor) && !aguardandoFuncionarioVisivelRow;
+    Boolean(esperaMinutosAnchor) &&
+    !aguardandoFuncionarioVisivelRow &&
+    !modoSimplesTimerNaBadge;
   const staffPremiumRowClass = aguardandoFuncionarioVisivelRow ? " chat-list-row--await-staff-premium" : "";
   const reabertaFaltaRowClass = isReabertaPorFaltaInteracao(chat) ? " chat-list-row--reaberta-falta-card" : "";
   const somenteAbertaRowClass =
+    !chat?.atendimento_modo_simples &&
     !semConversa &&
     !isGroupConversation(chat) &&
     chat?.exibir_badge_aberta === true &&

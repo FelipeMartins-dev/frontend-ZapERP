@@ -480,6 +480,10 @@ export default function ChatList() {
     }
     if (!user?.atendimento_modo_simples && tab === "aguardando_atendente") {
       setTab("minha_fila");
+      return;
+    }
+    if (user?.atendimento_modo_simples && tab !== "todas" && tab !== "aguardando_atendente") {
+      setTab(getDefaultChatListTab(user));
     }
   }, [user?.atendimento_modo_simples, tab]);
 
