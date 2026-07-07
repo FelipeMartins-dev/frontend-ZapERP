@@ -68,27 +68,49 @@ export function getLastDirection(chat) {
   return best.dir;
 }
 
-/** Timestamp da última mensagem visível na lista (ultima_mensagem > preview > mensagens[0] > última). */
-export function getListaUltimaMensagemCriadoEm(c) {
+function messageTs(msg) {
+  if (!msg) return 0;
+  const t = new Date(msg.criado_em || 0).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Escolhe a mensagem com `criado_em` mais recente entre candidatos. */
+export function pickListaUltimaMensagem(c) {
   if (!c) return null;
-  const u = c?.ultima_mensagem?.criado_em;
-  if (u) return String(u).trim() || null;
-  const p = c?.ultima_mensagem_preview?.criado_em;
-  if (p) return String(p).trim() || null;
-  const m0 = c?.mensagens?.[0]?.criado_em;
-  if (m0) return String(m0).trim() || null;
-  const last = getLastMessage(c)?.criado_em;
-  return last ? String(last).trim() || null : null;
+  const candidates = [
+    c?.ultima_mensagem,
+    c?.ultima_mensagem_preview,
+    c?.mensagens?.[0],
+    c?.messages?.[0],
+    getLastMessage(c),
+  ].filter(Boolean);
+  return pickNewerMessage(...candidates);
+}
+
+/** Entre várias mensagens, retorna a de timestamp mais recente. */
+export function pickNewerMessage(...msgs) {
+  let best = null;
+  for (const m of msgs) {
+    if (!m) continue;
+    if (!best || messageTs(m) >= messageTs(best)) best = m;
+  }
+  return best;
+}
+
+/** Timestamp da última mensagem visível na lista — sempre o mais recente entre fontes. */
+export function getListaUltimaMensagemCriadoEm(c) {
+  const last = pickListaUltimaMensagem(c);
+  const iso = last?.criado_em;
+  return iso != null && String(iso).trim() !== "" ? String(iso).trim() : null;
 }
 
 /** Timestamp efetivo para ordenação estilo WhatsApp (mais recente no topo). */
 export function getChatListSortTimestampMs(c) {
   if (!c) return 0;
   const candidates = [
+    pickListaUltimaMensagem(c)?.criado_em,
     c?.ultima_mensagem?.criado_em,
     c?.ultima_mensagem_preview?.criado_em,
-    getListaUltimaMensagemCriadoEm(c),
-    getLastMessage(c)?.criado_em,
     c?.ultima_atividade,
     c?.criado_em,
   ];
@@ -98,6 +120,28 @@ export function getChatListSortTimestampMs(c) {
     if (Number.isFinite(t) && t > best) best = t;
   }
   return best;
+}
+
+/** Mescla campos de preview/atividade preservando sempre o timestamp mais recente (socket > API stale). */
+export function mergeChatRowListaAtividade(apiRow, localRow) {
+  const base = { ...(localRow && typeof localRow === "object" ? localRow : {}), ...(apiRow && typeof apiRow === "object" ? apiRow : {}) };
+  const ultima = pickNewerMessage(
+    localRow?.ultima_mensagem,
+    apiRow?.ultima_mensagem,
+    localRow?.ultima_mensagem_preview,
+    apiRow?.ultima_mensagem_preview
+  );
+  const tsMs = Math.max(getChatListSortTimestampMs(apiRow), getChatListSortTimestampMs(localRow));
+  const ultimaAtividade =
+    tsMs > 0
+      ? new Date(tsMs).toISOString()
+      : base.ultima_atividade ?? localRow?.ultima_atividade ?? apiRow?.ultima_atividade ?? null;
+  if (ultima) {
+    base.ultima_mensagem = ultima;
+    base.ultima_mensagem_preview = ultima;
+  }
+  if (ultimaAtividade) base.ultima_atividade = ultimaAtividade;
+  return base;
 }
 
 /** Ordena conversas por atividade mais recente (DESC). */

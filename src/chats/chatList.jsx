@@ -42,6 +42,8 @@ import {
   isConversaPagamentoPendente,
   isConversaEmAtrasoPagamento,
   sortChatListByRecent,
+  getChatListSortTimestampMs,
+  mergeChatRowListaAtividade,
 } from "./chatListRowAtendimento";
 import { isUsuarioSetorFinanceiro } from "../utils/financeiroSector";
 import { useAdminAtendenteFilter } from "./useAdminAtendenteFilter";
@@ -140,13 +142,7 @@ function pruneExpiredOptimisticRemoved(map) {
 }
 
 function getChatSortTs(c) {
-  return (
-    c?.ultima_mensagem?.criado_em ||
-    getLastMessage(c)?.criado_em ||
-    c?.ultima_atividade ||
-    c?.criado_em ||
-    0
-  );
+  return getChatListSortTimestampMs(c) || 0;
 }
 
 function sortChatRowsByOrder(list, order) {
@@ -172,7 +168,16 @@ function mergeChatRowsPreservingCurrent(current, incoming, order) {
     if (!row) return;
     const key = chatRowStableKey(row);
     const prev = byKey.get(key);
-    byKey.set(key, prev && preferIncoming ? { ...prev, ...row } : prev || row);
+    if (!prev) {
+      byKey.set(key, row);
+      return;
+    }
+    if (!preferIncoming) {
+      byKey.set(key, mergeChatRowListaAtividade(row, prev));
+      return;
+    }
+    const merged = mergeChatRowListaAtividade(row, prev);
+    byKey.set(key, merged);
   };
   (Array.isArray(current) ? current : []).forEach((row) => put(row, false));
   (Array.isArray(incoming) ? incoming : []).forEach((row) => put(row, true));
@@ -483,7 +488,12 @@ export default function ChatList() {
       setTab("minha_fila");
       return;
     }
-    if (user?.atendimento_modo_simples && tab !== "todas" && tab !== "aguardando_atendente") {
+    if (
+      user?.atendimento_modo_simples &&
+      tab !== "todas" &&
+      tab !== "aguardando_atendente" &&
+      tab !== "aguardando_cliente"
+    ) {
       setTab(getDefaultChatListTab(user));
     }
   }, [user?.atendimento_modo_simples, tab]);
@@ -1141,19 +1151,17 @@ export default function ChatList() {
           const fotoApi = c?.foto_perfil != null && String(c.foto_perfil).trim().startsWith("http") ? String(c.foto_perfil).trim() : null;
           const fotoExisting = existing?.foto_perfil && String(existing.foto_perfil).trim().startsWith("http") ? String(existing.foto_perfil).trim() : null;
           const foto_perfil = fotoApi ?? (c?.foto_perfil === null ? null : fotoExisting);
-          const uApi = c?.ultima_mensagem;
-          const uPrev = existing?.ultima_mensagem;
-          const sameMsg = uPrev && uApi && (String(uPrev.id) === String(uApi.id) || String(uPrev.whatsapp_id) === String(uApi.whatsapp_id) || (uPrev.criado_em && uApi.criado_em && String(uPrev.criado_em) === String(uApi.criado_em)));
-          const ultima = (sameMsg && uPrev) ? { ...uApi, ...uPrev } : uApi || uPrev;
-          return {
-            ...c,
-            contato_nome,
-            foto_perfil,
-            nome_grupo: c?.nome_grupo || existing?.nome_grupo,
-            cliente: c?.cliente || existing?.cliente,
-            ultima_mensagem: ultima,
-            ultima_atividade: ultima?.criado_em || c?.ultima_atividade || existing?.ultima_atividade,
-          };
+          const mergedRow = mergeChatRowListaAtividade(
+            {
+              ...c,
+              contato_nome,
+              foto_perfil,
+              nome_grupo: c?.nome_grupo || existing?.nome_grupo,
+              cliente: c?.cliente || existing?.cliente,
+            },
+            existing
+          );
+          return mergedRow;
         });
         const extra = arr.filter((c) => c?.id != null && !fromApi.has(String(c.id)));
         const strictListTabs = new Set([
@@ -1181,11 +1189,9 @@ export default function ChatList() {
         if (aguardandoQuery || aguardandoAtendenteQuery) return sortChatListByRecent(merged);
         if (tempoParadoFilter) return sortChatListByRecent(merged);
         if (strictMensagemDisparadaQuery) return sortChatListByRecent(merged);
-        if (extra.length === 0) return merged;
-        const getTs = (x) => x?.ultima_mensagem?.criado_em || x?.ultima_atividade || x?.criado_em || 0;
-        const combined = [...merged, ...extra];
-        combined.sort((a, b) => (order === "antigas" ? getTs(a) - getTs(b) : getTs(b) - getTs(a)));
-        return combined;
+        if (extra.length === 0) return sortChatListByRecent(merged);
+        const combined = sortChatListByRecent([...merged, ...extra]);
+        return order === "antigas" ? [...combined].reverse() : combined;
       });
       if (requestId === loadRequestIdRef.current) {
         if (!background) markPushEntryReady();
@@ -1429,10 +1435,14 @@ export default function ChatList() {
     }
     const hasVisibleChats = (useChatStore.getState().chats?.length ?? 0) > 0;
     const tabAtual = tabRef.current;
+    const modoSimplesAtivo = user?.atendimento_modo_simples === true;
+    const bypassResyncThrottle =
+      tabAtual === "aguardando_atendente" ||
+      (modoSimplesAtivo && (tabAtual === "aguardando_cliente" || tabAtual === "todas"));
     const throttleResync =
       hasVisibleChats &&
       Date.now() - lastLoadFinishedAtRef.current < 2500 &&
-      tabAtual !== "aguardando_atendente";
+      !bypassResyncThrottle;
     if (throttleResync) {
       void refreshChatFilterCounts({ silent: true });
       if (isMobileLayout) clearChatListRowsFilterSessionCache(filterScopeKey);
@@ -1441,7 +1451,7 @@ export default function ChatList() {
     loadRef.current?.({ background: true });
     void refreshChatFilterCounts({ silent: true });
     if (isMobileLayout) clearChatListRowsFilterSessionCache(filterScopeKey);
-  }, [chatListResyncNonce, refreshChatFilterCounts, isMobileLayout, filterScopeKey]);
+  }, [chatListResyncNonce, refreshChatFilterCounts, isMobileLayout, filterScopeKey, user?.atendimento_modo_simples]);
 
   /** Supervisão: ao atualizar IDs pendentes, refetch da aba "Aguardando atendente". */
   useEffect(() => {

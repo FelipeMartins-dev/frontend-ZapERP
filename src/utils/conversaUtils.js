@@ -89,28 +89,38 @@ function normalizeMessageDirection(v) {
   return d
 }
 
-function pickUltimaMensagemDirecao(conversa) {
-  if (!conversa || typeof conversa !== 'object') return ''
-  const candidates = []
-  const push = (dir, criadoEm) => {
-    const d = normalizeMessageDirection(dir)
-    if (!d) return
-    const t = new Date(criadoEm || 0).getTime()
-    candidates.push({ dir: d, ts: Number.isFinite(t) ? t : 0 })
+/**
+ * Um outbound só "conta" para o modo simples se for resposta real do atendente
+ * (mesma heurística do backend/socket: tem autor ou id otimista). Ausência automática
+ * e bot interno não trazem esses marcadores e não devem virar "aguardando cliente".
+ */
+function outboundContaComoRespostaAtendente(msg) {
+  if (!msg || typeof msg !== 'object') return false
+  const autorId = msg.autor_usuario_id ?? msg.usuario_id ?? msg.user_id ?? msg.autor_id
+  if (autorId != null && String(autorId).trim() !== '') return true
+  const tempId = msg.client_temp_id ?? msg.clientTempId ?? msg.temp_id ?? msg.tempId
+  if (tempId != null && String(tempId).trim() !== '') return true
+  return false
+}
+
+/** Mensagens candidatas (preview + última + histórico carregado) da mais recente para a mais antiga. */
+function collectMensagemCandidates(conversa) {
+  if (!conversa || typeof conversa !== 'object') return []
+  const out = []
+  const push = (msg) => {
+    if (!msg || typeof msg !== 'object') return
+    const dir = normalizeMessageDirection(msg.direcao)
+    if (!dir) return
+    const t = new Date(msg.criado_em || 0).getTime()
+    out.push({ msg, dir, ts: Number.isFinite(t) ? t : 0 })
   }
-  push(conversa?.ultima_mensagem_preview?.direcao, conversa?.ultima_mensagem_preview?.criado_em)
-  push(conversa?.ultima_mensagem?.direcao, conversa?.ultima_mensagem?.criado_em)
-  const list = Array.isArray(conversa.mensagens) ? conversa.mensagens : []
-  if (list.length > 0) {
-    push(list[0]?.direcao, list[0]?.criado_em)
-    push(list[list.length - 1]?.direcao, list[list.length - 1]?.criado_em)
+  push(conversa.ultima_mensagem_preview)
+  push(conversa.ultima_mensagem)
+  if (Array.isArray(conversa.mensagens)) {
+    for (const m of conversa.mensagens) push(m)
   }
-  if (!candidates.length) return ''
-  let best = candidates[0]
-  for (let i = 1; i < candidates.length; i++) {
-    if (candidates[i].ts >= best.ts) best = candidates[i]
-  }
-  return best.dir
+  out.sort((a, b) => b.ts - a.ts)
+  return out
 }
 
 /** Mescla lista + detalhe + histórico carregado para regras de UI do modo simples. */
@@ -122,23 +132,27 @@ export function buildConversaModoSimplesUiSource(conversa, fromChat, mensagens) 
   return merged
 }
 
-/** Fallback pela preview/última mensagem quando o socket ainda não trouxe modo_simples_aguardando. */
+/**
+ * Inferência pela última mensagem real visível (mesma regra de qualificação do backend):
+ * - inbound sempre conta → "atendente";
+ * - outbound só conta se for resposta real do atendente → "cliente";
+ * - outbound não qualificado (ausência automática/bot) é ignorado, olhando a mensagem anterior.
+ * Retorna "" quando nada é conclusivo — aí o valor persistido pelo backend prevalece.
+ */
 export function inferModoSimplesAguardandoFromPreview(conversa) {
-  if (!conversa || typeof conversa !== 'object') return ''
-  const candidates = [
-    conversa?.ultima_mensagem_preview?.direcao,
-    conversa?.ultima_mensagem?.direcao,
-    pickUltimaMensagemDirecao(conversa),
-  ]
-  for (const raw of candidates) {
-    const dir = normalizeMessageDirection(raw)
+  const candidates = collectMensagemCandidates(conversa)
+  for (const { msg, dir } of candidates) {
     if (dir === 'in') return 'atendente'
-    if (dir === 'out') return 'cliente'
+    if (dir === 'out') {
+      if (outboundContaComoRespostaAtendente(msg)) return 'cliente'
+      // outbound não qualificado (ausência automática/bot): ignora e olha a anterior
+    }
+    // system/outros: ignora
   }
   return ''
 }
 
-/** Valor efetivo para UI: coluna persistida ou inferência pela última mensagem real visível. */
+/** Valor efetivo para UI: inferência qualificada pela última msg real visível ou coluna persistida (backend). */
 export function resolveModoSimplesAguardandoEffective(conversa, user) {
   if (!isConversaModoSimplesAtiva(conversa, user)) return ''
   // Grupos: sem badge de modo simples (fila usa unread, estilo WhatsApp).
@@ -151,7 +165,8 @@ export function resolveModoSimplesAguardandoEffective(conversa, user) {
   ) {
     return ''
   }
-  // Última mensagem visível prevalece (tempo real no chat aberto / preview atualizado)
+  // Última mensagem visível qualificada prevalece (tempo real no chat aberto / preview atualizado);
+  // ausência automática/bot não flipam para "cliente" — nesse caso cai para a coluna do backend.
   const inferred = inferModoSimplesAguardandoFromPreview(conversa)
   if (inferred === 'cliente' || inferred === 'atendente') return inferred
   const stored = getModoSimplesAguardando(conversa)

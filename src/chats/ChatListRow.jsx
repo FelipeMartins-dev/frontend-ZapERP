@@ -22,6 +22,7 @@ import {
   rowPrefs,
   EMPTY_PENDENTES_SET,
   getLastMessage,
+  pickListaUltimaMensagem,
   getEsperaMinutosAnchorIso,
   isConversaAguardandoCliente,
   isConversaAguardandoFuncionario,
@@ -435,7 +436,7 @@ function ChatTicks({ status, isGroup }) {
 }
 
 function PreviewLine({ chat, audioDurationSec }) {
-  const last = chat?.ultima_mensagem || chat?.ultima_mensagem_preview || getLastMessage(chat);
+  const last = pickListaUltimaMensagem(chat) || getLastMessage(chat);
   if (!last) return <span className="chat-list-previewText">Sem mensagens</span>;
 
   const out = String(last?.direcao || "").toLowerCase() === "out";
@@ -1163,7 +1164,7 @@ function ChatRow({
   const { displayName, avatarUrl, phone, isGroup } = contact;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
   const hasName = displayName !== phone;
-  const last = chat?.ultima_mensagem || chat?.ultima_mensagem_preview || getLastMessage(chat);
+  const last = pickListaUltimaMensagem(chat) || getLastMessage(chat);
   const lastTxt = String(last?.conteudo || last?.body || last?.texto || "").trim();
   const lastTipoRaw = !semConversa ? String(last?.tipo || "").toLowerCase() : "";
   const lastTipoResolved =

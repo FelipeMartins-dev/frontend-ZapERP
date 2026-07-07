@@ -7,8 +7,8 @@ import {
   isModoSimplesAguardandoCliente,
 } from "../utils/conversaUtils";
 import { getDisplayName, getPhone } from "./chatListDisplay";
-import { getLastMessage, isConversaAguardandoFuncionario, getChatListSortTimestampMs } from "./chatListRowAtendimento";
-import { chatListsStoreEquivalent } from "./chatListStoreCompare";
+import { getLastMessage, isConversaAguardandoFuncionario, getChatListSortTimestampMs, sortChatListByRecent } from "./chatListRowAtendimento";
+import { chatListsStoreEquivalent, chatListIdsInOrder } from "./chatListStoreCompare";
 
 export function digitsOnly(v) {
   return String(v || "").replace(/\D/g, "");
@@ -17,6 +17,11 @@ export function digitsOnly(v) {
 /** Modo simples ativo na empresa (aba Minha fila oculta; padrão = Aguardando atendente). */
 export function isModoSimplesListaAtivo(user) {
   return user?.atendimento_modo_simples === true;
+}
+
+/** Abas do modo simples com filtro client-side + resync em tempo real. */
+export function isModoSimplesRealtimeTab(tab) {
+  return tab === "todas" || tab === "aguardando_atendente" || tab === "aguardando_cliente";
 }
 
 /** Aba principal ao abrir a lista ou ao resetar filtros (ESC). */
@@ -322,6 +327,9 @@ export function computeChatsFiltrados({
   if (!adminPorFuncionario && tab === "aguardando_atendente") {
     list = list.filter((c) => isModoSimplesAguardandoAtendente(c, user));
   }
+  if (!adminPorFuncionario && tab === "aguardando_cliente" && isModoSimplesListaAtivo(user)) {
+    list = list.filter((c) => isModoSimplesAguardandoCliente(c, user));
+  }
 
   if (!adminPorFuncionario && aguardandoClienteOnly && tab !== "aguardando_cliente") {
     list = list.filter((c) => {
@@ -468,6 +476,11 @@ export function areChatListUiFilterDepsEqual(a, b) {
   );
 }
 
+function chatListSortOrderKey(chats) {
+  if (!Array.isArray(chats) || !chats.length) return "";
+  return chatListIdsInOrder(sortChatListByRecent(chats));
+}
+
 function canReuseFilteredChatList(cache, params) {
   if (!cache?.list) return false;
   if (!areChatListUiFilterDepsEqual(cache.ui, buildChatListUiFilterDeps(params))) return false;
@@ -477,16 +490,19 @@ function canReuseFilteredChatList(cache, params) {
   const adminPorFuncionario =
     params.adminAtendenteFilterId != null && String(params.adminAtendenteFilterId).trim() !== "";
 
+  let storeEquivalent = false;
   if (adminPorFuncionario) {
-    return chatListsStoreEquivalent(cache.chats, params.chats);
-  }
-  if (params.tab === "minha_fila") {
-    return (
+    storeEquivalent = chatListsStoreEquivalent(cache.chats, params.chats);
+  } else if (params.tab === "minha_fila") {
+    storeEquivalent =
       chatListsStoreEquivalent(cache.minhaFilaList, params.minhaFilaList) &&
-      chatListsStoreEquivalent(cache.chats, params.chats)
-    );
+      chatListsStoreEquivalent(cache.chats, params.chats);
+  } else {
+    storeEquivalent = chatListsStoreEquivalent(cache.chats, params.chats);
   }
-  return chatListsStoreEquivalent(cache.chats, params.chats);
+  if (!storeEquivalent) return false;
+  // Mesmo conteúdo por linha, mas ordem de sort pode ter mudado (timestamps atualizados em tempo real).
+  return chatListSortOrderKey(cache.chats) === chatListSortOrderKey(params.chats);
 }
 
 /**

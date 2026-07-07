@@ -7,7 +7,7 @@ import {
   ultimaMensagemRefsEqual,
 } from "./chatListStoreCompare"
 import { chatRowStableKey } from "./chatRowStableKey"
-import { getChatListSortTimestampMs, sortChatListByRecent } from "./chatListRowAtendimento"
+import { getChatListSortTimestampMs, sortChatListByRecent, pickNewerMessage } from "./chatListRowAtendimento"
 
 /** Chave canônica para dedupe: conv id ou escopo instância + contato */
 function canonicalKey(c) {
@@ -273,6 +273,20 @@ export const useChatStore = create((set, get) => ({
       }
     }
     if (partial.ultima_atividade != null) merged.ultima_atividade = partial.ultima_atividade
+
+    const ultimaMerged = pickNewerMessage(
+      cur.ultima_mensagem,
+      merged.ultima_mensagem,
+      cur.ultima_mensagem_preview,
+      merged.ultima_mensagem_preview
+    )
+    if (ultimaMerged) {
+      merged.ultima_mensagem = ultimaMerged
+      merged.ultima_mensagem_preview = ultimaMerged
+    }
+    const actMs = Math.max(getChatListSortTimestampMs(cur), getChatListSortTimestampMs(merged))
+    if (actMs > 0) merged.ultima_atividade = new Date(actMs).toISOString()
+
     if (partial.tem_novas_mensagens === true) {
       merged.tem_novas_mensagens = true
       merged.lida = false
@@ -440,8 +454,25 @@ export const useChatStore = create((set, get) => ({
       const idx = chats.findIndex((c) => String(c.id) === String(conversa_id))
       if (idx < 0) return state
       const cur = chats[idx]
-      const mergedUm = { ...cur.ultima_mensagem, ...msg }
-      const atividade = msg?.criado_em || cur.ultima_atividade
+      const isOptimistic =
+        msg?.client_temp_id != null ||
+        msg?.tempId != null ||
+        msg?.temp_id != null
+      const candidate = msg ? { ...(cur.ultima_mensagem || {}), ...msg } : cur.ultima_mensagem
+      const curTs = new Date(cur?.ultima_mensagem?.criado_em || 0).getTime()
+      const nextTs = new Date(candidate?.criado_em || 0).getTime()
+      const useCandidate =
+        !cur?.ultima_mensagem ||
+        isOptimistic ||
+        !Number.isFinite(curTs) ||
+        !Number.isFinite(nextTs) ||
+        nextTs >= curTs
+      const mergedUm = useCandidate ? candidate : cur.ultima_mensagem
+      const atividadeMs = Math.max(
+        getChatListSortTimestampMs({ ...cur, ultima_mensagem: mergedUm, ultima_mensagem_preview: mergedUm }),
+        new Date(msg?.criado_em || 0).getTime() || 0
+      )
+      const atividade = atividadeMs > 0 ? new Date(atividadeMs).toISOString() : cur.ultima_atividade
       const dirOut =
         mergedUm?.direcao === "out" ||
         mergedUm?.fromMe === true ||

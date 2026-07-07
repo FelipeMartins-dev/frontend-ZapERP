@@ -3066,6 +3066,7 @@ function ConversaViewBody() {
       useConversaStore.getState().patchConversa(patch);
       useChatStore.getState().setUnread(conversa.id, 0);
       useChatStore.getState().updateChat({ id: conversa.id, ...patch });
+      useChatStore.getState().requestChatListResync?.();
       showToast({
         type: "success",
         title: data?.already_cleared ? "Já estava marcada como lida" : "Marcada como lida",

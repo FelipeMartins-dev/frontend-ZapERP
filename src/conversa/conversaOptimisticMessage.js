@@ -460,6 +460,7 @@ export function applyModoSimplesClienteOnOutgoingSend(conversaId, optimisticMsg,
   } else {
     chatStore.updateChat({ id: conversaId, ...patch });
   }
+  chatStore.requestChatListResync?.();
 
   return {
     revert: () => {

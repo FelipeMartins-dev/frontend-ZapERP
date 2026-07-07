@@ -133,15 +133,25 @@ function ChatListToolbar({
               Todas
             </Chip>
             {user?.atendimento_modo_simples ? (
-              <Chip
-                variant="primary"
-                active={isMainChipActive("aguardando_atendente")}
-                onClick={onTabAguardandoAtendente}
-                className="chat-list-chip--aguardando-atendente"
-                count={countAguardandoAtendente}
-              >
-                Aguardando atendente
-              </Chip>
+              <>
+                <Chip
+                  variant="primary"
+                  active={isMainChipActive("aguardando_atendente")}
+                  onClick={onTabAguardandoAtendente}
+                  className="chat-list-chip--aguardando-atendente"
+                  count={countAguardandoAtendente}
+                >
+                  Aguardando atendente
+                </Chip>
+                <Chip
+                  active={isMainChipActive("aguardando_cliente")}
+                  onClick={onTabAguardandoCliente}
+                  className="chat-list-chip--aguardando-cliente"
+                  count={countAguardandoCliente}
+                >
+                  Aguardando cliente
+                </Chip>
+              </>
             ) : null}
             {!user?.atendimento_modo_simples ? (
               <>

@@ -474,6 +474,39 @@ function shouldBeInMinhaFilaForCurrentUser(payload) {
   return false
 }
 
+function buildModoSimplesListRowFromPayload(payload, id) {
+  if (!payload || id == null || id === "") return null
+  const preview = payload.ultima_mensagem_preview ?? payload.ultima_mensagem ?? null
+  const row = {
+    id,
+    contato_nome: payload.contato_nome ?? payload.nome_contato_cache ?? undefined,
+    foto_perfil: payload.foto_perfil ?? undefined,
+    ultima_mensagem: preview ?? undefined,
+    ultima_mensagem_preview: preview ?? undefined,
+    ultima_atividade: payload.ultima_atividade ?? preview?.criado_em ?? undefined,
+    telefone: payload.telefone ?? undefined,
+    cliente_id: payload.cliente_id ?? undefined,
+    status_atendimento: payload.status_atendimento ?? undefined,
+    unread_count: payload.unread_count ?? undefined,
+    atendimento_modo_simples: payload.atendimento_modo_simples === true ? true : undefined,
+  }
+  if ("modo_simples_aguardando" in payload) row.modo_simples_aguardando = payload.modo_simples_aguardando
+  if ("lida" in payload) row.lida = payload.lida
+  if ("tem_novas_mensagens" in payload) row.tem_novas_mensagens = payload.tem_novas_mensagens
+  if (!preview && !("modo_simples_aguardando" in payload)) return null
+  return row
+}
+
+function upsertModoSimplesListRowFromPayload(chatStore, payload, id) {
+  if (!isEmpresaModoSimplesAtivoCliente() || !payloadImpactaListaLateral(payload)) return false
+  const chats = chatStore.chats || []
+  if (chats.some((c) => String(c?.id) === String(id))) return false
+  const row = buildModoSimplesListRowFromPayload(payload, id)
+  if (!row) return false
+  chatStore.addChat(row)
+  return true
+}
+
 function emitMinhaFilaOptimisticMutation(rawPayload) {
   const payload = unwrapSocketChatPayload(rawPayload)
   const id = payload?.id ?? payload?.conversa_id
@@ -1163,6 +1196,9 @@ export function initSocket(token) {
     const chats = chatStore.chats || []
     const idx = chats.findIndex((c) => String(c.id) === String(id))
     let listRowChanged = idx < 0
+    if (idx < 0) {
+      listRowChanged = upsertModoSimplesListRowFromPayload(chatStore, payload, id) || listRowChanged
+    }
     if (idx >= 0) {
       const cur = chats[idx]
       const next = { ...cur }
