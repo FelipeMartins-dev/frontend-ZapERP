@@ -66,6 +66,7 @@ export default function ConversaThread({
   avatarUrl,
   nome,
   selectMode,
+  forwardSelectIntent,
   selectedSet,
   pinnedSet,
   starredSet,
@@ -109,6 +110,8 @@ export default function ConversaThread({
     reactionLoading && typeof reactionLoading === "object" ? reactionLoading : EMPTY_OBJECT;
 
   const threadRowCount = safeMensagensComSeparadores.length;
+  const showSelectedReactionPicker =
+    Boolean(compactMessageUx && selectMode && !forwardSelectIntent && safeSelectedSet.size === 1);
 
   const renderItem = useCallback(
     (item, index) => {
@@ -134,6 +137,7 @@ export default function ConversaThread({
             isStarred={false}
             reactionForMessage={undefined}
             reactionLoadingForMessage={false}
+            showMobileReactionPicker={false}
             currentUserId={myUserId}
             mostrarNomeAoCliente={mostrarNomeAoCliente}
             swipeReplyEnabled={swipeReplyEnabled}
@@ -180,6 +184,7 @@ export default function ConversaThread({
           isStarred={safeStarredSet.has(String(messageKey))}
           reactionForMessage={safeLocalReactions[String(messageKey)] || item.__reaction}
           reactionLoadingForMessage={Boolean(safeReactionLoading[String(messageKey)])}
+          showMobileReactionPicker={Boolean(showSelectedReactionPicker && safeSelectedSet.has(String(messageKey)))}
           currentUserId={myUserId}
           mostrarNomeAoCliente={mostrarNomeAoCliente}
           swipeReplyEnabled={swipeReplyEnabled}
@@ -214,6 +219,7 @@ export default function ConversaThread({
       avatarUrl,
       nome,
       selectMode,
+      forwardSelectIntent,
       safeSelectedSet,
       safePinnedSet,
       safeStarredSet,
@@ -223,6 +229,7 @@ export default function ConversaThread({
       mostrarNomeAoCliente,
       swipeReplyEnabled,
       compactMessageUx,
+      showSelectedReactionPicker,
       onToggleSelected,
       onInfo,
       onReply,

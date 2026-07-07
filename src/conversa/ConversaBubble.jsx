@@ -38,6 +38,7 @@ import {
 
 let __waCurrentAudio = null;
 const WA_AUDIO_SPEEDS = [1, 1.5, 2];
+const WA_REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "👏"];
 
 /** Imagem na bolha com fallback: blob local → URL do servidor → proxy. */
 function BubbleImage({ msg, alt, className }) {
@@ -787,6 +788,7 @@ const Bubble = memo(function Bubble({
   /** Mobile/tablet: sem setinha fixa; menu por long press + folha inferior */
   mobileMessageChrome = false,
   menuUsesBottomSheet = false,
+  showMobileReactionPicker = false,
   zapAnimateIn = false,
 }) {
   const out = isOutgoingMessage(msg);
@@ -940,6 +942,7 @@ const Bubble = memo(function Bubble({
   const [menuStyle, setMenuStyle] = useState(null);
   const [reactionOpen, setReactionOpen] = useState(false);
   const isCall = !isApagadaParaTodos && tipoMsg === "call";
+  const showReactionPicker = !isCall && (reactionOpen || showMobileReactionPicker);
   const [audioDur, setAudioDur] = useState(0);
   const audioDurLabel = useMemo(() => (audioDur > 0 ? formatMmSs(audioDur) : null), [audioDur]);
 
@@ -1265,7 +1268,7 @@ const Bubble = memo(function Bubble({
       <SwipeReplyTrack
         enabled={Boolean(swipeReplyEnabled && !isCall && !msg?.apagada_para_todos)}
         outgoing={out}
-        gestureBlocked={menuOpen || reactionOpen || selectMode}
+        gestureBlocked={menuOpen || showReactionPicker || selectMode}
         onCommit={() => {
           setMenuOpen(false);
           setReactionOpen(false);
@@ -1555,7 +1558,7 @@ const Bubble = memo(function Bubble({
             <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? "Sem conteudo" : "(mensagem vazia)"}</span>
           )}
         </div>
-        {!isCall ? (
+        {!isCall && !mobileMessageChrome ? (
           <button
             type="button"
             className={`wa-reactionBtn ${reactionOpen ? "isOpen" : ""}`}
@@ -1586,12 +1589,13 @@ const Bubble = memo(function Bubble({
           </div>
         </div>
 
-        {reactionOpen && !isCall ? (
+        {showReactionPicker ? (
           <div
-            className="wa-reactionPicker"
+            className={`wa-reactionPicker${showMobileReactionPicker ? " wa-reactionPicker--selectedMobile" : ""}`}
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
-            {["❤️", "👍", "😂", "😮", "😢", "👎"].map((emo) => (
+            {WA_REACTION_EMOJIS.map((emo) => (
               <button
                 key={emo}
                 type="button"

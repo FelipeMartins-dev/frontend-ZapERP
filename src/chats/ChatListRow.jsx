@@ -900,6 +900,7 @@ function StatusPill({
 
   if (
     chat?.atendimento_modo_simples &&
+    !isGroup &&
     !isClosedAttendanceStatus(status)
   ) {
     const ag = resolveModoSimplesAguardandoEffective(chat);

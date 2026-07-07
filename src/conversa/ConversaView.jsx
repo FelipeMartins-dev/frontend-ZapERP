@@ -10,6 +10,7 @@ import {
   registrarLigacao,
   listarAtendentesDisponiveisConversa,
   adicionarAtendenteConversa,
+  marcarLidaModoSimplesChat,
 } from "./conversaService";
 import {
   isGroupConversation,
@@ -19,6 +20,7 @@ import {
   resolveContactMetaFromMessage,
   isConversaModoSimplesAtiva,
   resolveModoSimplesAguardandoEffective,
+  isModoSimplesAguardandoAtendente,
 } from "../utils/conversaUtils";
 import "./conversa.css";
 import "../styles/zap-animations.css";
@@ -781,7 +783,7 @@ function ConversaViewBody() {
   const showAvatarImg = Boolean(avatarUrl && !avatarImgError);
 
   const badge = useMemo(() => {
-    if (modoSimplesAtivo) {
+    if (modoSimplesAtivo && !isGroup) {
       const ag = resolveModoSimplesAguardandoEffective(conversa, user);
       if (ag === "atendente") {
         return statusBadge("aguardando_atendente", false, conversa?.finalizacao_motivo);
@@ -2408,6 +2410,26 @@ function ConversaViewBody() {
     setForwardSelectIntent(false);
   }, []);
 
+  const handleThreadReaction = useCallback(
+    (msg, reaction) => {
+      handleSendReaction(msg, reaction);
+      if (compactMessageUx && selectMode && msg?.id && selectedMsgIds?.[String(msg.id)]) {
+        exitSelectMode();
+      }
+    },
+    [compactMessageUx, exitSelectMode, handleSendReaction, selectMode, selectedMsgIds]
+  );
+
+  const handleThreadRemoveReaction = useCallback(
+    (msg) => {
+      handleRemoveReaction(msg);
+      if (compactMessageUx && selectMode && msg?.id && selectedMsgIds?.[String(msg.id)]) {
+        exitSelectMode();
+      }
+    },
+    [compactMessageUx, exitSelectMode, handleRemoveReaction, selectMode, selectedMsgIds]
+  );
+
   const {
     forwardOpen,
     forwardMsgs,
@@ -2982,6 +3004,48 @@ function ConversaViewBody() {
       (userDepIds.length > 0 && userDepIds.includes(Number(convDepId)));
     return mesmaSetorOuSemRestricao;
   }, [modoSimplesAtivo, conversa, user, isGroup]);
+
+  const showMarcarLidaModoSimplesBar = useMemo(() => {
+    if (!modoSimplesAtivo) return false;
+    if (!conversa?.id || isClosedAttendance(conversa)) return false;
+    return isModoSimplesAguardandoAtendente(conversa, user);
+  }, [modoSimplesAtivo, conversa, user]);
+
+  const [marcarLidaModoSimplesBusy, setMarcarLidaModoSimplesBusy] = useState(false);
+
+  const handleMarcarLidaModoSimples = useCallback(async () => {
+    if (!conversa?.id || marcarLidaModoSimplesBusy) return;
+    setMarcarLidaModoSimplesBusy(true);
+    try {
+      const data = await marcarLidaModoSimplesChat(conversa.id);
+      const patch = {
+        modo_simples_aguardando: null,
+        lida: true,
+        unread_count: 0,
+        tem_novas_mensagens: false,
+        tem_novas_mensagens_em_atendimento: false,
+        atendimento_modo_simples: true,
+        ...(data?.conversa && typeof data.conversa === "object" ? data.conversa : {}),
+      };
+      useConversaStore.getState().patchConversa(patch);
+      useChatStore.getState().setUnread(conversa.id, 0);
+      useChatStore.getState().updateChat({ id: conversa.id, ...patch });
+      showToast({
+        type: "success",
+        title: "Marcada como lida",
+        message: "Conversa removida da fila Aguardando atendente.",
+      });
+    } catch (e) {
+      console.error("Erro ao marcar como lida (modo simples):", e);
+      showToast({
+        type: "error",
+        title: "Não foi possível marcar como lida",
+        message: e?.response?.data?.error || e?.message || "Tente novamente.",
+      });
+    } finally {
+      setMarcarLidaModoSimplesBusy(false);
+    }
+  }, [conversa?.id, marcarLidaModoSimplesBusy, showToast]);
 
   const [assumeEmptyBusy, setAssumeEmptyBusy] = useState(false);
   const [reopenClosedBusy, setReopenClosedBusy] = useState(false);
@@ -3703,6 +3767,21 @@ function ConversaViewBody() {
             onForward={handleForwardAdvance}
             onDelete={handleDeleteSelected}
           />
+          {!selectMode && showMarcarLidaModoSimplesBar ? (
+            <div className="wa-modoSimplesLidaBar" role="region" aria-label="Aguardando atendente">
+              <span className="wa-modoSimplesLidaBar-text">
+                Esta conversa está aguardando atendimento
+              </span>
+              <button
+                type="button"
+                className="wa-modoSimplesLidaBar-btn"
+                onClick={() => void handleMarcarLidaModoSimples()}
+                disabled={marcarLidaModoSimplesBusy}
+              >
+                {marcarLidaModoSimplesBusy ? "Marcando…" : "Marcar como lida"}
+              </button>
+            </div>
+          ) : null}
           {!selectMode && pinnedTop ? (
             <div className="wa-pinBar" role="button" tabIndex={0} onClick={() => scrollToMsg(pinnedTop.id)}>
               <span className="wa-pinBar-ic" aria-hidden="true">📌</span>
@@ -3742,6 +3821,7 @@ function ConversaViewBody() {
             avatarUrl={avatarUrl}
             nome={nome}
             selectMode={selectMode}
+            forwardSelectIntent={forwardSelectIntent}
             selectedSet={selectedSet}
             pinnedSet={pinnedSet}
             starredSet={starredSet}
@@ -3763,8 +3843,8 @@ function ConversaViewBody() {
             onDeleteForEveryone={handleDeleteForEveryone}
             onJumpToReply={jumpToReply}
             onOpenMedia={openMediaViewer}
-            onReact={handleSendReaction}
-            onRemoveReaction={handleRemoveReaction}
+            onReact={handleThreadReaction}
+            onRemoveReaction={handleThreadRemoveReaction}
             onConversarContact={handleConversarContact}
             onAdicionarGrupoContact={handleAdicionarGrupoContact}
           />

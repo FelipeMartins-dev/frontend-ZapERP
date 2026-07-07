@@ -35,9 +35,20 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
 if (import.meta.env.PROD && typeof navigator !== "undefined" && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    // updateViaCache: "none" força o navegador a ignorar o cache HTTP ao verificar o SW
+    // E os seus importScripts (/sw.js contém toda a lógica de push). Sem isto, muitos clientes
+    // continuam a correr uma versão antiga do sw.js — notificação "não chega independente da versão".
     navigator.serviceWorker
-      .register("/service-worker.js", { scope: "/" })
-      .then(() => initPushSubscriptionLifecycle())
+      .register("/service-worker.js", { scope: "/", updateViaCache: "none" })
+      .then((reg) => {
+        // Puxa proativamente a versão mais recente do SW a cada carregamento.
+        try {
+          reg?.update?.().catch(() => {});
+        } catch (_) {
+          /* ignore */
+        }
+        initPushSubscriptionLifecycle();
+      })
       .catch(() => {});
   });
 }

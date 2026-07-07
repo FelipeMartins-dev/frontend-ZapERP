@@ -78,6 +78,7 @@ export function threadRowPropsAreEqual(prev, next) {
   if (prev.isStarred !== next.isStarred) return false;
   if (prev.reactionForMessage !== next.reactionForMessage) return false;
   if (prev.reactionLoadingForMessage !== next.reactionLoadingForMessage) return false;
+  if (prev.showMobileReactionPicker !== next.showMobileReactionPicker) return false;
 
   if (prev.isGroup !== next.isGroup) return false;
   if (prev.peerAvatarUrl !== next.peerAvatarUrl) return false;

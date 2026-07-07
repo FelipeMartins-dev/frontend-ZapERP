@@ -108,12 +108,21 @@ export function inferModoSimplesAguardandoFromPreview(conversa) {
 /** Valor efetivo para UI: coluna persistida ou inferência pela última mensagem real visível. */
 export function resolveModoSimplesAguardandoEffective(conversa, user) {
   if (!isConversaModoSimplesAtiva(conversa, user)) return ''
+  // Grupos: sem badge de modo simples (fila usa unread, estilo WhatsApp).
+  if (isGroupConversation(conversa)) return ''
   const stored = getModoSimplesAguardando(conversa)
   if (stored === 'atendente' || stored === 'cliente') return stored
   return inferModoSimplesAguardandoFromPreview(conversa)
 }
 
 export function isModoSimplesAguardandoAtendente(conversa, user) {
+  if (!isConversaModoSimplesAtiva(conversa, user)) return false
+  if (isGroupConversation(conversa)) {
+    const unread = Number(conversa?.unread_count ?? 0)
+    if (unread > 0) return true
+    if (conversa?.tem_novas_mensagens === true) return true
+    return conversa?.lida === false
+  }
   return resolveModoSimplesAguardandoEffective(conversa, user) === 'atendente'
 }
 

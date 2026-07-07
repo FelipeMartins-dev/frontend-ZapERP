@@ -298,8 +298,15 @@ export async function adicionarAtendenteConversa(conversaId, usuarioId) {
   return data;
 }
 
-/** * Marca o atendimento humano como aguardando resposta do cliente.
- */
+/** Modo simples: remove da fila Aguardando atendente sem enviar mensagem. */
+export async function marcarLidaModoSimplesChat(conversaId) {
+  const id = conversaId != null ? String(conversaId) : "";
+  if (!id) throw new Error("conversaId inválido");
+  const { data } = await api.post(`/chats/${id}/marcar-lida-modo-simples`);
+  return data;
+}
+
+/** Marca o atendimento humano como aguardando resposta do cliente. */
 export async function marcarAguardandoClienteChat(conversaId) {
   const { data } = await api.post(`/chats/${conversaId}/aguardando-cliente`);
   return data;

@@ -83,6 +83,7 @@ function ThreadRow({
   isStarred,
   reactionForMessage,
   reactionLoadingForMessage,
+  showMobileReactionPicker,
   currentUserId,
   mostrarNomeAoCliente,
   swipeReplyEnabled,
@@ -165,6 +166,7 @@ function ThreadRow({
       onReact={onReact}
       onRemoveReaction={onRemoveReaction}
       reactionBusy={reactionLoadingForMessage}
+      showMobileReactionPicker={showMobileReactionPicker}
       onConversarContact={onConversarContact}
       onAdicionarGrupoContact={onAdicionarGrupoContact}
       mostrarNomeAoCliente={mostrarNomeAoCliente}

@@ -44,6 +44,62 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray
 }
 
+/**
+ * Compara a chave (applicationServerKey) usada para criar a subscription atual com a chave
+ * pública VAPID que o servidor serve agora. Se o servidor trocou de chave, a subscription antiga
+ * fica inutilizável (o push service devolve 403 VapidPkeyMismatch) e o push falha silenciosamente
+ * para sempre — é preciso re-subscrever com a chave nova.
+ *
+ * Nota: alguns navegadores (ex.: Firefox antigo) não expõem `options.applicationServerKey`.
+ * Nesse caso não conseguimos verificar, então assumimos "igual" para não destruir uma
+ * subscription que pode estar boa (evita churn desnecessário).
+ */
+function applicationServerKeyMatches(sub, publicKeyBase64) {
+  try {
+    const existing = sub?.options?.applicationServerKey
+    if (!existing) return true // navegador não expõe a chave: não dá para verificar
+    const existingArr = new Uint8Array(existing)
+    const current = urlBase64ToUint8Array(publicKeyBase64)
+    if (existingArr.length !== current.length) return false
+    for (let i = 0; i < current.length; i += 1) {
+      if (existingArr[i] !== current[i]) return false
+    }
+    return true
+  } catch {
+    return true // em erro, não arriscar destruir subscription potencialmente válida
+  }
+}
+
+/**
+ * Garante uma subscription válida para a chave VAPID atual do servidor.
+ * Se a subscription existente foi criada com outra chave, desfaz e re-subscreve — é isto que
+ * faz a notificação voltar a chegar "independente da versão" após rotação de chave VAPID.
+ */
+async function ensureSubscriptionForServerKey(reg, publicKeyBase64) {
+  let sub = await reg.pushManager.getSubscription()
+
+  if (sub && !applicationServerKeyMatches(sub, publicKeyBase64)) {
+    pushDiag("ensureSubscriptionForServerKey: applicationServerKey mudou — re-subscrevendo")
+    try {
+      await unregisterPushTokenOnServer(sub)
+    } catch {
+      /* ignore */
+    }
+    await sub.unsubscribe().catch(() => {})
+    sub = null
+    lastPushSend = { sig: "", at: 0 }
+  }
+
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKeyBase64),
+    })
+  }
+
+  return sub
+}
+
 export function pushSupported() {
   return (
     typeof window !== "undefined" &&
@@ -221,10 +277,7 @@ export async function subscribeWebPush() {
     return { ok: false, reason: permission === "denied" ? "permission_denied" : "permission_blocked" }
   }
 
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
-  })
+  const sub = await ensureSubscriptionForServerKey(reg, vapid.publicKey)
 
   await sendPushTokenToBackend(sub)
 
@@ -290,14 +343,7 @@ export async function syncPushSubscriptionSilently() {
     pushDiag("syncPushSubscriptionSilently: sem Service Worker ativo")
     return { ok: false, reason: "no_service_worker" }
   }
-  let sub = await reg.pushManager.getSubscription()
-  if (!sub) {
-    pushDiag("syncPushSubscriptionSilently: criando nova subscription")
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
-    })
-  }
+  const sub = await ensureSubscriptionForServerKey(reg, vapid.publicKey)
 
   await sendPushTokenToBackend(sub)
 

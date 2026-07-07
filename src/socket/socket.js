@@ -981,6 +981,7 @@ export function initSocket(token) {
       tem_novas_mensagens: false,
       tem_novas_mensagens_em_atendimento: false,
       lida: true,
+      unread_count: 0,
     })
     updateDocumentTitleFromChats()
   })
