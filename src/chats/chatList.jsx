@@ -73,6 +73,7 @@ import { markPushEntryReady } from "../push/deferredPushSync";
 import { getClientesPendentesSupervisao, getResumoSupervisao } from "../api/supervisaoService";
 import { clearConversation, deleteConversation } from "./conversationActionsService";
 import { chatRowStableKey } from "./chatRowStableKey";
+import { getDefaultChatListTab } from "./chatListFilters";
 
 /** Admin UI (filtro lateral por funcionário): aceita role/perfil legado. */
 function isAppAdmin(user) {
@@ -449,7 +450,7 @@ export default function ChatList() {
 
   // tabs estilo WhatsApp (chip row)
   // todas | hoje | abertas | minha_fila | em_atendimento | finalizadas | finalizadas_auto | aguardando_cliente | aguardando_funcionario
-  const [tab, setTab] = useState("minha_fila");
+  const [tab, setTab] = useState(() => getDefaultChatListTab(useAuthStore.getState().user));
   const handlePendenciaClick = useCallback(
     (categoria) => {
       clearChatSearch();
@@ -468,11 +469,15 @@ export default function ChatList() {
 
   useEffect(() => {
     if (!isSupervisorOrAdmin(user) && tab === "aguardando_funcionario") {
-      setTab("minha_fila");
+      setTab(getDefaultChatListTab(user));
     }
   }, [user, tab]);
 
   useEffect(() => {
+    if (user?.atendimento_modo_simples && tab === "minha_fila") {
+      setTab("aguardando_atendente");
+      return;
+    }
     if (!user?.atendimento_modo_simples && tab === "aguardando_atendente") {
       setTab("minha_fila");
     }
@@ -480,15 +485,15 @@ export default function ChatList() {
 
   useEffect(() => {
     if (!separarMensagensDisparadasLigado && tab === "mensagens_disparadas") {
-      setTab("minha_fila");
+      setTab(getDefaultChatListTab(user));
     }
-  }, [separarMensagensDisparadasLigado, tab]);
+  }, [separarMensagensDisparadasLigado, tab, user?.atendimento_modo_simples]);
 
   useEffect(() => {
     if (!isFinanceiroUser && (tab === "pagamentos_pendentes" || tab === "em_atraso")) {
-      setTab("minha_fila");
+      setTab(getDefaultChatListTab(user));
     }
-  }, [isFinanceiroUser, tab]);
+  }, [isFinanceiroUser, tab, user?.atendimento_modo_simples]);
 
   useEffect(() => {
     if (!separarMensagensDisparadasLigado && statusFilter === "mensagem_disparada") {
@@ -1721,7 +1726,7 @@ export default function ChatList() {
         setDepartamentoFilter("todos");
         setMineOnly(false);
         setOrder("recentes");
-        setTab("minha_fila");
+        setTab(getDefaultChatListTab(user));
         setTempoParadoFilter("");
         setLoteAusenciaMsg("");
         setLoteAusenciaConfirm("");
@@ -1736,6 +1741,7 @@ export default function ChatList() {
     adminAtendentePanelOpen,
     setAdminAtendentePanelOpen,
     clearAdminAtendenteFilter,
+    user?.atendimento_modo_simples,
   ]);
 
   // posiciona menu abaixo do botão Novo

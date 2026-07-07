@@ -14,6 +14,16 @@ export function digitsOnly(v) {
   return String(v || "").replace(/\D/g, "");
 }
 
+/** Modo simples ativo na empresa (aba Minha fila oculta; padrão = Aguardando atendente). */
+export function isModoSimplesListaAtivo(user) {
+  return user?.atendimento_modo_simples === true;
+}
+
+/** Aba principal ao abrir a lista ou ao resetar filtros (ESC). */
+export function getDefaultChatListTab(user) {
+  return isModoSimplesListaAtivo(user) ? "aguardando_atendente" : "minha_fila";
+}
+
 export function isToday(dateLike) {
   if (!dateLike) return false;
   const d = new Date(dateLike);

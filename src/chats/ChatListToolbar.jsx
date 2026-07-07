@@ -124,14 +124,17 @@ function ChatListToolbar({
             role="group"
             aria-label="Filtros de conversa"
           >
-            <Chip variant="primary" active={isMainChipActive("minha_fila")} onClick={onTabMinhaFila} count={minhaFilaCount}>
-              Minha fila
-            </Chip>
+            {!user?.atendimento_modo_simples ? (
+              <Chip variant="primary" active={isMainChipActive("minha_fila")} onClick={onTabMinhaFila} count={minhaFilaCount}>
+                Minha fila
+              </Chip>
+            ) : null}
             <Chip active={isMainChipActive("todas")} onClick={onTabTodas} count={total}>
               Todas
             </Chip>
             {user?.atendimento_modo_simples ? (
               <Chip
+                variant="primary"
                 active={isMainChipActive("aguardando_atendente")}
                 onClick={onTabAguardandoAtendente}
                 className="chat-list-chip--aguardando-atendente"

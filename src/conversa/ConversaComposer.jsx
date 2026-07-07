@@ -1019,6 +1019,14 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     cameraInputRef.current?.click();
   }, []);
 
+  const openFototecaPicker = useCallback(() => {
+    const input = fototecaInputRef.current;
+    if (!input) return;
+    input.removeAttribute("capture");
+    input.value = "";
+    input.click();
+  }, []);
+
   const handleOpenCameraCapture = useCallback(async () => {
     if (!conversaId || sending || !podeEnviar || isRecording) return;
     closeSavedReplies();
@@ -1349,7 +1357,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         className="wa-attachItem"
         role="menuitem"
         onClick={() => {
-          fototecaInputRef.current?.click();
+          openFototecaPicker();
           setAttachMenuOpen(false);
         }}
         disabled={sending || !conversaId || !podeEnviar}
@@ -1364,7 +1372,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         className="wa-attachItem"
         role="menuitem"
         onClick={() => {
-          fototecaInputRef.current?.click();
+          openFototecaPicker();
           setAttachMenuOpen(false);
         }}
         disabled={sending || !conversaId || !podeEnviar}

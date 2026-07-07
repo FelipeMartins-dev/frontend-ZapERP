@@ -388,6 +388,7 @@ function ConversaViewBody() {
   const [dragOver, setDragOver] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreview, setPendingPreview] = useState(null);
+  const [pendingSendOptions, setPendingSendOptions] = useState({});
   /** Legenda opcional digitada no preview (apenas imagem/vídeo, estilo WhatsApp). */
   const [pendingCaption, setPendingCaption] = useState("");
   const pendingCaptionRef = useRef(null);
@@ -1261,10 +1262,11 @@ function ConversaViewBody() {
     pendingConversaIdRef.current = null;
     setPendingFile(null);
     setPendingPreview(null);
+    setPendingSendOptions({});
     setPendingCaption("");
   }, [pendingPreview]);
 
-  const openMediaSendPreview = useCallback((file) => {
+  const openMediaSendPreview = useCallback((file, opts = {}) => {
     if (!file || !conversaId) return;
     if (isArquivoBloqueadoWhatsApp(file)) {
       showToast({
@@ -1276,6 +1278,7 @@ function ConversaViewBody() {
     }
     pendingConversaIdRef.current = conversaId;
     setPendingFile(file);
+    setPendingSendOptions(opts && typeof opts === "object" ? opts : {});
     setPendingCaption("");
     if (isImageFile(file) || isVideoFile(file)) {
       requestAnimationFrame(() => {
@@ -1499,9 +1502,9 @@ function ConversaViewBody() {
   }, [captureLoadMoreAnchor]);
 
   const handleDropFile = useCallback(
-    (file) => {
+    (file, opts = {}) => {
       if (!file) return;
-      openMediaSendPreview(file);
+      openMediaSendPreview(file, opts);
     },
     [openMediaSendPreview]
   );
@@ -1677,6 +1680,8 @@ function ConversaViewBody() {
       formData.append("file", file, nomeArquivo);
       if (opts.forceStickerType) {
         formData.append("tipo", "sticker");
+      } else if (opts.tipo === "voice" || opts.tipo === "audio") {
+        formData.append("tipo", opts.tipo);
       }
       if (legenda) {
         formData.append("caption", legenda);
@@ -2089,11 +2094,11 @@ function ConversaViewBody() {
     confirmSendLockRef.current = true;
     try {
       const captionToSend = pendingCaption;
-      await handleEnviarArquivo(pendingFile, { caption: captionToSend });
+      await handleEnviarArquivo(pendingFile, { ...pendingSendOptions, caption: captionToSend });
     } finally {
       confirmSendLockRef.current = false;
     }
-  }, [pendingFile, pendingCaption, conversaId, clearPending, handleEnviarArquivo]);
+  }, [pendingFile, pendingCaption, pendingSendOptions, conversaId, clearPending, handleEnviarArquivo]);
 
   const handleConfirmSendImageMobile = useCallback(
     async ({ sendAsOriginal, croppedAreaPixels, rotation, fileName, mimeType }) => {
@@ -2116,12 +2121,12 @@ function ConversaViewBody() {
             mimeType: mimeType || pendingFile.type,
           });
         }
-        await handleEnviarArquivo(fileToSend, { caption: captionToSend });
+        await handleEnviarArquivo(fileToSend, { ...pendingSendOptions, caption: captionToSend });
       } finally {
         confirmSendLockRef.current = false;
       }
     },
-    [pendingFile, pendingPreview, pendingCaption, conversaId, clearPending, handleEnviarArquivo]
+    [pendingFile, pendingPreview, pendingCaption, pendingSendOptions, conversaId, clearPending, handleEnviarArquivo]
   );
 
   const persistRecentSticker = useCallback(
@@ -3291,7 +3296,7 @@ function ConversaViewBody() {
   );
 
   const handleComposerSendAudio = useCallback(
-    (file) => handleEnviarArquivo(file),
+    (file) => handleEnviarArquivo(file, { tipo: "voice" }),
     [handleEnviarArquivo]
   );
 
