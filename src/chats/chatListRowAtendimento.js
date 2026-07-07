@@ -107,19 +107,20 @@ export function getListaUltimaMensagemCriadoEm(c) {
 /** Timestamp efetivo para ordenação estilo WhatsApp (mais recente no topo). */
 export function getChatListSortTimestampMs(c) {
   if (!c) return 0;
-  const candidates = [
-    pickListaUltimaMensagem(c)?.criado_em,
-    c?.ultima_mensagem?.criado_em,
-    c?.ultima_mensagem_preview?.criado_em,
-    c?.ultima_atividade,
-    c?.criado_em,
-  ];
-  let best = 0;
-  for (const raw of candidates) {
+  const toMs = (raw) => {
     const t = new Date(raw || 0).getTime();
-    if (Number.isFinite(t) && t > best) best = t;
-  }
-  return best;
+    return Number.isFinite(t) ? t : 0;
+  };
+  // Prioriza o tempo da ÚLTIMA MENSAGEM real (estilo WhatsApp). `ultima_atividade` pode ser
+  // inflado por eventos sem mensagem visível (placeholder de mídia, sync de histórico/contatos),
+  // o que embaralharia a ordem — por isso entra só como fallback quando não há mensagem.
+  const msgMs = Math.max(
+    toMs(pickListaUltimaMensagem(c)?.criado_em),
+    toMs(c?.ultima_mensagem?.criado_em),
+    toMs(c?.ultima_mensagem_preview?.criado_em)
+  );
+  if (msgMs > 0) return msgMs;
+  return Math.max(toMs(c?.ultima_atividade), toMs(c?.criado_em));
 }
 
 /** Mescla campos de preview/atividade preservando sempre o timestamp mais recente (socket > API stale). */
