@@ -3024,10 +3024,11 @@ function ConversaViewBody() {
     }
     if (!modoSimplesAtivo || !conversaId) return;
     const merged = buildConversaModoSimplesUiSource(conversa, fromChat, mensagens);
-    if (isClosedAttendance(merged)) return;
-    if (isModoSimplesAguardandoAtendente(merged, user)) {
-      setModoSimplesMarcarLidaAtivo(true);
+    if (isClosedAttendance(merged)) {
+      setModoSimplesMarcarLidaAtivo(false);
+      return;
     }
+    setModoSimplesMarcarLidaAtivo(isModoSimplesAguardandoAtendente(merged, user));
   }, [conversaId, modoSimplesAtivo, fromChat, conversa, mensagens, user]);
 
   const showMarcarLidaModoSimplesBar = useMemo(() => {

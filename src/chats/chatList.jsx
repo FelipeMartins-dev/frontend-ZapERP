@@ -41,6 +41,7 @@ import {
   isConversaEmAtendimentoBadge,
   isConversaPagamentoPendente,
   isConversaEmAtrasoPagamento,
+  sortChatListByRecent,
 } from "./chatListRowAtendimento";
 import { isUsuarioSetorFinanceiro } from "../utils/financeiroSector";
 import { useAdminAtendenteFilter } from "./useAdminAtendenteFilter";
@@ -1176,10 +1177,10 @@ export default function ChatList() {
             pendentesFuncionarioSet,
           });
         }
-        if (strictListTabs.has(tab)) return merged;
-        if (aguardandoQuery || aguardandoAtendenteQuery) return merged;
-        if (tempoParadoFilter) return merged;
-        if (strictMensagemDisparadaQuery) return merged;
+        if (strictListTabs.has(tab)) return sortChatListByRecent(merged);
+        if (aguardandoQuery || aguardandoAtendenteQuery) return sortChatListByRecent(merged);
+        if (tempoParadoFilter) return sortChatListByRecent(merged);
+        if (strictMensagemDisparadaQuery) return sortChatListByRecent(merged);
         if (extra.length === 0) return merged;
         const getTs = (x) => x?.ultima_mensagem?.criado_em || x?.ultima_atividade || x?.criado_em || 0;
         const combined = [...merged, ...extra];
@@ -1427,7 +1428,12 @@ export default function ChatList() {
       return;
     }
     const hasVisibleChats = (useChatStore.getState().chats?.length ?? 0) > 0;
-    if (hasVisibleChats && Date.now() - lastLoadFinishedAtRef.current < 2500) {
+    const tabAtual = tabRef.current;
+    const throttleResync =
+      hasVisibleChats &&
+      Date.now() - lastLoadFinishedAtRef.current < 2500 &&
+      tabAtual !== "aguardando_atendente";
+    if (throttleResync) {
       void refreshChatFilterCounts({ silent: true });
       if (isMobileLayout) clearChatListRowsFilterSessionCache(filterScopeKey);
       return;

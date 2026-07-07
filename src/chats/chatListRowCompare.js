@@ -89,6 +89,10 @@ export function chatRowPropsAreEqual(prev, next) {
     String(getListaUltimaMensagemCriadoEm(a) ?? "") === String(getListaUltimaMensagemCriadoEm(b) ?? "") &&
     String(a?.ultima_mensagem?.id ?? a?.ultima_mensagem?.whatsapp_id ?? "") ===
       String(b?.ultima_mensagem?.id ?? b?.ultima_mensagem?.whatsapp_id ?? "") &&
+    String(a?.modo_simples_aguardando ?? "") === String(b?.modo_simples_aguardando ?? "") &&
+    Boolean(a?.atendimento_modo_simples) === Boolean(b?.atendimento_modo_simples) &&
+    Boolean(a?.lida) === Boolean(b?.lida) &&
+    Boolean(a?.tem_novas_mensagens) === Boolean(b?.tem_novas_mensagens) &&
     ultimaMensagemOutboundStatusKey(a) === ultimaMensagemOutboundStatusKey(b) &&
     chatRowLastPreviewKey(a) === chatRowLastPreviewKey(b) &&
     chatRowContactSurfaceKey(a) === chatRowContactSurfaceKey(b) &&

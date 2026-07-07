@@ -863,7 +863,11 @@ export const useConversaStore = create((set, get) => {
           merged?.status_atendimento != null ||
           merged?.status_atendimento_real != null ||
           merged?.aguardando_cliente_desde !== undefined ||
-          merged?.exibir_badge_aberta !== undefined
+          merged?.exibir_badge_aberta !== undefined ||
+          merged?.modo_simples_aguardando !== undefined ||
+          merged?.atendimento_modo_simples === true ||
+          merged?.lida !== undefined ||
+          merged?.unread_count !== undefined
         ) {
           useChatStore.getState().updateChat({
             id,
@@ -871,6 +875,14 @@ export const useConversaStore = create((set, get) => {
             status_atendimento_real: merged?.status_atendimento_real,
             aguardando_cliente_desde: merged?.aguardando_cliente_desde,
             exibir_badge_aberta: merged?.exibir_badge_aberta,
+            ...(merged?.modo_simples_aguardando !== undefined
+              ? { modo_simples_aguardando: merged.modo_simples_aguardando }
+              : {}),
+            ...(merged?.atendimento_modo_simples === true
+              ? { atendimento_modo_simples: true }
+              : {}),
+            ...(merged?.lida !== undefined ? { lida: merged.lida } : {}),
+            ...(merged?.unread_count !== undefined ? { unread_count: merged.unread_count } : {}),
           })
         }
       } catch (err) {

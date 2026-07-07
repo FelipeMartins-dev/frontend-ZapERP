@@ -7,6 +7,7 @@ import {
   ultimaMensagemRefsEqual,
 } from "./chatListStoreCompare"
 import { chatRowStableKey } from "./chatRowStableKey"
+import { getChatListSortTimestampMs, sortChatListByRecent } from "./chatListRowAtendimento"
 
 /** Chave canônica para dedupe: conv id ou escopo instância + contato */
 function canonicalKey(c) {
@@ -20,14 +21,9 @@ let chatListResyncWindowStart = 0
 const CHAT_LIST_RESYNC_DEBOUNCE_MS = 180
 const CHAT_LIST_RESYNC_MAX_WAIT_MS = 700
 
-/** Ordena conversas por ultima_atividade DESC (mais recente no topo) */
+/** Ordena conversas por última mensagem/atividade DESC (mais recente no topo). */
 function sortConversasByRecent(arr) {
-  if (!Array.isArray(arr) || arr.length <= 1) return arr
-  return [...arr].sort((a, b) => {
-    const ta = new Date(a?.ultima_atividade ?? a?.ultima_mensagem?.criado_em ?? a?.criado_em ?? 0).getTime()
-    const tb = new Date(b?.ultima_atividade ?? b?.ultima_mensagem?.criado_em ?? b?.criado_em ?? 0).getTime()
-    return tb - ta
-  })
+  return sortChatListByRecent(arr)
 }
 
 /** Remove duplicatas: mantém a que tem telefone (não lid), ultima_atividade maior, nome/foto preenchidos */
@@ -50,7 +46,7 @@ function dedupeConversas(list) {
       const s = String(t || "").trim()
       return s && !s.toLowerCase().startsWith("lid:")
     }
-    const ts = (x) => new Date(x?.ultima_atividade ?? x?.ultima_mensagem?.criado_em ?? x?.criado_em ?? 0).getTime()
+    const ts = (x) => getChatListSortTimestampMs(x)
     const hasName = (x) => !!(x?.contato_nome ?? x?.nome_contato_cache ?? x?.nome_grupo ?? "").trim()
     const hasFoto = (x) => !!(x?.foto_perfil ?? x?.foto_perfil_contato_cache ?? "").trim()
     let keep = c
@@ -121,12 +117,12 @@ export const useChatStore = create((set, get) => ({
   setChats: (chats) => {
     const arr = typeof chats === "function" ? null : (chats || [])
     if (arr) {
-      const next = dedupeConversas(arr)
+      const next = sortConversasByRecent(dedupeConversas(arr))
       if (chatListsStoreEquivalent(get().chats, next)) return
       set({ chats: next })
     } else {
       set((state) => {
-        const next = dedupeConversas(chats(state.chats || []) || [])
+        const next = sortConversasByRecent(dedupeConversas(chats(state.chats || []) || []))
         if (chatListsStoreEquivalent(state.chats, next)) return state
         return { chats: next }
       })
@@ -438,7 +434,7 @@ export const useChatStore = create((set, get) => ({
   },
 
   /** Atualiza ultima_mensagem E move para o topo em uma única operação — evita contato "sumir" */
-  setUltimaMensagemEBump: (conversa_id, msg) => {
+  setUltimaMensagemEBump: (conversa_id, msg, rowPatch = null) => {
     set((state) => {
       const chats = state.chats || []
       const idx = chats.findIndex((c) => String(c.id) === String(conversa_id))
@@ -450,6 +446,7 @@ export const useChatStore = create((set, get) => ({
         mergedUm?.direcao === "out" ||
         mergedUm?.fromMe === true ||
         String(mergedUm?.direcao || "").toLowerCase() === "outbound"
+      const extra = rowPatch && typeof rowPatch === "object" ? rowPatch : {}
       const updated = chats.map((c) =>
         String(c.id) === String(conversa_id)
           ? {
@@ -458,6 +455,7 @@ export const useChatStore = create((set, get) => ({
               ultima_mensagem_preview: mergedUm,
               ultima_atividade: atividade,
               ...(dirOut ? { tem_novas_mensagens_em_atendimento: false } : {}),
+              ...extra,
             }
           : c
       )

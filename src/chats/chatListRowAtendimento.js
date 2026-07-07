@@ -5,6 +5,7 @@ import {
   isCobrancaFinanceiraStatus,
   isModoSimplesAguardandoAtendente,
   isModoSimplesAguardandoCliente,
+  resolveModoSimplesAguardandoEffective,
 } from "../utils/conversaUtils";
 import { getContactDisplay } from "./chatListDisplay";
 
@@ -67,15 +68,44 @@ export function getLastDirection(chat) {
   return best.dir;
 }
 
-/** Timestamp da última mensagem visível na lista (preview > mensagens[0] > última). */
+/** Timestamp da última mensagem visível na lista (ultima_mensagem > preview > mensagens[0] > última). */
 export function getListaUltimaMensagemCriadoEm(c) {
   if (!c) return null;
+  const u = c?.ultima_mensagem?.criado_em;
+  if (u) return String(u).trim() || null;
   const p = c?.ultima_mensagem_preview?.criado_em;
   if (p) return String(p).trim() || null;
   const m0 = c?.mensagens?.[0]?.criado_em;
   if (m0) return String(m0).trim() || null;
   const last = getLastMessage(c)?.criado_em;
   return last ? String(last).trim() || null : null;
+}
+
+/** Timestamp efetivo para ordenação estilo WhatsApp (mais recente no topo). */
+export function getChatListSortTimestampMs(c) {
+  if (!c) return 0;
+  const candidates = [
+    c?.ultima_mensagem?.criado_em,
+    c?.ultima_mensagem_preview?.criado_em,
+    getListaUltimaMensagemCriadoEm(c),
+    getLastMessage(c)?.criado_em,
+    c?.ultima_atividade,
+    c?.criado_em,
+  ];
+  let best = 0;
+  for (const raw of candidates) {
+    const t = new Date(raw || 0).getTime();
+    if (Number.isFinite(t) && t > best) best = t;
+  }
+  return best;
+}
+
+/** Ordena conversas por atividade mais recente (DESC). */
+export function sortChatListByRecent(arr) {
+  if (!Array.isArray(arr) || arr.length <= 1) return arr;
+  return [...arr].sort(
+    (a, b) => getChatListSortTimestampMs(b) - getChatListSortTimestampMs(a)
+  );
 }
 
 export function isConversaAguardandoCliente(c, user) {
@@ -193,7 +223,9 @@ export function isEmAtendimentoUltimaDoCliente(c) {
 
 export function getEsperaMinutosAnchorIso(c, pendentesIdSet, user) {
   if (!c || isGroupConversation(c)) return "";
-  if (isModoSimplesAguardandoAtendente(c, user)) {
+  const modoSimplesUi =
+    c?.atendimento_modo_simples === true || user?.atendimento_modo_simples === true;
+  if (modoSimplesUi && resolveModoSimplesAguardandoEffective(c, user) === "atendente") {
     const lastMsgTs = getListaUltimaMensagemCriadoEm(c);
     const ultimaAtiv = c?.ultima_atividade != null ? String(c.ultima_atividade).trim() : "";
     return lastMsgTs || ultimaAtiv || "";

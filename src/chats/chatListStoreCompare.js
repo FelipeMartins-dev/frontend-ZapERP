@@ -40,6 +40,9 @@ export function chatRowListStoreKey(c) {
     String(c.ultima_atividade ?? ""),
     String(getListaUltimaMensagemCriadoEm(c) ?? ""),
     String(c?.ultima_mensagem?.id ?? c?.ultima_mensagem?.whatsapp_id ?? ""),
+    String(c?.modo_simples_aguardando ?? ""),
+    Boolean(c?.atendimento_modo_simples),
+    Boolean(c?.lida),
     chatRowLastPreviewKey(c),
     chatRowContactSurfaceKey(c),
   ];

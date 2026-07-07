@@ -76,6 +76,7 @@ function updateDocumentTitleFromChats() {
  */
 function applyRetomadaSeAguardandoPorMensagemRecebida(conversaId, msg) {
   if (conversaId == null || conversaId === "") return
+  if (isEmpresaModoSimplesAtivoCliente()) return
   if (msg?.fromMe) return
   const d = String(msg?.direcao || "").toLowerCase()
   if (d === "out" || d === "outbound" || d === "enviada" || d === "enviado") return
@@ -229,6 +230,45 @@ function isEmpresaModoSimplesAtivoCliente() {
   } catch {
     return false
   }
+}
+
+/**
+ * Atualização otimista do modo simples ao receber nova_mensagem — evita janela morta
+ * entre nova_mensagem e conversa_atualizada (ex.: após marcar como lida).
+ */
+function resolveOptimisticModoSimplesAguardando(msg) {
+  if (!isEmpresaModoSimplesAtivoCliente() || !msg) return null
+  const dir = String(msg?.direcao || "").toLowerCase().trim()
+  const isOut =
+    msg?.fromMe === true ||
+    dir === "out" ||
+    dir === "outbound" ||
+    dir === "enviada" ||
+    dir === "enviado"
+  if (!isOut) return "atendente"
+  if (msg?.autor_usuario_id != null && String(msg.autor_usuario_id).trim() !== "") {
+    return "cliente"
+  }
+  return null
+}
+
+function buildModoSimplesOptimisticPatch(msg) {
+  const aguardando = resolveOptimisticModoSimplesAguardando(msg)
+  if (!aguardando) return null
+  return {
+    modo_simples_aguardando: aguardando,
+    atendimento_modo_simples: true,
+  }
+}
+
+function applyModoSimplesOptimisticFromMessage(conversaId, msg) {
+  const patch = buildModoSimplesOptimisticPatch(msg)
+  if (!patch) return null
+  const convStore = useConversaStore.getState()
+  if (convStore.selectedId && String(convStore.selectedId) === String(conversaId)) {
+    convStore.patchConversa({ id: conversaId, ...patch })
+  }
+  return patch
 }
 
 function canViewInternalAttendanceMessage() {
@@ -851,10 +891,13 @@ export function initSocket(token) {
       }
     }
 
+    const modoSimplesRowPatch = applyModoSimplesOptimisticFromMessage(conversaId, msg)
+
     if (typeof chatStore.setUltimaMensagemEBump === "function") {
-      chatStore.setUltimaMensagemEBump(conversaId, msg)
+      chatStore.setUltimaMensagemEBump(conversaId, msg, modoSimplesRowPatch)
     } else {
       chatStore.setUltimaMensagem(conversaId, msg)
+      if (modoSimplesRowPatch) chatStore.updateChat({ id: conversaId, ...modoSimplesRowPatch })
       chatStore.bumpChatToTop(conversaId)
     }
 
@@ -1385,6 +1428,10 @@ export function initSocket(token) {
           if ("status_atendimento_real" in chat) meta.status_atendimento_real = chat.status_atendimento_real
           if ("aguardando_cliente_desde" in chat) meta.aguardando_cliente_desde = chat.aguardando_cliente_desde
           if ("exibir_badge_aberta" in chat) meta.exibir_badge_aberta = chat.exibir_badge_aberta
+          if ("modo_simples_aguardando" in chat) meta.modo_simples_aguardando = chat.modo_simples_aguardando
+          if (chat.atendimento_modo_simples === true) meta.atendimento_modo_simples = true
+          if ("lida" in chat) meta.lida = chat.lida
+          if ("unread_count" in chat) meta.unread_count = chat.unread_count
           useConversaStore.getState().patchConversa(meta)
         }
         /* fetchChatById + addChat bastam quando o sinal não impacta fila; senão alinha Minha fila */
