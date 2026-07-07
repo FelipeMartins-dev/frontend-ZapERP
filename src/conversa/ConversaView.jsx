@@ -46,6 +46,7 @@ import { saveReplyMeta } from "./replyMeta";
 import {
   buildOptimisticOutgoingMessage,
   bumpChatListWithOptimisticMessage,
+  applyModoSimplesClienteOnOutgoingSend,
   extractArquivoApiFailures,
   extractArquivoApiReconciliations,
   normalizeArquivoApiToMessage,
@@ -972,7 +973,7 @@ function ConversaViewBody() {
 
   const appendOutgoingOptimisticMessage = useCallback(
     (optimisticMsg, opts = {}) => {
-      if (!optimisticMsg) return;
+      if (!optimisticMsg) return null;
       if (!userScrollLockRef.current) {
         shouldStickToBottomRef.current = true;
       }
@@ -982,10 +983,27 @@ function ConversaViewBody() {
       } catch {
         anexarMensagemImediata(optimisticMsg);
       }
+      const meta = fromChat ?? conversa;
+      let modoSimplesRevert = null;
       if (opts.bumpList !== false) {
-        bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, fromChat ?? conversa);
+        if (modoSimplesAtivo) {
+          modoSimplesRevert = applyModoSimplesClienteOnOutgoingSend(conversaId, optimisticMsg, {
+            conversaMeta: meta,
+            modoSimplesAtivo: true,
+            bumpList: true,
+          }).revert;
+        } else {
+          bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, meta);
+        }
+      } else if (modoSimplesAtivo) {
+        modoSimplesRevert = applyModoSimplesClienteOnOutgoingSend(conversaId, optimisticMsg, {
+          conversaMeta: meta,
+          modoSimplesAtivo: true,
+          bumpList: false,
+        }).revert;
       }
       snapOptimisticSendToBottom();
+      return modoSimplesRevert;
     },
     [
       anexarMensagemImediata,
@@ -993,6 +1011,7 @@ function ConversaViewBody() {
       conversaId,
       fromChat,
       markOptimisticSeen,
+      modoSimplesAtivo,
       snapOptimisticSendToBottom,
     ]
   );
@@ -1678,7 +1697,7 @@ function ConversaViewBody() {
         message_id: tempId,
       });
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
-      appendOutgoingOptimisticMessage(optimisticMsg);
+      const revertModoSimples = appendOutgoingOptimisticMessage(optimisticMsg);
       clearPending();
 
       const formData = new FormData();
@@ -1730,6 +1749,7 @@ function ConversaViewBody() {
         ];
         scheduleArquivoSendConsistencyCheck(conversaId, [tempId], { knownIds });
       } catch (err) {
+        revertModoSimples?.();
         revertOutgoingStatus?.();
         const is403 = err?.response?.status === 403;
         const apiMsg = err?.response?.data?.error;
@@ -1809,6 +1829,7 @@ function ConversaViewBody() {
       const tempIds = [];
       shouldStickToBottomRef.current = true;
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
+      let revertModoSimples = null;
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f });
@@ -1820,7 +1841,8 @@ function ConversaViewBody() {
           phone: conversa?.phone ?? conversa?.telefone ?? conversa?.cliente_telefone,
           message_id: optimisticMsg.tempId,
         });
-        appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
+        const modoRevert = appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
+        if (modoRevert) revertModoSimples = modoRevert;
       }
 
       const formData = new FormData();
@@ -1879,6 +1901,7 @@ function ConversaViewBody() {
           });
         }
       } catch (err) {
+        revertModoSimples?.();
         revertOutgoingStatus?.();
         const is403 = err?.response?.status === 403;
         const apiMsg = err?.response?.data?.error;
@@ -1972,6 +1995,7 @@ function ConversaViewBody() {
       const tempIds = [];
       shouldStickToBottomRef.current = true;
       const revertOutgoingStatus = applyOutgoingStatusOptimistic();
+      let revertModoSimples = null;
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         const optimisticMsg = buildOptimisticOutgoingMessage({ conversaId, file: f });
@@ -1983,7 +2007,8 @@ function ConversaViewBody() {
           phone: conversa?.phone ?? conversa?.telefone ?? conversa?.cliente_telefone,
           message_id: optimisticMsg.tempId,
         });
-        appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
+        const modoRevert = appendOutgoingOptimisticMessage(optimisticMsg, { bumpList: i === files.length - 1 });
+        if (modoRevert) revertModoSimples = modoRevert;
       }
 
       const formData = new FormData();
@@ -2042,6 +2067,7 @@ function ConversaViewBody() {
           });
         }
       } catch (err) {
+        revertModoSimples?.();
         revertOutgoingStatus?.();
         const is403 = err?.response?.status === 403;
         const apiMsg = err?.response?.data?.error;
@@ -2231,7 +2257,7 @@ function ConversaViewBody() {
     });
     const tempId = optimisticMsg.tempId;
     const revertOutgoingStatus = applyOutgoingStatusOptimistic();
-    appendOutgoingOptimisticMessage(optimisticMsg);
+    const revertModoSimples = appendOutgoingOptimisticMessage(optimisticMsg);
     setReplyTo(null);
 
     const runSend = async () => {
@@ -2253,6 +2279,7 @@ function ConversaViewBody() {
         }
       } catch (err) {
         envioFalhou = true;
+        revertModoSimples?.();
         revertOutgoingStatus?.();
         console.error("Erro ao enviar mensagem:", err);
         const is403 = err?.response?.status === 403;

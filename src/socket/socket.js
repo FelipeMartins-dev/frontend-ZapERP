@@ -246,9 +246,14 @@ function resolveOptimisticModoSimplesAguardando(msg) {
     dir === "enviada" ||
     dir === "enviado"
   if (!isOut) return "atendente"
-  if (msg?.autor_usuario_id != null && String(msg.autor_usuario_id).trim() !== "") {
-    return "cliente"
-  }
+  const autorId =
+    msg?.autor_usuario_id ??
+    msg?.usuario_id ??
+    msg?.user_id ??
+    msg?.autor_id
+  if (autorId != null && String(autorId).trim() !== "") return "cliente"
+  const tempId = msg?.client_temp_id ?? msg?.clientTempId ?? msg?.temp_id
+  if (tempId != null && String(tempId).trim() !== "") return "cliente"
   return null
 }
 

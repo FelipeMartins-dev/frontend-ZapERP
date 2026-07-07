@@ -1,4 +1,6 @@
 import { useChatStore } from "../chats/chatsStore";
+import { useConversaStore } from "./conversaStore";
+import { isGroupConversation } from "../utils/conversaUtils";
 import {
   fileToPreviewURL,
   getAudioFilename,
@@ -374,12 +376,13 @@ export function reconcileForwardOptimisticTemps(tempIds, apiOutcome, reconciliar
 }
 
 /** Atualiza preview na lista lateral (mesma regra do envio de texto). */
-export function bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, conversaMeta) {
+export function bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, conversaMeta, rowPatch = null) {
   if (!conversaId || !optimisticMsg) return;
   const chatStore = useChatStore.getState();
   const chats = chatStore.chats || [];
   const jaNaLista = chats.some((c) => String(c?.id) === String(conversaId));
-  
+  const extra = rowPatch && typeof rowPatch === "object" ? rowPatch : {};
+
   if (!jaNaLista && conversaMeta) {
     const nome =
       conversaMeta?.contato_nome ||
@@ -391,14 +394,71 @@ export function bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, con
       contato_nome: nome || undefined,
       foto_perfil: conversaMeta?.foto_perfil,
       ultima_mensagem: optimisticMsg,
+      ...extra,
     });
   } else {
     // ⭐ CORREÇÃO: Colocado no else para evitar dupla mutação no Zustand se o chat acabou de ser criado pelo addChat
     if (typeof chatStore.setUltimaMensagemEBump === "function") {
-      chatStore.setUltimaMensagemEBump(conversaId, optimisticMsg);
+      chatStore.setUltimaMensagemEBump(conversaId, optimisticMsg, extra);
     } else {
       chatStore.setUltimaMensagem(conversaId, optimisticMsg);
+      if (Object.keys(extra).length > 0) chatStore.updateChat({ id: conversaId, ...extra });
       chatStore.bumpChatToTop(conversaId);
     }
   }
+}
+
+/**
+ * Modo simples: ao enviar resposta do CRM, muda imediatamente para aguardando cliente
+ * (sai da aba Aguardando atendente) + atualiza preview na lista.
+ * @returns {{ revert: (() => void)|null }}
+ */
+export function applyModoSimplesClienteOnOutgoingSend(conversaId, optimisticMsg, opts = {}) {
+  const { conversaMeta, modoSimplesAtivo, bumpList = true } = opts;
+  if (!modoSimplesAtivo || !conversaId || isGroupConversation(conversaMeta)) {
+    return { revert: null };
+  }
+
+  const patch = {
+    modo_simples_aguardando: "cliente",
+    atendimento_modo_simples: true,
+  };
+
+  const convStore = useConversaStore.getState();
+  const chatStore = useChatStore.getState();
+  const openConv =
+    convStore.conversa && String(convStore.conversa.id) === String(conversaId)
+      ? convStore.conversa
+      : null;
+  const row = (chatStore.chats || []).find((c) => String(c?.id) === String(conversaId));
+
+  const revertOpen = openConv
+    ? {
+        id: conversaId,
+        modo_simples_aguardando: openConv.modo_simples_aguardando ?? null,
+        atendimento_modo_simples: openConv.atendimento_modo_simples === true,
+      }
+    : null;
+  const revertRow = row
+    ? {
+        id: conversaId,
+        modo_simples_aguardando: row.modo_simples_aguardando ?? null,
+        atendimento_modo_simples: row.atendimento_modo_simples === true,
+      }
+    : null;
+
+  convStore.patchConversa({ id: conversaId, ...patch });
+
+  if (bumpList && optimisticMsg) {
+    bumpChatListWithOptimisticMessage(conversaId, optimisticMsg, conversaMeta, patch);
+  } else {
+    chatStore.updateChat({ id: conversaId, ...patch });
+  }
+
+  return {
+    revert: () => {
+      if (revertOpen) convStore.patchConversa(revertOpen);
+      if (revertRow) chatStore.updateChat(revertRow);
+    },
+  };
 }
