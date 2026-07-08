@@ -1860,7 +1860,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               ref={fototecaInputRef}
               type="file"
               style={{ display: "none" }}
-              accept="image/*,video/*"
+              accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/heic,image/heif,video/mp4,video/webm,video/3gpp,video/quicktime,video/x-msvideo"
               multiple
               onChange={onFototecaInputChange}
             />
