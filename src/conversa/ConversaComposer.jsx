@@ -1767,6 +1767,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               <button
                 type="button"
                 className={`wa-iconBtn wa-attachPlus ${attachMenuOpen ? "isOpen" : ""}`}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   closeSavedReplies();
                   setAttachMenuOpen((v) => !v);
@@ -1818,6 +1819,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 ref={stickerBtnRef}
                 type="button"
                 className={`wa-iconBtn wa-stickerBtn ${stickerOpen ? "isActive" : ""}`}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   closeSavedReplies();
                   setStickerOpen((v) => !v);
@@ -1917,6 +1919,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               <button
                 type="button"
                 className={`wa-iconBtn ${emojiOpen ? "isActive" : ""}`}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   closeSavedReplies();
                   setEmojiOpen((v) => !v);
@@ -1933,6 +1936,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
             {headerCompact && !hasDraft ? (
               <button
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={handleOpenCameraCapture}
                 disabled={sending || !conversaId || !podeEnviar}
                 className="wa-iconBtn wa-cameraQuickBtn"
@@ -1963,6 +1967,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                   </button>
                 ) : (
                   <button
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={handleStartRecording}
                     disabled={sending || !conversaId || !podeEnviar}
                     className="wa-micBtn"
@@ -1976,6 +1981,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               ) : (
                 <>
                   <button
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={handleStartRecording}
                     disabled={sending || !conversaId || !podeEnviar}
                     className="wa-micBtn"
