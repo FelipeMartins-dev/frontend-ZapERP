@@ -541,17 +541,6 @@ function ConversaViewBody() {
       }
     };
 
-    const syncComposerHeight = () => {
-      const stack = shell.querySelector(".wa-composerStack");
-      if (!mq.matches || !stack) {
-        setViewportCssVars({ "--wa-composer-stack-h": null });
-        return;
-      }
-      setViewportCssVars({
-        "--wa-composer-stack-h": `${Math.ceil(stack.getBoundingClientRect().height)}px`,
-      });
-    };
-
     const syncHeaderLayout = () => {
       if (!mq.matches) {
         setViewportCssVars({
@@ -566,10 +555,22 @@ function ConversaViewBody() {
         return;
       }
 
-      shell.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
-      root.style.setProperty("--wa-mobile-header-h", `${header.offsetHeight}px`);
-
+      // Fase de LEITURA: todas as medições antes de qualquer escrita no DOM.
+      // Intercalar leitura/escrita força reflows síncronos — este handler roda
+      // dezenas de vezes durante a animação do teclado (visualViewport resize/scroll).
+      const headerH = header.offsetHeight;
       const mediaPreviewOpen = Boolean(shell.querySelector(".wa-mediaPreview"));
+      const stack = mediaPreviewOpen ? null : shell.querySelector(".wa-composerStack");
+      const stackH = stack ? Math.ceil(stack.getBoundingClientRect().height) : null;
+      const vvNow = window.visualViewport;
+      const input = getComposerInput();
+      const inputFocused = Boolean(input && document.activeElement === input);
+      const ih = window.innerHeight;
+
+      // Fase de ESCRITA
+      shell.style.setProperty("--wa-mobile-header-h", `${headerH}px`);
+      root.style.setProperty("--wa-mobile-header-h", `${headerH}px`);
+
       if (mediaPreviewOpen) {
         shell.classList.remove("wa-keyboard-visible");
         mobileKeyboardWasVisibleRef.current = false;
@@ -582,12 +583,7 @@ function ConversaViewBody() {
         return;
       }
 
-      const vvNow = window.visualViewport;
-      const input = getComposerInput();
-      const inputFocused = Boolean(input && document.activeElement === input);
-
       if (vvNow) {
-        const ih = window.innerHeight;
         const visibleH = vvNow.height;
         const kbInset = Math.max(0, ih - visibleH - vvNow.offsetTop);
         if (!inputFocused && kbInset < 48) {
@@ -605,12 +601,12 @@ function ConversaViewBody() {
           "--wa-vv-top": `${vvNow.offsetTop}px`,
           "--wa-keyboard-inset": `${kbInset}px`,
           "--wa-visual-height": `${visibleH}px`,
+          "--wa-composer-stack-h": stackH != null ? `${stackH}px` : null,
         });
 
         const wasKeyboard = mobileKeyboardWasVisibleRef.current;
         shell.classList.toggle("wa-keyboard-visible", keyboardOpen);
         mobileKeyboardWasVisibleRef.current = keyboardOpen;
-        syncComposerHeight();
         if (!keyboardOpen && wasKeyboard) {
           shouldStickToBottomRef.current = false;
         }
@@ -618,12 +614,11 @@ function ConversaViewBody() {
         setViewportCssVars({
           "--wa-keyboard-inset": null,
           "--wa-visual-height": null,
+          "--wa-composer-stack-h": stackH != null ? `${stackH}px` : null,
         });
         shell.classList.remove("wa-keyboard-visible");
         mobileKeyboardWasVisibleRef.current = false;
       }
-
-      syncComposerHeight();
     };
 
     const syncTimers = new Set();
@@ -654,8 +649,22 @@ function ConversaViewBody() {
     if (mq.addEventListener) mq.addEventListener("change", onMqChange);
     else mq.addListener(onMqChange);
 
+    // visualViewport resize/scroll dispara em rajada contínua durante a animação
+    // do teclado — coalesce para 1 sync por frame + 1 sync de assentamento no fim,
+    // em vez do burst completo (sync + rAF + 3 timers) a cada evento.
     const vv = window.visualViewport;
-    const onVv = () => scheduleSyncHeaderLayout();
+    let vvRafId = 0;
+    let vvSettleTimer = 0;
+    const onVv = () => {
+      if (!vvRafId) {
+        vvRafId = window.requestAnimationFrame(() => {
+          vvRafId = 0;
+          syncHeaderLayout();
+        });
+      }
+      window.clearTimeout(vvSettleTimer);
+      vvSettleTimer = window.setTimeout(syncHeaderLayout, 140);
+    };
     if (vv) {
       vv.addEventListener("resize", onVv);
       vv.addEventListener("scroll", onVv);
@@ -674,6 +683,8 @@ function ConversaViewBody() {
         vv.removeEventListener("resize", onVv);
         vv.removeEventListener("scroll", onVv);
       }
+      if (vvRafId) window.cancelAnimationFrame(vvRafId);
+      window.clearTimeout(vvSettleTimer);
       document.removeEventListener("focusin", onInputFocusBlur);
       document.removeEventListener("focusout", onInputFocusBlur);
       syncTimers.forEach((id) => window.clearTimeout(id));

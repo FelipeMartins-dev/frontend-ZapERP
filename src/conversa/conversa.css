@@ -10475,6 +10475,9 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
     height: auto;
     min-height: 0;
     background: var(--wa-header-bg);
+    /* Fundo opaco: o blur da regra base fica invisível mas custa GPU a cada frame de scroll */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     visibility: visible;
     opacity: 1;
     overflow: visible;
