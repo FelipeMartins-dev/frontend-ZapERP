@@ -1,5 +1,21 @@
 /* ZapERP — Web Push (VAPID). Android/iOS tratam som, prioridade e entrega em segundo plano de forma distinta; não há API aqui para uniformizar. */
+// Marcador de versão do Service Worker. Serve para COMPARAR máquinas: um PC preso numa
+// versão antiga do PWA responderá com versão diferente (ou não responderá) ao ZAP_SW_VERSION.
+// Atualize a data quando mudar a lógica do SW.
+const SW_VERSION = '2026-07-08-notif-audit'
 const SUPPRESS_REPLY_MS = 180
+
+// Responde a versão do SW a quem perguntar (usado pelo diagnóstico no console).
+self.addEventListener('message', (event) => {
+  try {
+    if (event && event.data && event.data.type === 'ZAP_SW_VERSION') {
+      const port = event.ports && event.ports[0]
+      if (port && typeof port.postMessage === 'function') {
+        port.postMessage({ swVersion: SW_VERSION })
+      }
+    }
+  } catch (_) {}
+})
 
 /**
  * Pergunta a UM cliente se o Web Push deve ser suprimido (ele já mostra o card local).
