@@ -1733,6 +1733,24 @@ function ConversaViewBody() {
       } else if (opts.tipo === "voice" || opts.tipo === "audio") {
         formData.append("tipo", opts.tipo);
       }
+      if (opts.tipo === "voice" || opts.tipo === "audio" || isAudioFile(file)) {
+        const audioDurationMs = Number(file?.__zaperpAudioDurationMs || 0);
+        const audioElapsedMs = Number(file?.__zaperpAudioElapsedMs || 0);
+        const audioBytes = Number(file?.__zaperpAudioBytes || file?.size || 0);
+        const audioMime = String(file?.__zaperpAudioMimeType || file?.type || "").trim();
+        if (Number.isFinite(audioDurationMs) && audioDurationMs > 0) {
+          formData.append("audio_duration_ms", String(Math.round(audioDurationMs)));
+        }
+        if (Number.isFinite(audioElapsedMs) && audioElapsedMs > 0) {
+          formData.append("audio_elapsed_ms", String(Math.round(audioElapsedMs)));
+        }
+        if (Number.isFinite(audioBytes) && audioBytes > 0) {
+          formData.append("audio_blob_bytes", String(Math.round(audioBytes)));
+        }
+        if (audioMime) {
+          formData.append("audio_recorded_mime", audioMime);
+        }
+      }
       if (legenda) {
         formData.append("caption", legenda);
       }

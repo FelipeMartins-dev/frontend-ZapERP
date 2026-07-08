@@ -40,8 +40,21 @@ const WA_INPUT_MAX_HEIGHT_PX = 160;
 const STICKER_RECENTS_LIMIT = 36;
 const AUTO_CORRECT_CONTEXT_WINDOW = 12;
 const AUTO_CORRECT_CONTEXT_MATCH = 6;
+const RECORDED_AUDIO_MIN_MS = 800;
+const RECORDED_AUDIO_MAX_MS = 10 * 60 * 1000;
+const RECORDED_AUDIO_MIN_BYTES = 512;
+const RECORDED_AUDIO_METADATA_TIMEOUT_MS = 1500;
 /** Menu de anexos em portal (bottom-sheet) só no mobile; no desktop fica no wrapper do +. */
 const ATTACH_MENU_PORTAL_MQ = "(max-width: 640px)";
+
+const RECORDED_AUDIO_MIME_CANDIDATES = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/ogg;codecs=opus",
+  "audio/ogg",
+  "audio/mp4",
+  "audio/aac",
+];
 
 const __WA_EMOJIS = [
   "😀","😁","😂","🤣","😊","😍","😘","😅","😎","🙂","🤝","🙏","👏","🔥","✅","❌","⚠️","⭐","🎉","💡","📎","📌","📞","🎧",
@@ -51,6 +64,81 @@ const __WA_EMOJIS = [
 
 function safeString(v) {
   return v == null ? "" : String(v);
+}
+
+function pickRecordingMimeType() {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return null;
+  return RECORDED_AUDIO_MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type)) || null;
+}
+
+function audioExtensionFromMime(type) {
+  const base = String(type || "").toLowerCase().split(";")[0].trim();
+  if (base.includes("ogg")) return "ogg";
+  if (base.includes("mpeg") || base.includes("mp3")) return "mp3";
+  if (base.includes("mp4") || base.includes("aac") || base.includes("m4a")) return "m4a";
+  if (base.includes("wav")) return "wav";
+  return "webm";
+}
+
+function inspectRecordedAudioBlob(blob) {
+  if (
+    !blob ||
+    typeof Audio === "undefined" ||
+    typeof URL === "undefined" ||
+    typeof URL.createObjectURL !== "function"
+  ) {
+    return Promise.resolve({ durationSec: null, error: null, timedOut: false });
+  }
+
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio();
+    let done = false;
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeoutId);
+      audio.removeAttribute("src");
+      try {
+        audio.load();
+      } catch {
+        /* ignore */
+      }
+      URL.revokeObjectURL(url);
+      resolve(result);
+    };
+    const timeoutId = setTimeout(() => {
+      finish({ durationSec: null, error: null, timedOut: true });
+    }, RECORDED_AUDIO_METADATA_TIMEOUT_MS);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      const durationSec = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : null;
+      finish({ durationSec, error: null, timedOut: false });
+    };
+    audio.onerror = () => {
+      finish({ durationSec: null, error: "decode_error", timedOut: false });
+    };
+    audio.src = url;
+    try {
+      audio.load();
+    } catch {
+      finish({ durationSec: null, error: "decode_error", timedOut: false });
+    }
+  });
+}
+
+function attachRecordedAudioMetadata(file, meta) {
+  try {
+    Object.defineProperties(file, {
+      __zaperpAudioDurationMs: { value: meta.durationMs, enumerable: false },
+      __zaperpAudioElapsedMs: { value: meta.elapsedMs, enumerable: false },
+      __zaperpAudioMimeType: { value: meta.mimeType, enumerable: false },
+      __zaperpAudioBytes: { value: meta.bytes, enumerable: false },
+    });
+  } catch {
+    /* ignore */
+  }
+  return file;
 }
 
 /** Detecta comando "/" no cursor (início da linha ou após espaço). */
@@ -227,6 +315,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const audioChunksRef = useRef([]);
   const recordingCanceledRef = useRef(false);
   const recordingTimerRef = useRef(null);
+  const recordingStartedAtRef = useRef(0);
+  const recordingStopRequestedAtRef = useRef(0);
   const lastConversaIdRef = useRef(conversaId);
   const prevTextLenRef = useRef(0);
   const prevTextConversaRef = useRef(null);
@@ -402,6 +492,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const handleCancelRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       recordingCanceledRef.current = true;
+      recordingStopRequestedAtRef.current = Date.now();
       try {
         if (mediaRecorderRef.current.state !== "inactive") {
           mediaRecorderRef.current.stop();
@@ -411,6 +502,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
       mediaRecorderRef.current = null;
       audioChunksRef.current = [];
+      recordingStartedAtRef.current = 0;
+      recordingStopRequestedAtRef.current = 0;
       setIsRecording(false);
       setRecordingSeconds(0);
       if (recordingTimerRef.current) {
@@ -448,6 +541,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
       mediaRecorderRef.current = null;
       audioChunksRef.current = [];
+      recordingStartedAtRef.current = 0;
+      recordingStopRequestedAtRef.current = 0;
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
         recordingTimerRef.current = null;
@@ -1191,30 +1286,31 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         });
       }
 
-      const preferred = [
-        "audio/ogg;codecs=opus",
-        "audio/ogg",
-        "audio/webm;codecs=opus",
-        "audio/webm",
-      ];
-      const mimeType =
-        typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported
-          ? preferred.find((t) => MediaRecorder.isTypeSupported(t))
-          : null;
+      const mimeType = pickRecordingMimeType();
 
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       audioChunksRef.current = [];
+      recordingStartedAtRef.current = Date.now();
+      recordingStopRequestedAtRef.current = 0;
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data?.size > 0) audioChunksRef.current.push(e.data);
       };
 
       recorder.onstop = async () => {
-        if (recordingCanceledRef.current || audioChunksRef.current.length === 0) return;
+        const wasCanceled = recordingCanceledRef.current;
+        const chunks = audioChunksRef.current.slice();
+        audioChunksRef.current = [];
+        const startedAt = recordingStartedAtRef.current || Date.now();
+        const stoppedAt = recordingStopRequestedAtRef.current || Date.now();
+        const elapsedMs = Math.max(0, stoppedAt - startedAt);
+        recordingStartedAtRef.current = 0;
+        recordingStopRequestedAtRef.current = 0;
+        if (wasCanceled || chunks.length === 0) return;
         const finalType = recorder.mimeType || mimeType || "audio/webm";
-        const ext = finalType.includes("ogg") ? "ogg" : "webm";
-        const blob = new Blob(audioChunksRef.current, { type: finalType });
-        if (blob.size < 50) {
+        const ext = audioExtensionFromMime(finalType);
+        const blob = new Blob(chunks, { type: finalType });
+        if (elapsedMs < RECORDED_AUDIO_MIN_MS || blob.size < RECORDED_AUDIO_MIN_BYTES) {
           showToast?.({
             type: "warning",
             title: "Áudio muito curto",
@@ -1222,7 +1318,54 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           });
           return;
         }
-        const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: finalType });
+        if (elapsedMs > RECORDED_AUDIO_MAX_MS) {
+          showToast?.({
+            type: "warning",
+            title: "Audio muito longo",
+            message: "Envie audios de ate 10 minutos.",
+          });
+          return;
+        }
+        const meta = await inspectRecordedAudioBlob(blob);
+        if (meta.error === "decode_error") {
+          showToast?.({
+            type: "error",
+            title: "Audio invalido",
+            message: "Nao foi possivel finalizar a gravacao. Grave novamente.",
+          });
+          return;
+        }
+        const durationMs = Number.isFinite(meta.durationSec)
+          ? Math.round(meta.durationSec * 1000)
+          : elapsedMs;
+        if (Number.isFinite(durationMs) && durationMs < RECORDED_AUDIO_MIN_MS) {
+          showToast?.({
+            type: "warning",
+            title: "Audio muito curto",
+            message: "Grave por pelo menos 1 segundo antes de enviar.",
+          });
+          return;
+        }
+        if (Number.isFinite(durationMs) && durationMs > RECORDED_AUDIO_MAX_MS + 5000) {
+          showToast?.({
+            type: "warning",
+            title: "Audio muito longo",
+            message: "Envie audios de ate 10 minutos.",
+          });
+          return;
+        }
+        const file = attachRecordedAudioMetadata(
+          new File([blob], `audio-${Date.now()}.${ext}`, {
+            type: finalType,
+            lastModified: Date.now(),
+          }),
+          {
+            durationMs,
+            elapsedMs,
+            mimeType: finalType,
+            bytes: blob.size,
+          }
+        );
         await onSendAudioFile?.(file);
       };
 
@@ -1253,12 +1396,15 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     if (mediaRecorderRef.current && isRecording) {
       try {
         if (mediaRecorderRef.current.state !== "inactive") {
+          recordingStopRequestedAtRef.current = Date.now();
+          mediaRecorderRef.current.requestData?.();
           mediaRecorderRef.current.stop();
         }
       } catch {
         /* ignore */
       }
       mediaRecorderRef.current = null;
+      if (!recordingStopRequestedAtRef.current) recordingStopRequestedAtRef.current = Date.now();
       setIsRecording(false);
       setRecordingSeconds(0);
       if (recordingTimerRef.current) {
