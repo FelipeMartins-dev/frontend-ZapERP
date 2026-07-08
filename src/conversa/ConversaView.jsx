@@ -2566,15 +2566,9 @@ function ConversaViewBody() {
       }
       return;
     }
-    selectModeAnchorRef.current = captureMessagesScrollAnchor(messagesContainerRef.current);
-    setForwardSelectIntent(true);
-    setSelectMode(true);
-    const key = String(msg.id);
-    const ord = [key];
-    selectionOrderRef.current = ord;
-    setSelectionOrder(ord);
-    setSelectedMsgIds({ [key]: true });
-  }, [showToast]);
+    // Go directly to the forward modal — no intermediate selection step needed
+    openForwardFromSelection([String(msg.id)], mensagens);
+  }, [showToast, openForwardFromSelection, mensagens]);
 
   const orderedSelectedIds = useMemo(
     () => (selectionOrder || []).filter((id) => selectedMsgIds?.[id]),

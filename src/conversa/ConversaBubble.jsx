@@ -1099,7 +1099,8 @@ const Bubble = memo(function Bubble({
           )
         )
           return;
-        if (el.closest("button, a[href]")) return;
+        // Media preview buttons (image/video thumbnails) must still allow long-press
+        if (el.closest("button:not(.wa-bubble-imgLink):not(.wa-bubble-videoLink), a[href]")) return;
       }
       clearLongPressTracking();
       const x0 = e.clientX;
