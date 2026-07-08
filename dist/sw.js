@@ -2,12 +2,37 @@
 const SUPPRESS_REPLY_MS = 180
 
 /**
- * Só interroga clientes com janela realmente em foco.
- * Em PWA móvel em segundo plano, matchAll costuma devolver clientes sem foco; esperar resposta deles
- * (MessageChannel + timeout) por cada um tornava o push lento e, em alguns SO, inconsistente após a 1.ª notificação.
+ * Pergunta a UM cliente se o Web Push deve ser suprimido (ele já mostra o card local).
+ * Resolve false se o cliente não responder dentro de SUPPRESS_REPLY_MS — telemóvel suspenso
+ * em segundo plano não responde e o push é mostrado como fallback.
  */
-function clientsComJanelaEmFoco(clientList) {
-  return (clientList || []).filter((c) => typeof c.focused === 'boolean' && c.focused === true)
+function pedeSupressaoAoCliente(client, conversaId) {
+  return new Promise((resolve) => {
+    try {
+      const mc = new MessageChannel()
+      const timer = setTimeout(() => resolve(false), SUPPRESS_REPLY_MS)
+      mc.port1.onmessage = (e) => {
+        clearTimeout(timer)
+        resolve(!!(e && e.data && e.data.suppress))
+      }
+      client.postMessage({ type: 'ZAP_PUSH_SUPPRESS_CHECK', payload: { conversaId } }, [mc.port2])
+    } catch (_) {
+      resolve(false)
+    }
+  })
+}
+
+/**
+ * Interroga TODOS os clientes de janela vivos em paralelo (não só os focados): um cliente
+ * desktop vivo em segundo plano está desfocado mas mostra o card local (Notification API) e
+ * responde "suppress" para evitar card duplicado. Paralelo + timeout curto mantém o push
+ * rápido mesmo com clientes que não respondem (telemóvel suspenso).
+ */
+async function algumClientePedeSupressao(clientList, conversaId) {
+  const clientes = clientList || []
+  if (clientes.length === 0) return false
+  const respostas = await Promise.all(clientes.map((c) => pedeSupressaoAoCliente(c, conversaId)))
+  return respostas.some(Boolean)
 }
 
 self.addEventListener('install', (event) => {
@@ -38,24 +63,7 @@ self.addEventListener('push', (event) => {
           payload?.data?.messageId ??
           payload?.data?.mensagem_id
         const candidatos = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-        const clientesFocados = clientsComJanelaEmFoco(candidatos)
-
-        let suppress = false
-        for (const client of clientesFocados) {
-          try {
-            const mc = new MessageChannel()
-            const done = new Promise((resolve) => {
-              mc.port1.onmessage = (e) => resolve(!!e?.data?.suppress)
-              setTimeout(() => resolve(false), SUPPRESS_REPLY_MS)
-            })
-            client.postMessage({ type: 'ZAP_PUSH_SUPPRESS_CHECK', payload: { conversaId } }, [mc.port2])
-            if (await done) {
-              suppress = true
-              break
-            }
-          } catch (_) {}
-        }
-
+        const suppress = await algumClientePedeSupressao(candidatos, conversaId)
         if (suppress) return
 
         const title = payload.title || 'ZapERP'

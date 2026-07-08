@@ -1,6 +1,7 @@
 import { useConversaStore } from "../conversa/conversaStore"
 import { isAppUiFullyFocusedForSuppress, isConversationRouteActive } from "../notifications/chatNotificationService"
 import { schedulePushSubscriptionSync } from "./deferredPushSync"
+import { shouldDeferLocalNotificationToWebPush } from "./pushPlatform"
 
 const OPEN_CONVERSATION_EVENT = "zaperp:open-conversation-from-notification"
 let initialized = false
@@ -28,6 +29,29 @@ function isSuppressedForFocusedConversation(conversaId) {
   if (!isConversationRouteActive(window.location?.pathname || "")) return false
   const selectedId = useConversaStore.getState().selectedId
   return normalize(selectedId) === cid
+}
+
+/** Em desktop com permissão concedida, o cliente vivo já mostra o card local (Notification API). */
+function clientCanShowLocalDesktopCard() {
+  if (shouldDeferLocalNotificationToWebPush()) return false
+  try {
+    return typeof Notification !== "undefined" && Notification.permission === "granted"
+  } catch (_) {
+    return false
+  }
+}
+
+/**
+ * Decide se este cliente vivo pede ao Service Worker para NÃO mostrar o card do Web Push.
+ * Só clientes vivos respondem a tempo (o SW usa timeout curto); telemóvel suspenso não responde
+ * → o push é mostrado como fallback. Aqui suprimimos quando:
+ *  - a conversa está aberta e em foco (já suprimimos som/card local), ou
+ *  - é um desktop vivo que vai mostrar o card local a partir do socket (evita card duplicado).
+ */
+function shouldSuppressWebPushForThisClient(conversaId) {
+  if (isSuppressedForFocusedConversation(conversaId)) return true
+  if (clientCanShowLocalDesktopCard()) return true
+  return false
 }
 
 function navigateInsideApp(openPath) {
@@ -74,7 +98,7 @@ function handleServiceWorkerMessage(event) {
 
   if (type === "ZAP_PUSH_SUPPRESS_CHECK") {
     const conversaId = normalize(event?.data?.payload?.conversaId)
-    const suppress = isSuppressedForFocusedConversation(conversaId)
+    const suppress = shouldSuppressWebPushForThisClient(conversaId)
     try {
       const port = event?.ports?.[0]
       if (port && typeof port.postMessage === "function") {

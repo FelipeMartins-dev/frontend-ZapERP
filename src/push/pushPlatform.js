@@ -35,12 +35,14 @@ function isAndroidDevice() {
  */
 export function shouldDeferLocalNotificationToWebPush() {
   if (typeof window === "undefined") return false
-  try {
-    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true
-  } catch (_) {}
-  try {
-    if (window.navigator && window.navigator.standalone === true) return true
-  } catch (_) {}
+  // Só adiar para Web Push em telemóveis reais (iOS/Android), onde o JS da página é
+  // suspenso em segundo plano e a Notification API local não é fiável.
+  //
+  // No PC — mesmo com o ZapERP instalado como app (display-mode: standalone) — a janela
+  // continua viva em segundo plano (o socket entrega a mensagem e toca o som). Nesse caso o
+  // card local (Notification API) é o canal FIÁVEL e deve ser sempre usado; o Web Push no
+  // desktop frequentemente não cobre o caso "janela em segundo plano", o que fazia o som
+  // chegar sem o card. Por isso o standalone deixou de forçar o adiamento aqui.
   return isIOSDevice() || isAndroidDevice()
 }
 
