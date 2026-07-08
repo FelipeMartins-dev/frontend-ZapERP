@@ -130,6 +130,14 @@ export async function notifyIncomingDesktopMessage({ msg, contatoNome, avatarUrl
   const icon = toPublicAsset(avatarUrl)
   const mid = normalize(msg?.id || msg?.mensagem_id || msg?.whatsapp_id)
   const tag = mid ? `zap-desk-${mid}` : `zap-desk-c${conversaId}-${Date.now()}`
+  const openUrl = `/atendimento?conversa=${encodeURIComponent(conversaId)}`
+  const data = {
+    conversaId,
+    messageId: mid || null,
+    // Consumido pelo notificationclick do Service Worker (sw.js) quando o card vem por lá.
+    openUrl,
+    url: openUrl,
+  }
 
   try {
     const notification = new Notification(title, {
@@ -139,10 +147,7 @@ export async function notifyIncomingDesktopMessage({ msg, contatoNome, avatarUrl
       renotify: false,
       requireInteraction: false,
       silent: false,
-      data: {
-        conversaId,
-        messageId: mid || null,
-      },
+      data,
     })
 
     notification.onclick = () => {
@@ -162,7 +167,36 @@ export async function notifyIncomingDesktopMessage({ msg, contatoNome, avatarUrl
 
     return { shown: true, reason: "ok" }
   } catch {
-    return { shown: false, reason: "creation_failed" }
+    // Alguns ambientes restringem o construtor Notification() a partir da página.
+    // Fallback: mostrar via Service Worker (registration.showNotification), que é o
+    // caminho mais robusto quando a aba está em segundo plano. O clique é tratado pelo
+    // notificationclick do sw.js, que navega para a conversa (data.openUrl).
+    const shownViaSw = await tryShowViaServiceWorker(title, { body, icon, tag, data })
+    return shownViaSw
+      ? { shown: true, reason: "ok_service_worker" }
+      : { shown: false, reason: "creation_failed" }
+  }
+}
+
+async function tryShowViaServiceWorker(title, { body, icon, tag, data }) {
+  try {
+    if (typeof navigator === "undefined" || !navigator.serviceWorker) return false
+    const reg =
+      (await navigator.serviceWorker.getRegistration()) ||
+      (await navigator.serviceWorker.ready)
+    if (!reg || typeof reg.showNotification !== "function") return false
+    await reg.showNotification(title, {
+      body,
+      icon,
+      tag,
+      renotify: false,
+      requireInteraction: false,
+      silent: false,
+      data,
+    })
+    return true
+  } catch {
+    return false
   }
 }
 

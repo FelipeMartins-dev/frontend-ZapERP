@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import {
-  fetchVapidPublicKey,
   pushSupported,
   subscribeWebPush,
 } from "./webPushClient"
@@ -23,50 +22,49 @@ export default function PushPermissionPrompt() {
     let cancelled = false
 
     const cancelReady = runAfterPushEntryReady(() => void (async () => {
-      if (!pushSupported() || typeof Notification === "undefined") {
+      // IMPORTANTE: o card local (Notification API) NÃO depende de VAPID/Web Push — precisa só
+      // da permissão de notificação. Por isso o prompt é oferecido sempre que houver suporte a
+      // Notification, mesmo sem VAPID no servidor. (Antes o prompt abortava sem VAPID e a
+      // permissão ficava em "default" → som tocava mas o card nunca aparecia.)
+      if (typeof Notification === "undefined") {
         if (!cancelled) setUi("none")
         return
       }
 
       const perm = Notification.permission
       if (perm === "granted") {
-        schedulePushSubscriptionSync()
-        setUi("none")
-        return
-      }
-
-      const v = await fetchVapidPublicKey()
-      if (cancelled) return
-      if (!v.publicKey) {
-        setUi("none")
+        // Card local já funciona. Se houver Web Push disponível, sincroniza a subscription.
+        if (pushSupported()) schedulePushSubscriptionSync()
+        if (!cancelled) setUi("none")
         return
       }
 
       if (perm === "denied") {
         try {
           if (sessionStorage.getItem(SESSION_DENIED_HINT) === "1") {
-            setUi("none")
+            if (!cancelled) setUi("none")
             return
           }
         } catch {
           /* ignore */
         }
-        setUi("denied_strip")
+        if (!cancelled) setUi("denied_strip")
         return
       }
 
+      // perm === "default": oferecer ativação (independente de VAPID).
       try {
         const raw = localStorage.getItem(STORAGE_DISMISS_UNTIL)
         const until = raw ? Number(raw) : 0
         if (until > Date.now()) {
-          setUi("none")
+          if (!cancelled) setUi("none")
           return
         }
       } catch {
         /* ignore */
       }
 
-      setUi("modal")
+      if (!cancelled) setUi("modal")
     })())
 
     return () => {
@@ -78,12 +76,26 @@ export default function PushPermissionPrompt() {
   async function handleEnable() {
     setBusy(true)
     try {
-      const res = await subscribeWebPush()
-      if (res?.ok) {
-        setUi("none")
-      } else if (res?.reason === "permission_denied" || res?.reason === "permission_blocked") {
-        setUi("denied_strip")
+      // 1) Permissão de notificação — pedida aqui, no clique (gesto do usuário), para o
+      //    navegador exibir o prompt. É o único requisito do card local (Notification API).
+      let permission = typeof Notification !== "undefined" ? Notification.permission : "denied"
+      if (permission === "default") {
+        permission = await Notification.requestPermission()
       }
+      if (permission !== "granted") {
+        setUi(permission === "denied" ? "denied_strip" : "none")
+        return
+      }
+
+      // 2) Permissão concedida → o card local já funciona. Se houver Web Push (VAPID no
+      //    servidor), tenta subscrever também, para alertas com o app fechado. Melhor esforço:
+      //    a falta de VAPID não deve tirar o card local que acabou de ser habilitado.
+      try {
+        await subscribeWebPush()
+      } catch {
+        /* ignore — card local não depende do Web Push */
+      }
+      setUi("none")
     } finally {
       setBusy(false)
     }
@@ -120,7 +132,7 @@ export default function PushPermissionPrompt() {
             Notificações
           </h2>
           <p className="zap-push-modal__text">
-            Ative as notificações para receber avisos de novas mensagens dos clientes mesmo com o ZapERP fechado.
+            Ative as notificações para receber o aviso visual de novas mensagens dos clientes mesmo quando estiver usando outro aplicativo.
           </p>
           <div className="zap-push-modal__actions">
             <button type="button" className="zap-push-btn zap-push-btn--secondary" disabled={busy} onClick={handleDismiss}>
