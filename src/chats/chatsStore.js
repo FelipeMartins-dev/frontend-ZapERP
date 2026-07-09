@@ -73,13 +73,16 @@ export const useChatStore = create((set, get) => ({
    * ChatList escuta e chama `load()` (que também atualiza Minha fila via refreshMinhaFila).
    */
   chatListResyncNonce: 0,
+  /** Quando true, o próximo effect de resync em chatList ignora o throttle de 2,5s (ex.: reconnect). */
+  chatListResyncForce: false,
   chatListOptimisticMutation: null,
   chatListOptimisticMutationNonce: 0,
 
   requestChatListScrollToTop: () =>
     set((s) => ({ chatListScrollToTopNonce: (s.chatListScrollToTopNonce || 0) + 1 })),
 
-  requestChatListResync: () => {
+  requestChatListResync: (opts = {}) => {
+    const force = opts?.force === true
     const now = Date.now()
     if (!chatListResyncWindowStart) chatListResyncWindowStart = now
 
@@ -87,7 +90,17 @@ export const useChatStore = create((set, get) => ({
       chatListResyncDebounceTimer = null
       chatListResyncMaxWaitTimer = null
       chatListResyncWindowStart = 0
-      set((s) => ({ chatListResyncNonce: (s.chatListResyncNonce || 0) + 1 }))
+      set((s) => ({
+        chatListResyncNonce: (s.chatListResyncNonce || 0) + 1,
+        chatListResyncForce: force === true ? true : s.chatListResyncForce === true,
+      }))
+    }
+
+    if (force) {
+      if (chatListResyncDebounceTimer) clearTimeout(chatListResyncDebounceTimer)
+      if (chatListResyncMaxWaitTimer) clearTimeout(chatListResyncMaxWaitTimer)
+      flushResync()
+      return
     }
 
     if (chatListResyncDebounceTimer) clearTimeout(chatListResyncDebounceTimer)
@@ -560,6 +573,7 @@ export const useChatStore = create((set, get) => ({
       chats: [],
       loading: false,
       chatListResyncNonce: 0,
+      chatListResyncForce: false,
       chatListOptimisticMutation: null,
       chatListOptimisticMutationNonce: 0,
     })

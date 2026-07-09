@@ -1294,6 +1294,7 @@ export default function ChatList() {
 
     const requestId = loadRequestIdRef.current;
     setChatListPage((prev) => ({ ...prev, loading: true, error: "" }));
+    const loadMoreAbort = new AbortController();
 
     try {
       const data = await fetchChats(
@@ -1303,7 +1304,7 @@ export default function ChatList() {
           cursorId: page.nextCursorId,
           limit: CHAT_LIST_PAGE_LIMIT,
         },
-        { signal: loadAbortRef.current?.signal }
+        { signal: loadMoreAbort.signal }
       );
       if (requestId !== loadRequestIdRef.current) return;
 
@@ -1427,6 +1428,10 @@ export default function ChatList() {
   const chatListResyncNonce = useChatStore((s) => s.chatListResyncNonce);
   useEffect(() => {
     if (!chatListResyncNonce) return;
+    const forceResync = useChatStore.getState().chatListResyncForce === true;
+    if (forceResync) {
+      useChatStore.setState({ chatListResyncForce: false });
+    }
     if (loadInFlightRef.current) {
       loadQueuedRef.current = { background: true };
       void refreshChatFilterCounts({ silent: true });
@@ -1437,6 +1442,7 @@ export default function ChatList() {
     const tabAtual = tabRef.current;
     const modoSimplesAtivo = user?.atendimento_modo_simples === true;
     const bypassResyncThrottle =
+      forceResync ||
       tabAtual === "aguardando_atendente" ||
       (modoSimplesAtivo && (tabAtual === "aguardando_cliente" || tabAtual === "todas"));
     const throttleResync =

@@ -92,9 +92,11 @@ export default function Atendimento() {
   const isAtendimentoMobileNav = useMatchMedia("(max-width: 640px)");
   const prevSelectedRef = useRef(null);
 
-  const unreadTitleTotal = useChatStore((s) =>
-    (s.chats || []).reduce((acc, c) => acc + (Number(c.unread_count) || 0), 0)
-  );
+  const unreadTitleTotal = useChatStore((s) => {
+    let total = 0
+    for (const c of s.chats || []) total += Number(c.unread_count) || 0
+    return total
+  }, (a, b) => a === b);
 
   useEffect(() => {
     applyDocumentTitle(unreadTitleTotal);

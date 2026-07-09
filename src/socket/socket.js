@@ -501,10 +501,34 @@ function upsertModoSimplesListRowFromPayload(chatStore, payload, id) {
   if (!isEmpresaModoSimplesAtivoCliente() || !payloadImpactaListaLateral(payload)) return false
   const chats = chatStore.chats || []
   if (chats.some((c) => String(c?.id) === String(id))) return false
-  const row = buildModoSimplesListRowFromPayload(payload, id)
-  if (!row) return false
-  chatStore.addChat(row)
-  return true
+  // Não inventar row a partir do payload — só após GET autorizado (escopo setor/atendente).
+  void addChatIfAuthorized(chatStore, id)
+  return false
+}
+
+/**
+ * Adiciona conversa à lista somente se o backend autorizar (GET /chats/:id).
+ * Evita vazamento visual entre setores via socket.
+ */
+async function addChatIfAuthorized(chatStore, conversaId) {
+  if (conversaId == null || conversaId === "") return false
+  const chats = chatStore.chats || []
+  if (chats.some((c) => String(c?.id) === String(conversaId))) return false
+  try {
+    const data = await fetchChatById(conversaId)
+    const chat = data?.conversa ?? data
+    if (!chat?.id) return false
+    // Re-checar: outra race pode ter inserido enquanto o fetch rodava
+    const latest = chatStore.chats || []
+    if (latest.some((c) => String(c?.id) === String(chat.id))) {
+      chatStore.updateChat(chat)
+      return true
+    }
+    chatStore.addChat(chat)
+    return true
+  } catch (_) {
+    return false
+  }
 }
 
 function emitMinhaFilaOptimisticMutation(rawPayload) {
@@ -785,7 +809,7 @@ export function initSocket(token) {
         useConversaStore.getState().refresh?.({ silent: true })
       } catch (_) {}
     }
-    useChatStore.getState().requestChatListResync?.()
+    useChatStore.getState().requestChatListResync?.({ force: true })
     updateDocumentTitleFromChats()
   })
 
@@ -842,10 +866,11 @@ export function initSocket(token) {
     }
   })
 
-  /* Nova conversa criada (ex.: primeira mensagem via webhook Z-API) — adiciona à lista */
+  /* Nova conversa criada (ex.: primeira mensagem via webhook) — só adiciona se API autorizar */
   socket.on("nova_conversa", (payload) => {
     if (!payload?.id) return
-    useChatStore.getState().addChat(payload)
+    if (shouldIgnoreByCompany(payload)) return
+    void addChatIfAuthorized(useChatStore.getState(), payload.id)
   })
 
   socket.on(SOCKET_EVENTS.MENSAGEM_INTERNA_ATENDIMENTO, (rawMsg) => {
@@ -891,24 +916,24 @@ export function initSocket(token) {
         : null
 
     if (!jaNaLista) {
-      const isAbertaParaInc = convStore.selectedId && String(convStore.selectedId) === String(conversaId)
-      // Nome imutável: usar só o da mensagem (inbound); outbound não inventa nome
-      const nomeInicial = nomeContato || undefined
-      const isGroup = msg?.isGroup || msg?.is_group || String(msg?.chatId ?? msg?.remoteJid ?? "").endsWith("@g.us")
-      const payload = {
-        id: conversaId,
-        contato_nome: nomeInicial,
-        foto_perfil: fotoContato,
-        unread_count: isAbertaParaInc ? 0 : 1,
-        ultima_mensagem: msg
-      }
-      if (isGroup) {
-        payload.is_group = true
-        if (nomeContato && String(nomeContato).trim() && String(nomeContato).toLowerCase() !== "name") {
-          payload.nome_grupo = nomeContato.trim()
+      // Não adicionar row inventada pelo socket — fetch autorizado (setor/atendente).
+      // Preview/unread/bump só aplicam se a conversa já estiver na lista (setUltimaMensagemEBump no-op se idx<0).
+      void addChatIfAuthorized(chatStore, conversaId).then((added) => {
+        if (!added) return
+        const store = useChatStore.getState()
+        if (typeof store.setUltimaMensagemEBump === "function") {
+          store.setUltimaMensagemEBump(conversaId, msg)
         }
-      }
-      chatStore.addChat(payload)
+        if (!msg.fromMe && msg.direcao === "in") {
+          const isOpen =
+            useConversaStore.getState().selectedId &&
+            String(useConversaStore.getState().selectedId) === String(conversaId)
+          if (!isOpen && typeof store.incUnreadComBadge === "function") {
+            store.incUnreadComBadge(conversaId, 1)
+          }
+        }
+        updateDocumentTitleFromChats()
+      })
     } else {
       // Só preenche quando vazio — nome NUNCA troca uma vez definido
       if (nomeContato || fotoContato) {
@@ -1293,9 +1318,7 @@ export function initSocket(token) {
       listRowChanged = chatStore.updateChat(p)
     } else {
       try {
-        const data = await fetchChatById(p.id)
-        const chat = data?.conversa ?? data
-        if (chat?.id) chatStore.addChat(chat)
+        await addChatIfAuthorized(chatStore, p.id)
       } catch (_) {}
     }
     const convStore = useConversaStore.getState()
@@ -1531,6 +1554,10 @@ export function disconnectSocket() {
   try {
     typingExpiryTimers.forEach((id) => clearTimeout(id))
     typingExpiryTimers.clear()
+  } catch (_) {}
+
+  try {
+    suppressDefaultMessageSoundUntil.clear()
   } catch (_) {}
 
   resetStatusMensagemBatch()
