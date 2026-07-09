@@ -376,6 +376,16 @@ export function useForwardFlow({ conversa, conversaId, user, showToast, exitSele
         const hasMediaUrl = !!getForwardMediaUrl(forwardMsg);
         try {
           const apiRes = await encaminharMensagemViaAPI(destConversaId, forwardMsg.id);
+          // Falha silenciosa: o backend persiste a mensagem (status 'erro') e responde 200 mesmo
+          // quando o WhatsApp não recebeu (ex.: mídia original expirada). Avisar de forma clara.
+          if (apiRes?.raw?.enviado_whatsapp === false) {
+            showToast({
+              type: "error",
+              title: "Não entregue no WhatsApp",
+              message:
+                "A mensagem foi registrada, mas o WhatsApp não a recebeu (o arquivo original pode ter expirado). Reenvie o arquivo original.",
+            });
+          }
           if (apiRes?.kind === "single") return apiRes;
           return { kind: "single", mensagem: apiRes?.mensagem ?? apiRes };
         } catch (e) {
@@ -405,9 +415,12 @@ export function useForwardFlow({ conversa, conversaId, user, showToast, exitSele
       }
       let okCount = 0;
       let failCount = 0;
+      let deliveryFailCount = 0;
       for (const item of items) {
         if (item?.ok) {
           okCount++;
+          // Persistido, mas o WhatsApp não recebeu — não é falha de encaminhamento, é falha de entrega.
+          if (item.enviado_whatsapp === false) deliveryFailCount++;
         } else if (item && item.ok === false) {
           failCount++;
           if (!quietBatchItemToasts) {
@@ -419,6 +432,16 @@ export function useForwardFlow({ conversa, conversaId, user, showToast, exitSele
             });
           }
         }
+      }
+      if (deliveryFailCount > 0 && !quietBatchItemToasts) {
+        showToast({
+          type: "error",
+          title: "Não entregue no WhatsApp",
+          message:
+            deliveryFailCount === 1
+              ? "1 item foi registrado, mas o WhatsApp não o recebeu (arquivo original pode ter expirado). Reenvie o original."
+              : `${deliveryFailCount} itens foram registrados, mas o WhatsApp não os recebeu. Reenvie os originais.`,
+        });
       }
       if (okCount === 0 && items.length) {
         throw new Error("Nenhuma mensagem foi encaminhada.");
