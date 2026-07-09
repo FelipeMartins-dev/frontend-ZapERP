@@ -2,8 +2,10 @@
 // Marcador de versão do Service Worker. Serve para COMPARAR máquinas: um PC preso numa
 // versão antiga do PWA responderá com versão diferente (ou não responderá) ao ZAP_SW_VERSION.
 // Atualize a data quando mudar a lógica do SW.
-const SW_VERSION = '2026-07-08-notif-audit'
+const SW_VERSION = '2026-07-08-notif-autoclose-5s'
 const SUPPRESS_REPLY_MS = 180
+// Tempo até o banner sumir sozinho (notificação de mensagem não deve ficar fixa na tela).
+const AUTO_CLOSE_MS = 5000
 
 // Responde a versão do SW a quem perguntar (usado pelo diagnóstico no console).
 self.addEventListener('message', (event) => {
@@ -88,10 +90,12 @@ self.addEventListener('push', (event) => {
           (typeof payload.tag === 'string' && payload.tag.trim() !== '' && payload.tag.trim()) ||
           `zap-fallback-${Date.now()}`
 
+        // `requireInteraction` deixa o banner FIXO na tela até o usuário fechar. Prioridade de
+        // ENTREGA (urgency/priority 'high') não deve implicar isso — senão a notificação de
+        // mensagem gruda na tela. Só fixa quando o payload pedir explicitamente.
         const shouldRequireInteraction =
           payload?.requireInteraction === true ||
-          payload?.data?.requireInteraction === true ||
-          payload?.priority === 'high'
+          payload?.data?.requireInteraction === true
 
         const options = {
           body: payload.body || '',
@@ -119,6 +123,21 @@ self.addEventListener('push', (event) => {
             }
           }
         } catch (_) {}
+
+        // Auto-fechar o banner após ~5s (a menos que seja para exigir interação).
+        // O SO já esconde o banner sozinho com requireInteraction:false; este close reforça
+        // e limpa também da lista, para a notificação não "ficar fixa".
+        if (!shouldRequireInteraction) {
+          await new Promise((resolve) => setTimeout(resolve, AUTO_CLOSE_MS))
+          try {
+            const notifs = await self.registration.getNotifications({ tag: options.tag })
+            notifs.forEach((n) => {
+              try {
+                n.close()
+              } catch (_) {}
+            })
+          } catch (_) {}
+        }
       } catch (e) {
         console.error('[zaperp-sw] push handler:', e)
       }

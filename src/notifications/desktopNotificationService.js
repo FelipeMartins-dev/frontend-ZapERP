@@ -158,7 +158,7 @@ export async function notifyIncomingDesktopMessage({ msg, contatoNome, avatarUrl
       } catch (_) {}
     }
 
-    const autoCloseMs = 12_000
+    const autoCloseMs = 5_000
     setTimeout(() => {
       try {
         notification.close()

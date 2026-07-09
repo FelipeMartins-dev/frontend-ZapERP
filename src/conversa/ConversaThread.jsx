@@ -12,6 +12,13 @@ const EMPTY_SET = new Set();
 const EMPTY_OBJECT = Object.freeze({});
 const EMPTY_ARRAY = Object.freeze([]);
 
+/**
+ * Conversas no mobile com mais de este limite de itens (mensagens + separadores de dia)
+ * usam lista virtualizada para evitar montar centenas de bolhas no DOM de uma vez.
+ * Conversas menores mantêm lista estática (scroll nativo mais previsível no toque).
+ */
+const MOBILE_VIRTUALIZE_THRESHOLD = 80;
+
 function firstFilled(...values) {
   for (const value of values) {
     const text = value == null ? "" : String(value).trim();
@@ -376,23 +383,26 @@ export default function ConversaThread({
           <span className="wa-historyLoading-bar" />
         </div>
       ) : null}
-      {headerCompact ? (
-        <ConversaMessageStaticList
-          key={`wa-thread-static-${String(threadConversaId ?? "")}`}
+      {/* Mobile com muitas mensagens usa lista virtualizada para evitar DOM explosion.
+          Desktop sempre usa lista virtualizada (comportamento original inalterado).
+          Mobile com poucas mensagens mantém lista estática (scroll nativo no toque). */}
+      {!headerCompact || safeMensagensComSeparadores.length > MOBILE_VIRTUALIZE_THRESHOLD ? (
+        <ConversaMessageVirtualList
+          key={`wa-thread-${headerCompact ? "mobile" : "desktop"}-${String(threadConversaId ?? "")}`}
           ref={virtualThreadRef}
           scrollRef={messagesContainerRef}
+          overscan={headerCompact ? 5 : 10}
+          mobileThread={headerCompact}
           conversaId={threadConversaId}
           items={safeMensagensComSeparadores}
           onVirtualContentResize={onVirtualContentResize}
           renderItem={renderItem}
         />
       ) : (
-        <ConversaMessageVirtualList
-          key={`wa-thread-${String(threadConversaId ?? "")}`}
+        <ConversaMessageStaticList
+          key={`wa-thread-static-${String(threadConversaId ?? "")}`}
           ref={virtualThreadRef}
           scrollRef={messagesContainerRef}
-          overscan={10}
-          mobileThread={false}
           conversaId={threadConversaId}
           items={safeMensagensComSeparadores}
           onVirtualContentResize={onVirtualContentResize}
