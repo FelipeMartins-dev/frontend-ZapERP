@@ -389,7 +389,8 @@ function getPreview(chat, { audioDurationSec } = {}) {
   }
 
   if (txt && !isPlaceholderGenericMessageText(txt)) return `${outPrefix}${txt}`;
-  if (isPlaceholderGenericMessageText(txt)) return "Sem mensagens";
+  // Existe uma última mensagem, só não temos o texto/tipo dela — "Mensagem" (não "Sem mensagens").
+  if (isPlaceholderGenericMessageText(txt)) return `${outPrefix}Mensagem`;
   return `${outPrefix}(sem texto)`;
 }
 
@@ -592,7 +593,7 @@ function PreviewLine({ chat, audioDurationSec }) {
   return (
     <span className="chat-list-previewLine">
       {out ? <ChatTicks status={status} isGroup={isGroup} /> : null}
-      <span className="chat-list-previewText">{isPlaceholderGenericMessageText(txt) ? "Sem mensagens" : `${atendentePrefix}${txt || "Sem mensagens"}`}</span>
+      <span className="chat-list-previewText">{isPlaceholderGenericMessageText(txt) ? "Mensagem" : `${atendentePrefix}${txt || "Sem mensagens"}`}</span>
     </span>
   );
 }

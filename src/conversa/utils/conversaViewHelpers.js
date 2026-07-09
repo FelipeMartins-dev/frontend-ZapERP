@@ -126,6 +126,26 @@ export function isFilenameOnlyText(texto, nomeArquivo) {
   return false;
 }
 
+/** Extensões típicas de documento (não imagem/áudio/vídeo) — fallback de UI para legado. */
+const DOCUMENT_FILENAME_EXT =
+  /\.(pdf|docx?|xlsx?|pptx?|txt|csv|zip|rar|7z|rtf|odt|ods|odp|json|xml|apk)$/i;
+
+/**
+ * Detecta mensagem que deveria ser card de arquivo mas veio como texto
+ * (legado: tipo ausente + texto = "relatorio.docx" ou "Ofício Dr. 13.docx").
+ */
+export function looksLikeDocumentFilenameOnly(texto, nomeArquivo) {
+  const candidate = safeString(nomeArquivo) || safeString(texto);
+  if (!candidate || candidate.length > 255) return false;
+  if (!DOCUMENT_FILENAME_EXT.test(candidate)) return false;
+  if (/\n/.test(candidate)) return false;
+  if (/\s+(https?:\/\/|www\.)/i.test(candidate)) return false;
+  // Aceita nomes com espaços (documentos reais do WhatsApp); isFilenameOnlyText
+  // é mais restrito (focado em legendas de foto/vídeo).
+  if (isFilenameOnlyText(candidate, nomeArquivo)) return true;
+  return candidate.length <= 200 && DOCUMENT_FILENAME_EXT.test(candidate);
+}
+
 export function isOutgoingMessage(msg) {
   const raw = safeString(msg?.direcao).toLowerCase();
   if (raw === "out") return true;

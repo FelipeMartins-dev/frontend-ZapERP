@@ -7,6 +7,7 @@ import {
   safeString,
   isOutgoingMessage,
   isFilenameOnlyText,
+  looksLikeDocumentFilenameOnly,
   getMediaPlaybackUrl,
   resolveBubbleMediaCandidates,
   resolveAudioPlaybackCandidates,
@@ -142,7 +143,10 @@ function MessageTicks({ msg, isGroup }) {
  * timestamp, ticks e links "Abrir" / "Salvar como..."
  */
 function FileBubbleContent({ msg, mediaUrl, selectMode, onOpenMedia, isGroup, out }) {
-  const nome = resolveDownloadFilename(msg?.nome_arquivo ?? msg?.n, mediaUrl);
+  const nome = resolveDownloadFilename(
+    msg?.nome_arquivo ?? msg?.n ?? (looksLikeDocumentFilenameOnly(msg?.texto) ? msg?.texto : null),
+    mediaUrl
+  );
   const ext = getFileExt(nome);
   const bytes = msg?.tamanho ?? msg?.tamanho_bytes;
   const size = formatFileSize(bytes);
@@ -842,7 +846,9 @@ const Bubble = memo(function Bubble({
   const isSticker =
     tipoMsg === "sticker" && !!mediaUrl && (!isApagadaParaTodos || !!mediaUrl);
   const isFile =
-    ["arquivo", "documento", "document", "file"].includes(tipoMsg) && (!isApagadaParaTodos || !!mediaUrl);
+    (["arquivo", "documento", "document", "file"].includes(tipoMsg) ||
+      looksLikeDocumentFilenameOnly(msg?.texto, msg?.nome_arquivo)) &&
+    (!isApagadaParaTodos || !!mediaUrl);
   const isAudio = tipoMsg === "audio" && (!isApagadaParaTodos || !!mediaUrl);
   const isVoice = (tipoMsg === "voice" || tipoMsg === "ptt") && (!isApagadaParaTodos || !!mediaUrl);
   const isAudioOrVoice = isAudio || isVoice;
@@ -858,6 +864,21 @@ const Bubble = memo(function Bubble({
       ? "Esta mensagem foi apagada para todos."
       : (isGenericMessagePlaceholder ? "" : textoRaw);
   const hasText = !!texto;
+  // Rótulo de fallback quando o texto é um placeholder genérico ('(mensagem)'/'(mensagem vazia)')
+  // e não há mídia para renderizar: mostra o TIPO da mensagem em vez de "Sem conteudo".
+  // Deriva do `tipoMsg` (preservado no banco); se o tipo for desconhecido, cai em "Mensagem".
+  const fallbackContentLabel = (() => {
+    const t = String(tipoMsg || "").toLowerCase();
+    if (t === "audio") return "🎤 Áudio";
+    if (t === "voice" || t === "ptt") return "🎤 Mensagem de voz";
+    if (t === "imagem" || t === "image") return "📷 Foto";
+    if (t === "video" || t === "vídeo") return "🎥 Vídeo";
+    if (["arquivo", "documento", "document", "file"].includes(t)) return "📄 Documento";
+    if (t === "sticker") return "Figurinha";
+    if (t === "location") return "📍 Localização";
+    if (t === "contact" || t === "contato") return "👤 Contato";
+    return "Mensagem";
+  })();
   const remetente = showRemetente && !out && (msg?.remetente_nome || msg?.remetente_telefone);
   const isPlaceholderCaption =
     !texto ||
@@ -1525,7 +1546,7 @@ const Bubble = memo(function Bubble({
                   <span className="wa-bubble-text">{renderTextWithLinks(texto)}</span>
                 )
               ) : (
-                <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? "Sem conteudo" : "(mídia)"}</span>
+                <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? fallbackContentLabel : "(mídia)"}</span>
               )}
             </div>
           ) : isImg || isSticker ? (
@@ -1620,7 +1641,7 @@ const Bubble = memo(function Bubble({
               <span className="wa-bubble-text">{renderTextWithLinks(texto)}</span>
             )
           ) : (
-            <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? "Sem conteudo" : "(mensagem vazia)"}</span>
+            <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? fallbackContentLabel : "(mensagem vazia)"}</span>
           )}
         </div>
         {!isCall && !mobileMessageChrome ? (
