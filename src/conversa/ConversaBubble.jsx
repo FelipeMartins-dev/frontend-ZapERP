@@ -865,7 +865,7 @@ const Bubble = memo(function Bubble({
   // em vez de exibir o texto entre parênteses ou uma bolha genérica "Mensagem".
   const MEDIA_PLACEHOLDER_TEXTS = new Set([
     "(mídia)", "(midia)", "(imagem)", "(áudio)", "(audio)", "(áudio de voz)",
-    "(vídeo)", "(video)", "(figurinha)", "(arquivo)", "(documento)",
+    "(vídeo)", "(video)", "(vídeo visualização única)", "(figurinha)", "(arquivo)", "(documento)",
   ]);
   const isMediaPlaceholderOnly = MEDIA_PLACEHOLDER_TEXTS.has(textoRawNorm);
   const shouldBlankPlaceholder =
@@ -875,9 +875,11 @@ const Bubble = memo(function Bubble({
       ? "Esta mensagem foi apagada para todos."
       : (shouldBlankPlaceholder ? "" : textoRaw);
   const hasText = !!texto;
-  // Rótulo de fallback quando o texto é um placeholder genérico ('(mensagem)'/'(mensagem vazia)')
-  // e não há mídia para renderizar: mostra o TIPO da mensagem em vez de "Sem conteudo".
-  // Deriva do `tipoMsg` (preservado no banco); se o tipo for desconhecido, cai em "Mensagem".
+  // Rótulo de fallback quando o texto é um placeholder e não há mídia para renderizar:
+  // mostra o TIPO da mensagem em vez de "Sem conteudo".
+  // Deriva primeiro do `tipoMsg` (preservado no banco). Alguns backends mantêm mídia sem URL
+  // como tipo='texto' com um placeholder tipado no texto ('(áudio)', '(imagem)'…); nesse caso
+  // inferimos o rótulo pelo próprio placeholder para nunca cair em "Mensagem" genérico.
   const fallbackContentLabel = (() => {
     const t = String(tipoMsg || "").toLowerCase();
     if (t === "audio") return "🎤 Áudio";
@@ -888,6 +890,15 @@ const Bubble = memo(function Bubble({
     if (t === "sticker") return "Figurinha";
     if (t === "location") return "📍 Localização";
     if (t === "contact" || t === "contato") return "👤 Contato";
+    // Tipo não-mídia (ex.: 'texto'): inferir pelo placeholder salvo no texto.
+    const p = textoRawNorm;
+    if (p === "(áudio)" || p === "(audio)") return "🎤 Áudio";
+    if (p === "(áudio de voz)") return "🎤 Mensagem de voz";
+    if (p === "(imagem)") return "📷 Foto";
+    if (p === "(vídeo)" || p === "(video)" || p === "(vídeo visualização única)") return "🎥 Vídeo";
+    if (p === "(arquivo)" || p === "(documento)") return "📄 Documento";
+    if (p === "(figurinha)") return "Figurinha";
+    if (p === "(mídia)" || p === "(midia)") return "📎 Mídia";
     return "Mensagem";
   })();
   const remetente = showRemetente && !out && (msg?.remetente_nome || msg?.remetente_telefone);
