@@ -47,6 +47,14 @@ export function chatRowContactSurfaceKey(c) {
   return `${displayName}|${avatarUrl ?? ""}|${phone}|${empresa}|${setor}|${String(c?.departamento_id ?? "")}|${tagId}|${tagNome}|${tagCor}|${instanceLabel}`;
 }
 
+function chatRowNeedsMinuteTick(c, pendentesFuncionarioSet) {
+  if (!c) return false;
+  const status = String(getStatusAtendimentoEffective(c));
+  if (status === "pagamento_pendente") return true;
+  if (typeof c?.ui_hint_reaberto_ausencia_cliente === "number") return true;
+  return Boolean(esperaMinutosAnchorKey(c, pendentesFuncionarioSet));
+}
+
 export function chatRowPropsAreEqual(prev, next) {
   if (prev.showWhatsappInstanceUi !== next.showWhatsappInstanceUi) return false;
   const a = prev.chat || {};
@@ -57,6 +65,8 @@ export function chatRowPropsAreEqual(prev, next) {
   const semB = Boolean(b.sem_conversa && b.cliente_id);
   const setA = prev.pendentesFuncionarioSet;
   const setB = next.pendentesFuncionarioSet;
+  const needsMinuteTick = chatRowNeedsMinuteTick(a, setA) || chatRowNeedsMinuteTick(b, setB);
+  if (needsMinuteTick && prev.minuteTick !== next.minuteTick) return false;
   const identityOk =
     semA && semB
       ? String(a.cliente_id) === String(b.cliente_id)
@@ -70,7 +80,6 @@ export function chatRowPropsAreEqual(prev, next) {
     prev.onOpenClienteSemConversa === next.onOpenClienteSemConversa &&
     prev.onToggleMenu === next.onToggleMenu &&
     prev.isMenuOpen === next.isMenuOpen &&
-    prev.minuteTick === next.minuteTick &&
     Number(a.unread_count ?? a.unread ?? 0) === Number(b.unread_count ?? b.unread ?? 0) &&
     String(getStatusAtendimentoEffective(a)) === String(getStatusAtendimentoEffective(b)) &&
     String(a.status_atendimento_real ?? "") === String(b.status_atendimento_real ?? "") &&

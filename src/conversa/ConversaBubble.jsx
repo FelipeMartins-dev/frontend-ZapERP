@@ -859,10 +859,21 @@ const Bubble = memo(function Bubble({
   const textoRaw = safeString(msg?.texto);
   const textoRawNorm = String(textoRaw || "").trim().toLowerCase();
   const isGenericMessagePlaceholder = textoRawNorm === "(mensagem)" || textoRawNorm === "(mensagem vazia)";
+  // Placeholders de mídia gravados pelo backend quando a URL ainda não chegou
+  // (webhook_message_download_media/retry pendente). Sem URL para renderizar, tratamos
+  // como "vazio" para cair no rótulo tipado (📷 Foto / 🎥 Vídeo / 🎤 Áudio / 📄 Documento)
+  // em vez de exibir o texto entre parênteses ou uma bolha genérica "Mensagem".
+  const MEDIA_PLACEHOLDER_TEXTS = new Set([
+    "(mídia)", "(midia)", "(imagem)", "(áudio)", "(audio)", "(áudio de voz)",
+    "(vídeo)", "(video)", "(figurinha)", "(arquivo)", "(documento)",
+  ]);
+  const isMediaPlaceholderOnly = MEDIA_PLACEHOLDER_TEXTS.has(textoRawNorm);
+  const shouldBlankPlaceholder =
+    isGenericMessagePlaceholder || (isMediaPlaceholderOnly && !mediaUrl);
   const texto =
     isApagadaParaTodos && !textoRaw
       ? "Esta mensagem foi apagada para todos."
-      : (isGenericMessagePlaceholder ? "" : textoRaw);
+      : (shouldBlankPlaceholder ? "" : textoRaw);
   const hasText = !!texto;
   // Rótulo de fallback quando o texto é um placeholder genérico ('(mensagem)'/'(mensagem vazia)')
   // e não há mídia para renderizar: mostra o TIPO da mensagem em vez de "Sem conteudo".
@@ -1546,7 +1557,7 @@ const Bubble = memo(function Bubble({
                   <span className="wa-bubble-text">{renderTextWithLinks(texto)}</span>
                 )
               ) : (
-                <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? fallbackContentLabel : "(mídia)"}</span>
+                <span className="wa-bubble-text wa-muted">{fallbackContentLabel}</span>
               )}
             </div>
           ) : isImg || isSticker ? (
@@ -1641,7 +1652,7 @@ const Bubble = memo(function Bubble({
               <span className="wa-bubble-text">{renderTextWithLinks(texto)}</span>
             )
           ) : (
-            <span className="wa-bubble-text wa-muted">{isGenericMessagePlaceholder ? fallbackContentLabel : "(mensagem vazia)"}</span>
+            <span className="wa-bubble-text wa-muted">{fallbackContentLabel}</span>
           )}
         </div>
         {!isCall && !mobileMessageChrome ? (
