@@ -1327,13 +1327,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           return;
         }
         const meta = await inspectRecordedAudioBlob(blob);
+        // NÃO bloquear por "decode_error": o elemento <audio> falha em decodificar o webm/opus (e o
+        // mp4 do iOS) do MediaRecorder em muitos navegadores MESMO com áudio válido — isso causava
+        // rejeição falsa ("Audio invalido"). A decodificação aqui é só para medir a duração (fallback
+        // para o tempo medido). Os testes de tamanho/duração acima já barram gravação vazia/curta, e o
+        // backend transcodifica e recusa com erro claro se o áudio estiver realmente quebrado.
         if (meta.error === "decode_error") {
-          showToast?.({
-            type: "error",
-            title: "Audio invalido",
-            message: "Nao foi possivel finalizar a gravacao. Grave novamente.",
-          });
-          return;
+          console.warn("[audio] <audio> não decodificou a gravação; usando duração medida e enviando mesmo assim.");
         }
         const durationMs = Number.isFinite(meta.durationSec)
           ? Math.round(meta.durationSec * 1000)
