@@ -290,10 +290,45 @@
   }
 
   .chat-list-search-row .admin-atendente-filter {
-    max-width: min(46%, 120px);
+    max-width: 42px;
   }
 
   .chat-list-search-row .admin-atendente-filter__trigger-label {
-    font-size: 11px;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .chat-list-search-row .admin-atendente-filter__trigger {
+    position: relative;
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .chat-list-search-row .admin-atendente-filter__avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .chat-list-search-row .admin-atendente-filter__chevron {
+    display: none;
+  }
+
+  .chat-list-search-row .admin-atendente-filter__clear {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--cl-surface, #fff);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
   }
 }

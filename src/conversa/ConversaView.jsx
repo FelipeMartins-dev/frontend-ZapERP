@@ -375,6 +375,7 @@ function ConversaViewBody() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [messageSearchOpen, setMessageSearchOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [threadOpening, setThreadOpening] = useState(false);
   const sendingCountRef = useRef(0);
   const setSendingTracked = useCallback((active) => {
     if (active) {
@@ -1211,33 +1212,6 @@ function ConversaViewBody() {
     userScrollLockRef,
     cancelOpenSnapPendingRef,
   });
-
-  useEffect(() => {
-    const renderedCount = Array.isArray(mensagens) ? mensagens.length : 0;
-    if (!conversaId || renderedCount <= 0) return undefined;
-    const threadKey = String(conversaId);
-    const run = () => {
-      if (userScrollLockRef.current || userInterruptedOpenSnapRef.current) return;
-      const st = useConversaStore.getState();
-      const activeId = st.selectedId ?? st.conversa?.id ?? null;
-      if (String(activeId ?? "") !== threadKey) return;
-      const c = messagesContainerRef.current;
-      if (!c) return;
-      snapThreadToBottom(c, virtualThreadRef, {
-        min: true,
-        followUpFrame: false,
-        canSnap: () => !userScrollLockRef.current && !userInterruptedOpenSnapRef.current,
-      });
-    };
-    const t1 = window.setTimeout(run, 160);
-    const t2 = window.setTimeout(run, 800);
-    const t3 = window.setTimeout(run, 1500);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    };
-  }, [conversaId]);
 
   useLayoutEffect(() => {
     zapSeenMsgKeysRef.current = new Set();
@@ -3048,10 +3022,94 @@ function ConversaViewBody() {
 
     return out;
   }, [mensagens, isGroup]);
+  const hasThreadMessageRows = useMemo(
+    () => mensagensComSeparadores.some((item) => item?.__type === "msg"),
+    [mensagensComSeparadores]
+  );
 
   useLayoutEffect(() => {
     mensagensComSeparadoresRef.current = mensagensComSeparadores;
   }, [mensagensComSeparadores]);
+
+  useLayoutEffect(() => {
+    if (!headerCompact || !conversaId) {
+      setThreadOpening(false);
+      return undefined;
+    }
+    setThreadOpening(true);
+    const fallback = window.setTimeout(() => setThreadOpening(false), 2500);
+    return () => window.clearTimeout(fallback);
+  }, [headerCompact, conversaId]);
+
+  useEffect(() => {
+    if (!threadOpening || loading || hasThreadMessageRows) return;
+    setThreadOpening(false);
+  }, [threadOpening, loading, hasThreadMessageRows]);
+
+  useLayoutEffect(() => {
+    if (!threadOpening || !headerCompact || loading || !conversaId) return undefined;
+    if (!hasThreadMessageRows) return undefined;
+
+    let rafId = 0;
+    let settleTimer = 0;
+    let fallbackTimer = 0;
+    let released = false;
+    let attempts = 0;
+
+    const release = () => {
+      if (released) return;
+      released = true;
+      const container = messagesContainerRef.current;
+      if (container && !userScrollLockRef.current) {
+        snapThreadToBottom(container, virtualThreadRef, {
+          min: true,
+          followUpFrame: false,
+          canSnap: () => !userScrollLockRef.current,
+        });
+      }
+      setThreadOpening(false);
+    };
+
+    const waitForRenderedRows = () => {
+      const container = messagesContainerRef.current;
+      const renderedRows =
+        container?.querySelectorAll?.(".wa-row, .wa-messages-virtual-root [data-virtual-index]")?.length || 0;
+      if (renderedRows === 0 && attempts < 8) {
+        attempts += 1;
+        rafId = window.requestAnimationFrame(waitForRenderedRows);
+        return;
+      }
+
+      if (container && !userScrollLockRef.current) {
+        snapThreadToBottom(container, virtualThreadRef, {
+          min: true,
+          followUpFrame: false,
+          canSnap: () => !userScrollLockRef.current,
+        });
+      }
+
+      rafId = window.requestAnimationFrame(() => {
+        const container = messagesContainerRef.current;
+        const hasLoadingImage = Boolean(container?.querySelector?.(".wa-bubble-img.is-loading"));
+        const hasAudioLayout = Boolean(container?.querySelector?.(".audio-message, .wa-audioPlayer, audio"));
+        if (hasLoadingImage || hasAudioLayout) {
+          settleTimer = window.setTimeout(release, hasAudioLayout ? 380 : 220);
+        } else {
+          release();
+        }
+      });
+    };
+
+    rafId = window.requestAnimationFrame(waitForRenderedRows);
+    fallbackTimer = window.setTimeout(release, 950);
+
+    return () => {
+      released = true;
+      if (rafId) window.cancelAnimationFrame(rafId);
+      if (settleTimer) window.clearTimeout(settleTimer);
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+    };
+  }, [threadOpening, headerCompact, loading, conversaId, hasThreadMessageRows, mensagensComSeparadores, virtualThreadRef]);
 
   useEffect(() => {
     if (!import.meta?.env?.DEV) return;
@@ -3502,6 +3560,7 @@ function ConversaViewBody() {
   const mensagensBloqueadasHint = Boolean(conversa?.mensagens_bloqueadas);
   const atendimentoEncerradoHint = !modoSimplesAtivo && !isGroup && isClosedAttendance(conversa);
   const atendenteNomeHint = conversa?.atendente_nome ?? "";
+  const maskThreadOpening = headerCompact && threadOpening && !loading;
 
   /* Só tela cheia sem shell; com header da lista o thread mostra “Carregando mensagens…” inline. */
   if (!headerCompact && loading && !conversa) {
@@ -3836,7 +3895,11 @@ function ConversaViewBody() {
         {/* MENSAGENS */}
         <div
           ref={messagesContainerRef}
-          className={`wa-messages${selectMode ? " wa-messages--selectDim" : ""}`}
+          className={[
+            "wa-messages",
+            selectMode ? "wa-messages--selectDim" : "",
+            maskThreadOpening ? "wa-messages--opening" : "",
+          ].filter(Boolean).join(" ")}
           onDragOver={onDragOver}
           onDrop={onDrop}
           onDragLeave={onDragLeave}

@@ -332,7 +332,7 @@ function getStaticItemKey(item, index, conversaId) {
  * O lote atual é pequeno o bastante para render direto e o scroll nativo fica mais previsível.
  * Renderiza no máximo MOBILE_STATIC_MAX itens para evitar acúmulo de nós DOM em sessões longas.
  */
-const MOBILE_STATIC_MAX = 300;
+const MOBILE_STATIC_MAX = 60;
 
 export const ConversaMessageStaticList = forwardRef(function ConversaMessageStaticList(
   { items, scrollRef, renderItem, onVirtualContentResize, conversaId },

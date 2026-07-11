@@ -42,7 +42,7 @@ import {
 export { stableSyntheticMessageKey, mapDedupeKey, getMessageListReactKey, isPendingOutgoingTemp }
 
 const PAGE_LIMIT = 100
-const MOBILE_INITIAL_PAGE_LIMIT = 50
+const MOBILE_INITIAL_PAGE_LIMIT = 28
 
 function mensagemStatusPatchChanges(cur, merged, partial) {
   if (!cur || !merged || !partial) return true

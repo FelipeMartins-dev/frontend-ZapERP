@@ -1857,6 +1857,14 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.wa-messages.wa-messages--opening {
+  pointer-events: none;
+}
+
+.wa-messages.wa-messages--opening > * {
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wa-messages .wa-bubble.zap-message-enter {
     animation: none !important;
@@ -3615,7 +3623,7 @@
 
 .wa-bubble.image-message .wa-bubble-img.is-loading {
   min-width: min(240px, calc(100vw - 96px));
-  min-height: 220px;
+  min-height: min(420px, 72vh);
   background: rgba(11, 20, 26, 0.06);
 }
 
@@ -11362,8 +11370,9 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   }
 
   .wa-bubble.image-message .wa-bubble-img.is-loading {
-    min-width: min(230px, calc(100vw - 56px));
-    min-height: 210px;
+    width: min(360px, calc(100vw - 30px));
+    min-width: min(300px, calc(100vw - 56px));
+    min-height: min(480px, 68vh);
   }
 
   .wa-bubble.image-message .wa-bubble-img {
@@ -11778,8 +11787,9 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   }
 
   .wa-bubble.image-message .wa-bubble-img.is-loading {
-    min-width: min(calc(100vw - 44px), 230px);
-    min-height: 200px;
+    width: min(360px, calc(100vw - 30px));
+    min-width: min(calc(100vw - 44px), 300px);
+    min-height: min(480px, 68vh);
   }
 
   .wa-bubble-meta { font-size: 10px; gap: 2px; padding: 0 8px; }

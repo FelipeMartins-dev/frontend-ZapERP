@@ -7,7 +7,7 @@ import { useWhatsappInstancesStore } from "./whatsappInstancesStore";
 import { chatRowStableKey } from "./chatRowStableKey";
 
 /** A partir deste tamanho, lista virtualizada (crítico na aba Todas no mobile). */
-export const CHAT_LIST_VIRTUAL_THRESHOLD = 48;
+export const CHAT_LIST_VIRTUAL_THRESHOLD = 24;
 
 function renderChatListRow(c, selectedId, props) {
   const id = c?.id;
@@ -115,7 +115,7 @@ const ChatListRows = memo(function ChatListRows({
     getScrollElement: () => scrollRef.current,
     estimateSize: estimateRowSize,
     gap: CHAT_LIST_ROW_GAP,
-    overscan: isMobileLayout ? 6 : 10,
+    overscan: isMobileLayout ? 4 : 10,
     scrollPaddingStart: 4,
     scrollPaddingEnd: 8,
     /* Mobile: adia remeasure após o dedo soltar — reduz thrash sem desativar medição real. */

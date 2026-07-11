@@ -94,7 +94,11 @@ function countDistinctConversas(list) {
 }
 
 const CONFIRM_LOTE_AUSENCIA = "FINALIZAR_LOTE_AUSENCIA_CLIENTE";
-const CHAT_LIST_PAGE_LIMIT = 80;
+const CHAT_LIST_DESKTOP_PAGE_LIMIT = 80;
+const CHAT_LIST_MOBILE_PAGE_LIMIT = 40;
+function getChatListPageLimit(isMobileLayout) {
+  return isMobileLayout ? CHAT_LIST_MOBILE_PAGE_LIMIT : CHAT_LIST_DESKTOP_PAGE_LIMIT;
+}
 const MOBILE_ZAPI_STATUS_DELAY_MS = 3200;
 const MOBILE_SECONDARY_REFRESH_DELAY_MS = 2800;
 const MOBILE_COUNTS_DELAY_MS = 2600;
@@ -521,6 +525,8 @@ export default function ChatList() {
   const minhaFilaListRef = useRef(null);
   const optimisticRemovedMinhaFilaRef = useRef(new Map());
   const filterRequestKeyRef = useRef("");
+  const filterRequestBaseKeyRef = useRef("");
+  const filterRequestSearchRef = useRef("");
   minhaFilaListRef.current = minhaFilaList;
   const filterOptimisticRemovedMinhaFila = useCallback((list) => {
     const arr = Array.isArray(list) ? list : [];
@@ -561,15 +567,46 @@ export default function ChatList() {
     separarMensagensDisparadasLigado ? "sep-disparadas" : "",
     filterScopeKey,
   ].join("|");
+  const filterRequestBaseKey = [
+    tab,
+    tagFilter,
+    departamentoFilter,
+    statusFilter,
+    atendenteFilter,
+    dataInicio,
+    dataFim,
+    mineOnly ? "mine" : "all",
+    order,
+    adminAtendenteFilterId ?? "",
+    onlyFinalizadasAusencia ? "auto" : "",
+    aguardandoClienteOnly ? "aguardando" : "",
+    pagamentosPendentesOnly ? "pag-pendente" : "",
+    emAtrasoOnly ? "em-atraso" : "",
+    tempoParadoFilter,
+    conversaIdsPendenciaQuery ?? "",
+    separarMensagensDisparadasLigado ? "sep-disparadas" : "",
+    filterScopeKey,
+  ].join("|");
 
   useEffect(() => {
     if (!filterRequestKeyRef.current) {
       filterRequestKeyRef.current = filterRequestKey;
+      filterRequestBaseKeyRef.current = filterRequestBaseKey;
+      filterRequestSearchRef.current = debouncedSearch;
       return;
     }
     if (filterRequestKeyRef.current === filterRequestKey) return;
+    const previousBaseKey = filterRequestBaseKeyRef.current;
+    const previousSearch = filterRequestSearchRef.current;
+    const onlySearchChanged =
+      previousBaseKey === filterRequestBaseKey &&
+      String(previousSearch || "") !== String(debouncedSearch || "");
+    const hasRowsToPreserve = (useChatStore.getState().chats?.length ?? 0) > 0;
+    const preserveRowsDuringMobileSearch = isMobileLayout && onlySearchChanged && hasRowsToPreserve;
     filterRequestKeyRef.current = filterRequestKey;
-    setZapFilterSkeleton(true);
+    filterRequestBaseKeyRef.current = filterRequestBaseKey;
+    filterRequestSearchRef.current = debouncedSearch;
+    setZapFilterSkeleton(!preserveRowsDuringMobileSearch);
     setActiveListTotalCount(null);
     setChatListPage({
       hasMore: false,
@@ -579,11 +616,13 @@ export default function ChatList() {
       loading: false,
       error: "",
     });
-    setChats([]);
-    if (tab === "minha_fila") {
+    if (!preserveRowsDuringMobileSearch) {
+      setChats([]);
+    }
+    if (tab === "minha_fila" && !preserveRowsDuringMobileSearch) {
       setMinhaFilaList(null);
     }
-  }, [filterRequestKey, tab, setChats]);
+  }, [filterRequestKey, filterRequestBaseKey, debouncedSearch, tab, setChats, isMobileLayout]);
 
   /** Hidratação antes da pintura: lista + Minha fila + filtros auxiliares (F5). */
   useLayoutEffect(() => {
@@ -742,7 +781,7 @@ export default function ChatList() {
         params.finalizacao_motivo = "ausencia_cliente";
       }
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
-      params.limit = CHAT_LIST_PAGE_LIMIT;
+      params.limit = getChatListPageLimit(isMobileLayout);
       const data = await fetchChats(params, { silent: true });
       const list = filterOptimisticRemovedMinhaFila(Array.isArray(data) ? data : []);
       const pageMeta = getChatsPageMeta(data);
@@ -758,7 +797,7 @@ export default function ChatList() {
     } catch (e) {
       console.error("Erro ao carregar Minha fila:", e);
     }
-  }, [tagFilter, departamentoFilter, atendenteFilter, dataInicio, dataFim, onlyFinalizadasAusencia, tempoParadoFilter, filterScopeKey, filterOptimisticRemovedMinhaFila]);
+  }, [tagFilter, departamentoFilter, atendenteFilter, dataInicio, dataFim, onlyFinalizadasAusencia, tempoParadoFilter, filterScopeKey, filterOptimisticRemovedMinhaFila, isMobileLayout]);
 
   const refreshEmAtendimentoBadge = useCallback(async () => {
     try {
@@ -968,13 +1007,16 @@ export default function ChatList() {
   }, [user, refreshSupervisaoData, filterScopeKey, isMobileLayout]);
 
   async function load(opts = {}) {
+    const hasVisibleChatsAtStart = (useChatStore.getState().chats?.length ?? 0) > 0;
     if (loadInFlightRef.current) {
       const foreground = opts.background !== true;
       if (!foreground) {
         loadQueuedRef.current = { background: true };
         return;
       }
-      setZapFilterSkeleton(true);
+      if (!hasVisibleChatsAtStart) {
+        setZapFilterSkeleton(true);
+      }
     }
     loadInFlightRef.current = true;
     const requestId = ++loadRequestIdRef.current;
@@ -983,7 +1025,7 @@ export default function ChatList() {
     loadAbortRef.current = abortController;
     loadSecondaryScheduleCancelRef.current?.();
     loadSecondaryScheduleCancelRef.current = null;
-    const hasVisibleChats = (useChatStore.getState().chats?.length ?? 0) > 0;
+    const hasVisibleChats = hasVisibleChatsAtStart;
     const background =
       opts.background === true || (opts.background !== false && hasVisibleChats);
     if (!background) {
@@ -1004,6 +1046,7 @@ export default function ChatList() {
         isFinanceiroUser && (tab === "pagamentos_pendentes" || pagamentosPendentesOnly);
       const emAtrasoQuery = isFinanceiroUser && (tab === "em_atraso" || emAtrasoOnly);
       const searchTerm = String(debouncedSearch || "").trim();
+      const pageLimit = getChatListPageLimit(isMobileLayout);
       const includeAllForSearch = searchTerm ? "1" : undefined;
 
       let params;
@@ -1020,7 +1063,7 @@ export default function ChatList() {
           data_fim: dataFim || undefined,
           palavra: searchTerm || undefined,
           incluir_todos_clientes: includeAllForSearch,
-          limit: CHAT_LIST_PAGE_LIMIT,
+          limit: pageLimit,
         };
         if (finalAutoQuery) {
           params.finalizacao_motivo = "ausencia_cliente";
@@ -1038,7 +1081,7 @@ export default function ChatList() {
           data_fim: dataFim || undefined,
           palavra: searchTerm || undefined,
           incluir_todos_clientes: includeAllForSearch,
-          limit: CHAT_LIST_PAGE_LIMIT,
+          limit: pageLimit,
         };
         if (tab === "minha_fila") {
           params.minha_fila = "1";
@@ -1302,7 +1345,7 @@ export default function ChatList() {
           ...baseParams,
           cursor: page.nextCursor,
           cursorId: page.nextCursorId,
-          limit: CHAT_LIST_PAGE_LIMIT,
+          limit: getChatListPageLimit(isMobileLayout),
         },
         { signal: loadMoreAbort.signal }
       );
@@ -1357,6 +1400,7 @@ export default function ChatList() {
     aguardandoClienteBadgeCount,
     mensagensDisparadasCount,
     filterOptimisticRemovedMinhaFila,
+    isMobileLayout,
   ]);
 
   useEffect(() => {

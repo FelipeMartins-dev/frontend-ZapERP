@@ -17,7 +17,7 @@ const EMPTY_ARRAY = Object.freeze([]);
  * usam lista virtualizada para evitar montar centenas de bolhas no DOM de uma vez.
  * Conversas menores mantêm lista estática (scroll nativo mais previsível no toque).
  */
-const MOBILE_VIRTUALIZE_THRESHOLD = 80;
+const MOBILE_VIRTUALIZE_THRESHOLD = 24;
 
 function firstFilled(...values) {
   for (const value of values) {
@@ -391,7 +391,7 @@ export default function ConversaThread({
           key={`wa-thread-${headerCompact ? "mobile" : "desktop"}-${String(threadConversaId ?? "")}`}
           ref={virtualThreadRef}
           scrollRef={messagesContainerRef}
-          overscan={headerCompact ? 5 : 10}
+          overscan={headerCompact ? 3 : 10}
           mobileThread={headerCompact}
           conversaId={threadConversaId}
           items={safeMensagensComSeparadores}

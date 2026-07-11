@@ -69,14 +69,15 @@ function ChatListToolbar({
     activeFilterTotalCount != null && Number.isFinite(Number(activeFilterTotalCount))
       ? Number(activeFilterTotalCount)
       : null;
+  const displayedTotalForHint = totalForHint != null ? Math.max(totalForHint, filteredCount) : null;
   const hintText = hintLoading
     ? "Carregando…"
     : listRefreshing
       ? "Atualizando…"
       : adminPorFuncionarioAtivo
         ? `${filteredCount} conversas`
-        : totalForHint != null
-          ? `${filteredCount} de ${totalForHint}`
+        : displayedTotalForHint != null
+          ? `${filteredCount} de ${displayedTotalForHint}`
           : `${filteredCount} conversas`;
 
   return (
