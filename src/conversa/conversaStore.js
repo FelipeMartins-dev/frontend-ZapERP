@@ -1598,7 +1598,7 @@ export const useConversaStore = create((set, get) => {
           if (k === "contato_nome" || k === "foto_perfil" || k === "foto_perfil_contato_cache") continue
           const newVal = partial[k]
           const isEmpty = newVal == null || String(newVal || "").trim() === ""
-          if (isEmpty && (cur[k] != null && String(cur[k || ""]).trim() !== ""))
+          if (isEmpty && (cur[k] != null && String(cur[k]).trim() !== ""))
             merged[k] = cur[k]
         }
         if ("departamento_id" in partial) merged.departamento_id = partial.departamento_id

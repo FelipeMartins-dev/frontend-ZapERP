@@ -12,6 +12,21 @@ import "./styles/app.css";
 
 useAuthStore.getState().restore();
 
+// Sincroniza a sessão entre abas: logout em uma aba encerra as demais imediatamente
+// (sem esperar um 401) e login em outra aba reidrata quem ficou na tela de login.
+// O evento `storage` só dispara em abas diferentes da que alterou o localStorage.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key !== "zap_erp_auth") return;
+    const { token, clearSession, restore } = useAuthStore.getState();
+    if (!e.newValue) {
+      if (token) clearSession({ redirect: true });
+      return;
+    }
+    if (!token) restore();
+  });
+}
+
 initNativeFcmBridge();
 
 function applyTheme() {

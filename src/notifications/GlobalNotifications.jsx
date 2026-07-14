@@ -29,7 +29,7 @@ export default function GlobalNotifications() {
 
   useEffect(() => {
     if (!toast) return;
-    const ms = toast.actionLabel && typeof toast.onAction === "function" ? 12000 : 4500;
+    const ms = toast.actionLabel && typeof toast.onAction === "function" ? 12000 : 4000;
     const t = setTimeout(clearToast, ms);
     return () => clearTimeout(t);
   }, [toast, clearToast]);

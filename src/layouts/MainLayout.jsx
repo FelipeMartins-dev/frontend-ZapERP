@@ -17,6 +17,7 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 import { useAuthStore } from "../auth/authStore";
+import { usePermissoesStore } from "../auth/permissoesStore";
 import { can, canGerenciarRespostasSalvas, isSupervisorOrAdmin } from "../auth/permissions";
 import GlobalNotifications from "../notifications/GlobalNotifications";
 import PushPermissionPrompt from "../push/PushPermissionPrompt";
@@ -66,6 +67,9 @@ export default function MainLayout() {
   const showAtendimentoUnreadDot = isMobileBottomNav && unreadAtendimentoTotal > 0;
   const internalChatUnreadTotal = useInternalChatNotifyStore(selectInternalChatUnreadTotal);
   const showInternalChatUnreadDot = internalChatUnreadTotal > 0;
+  // Subscrição reativa: can() lê o store via getState(); sem isto, menus não refletem
+  // GET /usuarios/me/permissoes ao resolver após login/F5 (só no próximo re-render).
+  usePermissoesStore((s) => s.permissoes);
   const canAccessConfig = can("config_acessar", user);
   const canAccessRespostasSalvas = canGerenciarRespostasSalvas(user);
   const canAccessDashboard_ = can("dashboard_acessar", user);

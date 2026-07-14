@@ -87,6 +87,34 @@ function focusAppWindow() {
   } catch (_) {}
 }
 
+/** Tempo até o card nativo sumir sozinho (não deve ficar fixo na tela). */
+const NOTIFICATION_AUTO_CLOSE_MS = 4_000
+
+/**
+ * setTimeout de página sofre throttling intensivo em aba oculta (lotes de 1/min após ~5min
+ * em segundo plano) — exatamente o cenário em que o card aparece, deixando-o "fixo" na tela.
+ * Timer dentro de um Worker dedicado não é throttled pela visibilidade da aba.
+ */
+function scheduleAutoClose(callback, delayMs) {
+  try {
+    const src = "self.onmessage=function(e){setTimeout(function(){self.postMessage(1);self.close()},e.data)}"
+    const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }))
+    const worker = new Worker(url)
+    worker.onmessage = () => {
+      try {
+        worker.terminate()
+      } catch (_) {}
+      try {
+        URL.revokeObjectURL(url)
+      } catch (_) {}
+      callback()
+    }
+    worker.postMessage(delayMs)
+  } catch (_) {
+    setTimeout(callback, delayMs)
+  }
+}
+
 /**
  * Notificação nativa do sistema (Notification API).
  * Limitações reais: o SO/navegador pode agrupar, omitir som ou não mostrar em modo “Não incomodar”,
@@ -158,12 +186,11 @@ export async function notifyIncomingDesktopMessage({ msg, contatoNome, avatarUrl
       } catch (_) {}
     }
 
-    const autoCloseMs = 5_000
-    setTimeout(() => {
+    scheduleAutoClose(() => {
       try {
         notification.close()
       } catch (_) {}
-    }, autoCloseMs)
+    }, NOTIFICATION_AUTO_CLOSE_MS)
 
     return { shown: true, reason: "ok" }
   } catch {
@@ -194,6 +221,16 @@ async function tryShowViaServiceWorker(title, { body, icon, tag, data }) {
       silent: false,
       data,
     })
+    scheduleAutoClose(async () => {
+      try {
+        const notifs = await reg.getNotifications({ tag })
+        notifs.forEach((n) => {
+          try {
+            n.close()
+          } catch (_) {}
+        })
+      } catch (_) {}
+    }, NOTIFICATION_AUTO_CLOSE_MS)
     return true
   } catch {
     return false

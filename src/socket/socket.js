@@ -816,8 +816,10 @@ export function initSocket(token) {
   /* ===========================
      INDICADOR DE DIGITAÇÃO
   =========================== */
-  socket.on("typing_start", ({ conversa_id, usuario_id, nome }) => {
+  socket.on("typing_start", (payload = {}) => {
+    const { conversa_id, usuario_id, nome } = payload
     if (!conversa_id) return
+    if (shouldIgnoreByCompany(payload)) return
     const _cid = String(conversa_id)
     useConversaStore.getState().setTyping(conversa_id, { usuario_id, nome })
     if (typingExpiryTimers.has(_cid)) clearTimeout(typingExpiryTimers.get(_cid))
@@ -827,8 +829,10 @@ export function initSocket(token) {
     }, TYPING_EXPIRY_MS))
   })
 
-  socket.on("typing_stop", ({ conversa_id }) => {
+  socket.on("typing_stop", (payload = {}) => {
+    const { conversa_id } = payload
     if (!conversa_id) return
+    if (shouldIgnoreByCompany(payload)) return
     const _cid = String(conversa_id)
     if (typingExpiryTimers.has(_cid)) {
       clearTimeout(typingExpiryTimers.get(_cid))
@@ -840,8 +844,10 @@ export function initSocket(token) {
   /* ===========================
      TAGS
   =========================== */
-  socket.on("tag_adicionada", ({ conversa_id, tag }) => {
+  socket.on("tag_adicionada", (payload = {}) => {
+    const { conversa_id, tag } = payload
     if (!conversa_id) return
+    if (shouldIgnoreByCompany(payload)) return
 
     useChatStore.getState().adicionarTag(conversa_id, tag)
 
@@ -855,8 +861,10 @@ export function initSocket(token) {
     }
   })
 
-  socket.on("tag_removida", ({ conversa_id, tag_id }) => {
+  socket.on("tag_removida", (payload = {}) => {
+    const { conversa_id, tag_id } = payload
     if (!conversa_id || !tag_id) return
+    if (shouldIgnoreByCompany(payload)) return
 
     useChatStore.getState().removerTag(conversa_id, tag_id)
 
@@ -921,10 +929,18 @@ export function initSocket(token) {
       void addChatIfAuthorized(chatStore, conversaId).then((added) => {
         if (!added) return
         const store = useChatStore.getState()
+        // O GET /chats/:id acabou de trazer unread_count do servidor; se a ultima_mensagem
+        // retornada já é esta msg, o contador já a inclui — incrementar duplicaria o badge.
+        const fetchedRow = (store.chats || []).find((c) => String(c?.id) === String(conversaId))
+        const um = fetchedRow?.ultima_mensagem
+        const serverJaContou = !!um && (
+          (msg?.id != null && um?.id != null && String(um.id) === String(msg.id)) ||
+          (msg?.whatsapp_id && um?.whatsapp_id && String(um.whatsapp_id) === String(msg.whatsapp_id))
+        )
         if (typeof store.setUltimaMensagemEBump === "function") {
           store.setUltimaMensagemEBump(conversaId, msg)
         }
-        if (!msg.fromMe && msg.direcao === "in") {
+        if (!msg.fromMe && msg.direcao === "in" && !serverJaContou) {
           const isOpen =
             useConversaStore.getState().selectedId &&
             String(useConversaStore.getState().selectedId) === String(conversaId)
@@ -1038,8 +1054,10 @@ export function initSocket(token) {
   /* ===========================
      🗑️ MENSAGEM EXCLUÍDA (realtime)
   =========================== */
-  socket.on("mensagem_excluida", ({ conversa_id, mensagem_id, ultima_mensagem }) => {
+  socket.on("mensagem_excluida", (payload = {}) => {
+    const { conversa_id, mensagem_id, ultima_mensagem } = payload
     if (!conversa_id || !mensagem_id) return
+    if (shouldIgnoreByCompany(payload)) return
 
     const chatStore = useChatStore.getState()
     chatStore.setUltimaMensagem(conversa_id, ultima_mensagem || null)
@@ -1056,6 +1074,7 @@ export function initSocket(token) {
   =========================== */
   socket.on("mensagem_editada", (msg) => {
     if (!msg?.id) return
+    if (shouldIgnoreByCompany(msg)) return
     const convStore = useConversaStore.getState()
     const selectedId = convStore.selectedId
     if (!selectedId) return
@@ -1069,8 +1088,10 @@ export function initSocket(token) {
   })
 
   /* Mensagem ocultada "pra mim" (somente usuário) */
-  socket.on("mensagem_oculta", ({ conversa_id, mensagem_id }) => {
+  socket.on("mensagem_oculta", (payload = {}) => {
+    const { conversa_id, mensagem_id } = payload
     if (!conversa_id || !mensagem_id) return
+    if (shouldIgnoreByCompany(payload)) return
     const convStore = useConversaStore.getState()
     if (convStore.selectedId && String(convStore.selectedId) === String(conversa_id)) {
       convStore.removerMensagem(mensagem_id)
@@ -1089,8 +1110,10 @@ export function initSocket(token) {
   /* ===========================
      MENSAGENS LIDAS (igual WhatsApp: ao abrir a conversa marca como lida e remove notificação)
   =========================== */
-  socket.on("mensagens_lidas", ({ conversa_id }) => {
+  socket.on("mensagens_lidas", (payload = {}) => {
+    const { conversa_id } = payload
     if (!conversa_id) return
+    if (shouldIgnoreByCompany(payload)) return
     useChatStore.getState().setUnread(conversa_id, 0)
      // Limpa badges e flags de novas mensagens após o backend marcar como lida
     useChatStore.getState().updateChat({
@@ -1513,8 +1536,10 @@ export function initSocket(token) {
   })
 
   /* Nome e foto do contato atualizados pela API UltraMsg (tempo real) — name (nome salvo no celular) tem prioridade sobre pushname */
-  socket.on("contato_atualizado", ({ conversa_id, contato_nome, nome_contato_cache, nome_grupo, foto_perfil, foto_perfil_contato_cache, foto_grupo }) => {
+  socket.on("contato_atualizado", (payload = {}) => {
+    const { conversa_id, contato_nome, nome_contato_cache, nome_grupo, foto_perfil, foto_perfil_contato_cache, foto_grupo } = payload
     if (conversa_id == null) return
+    if (shouldIgnoreByCompany(payload)) return
     const nome = contato_nome ?? nome_contato_cache
     const foto = foto_perfil ?? foto_perfil_contato_cache
     if (nome != null || foto != null || nome_grupo != null || foto_grupo != null) {

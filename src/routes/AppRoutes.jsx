@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "../auth/authStore";
+import { usePermissoesStore } from "../auth/permissoesStore";
 import { can, canGerenciarRespostasSalvas, isSupervisorOrAdmin } from "../auth/permissions";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -63,6 +64,9 @@ function LazyPage({ children }) {
 
 export default function AppRoutes() {
   const { token, user } = useAuthStore();
+  // Subscrição reativa: can() lê o store via getState(); sem isto, as rotas protegidas
+  // não reavaliam quando GET /usuarios/me/permissoes resolve após login/F5.
+  usePermissoesStore((s) => s.permissoes);
   const canAccessConfig = can("config_acessar", user);
   const canAccessRespostasSalvas = canGerenciarRespostasSalvas(user);
   const canAccessDashboard_ = can("dashboard_acessar", user);

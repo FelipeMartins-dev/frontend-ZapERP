@@ -2,10 +2,10 @@
 // Marcador de versão do Service Worker. Serve para COMPARAR máquinas: um PC preso numa
 // versão antiga do PWA responderá com versão diferente (ou não responderá) ao ZAP_SW_VERSION.
 // Atualize a data quando mudar a lógica do SW.
-const SW_VERSION = '2026-07-08-notif-autoclose-5s'
+const SW_VERSION = '2026-07-13-notif-autoclose-4s'
 const SUPPRESS_REPLY_MS = 180
 // Tempo até o banner sumir sozinho (notificação de mensagem não deve ficar fixa na tela).
-const AUTO_CLOSE_MS = 5000
+const AUTO_CLOSE_MS = 4000
 
 // Responde a versão do SW a quem perguntar (usado pelo diagnóstico no console).
 self.addEventListener('message', (event) => {
