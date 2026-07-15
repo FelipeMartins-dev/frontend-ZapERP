@@ -91,6 +91,7 @@ export default function Atendimento() {
   /** Mesmo breakpoint do header compacto da conversa — só mobile. */
   const isAtendimentoMobileNav = useMatchMedia("(max-width: 640px)");
   const prevSelectedRef = useRef(null);
+  const mobileHistoryArmedRef = useRef(false);
 
   const unreadTitleTotal = useChatStore((s) => {
     let total = 0
@@ -113,23 +114,35 @@ export default function Atendimento() {
   useEffect(() => {
     if (!isAtendimentoMobileNav || typeof window === "undefined") {
       prevSelectedRef.current = selectedId;
+      mobileHistoryArmedRef.current = false;
       return;
     }
 
     const prev = prevSelectedRef.current;
     const url = `${window.location.pathname}${window.location.search}`;
-    const stateMarker = { [WA_ATENDIMENTO_CHAT_HISTORY_KEY]: 1 };
+    const currentState =
+      window.history.state && typeof window.history.state === "object"
+        ? window.history.state
+        : {};
+    const stateMarker = { ...currentState, [WA_ATENDIMENTO_CHAT_HISTORY_KEY]: 1 };
 
-    const stateHasMarker = !!window.history.state?.[WA_ATENDIMENTO_CHAT_HISTORY_KEY];
+    const stateHasMarker = !!currentState?.[WA_ATENDIMENTO_CHAT_HISTORY_KEY];
+
+    if (selectedId == null) {
+      prevSelectedRef.current = selectedId;
+      return;
+    }
 
     if (selectedId != null && prev == null && !stateHasMarker) {
       window.history.pushState(stateMarker, "", url);
+      mobileHistoryArmedRef.current = true;
     } else if (
       selectedId != null &&
       prev != null &&
       String(prev) !== String(selectedId)
     ) {
       window.history.replaceState(stateMarker, "", url);
+      mobileHistoryArmedRef.current = true;
     } else if (
       selectedId != null &&
       prev != null &&
@@ -138,6 +151,9 @@ export default function Atendimento() {
     ) {
       /* Ex.: conversa já aberta no desktop e rotação para mobile — ainda sem camada no histórico. */
       window.history.pushState(stateMarker, "", url);
+      mobileHistoryArmedRef.current = true;
+    } else if (stateHasMarker) {
+      mobileHistoryArmedRef.current = true;
     }
 
     prevSelectedRef.current = selectedId;
@@ -146,11 +162,23 @@ export default function Atendimento() {
   useEffect(() => {
     if (!isAtendimentoMobileNav || typeof window === "undefined") return undefined;
 
-    const onPopState = () => {
+    const onPopState = (event) => {
+      if (event?.isTrusted === false) return;
+
       const sid = useConversaStore.getState().selectedId;
-      if (sid != null) {
-        useConversaStore.getState().setSelectedId(null);
+      if (sid == null) return;
+
+      const nextHasMarker = !!event?.state?.[WA_ATENDIMENTO_CHAT_HISTORY_KEY];
+      if (nextHasMarker) {
+        mobileHistoryArmedRef.current = true;
+        return;
       }
+
+      if (!mobileHistoryArmedRef.current) return;
+
+      mobileHistoryArmedRef.current = false;
+      prevSelectedRef.current = null;
+      useConversaStore.getState().setSelectedId(null);
     };
 
     window.addEventListener("popstate", onPopState);
