@@ -1237,7 +1237,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   }, [closeCameraCapture, onCameraCaptureFile]);
 
   const handleStartRecording = useCallback(async () => {
-    if (!conversaId || sending || isRecording) return;
+    // Gravação NÃO depende de `sending`: ao parar/enviar um áudio, o microfone é liberado na
+    // hora para o próximo (o envio segue em fila sequencial no ConversaView). Só bloqueia se já
+    // estiver gravando ou sem conversa.
+    if (!conversaId || isRecording) return;
     if (!podeEnviar) {
       showToast?.({
         type: "warning",
@@ -1390,7 +1393,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         message: msg,
       });
     }
-  }, [conversaId, sending, isRecording, onSendAudioFile, showToast, podeEnviar]);
+  }, [conversaId, isRecording, onSendAudioFile, showToast, podeEnviar]);
 
   const handleStopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -1969,7 +1972,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={handleStartRecording}
-                    disabled={sending || !conversaId || !podeEnviar}
+                    disabled={!conversaId || !podeEnviar}
                     className="wa-micBtn"
                     title="Gravar áudio"
                     type="button"
@@ -1983,7 +1986,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={handleStartRecording}
-                    disabled={sending || !conversaId || !podeEnviar}
+                    disabled={!conversaId || !podeEnviar}
                     className="wa-micBtn"
                     title="Gravar áudio"
                     type="button"

@@ -9,6 +9,7 @@ import {
   atendimentoRowVisualClass,
   isEmAtendimentoUltimaDoCliente,
   esperaMinutosAnchorKey,
+  getAtendimentoAssigneeNames,
 } from "./chatListRowAtendimento";
 import { ultimaMensagemOutboundStatusKey } from "./chatListStoreCompare";
 
@@ -44,7 +45,8 @@ export function chatRowContactSurfaceKey(c) {
   const tagNome = String(tag?.nome ?? "");
   const tagCor = String(tag?.cor ?? "");
   const instanceLabel = String(c?.whatsapp_instance_nome ?? c?.whatsapp_instance_display_phone ?? "").trim();
-  return `${displayName}|${avatarUrl ?? ""}|${phone}|${empresa}|${setor}|${String(c?.departamento_id ?? "")}|${tagId}|${tagNome}|${tagCor}|${instanceLabel}`;
+  const assignees = getAtendimentoAssigneeNames(c).join(",");
+  return `${displayName}|${avatarUrl ?? ""}|${phone}|${empresa}|${setor}|${String(c?.departamento_id ?? "")}|${tagId}|${tagNome}|${tagCor}|${instanceLabel}|${assignees}`;
 }
 
 function chatRowNeedsMinuteTick(c, pendentesFuncionarioSet) {
@@ -80,6 +82,7 @@ export function chatRowPropsAreEqual(prev, next) {
     prev.onOpenClienteSemConversa === next.onOpenClienteSemConversa &&
     prev.onToggleMenu === next.onToggleMenu &&
     prev.isMenuOpen === next.isMenuOpen &&
+    String(prev.currentUserName ?? "") === String(next.currentUserName ?? "") &&
     Number(a.unread_count ?? a.unread ?? 0) === Number(b.unread_count ?? b.unread ?? 0) &&
     String(getStatusAtendimentoEffective(a)) === String(getStatusAtendimentoEffective(b)) &&
     String(a.status_atendimento_real ?? "") === String(b.status_atendimento_real ?? "") &&

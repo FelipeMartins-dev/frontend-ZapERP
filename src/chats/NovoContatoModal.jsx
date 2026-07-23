@@ -10,6 +10,7 @@ import {
   digitsOnly,
   formatBrPhoneDisplay,
   isPlausibleBrPhoneDigits,
+  normalizeBrPhoneForSubmit,
 } from "./phoneBrFormat";
 import { whatsappInstanceLabel } from "./whatsappInstancesService";
 import { useWhatsappInstancesStore } from "./whatsappInstancesStore";
@@ -129,9 +130,10 @@ export default function NovoContatoModal({ open, onClose, onSuccess }) {
     resetApiHints();
 
     try {
+      const telefoneNormalizado = normalizeBrPhoneForSubmit(telefone);
       /** @type {import('../api/clientes.types').CriarClientePayload} */
       const payload = {
-        telefone: String(telefone || "").trim(),
+        telefone: telefoneNormalizado,
       };
       if (trimmedNome) payload.nome = trimmedNome;
       if (assumir) {

@@ -43,6 +43,7 @@ export { stableSyntheticMessageKey, mapDedupeKey, getMessageListReactKey, isPend
 
 const PAGE_LIMIT = 100
 const MOBILE_INITIAL_PAGE_LIMIT = 28
+const LOAD_ALL_MESSAGES_MAX_PAGES = 200
 
 function mensagemStatusPatchChanges(cur, merged, partial) {
   if (!cur || !merged || !partial) return true
@@ -560,6 +561,7 @@ export const useConversaStore = create((set, get) => {
 
       set({
         loading: reuseClient || hasCached ? false : true,
+        loadingMore: false,
         selectedId: normalizedId,
         loadError: null,
         conversa: reuseClient
@@ -933,6 +935,94 @@ export const useConversaStore = create((set, get) => {
       } catch (e) {
         console.error("Erro loadMore:", e)
         set({ loadingMore: false })
+      }
+    },
+
+    loadAllMessages: async () => {
+      const initial = get()
+      const selectedId = initial.selectedId
+      if (!selectedId || initial.loadingMore || initial.conversa?.mensagens_bloqueadas) {
+        return { ok: true, pagesLoaded: 0, messagesAdded: 0 }
+      }
+
+      const beforeCount = Array.isArray(initial.mensagens) ? initial.mensagens.length : 0
+      let cursor = initial.cursor
+      let cursorId = initial.cursorId
+      let hasMore = initial.hasMore
+      let pagesLoaded = 0
+      const seenCursors = new Set()
+
+      if (!hasMore || !cursor) {
+        return { ok: true, pagesLoaded: 0, messagesAdded: 0 }
+      }
+
+      set({ loadingMore: true })
+
+      try {
+        while (hasMore && cursor && pagesLoaded < LOAD_ALL_MESSAGES_MAX_PAGES) {
+          if (String(get().selectedId) !== String(selectedId)) {
+            return { ok: false, aborted: true, pagesLoaded, messagesAdded: 0 }
+          }
+
+          const cursorKey = `${cursor}::${cursorId ?? ""}`
+          if (seenCursors.has(cursorKey)) break
+          seenCursors.add(cursorKey)
+
+          const data = await getChatById(selectedId, {
+            cursor,
+            cursorId,
+            limit: PAGE_LIMIT,
+          })
+
+          if (String(get().selectedId) !== String(selectedId)) {
+            return { ok: false, aborted: true, pagesLoaded, messagesAdded: 0 }
+          }
+
+          const conversa = data?.conversa ? data.conversa : (data ?? null)
+          const mais = data?.mensagens ?? conversa?.mensagens ?? []
+          const nextCursor = data?.next_cursor ?? conversa?.next_cursor ?? null
+          const nextCursorIdRaw = data?.next_cursor_id ?? conversa?.next_cursor_id
+          const nextCursorId =
+            nextCursorIdRaw !== undefined && nextCursorIdRaw !== null && String(nextCursorIdRaw).trim() !== ""
+              ? Number(nextCursorIdRaw)
+              : null
+
+          set((state) => {
+            const merged = get()._mergeMensagensFromApi(mais || [], state.mensagens || [], selectedId)
+            return {
+              mensagens: attachReplyMeta(selectedId, merged),
+              cursor: nextCursor,
+              cursorId: Number.isFinite(nextCursorId) ? nextCursorId : null,
+              hasMore: !!nextCursor,
+              loadingMore: true,
+            }
+          })
+
+          pagesLoaded += 1
+          const current = get()
+          cursor = current.cursor
+          cursorId = current.cursorId
+          hasMore = current.hasMore
+        }
+
+        const finalState = get()
+        if (String(finalState.selectedId) === String(selectedId)) {
+          writeConversaMensagensCache(selectedId, finalState)
+        }
+        const afterCount = Array.isArray(finalState.mensagens) ? finalState.mensagens.length : beforeCount
+        return {
+          ok: true,
+          pagesLoaded,
+          messagesAdded: Math.max(0, afterCount - beforeCount),
+          reachedSafetyLimit: pagesLoaded >= LOAD_ALL_MESSAGES_MAX_PAGES && !!get().cursor,
+        }
+      } catch (e) {
+        console.error("Erro loadAllMessages:", e)
+        return { ok: false, error: e, pagesLoaded, messagesAdded: 0 }
+      } finally {
+        if (String(get().selectedId) === String(selectedId)) {
+          set({ loadingMore: false })
+        }
       }
     },
 

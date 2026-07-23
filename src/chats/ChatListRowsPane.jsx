@@ -21,6 +21,7 @@ function ChatListRowsPane({
   zapFilterSkeleton,
   isMobileLayout,
   rowCurrentUserId,
+  rowCurrentUserName,
   chatListScrollToTopNonce,
   onSelect,
   onOpenClienteSemConversa,
@@ -74,6 +75,7 @@ function ChatListRowsPane({
             onSelect={onSelect}
             onOpenClienteSemConversa={onOpenClienteSemConversa}
             currentUserId={rowCurrentUserId}
+            currentUserName={rowCurrentUserName}
             openConversationId={openConversationId}
             onToggleMenu={onToggleMenu}
             pendentesFuncionarioSet={pendentesFuncionarioSet}
@@ -123,6 +125,7 @@ function rowsPanePropsAreEqual(prev, next) {
   if (prev.zapFilterSkeleton !== next.zapFilterSkeleton) return false;
   if (prev.isMobileLayout !== next.isMobileLayout) return false;
   if (prev.rowCurrentUserId !== next.rowCurrentUserId) return false;
+  if (prev.rowCurrentUserName !== next.rowCurrentUserName) return false;
   if (prev.chatListScrollToTopNonce !== next.chatListScrollToTopNonce) return false;
   if (prev.openConversationId !== next.openConversationId) return false;
   if (prev.menuIsOpen !== next.menuIsOpen) return false;

@@ -4743,6 +4743,31 @@
   word-break: break-word;
 }
 
+/* Botão "Tentar novamente" em áudio outbound que falhou (retry por item). */
+.wa-audioRetryBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 3px 10px;
+  border: 1px solid var(--wa-danger, #e5484d);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--wa-danger, #e5484d);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+.wa-audioRetryBtn:hover {
+  background: color-mix(in srgb, var(--wa-danger, #e5484d) 12%, transparent);
+}
+.wa-audioRetryBtn:active {
+  opacity: 0.8;
+}
+
 /* Player custom (waveform estilo WhatsApp) */
 .wa-audioPlayer {
   display: flex;

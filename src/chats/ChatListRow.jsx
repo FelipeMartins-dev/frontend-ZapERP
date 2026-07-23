@@ -1,5 +1,6 @@
 ﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getApiBaseUrl } from "../api/baseUrl";
+import { useEmpresaStore } from "../auth/empresaStore";
 import {
   isGroupConversation,
   getStatusAtendimentoEffective,
@@ -30,6 +31,7 @@ import {
   getLastDirection,
   atendimentoRowVisualClass,
   isEmAtendimentoUltimaDoCliente,
+  getAtendimentoAssigneeNames,
 } from "./chatListRowAtendimento";
 import { chatRowPropsAreEqual } from "./chatListRowCompare";
 import {
@@ -1094,12 +1096,14 @@ function ChatRow({
   onSelect,
   onOpenClienteSemConversa,
   currentUserId,
+  currentUserName = "",
   isMenuOpen,
   onToggleMenu,
   pendentesFuncionarioSet = EMPTY_PENDENTES_SET,
   minuteTick,
   showWhatsappInstanceUi = false,
 }) {
+  const exibirAtendentesNoCard = useEmpresaStore((s) => s.empresa?.exibir_atendentes_no_card === true);
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
   const semConversa = Boolean(chat?.sem_conversa && chat?.cliente_id);
@@ -1231,6 +1235,11 @@ function ChatRow({
         ""
       ).trim()
     : "";
+  const atendimentoAssigneeNames = useMemo(
+    () => (exibirAtendentesNoCard ? getAtendimentoAssigneeNames(chat, currentUserId, currentUserName) : []),
+    [chat, currentUserId, currentUserName, exibirAtendentesNoCard]
+  );
+  const atendimentoAssigneeLabel = atendimentoAssigneeNames.join(", ");
 
   useEffect(() => {
     setImgError(false);
@@ -1356,6 +1365,15 @@ function ChatRow({
             {!isGroup && setorLabelNome ? (
               <div className="chat-list-setor" title={`Setor: ${setorLabelNome}`}>
                 {setorLabelNome}
+              </div>
+            ) : null}
+            {!isGroup && atendimentoAssigneeLabel ? (
+              <div
+                className="chat-list-assignee"
+                title={`Atendimento assumido por ${atendimentoAssigneeLabel}`}
+                aria-label={`Atendimento assumido por ${atendimentoAssigneeLabel}`}
+              >
+                <span className="chat-list-assignee-text">{atendimentoAssigneeLabel}</span>
               </div>
             ) : null}
             {!isGroup && whatsappInstanceLabel ? (

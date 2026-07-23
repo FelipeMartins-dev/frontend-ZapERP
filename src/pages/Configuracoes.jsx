@@ -19,6 +19,7 @@ import "../components/ui/switch.css";
 import "./IA.css";
 import "./Configuracoes.css";
 import PushNotificationsCard from "../push/PushNotificationsCard";
+import LimitesAtendimento from "./LimitesAtendimento";
 
 /** Limite por página na lista de clientes — evita buscar/renderizar a base inteira de uma vez. */
 const CLIENTES_PAGE_LIMIT = 200;
@@ -54,6 +55,7 @@ const TABS = [
   { id: "departamentos", label: "Departamentos" },
   { id: "tags", label: "Tags" },
   { id: "respostas", label: "Respostas salvas" },
+  { id: "limites", label: "Limites de Atendimento" },
   { id: "bot", label: "ChatBot / IA" },
   { id: "clientes", label: "Clientes" },
   { id: "planos", label: "Planos" },
@@ -74,11 +76,13 @@ export default function Configuracoes() {
       if (respostasOnlyMode) {
         return TABS.filter((t) => t.id === "respostas");
       }
+      const isAdmin = String(user?.perfil || "").toLowerCase() === "admin";
+      const byRole = isAdmin ? TABS : TABS.filter((t) => t.id !== "limites");
       return canAccessUsers
-        ? TABS
-        : TABS.filter((t) => t.id !== "usuarios" && t.id !== "permissoes");
+        ? byRole
+        : byRole.filter((t) => t.id !== "usuarios" && t.id !== "permissoes");
     },
-    [canAccessUsers, respostasOnlyMode]
+    [canAccessUsers, respostasOnlyMode, user?.perfil]
   );
 
   const tabFromUrl = searchParams.get("tab");
@@ -120,8 +124,12 @@ export default function Configuracoes() {
       navigate("/configuracoes?tab=geral", { replace: true });
       return;
     }
+    if (t === "limites" && String(user?.perfil || "").toLowerCase() !== "admin") {
+      navigate("/configuracoes?tab=geral", { replace: true });
+      return;
+    }
     if (t && TABS.some((x) => x.id === t)) setTab(t);
-  }, [searchParams, canAccessUsers, navigate, respostasOnlyMode]);
+  }, [searchParams, canAccessUsers, navigate, respostasOnlyMode, user?.perfil]);
 
   const setTabAndUrl = useCallback((nextTab) => {
     if (respostasOnlyMode && nextTab !== "respostas") return;
@@ -279,7 +287,7 @@ export default function Configuracoes() {
             onOpenConnectWhatsapp={() => navigate("/configuracoes/whatsapp")}
             onSave={async (v) => {
               const updated = await cfg.putEmpresa(v);
-              const nextEmpresa = updated || v;
+              const nextEmpresa = { ...(v || {}), ...(updated || {}) };
               setEmpresa(nextEmpresa);
               useEmpresaStore.getState().setEmpresa(nextEmpresa);
               const authPatch = {};
@@ -323,6 +331,9 @@ export default function Configuracoes() {
         )}
         {tab === "respostas" && (
           <SecaoRespostas respostas={respostas} departamentos={departamentos} onRefresh={loadAll} user={user} />
+        )}
+        {tab === "limites" && (
+          <LimitesAtendimento usuarios={usuarios} />
         )}
         {tab === "bot" && (
           <div className="ia-section">
@@ -548,6 +559,21 @@ function SecaoGeral({ empresa, empresasWhatsapp = [], onSave, onRefresh, onOpenC
                 aria-label="Modo simples de atendimento"
               />
             </div>
+            {String(user?.perfil || user?.role || "").toLowerCase() === "admin" ? (
+              <div className="config-geral-toggle">
+                <div className="config-geral-toggle-text">
+                  <span className="config-geral-toggle-label">Mostrar atendentes no card</span>
+                  <span className="config-geral-toggle-hint">
+                    Quando ativado, o card da conversa mostra discretamente o nome dos usuários que assumiram o atendimento.
+                  </span>
+                </div>
+                <Switch
+                  checked={v.exibir_atendentes_no_card === true}
+                  onChange={(on) => setV((c) => ({ ...c, exibir_atendentes_no_card: on }))}
+                  aria-label="Mostrar atendentes no card"
+                />
+              </div>
+            ) : null}
           </div>
         </section>
 

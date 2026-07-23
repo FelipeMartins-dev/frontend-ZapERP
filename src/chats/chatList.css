@@ -1979,6 +1979,44 @@ a { color: inherit; text-decoration: none; }
   opacity: .92;
 }
 
+.chat-list-assignee {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--cl-font-size-xs);
+  line-height: 1.2;
+  color: var(--cl-text-muted);
+  opacity: .72;
+}
+
+.chat-list-assignee::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: rgba(0, 168, 132, .58);
+}
+
+.chat-list-assignee-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .chat-list-assignee {
+  color: rgba(233, 237, 239, .72);
+  opacity: .82;
+}
+
+[data-theme="dark"] .chat-list-assignee::before {
+  background: rgba(95, 227, 192, .68);
+}
+
 .chat-list-row-meta {
   display: flex;
   flex-direction: column;
@@ -3542,6 +3580,7 @@ a { color: inherit; text-decoration: none; }
 
   .chat-list-subline,
   .chat-list-setor,
+  .chat-list-assignee,
   .chat-list-empresa {
     font-size: 11px;
     line-height: 1.25;

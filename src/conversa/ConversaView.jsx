@@ -403,6 +403,18 @@ function ConversaViewBody() {
   const confirmSendLockRef = useRef(false);
   /** Evita POST duplicado do mesmo arquivo (double-click / Enter + botão). */
   const arquivoEnvioInFlightRef = useRef(new Set());
+  /** Fila FIFO de envio de áudios: cada gravação envia em sequência (ordem preservada). */
+  const enviarAudioQueueRef = useRef(Promise.resolve());
+  /**
+   * Retenção do File de áudios que falharam, por tempId → { file, tipo, attempts }.
+   * Base para o botão "tentar novamente" por item (o blob precisa ser retido no envio;
+   * não dá para recuperá-lo depois). Removido ao confirmar o envio; limpo ao desmontar.
+   */
+  const audioRetryFilesRef = useRef(new Map());
+  useEffect(() => {
+    const retidos = audioRetryFilesRef.current;
+    return () => retidos.clear();
+  }, []);
   const [localReactions, setLocalReactions] = useState({});
   const [reactionLoading, setReactionLoading] = useState({});
 
@@ -1533,7 +1545,7 @@ function ConversaViewBody() {
     const st = useConversaStore.getState();
     if (!st.hasMore || st.loadingMore || !st.cursor || st.conversa?.mensagens_bloqueadas) return;
     captureLoadMoreAnchor();
-    st.loadMore();
+    st.loadAllMessages?.();
   }, [captureLoadMoreAnchor]);
 
   const handleDropFile = useCallback(
@@ -1692,13 +1704,28 @@ function ConversaViewBody() {
       arquivoEnvioInFlightRef.current.add(flightKey);
 
       const legenda = String(opts.caption ?? "").trim();
+      // Retry por item: reusa o tempId (⇒ mesmo client_temp_id) para o back-end deduplicar e
+      // não gerar áudio duplicado. Remove a bolha de erro antiga antes de reanexar a nova (pending).
       const optimisticMsg = buildOptimisticOutgoingMessage({
         conversaId,
         file,
         caption: legenda,
         forceStickerType: opts.forceStickerType,
+        tempId: opts.reuseTempId || undefined,
       });
       const tempId = optimisticMsg.tempId;
+      if (opts.reuseTempId) removerMensagemTemp(opts.reuseTempId);
+      // Retém o File de áudio para permitir reenvio por item em caso de falha (base do retry).
+      // Só áudio: notas de voz são pequenas; outros anexos não entram para não segurar memória.
+      const isAudioSend = opts.tipo === "voice" || opts.tipo === "audio" || isAudioFile(file);
+      if (isAudioSend) {
+        const prev = audioRetryFilesRef.current.get(tempId);
+        audioRetryFilesRef.current.set(tempId, {
+          file,
+          tipo: opts.tipo || "voice",
+          attempts: prev?.attempts || 0,
+        });
+      }
       debugMessageBoundary("send_media", {
         conversa_id: conversaId,
         atendimento_id: conversa?.atendimento_id ?? conversa?.atendimento?.id,
@@ -1776,6 +1803,8 @@ function ConversaViewBody() {
           ...(Array.isArray(data?.results) ? data.results.map((r) => r?.id) : []),
         ];
         scheduleArquivoSendConsistencyCheck(conversaId, [tempId], { knownIds });
+        // Enviado (persistido no back-end): não precisa mais reter o File para retry.
+        if (isAudioSend) audioRetryFilesRef.current.delete(tempId);
       } catch (err) {
         revertModoSimples?.();
         revertOutgoingStatus?.();
@@ -1784,6 +1813,11 @@ function ConversaViewBody() {
         marcarMensagemTempErro(tempId, {
           erro_mensagem: apiMsg || err?.message,
         });
+        // Mantém o File retido e registra a tentativa — base para o reenvio por item.
+        if (isAudioSend) {
+          const entry = audioRetryFilesRef.current.get(tempId);
+          if (entry) entry.attempts = (entry.attempts || 0) + 1;
+        }
         showToast({
           type: "error",
           title: is403 ? "Acesso restrito" : "Falha ao enviar",
@@ -1806,6 +1840,7 @@ function ConversaViewBody() {
       focusMessageInput,
       reconciliarMensagem,
       marcarMensagemTempErro,
+      removerMensagemTemp,
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
       scheduleArquivoSendConsistencyCheck,
@@ -3256,19 +3291,24 @@ function ConversaViewBody() {
   }, [conversaId, reopenClosedBusy, reabrirConversa, refresh, showToast]);
 
   const handleCarregarMensagensAntigasContato = useCallback(async () => {
-    if (!conversaId || oldContactSyncBusy) return;
+    if (!conversaId || oldContactSyncBusy || useConversaStore.getState().loadingMore) return;
     setOldContactSyncBusy(true);
     try {
       const res = await carregarMensagensAntigasContato(conversaId);
       await refresh({ silent: true });
+      const loadResult = await useConversaStore.getState().loadAllMessages?.();
+      if (loadResult && loadResult.ok === false && !loadResult.aborted) {
+        throw loadResult.error || new Error("Nao foi possivel carregar todas as mensagens salvas.");
+      }
       const importadas = Number(res?.mensagens_importadas || 0);
       const atualizadas = Number(res?.mensagens_atualizadas || 0);
       const alteradas = importadas + atualizadas;
+      const carregadas = Number(loadResult?.messagesAdded || 0);
       showToast({
-        type: alteradas > 0 ? "success" : "info",
-        title: alteradas > 0 ? "Historico carregado" : "Sem mensagens antigas",
-        message: alteradas > 0
-          ? `${importadas} mensagem(ns) importada(s) e ${atualizadas} atualizada(s) para este contato.`
+        type: (alteradas + carregadas) > 0 ? "success" : "info",
+        title: (alteradas + carregadas) > 0 ? "Historico carregado" : "Sem mensagens antigas",
+        message: alteradas > 0 || carregadas > 0
+          ? `${importadas} mensagem(ns) importada(s), ${atualizadas} atualizada(s) e ${carregadas} carregada(s) na conversa.`
           : (res?.message || "Nenhuma mensagem antiga encontrada para este contato."),
       });
     } catch (e) {
@@ -3504,8 +3544,46 @@ function ConversaViewBody() {
   );
 
   const handleComposerSendAudio = useCallback(
-    (file) => handleEnviarArquivo(file, { tipo: "voice" }),
+    (file) => {
+      // Fila FIFO: cada áudio envia em sequência (aguarda o POST do anterior), preservando a
+      // ordem no back-end (criado_em) e na entrega ao contato. A gravação NÃO espera esta fila —
+      // o microfone é liberado ao parar (ver ConversaComposer.handleStartRecording).
+      // Isolamento de falha: `then(run, run)` roda o próximo mesmo que o anterior rejeite, e o
+      // `.catch` mantém a cadeia viva — a falha de um áudio não bloqueia os seguintes.
+      const run = () => handleEnviarArquivo(file, { tipo: "voice" });
+      const next = enviarAudioQueueRef.current.then(run, run).catch(() => {});
+      enviarAudioQueueRef.current = next;
+      return next;
+    },
     [handleEnviarArquivo]
+  );
+
+  /**
+   * Reenvia por item um áudio que falhou, usando o File retido (mesma fila FIFO, idempotente por
+   * client_temp_id). Se o File não está mais disponível (ex.: após recarregar a página), avisa.
+   */
+  const reenviarAudioFalho = useCallback(
+    (tempId) => {
+      if (!tempId) return;
+      const entry = audioRetryFilesRef.current.get(String(tempId));
+      if (!entry?.file) {
+        showToast({
+          type: "warning",
+          title: "Não é possível reenviar",
+          message: "O áudio não está mais disponível. Grave novamente.",
+        });
+        return;
+      }
+      const run = () =>
+        handleEnviarArquivo(entry.file, {
+          tipo: entry.tipo || "voice",
+          reuseTempId: String(tempId),
+        });
+      const next = enviarAudioQueueRef.current.then(run, run).catch(() => {});
+      enviarAudioQueueRef.current = next;
+      return next;
+    },
+    [handleEnviarArquivo, showToast]
   );
 
   const handleComposerOpenPixConfig = useCallback(async () => {
@@ -3957,7 +4035,7 @@ function ConversaViewBody() {
             reopenClosedBusy={reopenClosedBusy}
             onReopenClosed={handleReopenClosed}
             showContactOldSyncCta={showContactOldSyncCta}
-            contactOldSyncBusy={oldContactSyncBusy}
+            contactOldSyncBusy={oldContactSyncBusy || loadingMore}
             onContactOldSync={handleCarregarMensagensAntigasContato}
             onLoadOlderMessagesClick={handleLoadOlderMessagesClick}
             onVirtualContentResize={snapIfStickBottom}
@@ -3990,6 +4068,7 @@ function ConversaViewBody() {
             onDeleteForEveryone={handleDeleteForEveryone}
             onJumpToReply={jumpToReply}
             onOpenMedia={openMediaViewer}
+            onReenviarAudio={reenviarAudioFalho}
             onReact={handleThreadReaction}
             onRemoveReaction={handleThreadRemoveReaction}
             onConversarContact={handleConversarContact}

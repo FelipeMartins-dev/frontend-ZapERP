@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useConversaStore } from "../conversa/conversaStore";
+import { useEmpresaStore } from "../auth/empresaStore";
 import { CHAT_LIST_ROW_GAP, estimateChatListRowSize } from "./chatListRowAtendimento";
 import MemoChatRow from "./ChatListRow";
 import { useWhatsappInstancesStore } from "./whatsappInstancesStore";
@@ -29,6 +30,7 @@ function renderChatListRow(c, selectedId, props) {
       onSelect={props.onSelect}
       onOpenClienteSemConversa={props.onOpenClienteSemConversa}
       currentUserId={props.currentUserId}
+      currentUserName={props.currentUserName}
       isMenuOpen={String(props.openConversationId) === String(c?.id)}
       onToggleMenu={props.onToggleMenu}
       pendentesFuncionarioSet={props.pendentesFuncionarioSet}
@@ -49,11 +51,13 @@ const ChatListRows = memo(function ChatListRows({
   onSelect,
   onOpenClienteSemConversa,
   currentUserId,
+  currentUserName,
   openConversationId,
   onToggleMenu,
   pendentesFuncionarioSet,
 }) {
   const showWhatsappInstanceUi = useWhatsappInstancesStore((s) => s.hasMultiple);
+  const showAssigneeNames = useEmpresaStore((s) => s.empresa?.exibir_atendentes_no_card === true);
   const mobileSelectedId = useConversaStore((s) => (isMobileLayout ? s.selectedId : null));
   const selectedIdHighlight = useConversaStore((s) => (isMobileLayout ? null : s.selectedId));
   const mobileConversaAberta = isMobileLayout && mobileSelectedId != null;
@@ -84,6 +88,7 @@ const ChatListRows = memo(function ChatListRows({
       onSelect,
       onOpenClienteSemConversa,
       currentUserId,
+      currentUserName,
       openConversationId,
       onToggleMenu: stableOnToggleMenu,
       pendentesFuncionarioSet,
@@ -94,6 +99,7 @@ const ChatListRows = memo(function ChatListRows({
       onSelect,
       onOpenClienteSemConversa,
       currentUserId,
+      currentUserName,
       openConversationId,
       stableOnToggleMenu,
       pendentesFuncionarioSet,
@@ -106,8 +112,8 @@ const ChatListRows = memo(function ChatListRows({
 
   const estimateRowSize = useCallback(
     (index) =>
-      estimateChatListRowSize(chatsFiltrados[index], isMobileLayout, pendentesFuncionarioSet),
-    [chatsFiltrados, isMobileLayout, pendentesFuncionarioSet]
+      estimateChatListRowSize(chatsFiltrados[index], isMobileLayout, pendentesFuncionarioSet, showAssigneeNames),
+    [chatsFiltrados, isMobileLayout, pendentesFuncionarioSet, showAssigneeNames]
   );
 
   const virtualizer = useVirtualizer({
@@ -222,6 +228,7 @@ const ChatListRows = memo(function ChatListRows({
   prev.onSelect === next.onSelect &&
   prev.onOpenClienteSemConversa === next.onOpenClienteSemConversa &&
   prev.currentUserId === next.currentUserId &&
+  prev.currentUserName === next.currentUserName &&
   prev.openConversationId === next.openConversationId &&
   prev.onToggleMenu === next.onToggleMenu &&
   prev.pendentesFuncionarioSet === next.pendentesFuncionarioSet

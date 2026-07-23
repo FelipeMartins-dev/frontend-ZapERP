@@ -20,6 +20,85 @@ export function rowPrefs(c) {
 
 export const EMPTY_PENDENTES_SET = new Set();
 
+function cleanAssigneeName(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return text.replace(/\s+/g, " ");
+}
+
+function getAssigneeId(item) {
+  return item?.usuario_id ?? item?.user_id ?? item?.atendente_id ?? item?.id ?? null;
+}
+
+function getAssigneeNameFromItem(item, currentUserId, currentUserName) {
+  const id = getAssigneeId(item);
+  const currentName =
+    currentUserId != null &&
+    id != null &&
+    String(id) === String(currentUserId)
+      ? cleanAssigneeName(currentUserName)
+      : "";
+
+  return (
+    cleanAssigneeName(
+      item?.nome ??
+        item?.name ??
+        item?.usuario_nome ??
+        item?.user_nome ??
+        item?.atendente_nome ??
+        item?.responsavel_nome ??
+        item?.email
+    ) ||
+    currentName
+  );
+}
+
+function collectAssigneeItems(c) {
+  const sources = [
+    c?.atendentes,
+    c?.usuarios_atendimento,
+    c?.atendimento_usuarios,
+    c?.responsaveis,
+    c?.usuarios,
+  ];
+  return sources.find((items) => Array.isArray(items) && items.length > 0) || [];
+}
+
+export function getAtendimentoAssigneeNames(c, currentUserId = null, currentUserName = "") {
+  if (!c || isGroupConversation(c)) return [];
+
+  const byKey = new Map();
+  const pushName = (name, id = null) => {
+    const clean = cleanAssigneeName(name);
+    if (!clean) return;
+    const key = id != null ? `id:${String(id)}` : `name:${clean.toLowerCase()}`;
+    if (!byKey.has(key)) byKey.set(key, clean);
+  };
+
+  for (const item of collectAssigneeItems(c)) {
+    if (!item || typeof item !== "object") continue;
+    pushName(getAssigneeNameFromItem(item, currentUserId, currentUserName), getAssigneeId(item));
+  }
+
+  const atendenteId = c?.atendente_id ?? c?.responsavel_id ?? null;
+  const atendenteNome =
+    cleanAssigneeName(
+      c?.atendente_nome ??
+        c?.atendente?.nome ??
+        c?.atendente?.name ??
+        c?.responsavel_nome ??
+        c?.responsavel?.nome ??
+        c?.responsavel?.name
+    ) ||
+    (currentUserId != null && atendenteId != null && String(atendenteId) === String(currentUserId)
+      ? cleanAssigneeName(currentUserName)
+      : "");
+
+  pushName(atendenteNome, atendenteId);
+
+  return Array.from(byKey.values()).slice(0, 3);
+}
+
 export function getLastMessage(chat) {
   const msgs = chat?.mensagens || chat?.messages || [];
   if (!Array.isArray(msgs) || msgs.length === 0) return null;
@@ -310,6 +389,7 @@ const VIRTUAL_ROW_METRICS = {
     avatar: 48,
     titleLine: 17.5,
     setor: 15,
+    assignee: 15,
     empresa: 15,
     preview: 17,
     mainGap: 2,
@@ -323,6 +403,7 @@ const VIRTUAL_ROW_METRICS = {
     avatar: 46,
     titleLine: 16.2,
     setor: 12.5,
+    assignee: 13.5,
     empresa: 13.5,
     preview: 14.8,
     mainGap: 3,
@@ -373,7 +454,7 @@ function estimateMetaColumnHeight(chat, pendentesIdSet, isMobileLayout) {
  * Altura fixa por card na virtualização — calculada pelo conteúdo (título até 2 linhas, setor, badges).
  * Deve ser >= altura real; measureElement fica desligado para o layout não “pular” após abrir/atualizar.
  */
-export function estimateChatListRowSize(chat, isMobileLayout, pendentesIdSet = null) {
+export function estimateChatListRowSize(chat, isMobileLayout, pendentesIdSet = null, showAssigneeNames = false) {
   const m = isMobileLayout ? VIRTUAL_ROW_METRICS.mobile : VIRTUAL_ROW_METRICS.desktop;
   if (!chat) return m.minRow;
 
@@ -395,9 +476,11 @@ export function estimateChatListRowSize(chat, isMobileLayout, pendentesIdSet = n
   const hasEmpresa = !isGroup
     ? Boolean(String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim())
     : false;
+  const hasAssignee = showAssigneeNames && !isGroup && getAtendimentoAssigneeNames(chat).length > 0;
 
   let titleBlock = titleLines * m.titleLine;
   if (hasSetor) titleBlock += m.setor;
+  if (hasAssignee) titleBlock += m.assignee;
   if (hasEmpresa) titleBlock += m.empresa;
 
   const metaCol = estimateMetaColumnHeight(chat, pendentesIdSet, isMobileLayout);

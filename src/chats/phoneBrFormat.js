@@ -49,6 +49,12 @@ export function isPlausibleBrPhoneDigits(d) {
   return d.length >= 10 && d.length <= 11;
 }
 
+export function normalizeBrPhoneForSubmit(raw) {
+  const d = digitsOnly(raw);
+  if (!isPlausibleBrPhoneDigits(d)) return "";
+  return d.startsWith("55") ? d : `55${d}`;
+}
+
 export const AJUDA_TELEFONE_PADRAO =
   "Número brasileiro com DDD: 10 ou 11 dígitos (fixo ou celular), com ou sem o código 55. Máscaras e espaços são aceitos.";
 

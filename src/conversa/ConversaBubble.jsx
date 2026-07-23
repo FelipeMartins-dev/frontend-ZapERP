@@ -780,6 +780,7 @@ const Bubble = memo(function Bubble({
   currentUserId,
   onJumpToReply,
   onOpenMedia,
+  onReenviarAudio,
   localReaction,
   onReact,
   onRemoveReaction,
@@ -920,6 +921,17 @@ const Bubble = memo(function Bubble({
     isFilenameOnlyText(texto, msg?.nome_arquivo);
   const showCaption = (isImg || isVideo || isSticker) && hasText && !isPlaceholderCaption;
   const showAudioText = isAudioOrVoice && hasText && !isPlaceholderCaption;
+  // Retry por item: só áudio outbound que falhou (status erro) e ainda tem tempId (bolha otimista
+  // desta sessão — o File retido no ConversaView é a fonte do reenvio). Após recarregar, some.
+  const audioSendError =
+    out &&
+    isAudioOrVoice &&
+    !!msg?.tempId &&
+    typeof onReenviarAudio === "function" &&
+    (msg?.envio_erro === true ||
+      ["erro", "error", "failed", "falhou"].includes(
+        String(msg?.status ?? msg?.status_mensagem ?? "").toLowerCase()
+      ));
   // Detecta mensagem encaminhada: campo encaminhado=true ou texto começa com [Encaminhado]
   const isEncaminhado =
     !isApagadaParaTodos &&
@@ -1621,6 +1633,21 @@ const Bubble = memo(function Bubble({
                 />
               </div>
               {showAudioText ? <div className="wa-bubble-audioCaption">{renderTextWithLinks(texto)}</div> : null}
+              {audioSendError ? (
+                <button
+                  type="button"
+                  className="wa-audioRetryBtn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onReenviarAudio(msg.tempId);
+                  }}
+                  title="Reenviar áudio"
+                  aria-label="Tentar enviar o áudio novamente"
+                >
+                  <span aria-hidden="true">↻</span> Tentar novamente
+                </button>
+              ) : null}
             </div>
           ) : isFile ? (
             <FileBubbleContent

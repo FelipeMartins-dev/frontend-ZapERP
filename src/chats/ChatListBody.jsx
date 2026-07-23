@@ -430,6 +430,7 @@ function ChatListBody({
         zapFilterSkeleton={zapFilterSkeleton}
         isMobileLayout={isMobileLayout}
         rowCurrentUserId={rowCurrentUserId}
+        rowCurrentUserName={String(user?.nome ?? user?.name ?? user?.email ?? "").trim()}
         chatListScrollToTopNonce={chatListScrollToTopNonce}
         onSelect={onSelect}
         onOpenClienteSemConversa={onOpenClienteSemConversa}

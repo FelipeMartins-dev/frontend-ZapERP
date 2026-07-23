@@ -101,6 +101,7 @@ function ThreadRow({
   onDeleteForEveryone,
   onJumpToReply,
   onOpenMedia,
+  onReenviarAudio,
   onReact,
   onRemoveReaction,
   onConversarContact,
@@ -162,6 +163,7 @@ function ThreadRow({
       currentUserId={currentUserId}
       onJumpToReply={onJumpToReply}
       onOpenMedia={onOpenMedia}
+      onReenviarAudio={onReenviarAudio}
       localReaction={reactionForMessage}
       onReact={onReact}
       onRemoveReaction={onRemoveReaction}

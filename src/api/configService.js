@@ -253,6 +253,21 @@ export async function getAuditoriaEventos(params = {}) {
   return data?.eventos || []
 }
 
+export async function getAtendimentoLimits() {
+  const { data } = await api.get('/config/atendimento-limits')
+  return data
+}
+
+export async function putAtendimentoLimits(payload) {
+  const { data } = await api.put('/config/atendimento-limits', payload)
+  return data
+}
+
+export async function putAtendimentoLimitsUsuario(usuarioId, payload) {
+  const { data } = await api.put(`/config/atendimento-limits/usuarios/${usuarioId}`, payload)
+  return data
+}
+
 // Operacional - Jobs
 export async function getJobs(status) {
   const { data } = await api.get('/jobs', { params: status ? { status } : {} })
