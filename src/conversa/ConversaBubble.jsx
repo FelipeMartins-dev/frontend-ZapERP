@@ -451,6 +451,8 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
   const rafRef = useRef(null);
   const rafLastRef = useRef(0);
   const pointerToggleRef = useRef(false);
+  const pointerSpeedRef = useRef(false);
+  const pointerSeekRef = useRef(false);
 
   useEffect(() => {
     setSourceIdx(0);
@@ -616,6 +618,25 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     }
   }, [playbackRate, sourceIdx, sourceList.length]);
 
+  const keepMobileKeyboardOpen = useCallback((e) => {
+    if (e.pointerType !== "touch" && e.pointerType !== "pen") return false;
+    e.preventDefault();
+    e.stopPropagation();
+    return true;
+  }, []);
+
+  const applyPlaybackRate = useCallback((rate) => {
+    setPlaybackRate(rate);
+    const a = audioRef.current;
+    if (a) {
+      try {
+        a.playbackRate = rate;
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
   const handlePlayPointerUp = useCallback(
     (e) => {
       if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
@@ -652,6 +673,29 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     }
   }, [dur]);
 
+  const handleSeekPointerUp = useCallback(
+    (e) => {
+      if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+      e.preventDefault();
+      e.stopPropagation();
+      pointerSeekRef.current = true;
+      seek(e);
+    },
+    [seek]
+  );
+
+  const handleSeekClick = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (pointerSeekRef.current) {
+        pointerSeekRef.current = false;
+        return;
+      }
+      seek(e);
+    },
+    [seek]
+  );
+
   const frac = dur > 0 ? clamp(cur / dur, 0, 1) : 0;
   const playedBars = Math.round(frac * bars.length);
   const remaining = dur > 0 ? Math.max(0, dur - cur) : 0;
@@ -662,6 +706,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       <button
         type="button"
         className={`wa-audioPlayBtn ${playing ? "isPlaying" : ""}`}
+        onPointerDown={keepMobileKeyboardOpen}
         onPointerUp={handlePlayPointerUp}
         onClick={handlePlayClick}
         aria-label={playing ? "Pausar áudio" : "Tocar áudio"}
@@ -680,7 +725,9 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
             className="wa-audioWave"
             role="slider"
             aria-label="Progresso do áudio"
-            onClick={seek}
+            onPointerDown={keepMobileKeyboardOpen}
+            onPointerUp={handleSeekPointerUp}
+            onClick={handleSeekClick}
             style={{ "--p": pLabel }}
           >
             {bars.map((v, i) => (
@@ -708,18 +755,22 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
                 key={rate}
                 type="button"
                 className={`wa-audioSpeedBtn ${playbackRate === rate ? "isActive" : ""}`}
+                onPointerDown={keepMobileKeyboardOpen}
+                onPointerUp={(e) => {
+                  if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  pointerSpeedRef.current = true;
+                  applyPlaybackRate(rate);
+                }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setPlaybackRate(rate);
-                  const a = audioRef.current;
-                  if (a) {
-                    try {
-                      a.playbackRate = rate;
-                    } catch {
-                      /* ignore */
-                    }
+                  if (pointerSpeedRef.current) {
+                    pointerSpeedRef.current = false;
+                    return;
                   }
+                  applyPlaybackRate(rate);
                 }}
                 aria-pressed={playbackRate === rate}
                 aria-label={rate === 1 ? "Velocidade normal" : `Velocidade ${rate} vezes`}

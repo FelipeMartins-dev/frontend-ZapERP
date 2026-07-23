@@ -1865,6 +1865,23 @@
   opacity: 0;
 }
 
+/*
+ * Correção do "pisca" ao abrir/trocar conversa no mobile.
+ * A animação wa-threadReveal (definida mais abaixo) roda no mount da lista e, por
+ * ser animação ativa, SOBREPUNHA o `opacity:0` do mask de abertura acima — ou seja,
+ * o conteúdo não ficava realmente oculto durante o snap para o fim da conversa, e o
+ * salto de scroll aparecia como um piscar. Aqui, enquanto o mask está ativo,
+ * desligamos a animação e forçamos oculto (seletor com mais especificidade vence).
+ * Ao liberar (classe removida), `animation` volta a wa-threadReveal e faz UM fade
+ * limpo, já posicionado no fim — sem piscar. Só afeta o mobile (mask nunca liga no
+ * desktop).
+ */
+.wa-messages.wa-messages--opening .wa-messages-virtual-root,
+.wa-messages.wa-messages--opening .wa-messages-static-root {
+  animation: none;
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wa-messages .wa-bubble.zap-message-enter {
     animation: none !important;
