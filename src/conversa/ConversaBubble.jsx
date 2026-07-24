@@ -571,6 +571,23 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     };
   }, [activeSrc, playbackRate, sourceList.length]);
 
+  // Recarrega o elemento quando a fonte muda EM TEMPO REAL. Trocar o atributo `src` de um <audio>
+  // já montado NÃO faz o navegador buscar a nova mídia — é preciso chamar load(). Sem isto, o áudio
+  // recebido cujo link só chega pelo backfill depois da conversa aberta (ex.: URL do provedor trocada
+  // pela cópia em /uploads) só tocava depois de sair e reabrir a conversa (remontagem forçava novo
+  // elemento). load() também limpa o estado de erro do elemento, permitindo tentar a nova fonte.
+  // Roda depois do effect que anexa os listeners (ordem de declaração), então `loadedmetadata`
+  // disparado por load() é capturado. Quando a fonte não muda (ex.: usuário só deu play), não dispara.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !activeSrc) return;
+    try {
+      el.load();
+    } catch {
+      /* ignore */
+    }
+  }, [activeSrc]);
+
   // Progresso mais fluido (rAF com throttle leve) enquanto toca
   useEffect(() => {
     const el = audioRef.current;
