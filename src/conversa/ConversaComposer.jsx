@@ -312,11 +312,9 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const autoCorrectTrackedRef = useRef([]);
   const autoCorrectIgnoredRef = useRef([]);
   const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const recordingCanceledRef = useRef(false);
+  // Buffer/tempo/cancelamento de gravação vivem POR gravação (na instância do MediaRecorder,
+  // props __zap*), não em refs compartilhadas — evita que gravações sequenciais se sobreponham.
   const recordingTimerRef = useRef(null);
-  const recordingStartedAtRef = useRef(0);
-  const recordingStopRequestedAtRef = useRef(0);
   const lastConversaIdRef = useRef(conversaId);
   const prevTextLenRef = useRef(0);
   const prevTextConversaRef = useRef(null);
@@ -490,20 +488,18 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   }, [stopCameraStream]);
 
   const handleCancelRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      recordingCanceledRef.current = true;
-      recordingStopRequestedAtRef.current = Date.now();
+    const rec = mediaRecorderRef.current;
+    if (rec && isRecording) {
+      rec.__zapCanceled = true;
+      rec.__zapStopAt = Date.now();
       try {
-        if (mediaRecorderRef.current.state !== "inactive") {
-          mediaRecorderRef.current.stop();
+        if (rec.state !== "inactive") {
+          rec.stop();
         }
       } catch {
         /* ignore */
       }
       mediaRecorderRef.current = null;
-      audioChunksRef.current = [];
-      recordingStartedAtRef.current = 0;
-      recordingStopRequestedAtRef.current = 0;
       setIsRecording(false);
       setRecordingSeconds(0);
       if (recordingTimerRef.current) {
@@ -530,19 +526,17 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   useEffect(() => {
     return () => {
-      if (!mediaRecorderRef.current) return;
-      recordingCanceledRef.current = true;
+      const rec = mediaRecorderRef.current;
+      if (!rec) return;
+      rec.__zapCanceled = true;
       try {
-        if (mediaRecorderRef.current.state !== "inactive") {
-          mediaRecorderRef.current.stop();
+        if (rec.state !== "inactive") {
+          rec.stop();
         }
       } catch {
         /* ignore */
       }
       mediaRecorderRef.current = null;
-      audioChunksRef.current = [];
-      recordingStartedAtRef.current = 0;
-      recordingStopRequestedAtRef.current = 0;
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
         recordingTimerRef.current = null;
@@ -1249,7 +1243,6 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       });
       return;
     }
-    recordingCanceledRef.current = false;
     setRecordingSeconds(0);
     try {
       if (!window.isSecureContext) {
@@ -1292,23 +1285,28 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       const mimeType = pickRecordingMimeType();
 
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      audioChunksRef.current = [];
-      recordingStartedAtRef.current = Date.now();
-      recordingStopRequestedAtRef.current = 0;
+      // Estado ISOLADO por gravação: cada MediaRecorder tem seu próprio buffer de chunks e seus
+      // próprios marcadores de tempo/cancelamento (guardados na instância). Sem isto, ao gravar
+      // vários áudios em sequência, o `onstop` (assíncrono) de uma gravação lia/limpava o buffer
+      // COMPARTILHADO de outra — resultado: o segundo áudio sumia (chunks vazios → return) ou saía
+      // truncado (o back-end recusava o transcode com "não foi possível processar"). Agora cada
+      // gravação é independente; iniciar a próxima antes de a anterior finalizar é seguro.
+      const localChunks = [];
+      const localStartedAt = Date.now();
+      recorder.__zapStartedAt = localStartedAt;
+      recorder.__zapStopAt = 0;
+      recorder.__zapCanceled = false;
 
       recorder.ondataavailable = (e) => {
-        if (e.data?.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data?.size > 0) localChunks.push(e.data);
       };
 
       recorder.onstop = async () => {
-        const wasCanceled = recordingCanceledRef.current;
-        const chunks = audioChunksRef.current.slice();
-        audioChunksRef.current = [];
-        const startedAt = recordingStartedAtRef.current || Date.now();
-        const stoppedAt = recordingStopRequestedAtRef.current || Date.now();
+        const wasCanceled = recorder.__zapCanceled === true;
+        const chunks = localChunks.slice();
+        const startedAt = recorder.__zapStartedAt || localStartedAt;
+        const stoppedAt = recorder.__zapStopAt || Date.now();
         const elapsedMs = Math.max(0, stoppedAt - startedAt);
-        recordingStartedAtRef.current = 0;
-        recordingStopRequestedAtRef.current = 0;
         if (wasCanceled || chunks.length === 0) return;
         const finalType = recorder.mimeType || mimeType || "audio/webm";
         const ext = audioExtensionFromMime(finalType);
@@ -1396,18 +1394,18 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   }, [conversaId, isRecording, onSendAudioFile, showToast, podeEnviar]);
 
   const handleStopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+    const rec = mediaRecorderRef.current;
+    if (rec && isRecording) {
+      rec.__zapStopAt = Date.now();
       try {
-        if (mediaRecorderRef.current.state !== "inactive") {
-          recordingStopRequestedAtRef.current = Date.now();
-          mediaRecorderRef.current.requestData?.();
-          mediaRecorderRef.current.stop();
+        if (rec.state !== "inactive") {
+          rec.requestData?.();
+          rec.stop();
         }
       } catch {
         /* ignore */
       }
       mediaRecorderRef.current = null;
-      if (!recordingStopRequestedAtRef.current) recordingStopRequestedAtRef.current = Date.now();
       setIsRecording(false);
       setRecordingSeconds(0);
       if (recordingTimerRef.current) {
