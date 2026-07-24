@@ -432,6 +432,9 @@ function ConversaViewBody() {
   /** Botão "ir para recentes": visível quando o utilizador está lendo histórico (longe do fim). */
   const [showScrollToRecent, setShowScrollToRecent] = useState(false);
   const scrollToRecentVisibleRef = useRef(false);
+  /** Gravação ativa: mantém a âncora ao fim quando o teclado fecha ao iniciar a gravação. */
+  const recordingActiveRef = useRef(false);
+  const recordingSnapCleanupRef = useRef(null);
   /** Bloqueia snap automático ao fundo (Assumir, etc.). */
   const suppressAutoScrollRef = useRef(false);
   /** Enquanto o utilizador arrasta o thread (touch), bloqueia reancoragem programática. */
@@ -623,7 +626,9 @@ function ConversaViewBody() {
         const wasKeyboard = mobileKeyboardWasVisibleRef.current;
         shell.classList.toggle("wa-keyboard-visible", keyboardOpen);
         mobileKeyboardWasVisibleRef.current = keyboardOpen;
-        if (!keyboardOpen && wasKeyboard) {
+        if (!keyboardOpen && wasKeyboard && !recordingActiveRef.current) {
+          // Se o teclado fechou porque a gravação começou, NÃO solta a âncora ao fim —
+          // o handleRecordingStateChange mantém a tela fixa nas últimas mensagens.
           shouldStickToBottomRef.current = false;
         }
       } else {
@@ -1435,6 +1440,53 @@ function ConversaViewBody() {
     scrollToRecentVisibleRef.current = false;
     setShowScrollToRecent(false);
   }, []);
+
+  /**
+   * Ao iniciar/parar a gravação, a barra do composer troca de altura (linha de digitação <->
+   * barra de gravação) e, no mobile, o teclado fecha — a altura da lista muda e, como o container
+   * tem overflow-anchor:none, o browser mantém o scrollTop e a tela "pula". Se o utilizador já
+   * estava no fim (caso típico: acabou de enviar áudios), reancora ao fim ao longo da transição
+   * (snaps instantâneos escalonados) para a tela ficar fixa nas últimas mensagens, sem pulo.
+   * Se estiver a ler histórico, não faz nada (não o puxa para baixo).
+   */
+  const handleRecordingStateChange = useCallback((recording) => {
+    recordingActiveRef.current = !!recording;
+    if (recordingSnapCleanupRef.current) {
+      recordingSnapCleanupRef.current();
+      recordingSnapCleanupRef.current = null;
+    }
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    if (userScrollLockRef.current) return;
+    if (!isNearBottom(el, 200)) return;
+    shouldStickToBottomRef.current = true;
+    const snap = () => {
+      if (userScrollLockRef.current) return;
+      snapThreadToBottom(messagesContainerRef.current, virtualThreadRef, {
+        min: true,
+        canSnap: () => !userScrollLockRef.current,
+      });
+    };
+    snap();
+    const raf = requestAnimationFrame(snap);
+    const t1 = window.setTimeout(snap, 120);
+    const t2 = window.setTimeout(snap, 280);
+    recordingSnapCleanupRef.current = () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, []);
+
+  // Uma troca rápida de conversa não pode deixar os snaps da gravação anterior atuarem
+  // sobre o novo thread. A mesma limpeza cobre o desmonte da tela.
+  useEffect(() => {
+    return () => {
+      recordingSnapCleanupRef.current?.();
+      recordingSnapCleanupRef.current = null;
+      recordingActiveRef.current = false;
+    };
+  }, [conversaId]);
 
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
@@ -4315,6 +4367,7 @@ function ConversaViewBody() {
           onTextMetrics={handleComposerTextMetrics}
           showScrollToRecent={showScrollToRecent}
           onScrollToRecent={handleScrollToRecent}
+          onRecordingStateChange={handleRecordingStateChange}
           clearTyping={clearTyping}
           showToast={showToast}
         />

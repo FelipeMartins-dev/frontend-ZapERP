@@ -259,6 +259,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     showToast,
     showScrollToRecent = false,
     onScrollToRecent,
+    onRecordingStateChange,
   },
   ref
 ) {
@@ -321,7 +322,9 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const prevTextLenRef = useRef(0);
   const prevTextConversaRef = useRef(null);
   // Trava síncrona contra double-submit (Enter duplo ou clique duplo antes do re-render do React).
-  const sendLockedRef = useRef(false);
+  // Guarda o texto submetido para liberar assim que o utilizador começar o próximo rascunho,
+  // sem precisar aguardar a resposta HTTP da mensagem anterior.
+  const sendLockedRef = useRef(null);
 
   const normalizeAutoWord = useCallback((value) => String(value || "").toLowerCase(), []);
 
@@ -521,10 +524,12 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     lastConversaIdRef.current = conversaId;
   }, [conversaId, closeSavedReplies, handleCancelRecording]);
 
-  // Libera a trava de envio quando o envio em andamento termina (sucesso ou erro).
+  // Libera a trava quando o envio termina ou quando já existe um novo rascunho. Assim,
+  // dois eventos do mesmo clique/Enter continuam idempotentes, mas mensagens consecutivas
+  // podem entrar imediatamente na fila otimista.
   useEffect(() => {
-    if (!sending) sendLockedRef.current = false;
-  }, [sending]);
+    if (!sending || String(texto || "").trim()) sendLockedRef.current = null;
+  }, [sending, texto]);
 
   useEffect(() => {
     return () => {
@@ -787,6 +792,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     };
   }, [isRecording]);
 
+  // Avisa o ConversaView quando entra/sai da gravação: a barra do composer troca de altura
+  // (linha de digitação <-> barra de gravação), o que mudava a altura da lista e causava um
+  // "pulo" visual no mobile. O ConversaView reancora ao fim ao longo dessa transição.
+  useEffect(() => {
+    onRecordingStateChange?.(isRecording);
+  }, [isRecording, onRecordingStateChange]);
+
   const runInputFlash = useCallback(() => {
     setAutoCorrectFlash(true);
     if (autoCorrectFlashTimeoutRef.current) {
@@ -924,16 +936,17 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const handleSendFromComposer = useCallback(
     (textToSend) => {
       if (!conversaId || !podeEnviar) return;
-      // Trava síncrona: impede duplo envio se o React ainda não re-renderizou com sending=true.
-      if (sendLockedRef.current || sending) return;
       const t = safeString(textToSend).trim();
       if (!t) return;
-      sendLockedRef.current = true;
+      // O mesmo texto ainda travado é o mesmo gesto duplicado. Um novo rascunho libera
+      // a trava no efeito acima, mesmo que o POST anterior continue em andamento.
+      if (sendLockedRef.current === t) return;
+      sendLockedRef.current = t;
       resetAutocorrectTracking();
       setTexto("");
       onSendMessage?.(t);
     },
-    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking, sending]
+    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking]
   );
 
   const insertSavedReply = useCallback(
@@ -1993,7 +2006,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                       e.preventDefault();
                     }}
                     onClick={() => handleSendFromComposer(texto)}
-                    disabled={!hasDraft || !conversaId || !podeEnviar || sending}
+                    disabled={!hasDraft || !conversaId || !podeEnviar}
                     className="wa-sendBtn"
                     title="Enviar"
                     aria-label="Enviar mensagem"
@@ -2033,7 +2046,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                       e.preventDefault();
                     }}
                     onClick={() => handleSendFromComposer(texto)}
-                    disabled={!hasDraft || !conversaId || !podeEnviar || sending}
+                    disabled={!hasDraft || !conversaId || !podeEnviar}
                     className="wa-sendBtn"
                     title="Enviar"
                     aria-label="Enviar mensagem"
