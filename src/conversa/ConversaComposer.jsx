@@ -257,6 +257,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     onTextMetrics,
     clearTyping,
     showToast,
+    showScrollToRecent = false,
+    onScrollToRecent,
   },
   ref
 ) {
@@ -1243,6 +1245,16 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       });
       return;
     }
+    // Fecha o teclado ao iniciar a gravação. O botão de mic usa preventDefault no mousedown (para
+    // não roubar foco/piscar), então o teclado NÃO fecha sozinho — fechamos aqui, de forma suave.
+    // Em telas touch, focusInput() só refoca se o input já estiver focado, então o teclado não
+    // reabre sozinho durante a gravação (a área de gravação continua visível acima do teclado fechado).
+    try {
+      const inputEl = inputRef.current;
+      if (inputEl && document.activeElement === inputEl) inputEl.blur();
+    } catch {
+      /* ignore */
+    }
     setRecordingSeconds(0);
     try {
       if (!window.isSecureContext) {
@@ -1643,6 +1655,28 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   return (
     <>
       <div className="wa-composerStack">
+      {showScrollToRecent && !isRecording ? (
+        <button
+          type="button"
+          className="wa-scrollRecentBtn"
+          // preventDefault no mousedown: não rouba o foco do input (não fecha/reabre o teclado só por tocar no botão).
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onScrollToRecent?.()}
+          aria-label="Ir para as mensagens mais recentes"
+          title="Mensagens mais recentes"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path
+              d="M7 10l5 5 5-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      ) : null}
       {savedRepliesOpen && !isRecording ? (
         <div
           ref={savedRepliesPanelRef}

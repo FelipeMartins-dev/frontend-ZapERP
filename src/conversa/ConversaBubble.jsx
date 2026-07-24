@@ -624,13 +624,28 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
         /* ignore */
       }
       if (el.paused) {
+        // Recuperação sob carga (fluxo grande de áudios recebidos/enviados): um <audio> pode ficar
+        // "travado" em estado de erro ou sem nada carregado — limite de conexões do navegador, link
+        // do provedor que expirou, ou proxy intermitente. Antes, clicar em tocar chamava play() num
+        // elemento com erro (rejeita) e o áudio só voltava ao sair/entrar da conversa. Agora, se o
+        // elemento errou ou não carregou, recarrega na hora antes de tocar.
+        if (el.error || el.readyState === 0) {
+          try { el.load(); } catch { /* ignore */ }
+        }
         await el.play();
       } else {
         el.pause();
       }
     } catch {
+      // Falhou tocar: tenta o próximo candidato; se não houver mais, volta ao melhor candidato e
+      // recarrega, para que o PRÓXIMO clique tente de novo — nunca fica permanentemente travado
+      // (era isto que exigia sair e reentrar na conversa para ouvir áudios anteriores).
       if (sourceIdx + 1 < sourceList.length) {
         setSourceIdx((curIdx) => curIdx + 1);
+      } else if (sourceIdx !== 0) {
+        setSourceIdx(0);
+      } else {
+        try { audioRef.current?.load(); } catch { /* ignore */ }
       }
     }
   }, [playbackRate, sourceIdx, sourceList.length]);

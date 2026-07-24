@@ -429,6 +429,9 @@ function ConversaViewBody() {
   const messagesContainerRef = useRef(null);
   const shouldStickToBottomRef = useRef(true);
   const messagesLastScrollTopRef = useRef(0);
+  /** Botão "ir para recentes": visível quando o utilizador está lendo histórico (longe do fim). */
+  const [showScrollToRecent, setShowScrollToRecent] = useState(false);
+  const scrollToRecentVisibleRef = useRef(false);
   /** Bloqueia snap automático ao fundo (Assumir, etc.). */
   const suppressAutoScrollRef = useRef(false);
   /** Enquanto o utilizador arrasta o thread (touch), bloqueia reancoragem programática. */
@@ -1410,6 +1413,29 @@ function ConversaViewBody() {
     }, delayMs);
   }, []);
 
+  /** Mostra/esconde o botão "ir para recentes" só quando o valor muda (evita re-render por scroll). */
+  const syncScrollToRecentVisibility = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const next = !isNearBottom(el, 120);
+    if (scrollToRecentVisibleRef.current !== next) {
+      scrollToRecentVisibleRef.current = next;
+      setShowScrollToRecent(next);
+    }
+  }, []);
+
+  const handleScrollToRecent = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    // Ação deliberada do utilizador: reancora ao fim e desbloqueia o snap automático.
+    userScrollLockRef.current = false;
+    window.clearTimeout(userScrollUnlockTimerRef.current);
+    shouldStickToBottomRef.current = true;
+    snapThreadToBottom(el, virtualThreadRef, { min: true });
+    scrollToRecentVisibleRef.current = false;
+    setShowScrollToRecent(false);
+  }, []);
+
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
@@ -1426,6 +1452,7 @@ function ConversaViewBody() {
       }
     }
     messagesLastScrollTopRef.current = top;
+    syncScrollToRecentVisibility();
 
     window.clearTimeout(scrollEndTimerRef.current);
     scrollEndTimerRef.current = window.setTimeout(
@@ -1439,6 +1466,9 @@ function ConversaViewBody() {
     userScrollLockRef.current = false;
     userInterruptedOpenSnapRef.current = false;
     window.clearTimeout(userScrollUnlockTimerRef.current);
+    // Ao trocar de conversa, esconde o botão de recentes (abre sempre ancorado ao fim).
+    scrollToRecentVisibleRef.current = false;
+    setShowScrollToRecent(false);
   }, [scrollThreadId]);
 
   useEffect(() => {
@@ -1450,6 +1480,13 @@ function ConversaViewBody() {
       window.clearTimeout(scrollEndTimerRef.current);
     };
   }, [handleMessagesScroll, conversaId]);
+
+  // Reavalia o botão "ir para recentes" quando chega mensagem nova: mostra se o utilizador está
+  // lendo histórico; esconde se o snap automático o manteve no fim. rAF lê a posição pós-layout.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => syncScrollToRecentVisibility());
+    return () => cancelAnimationFrame(id);
+  }, [lastMsgKey, loading, syncScrollToRecentVisibility]);
 
   useEffect(() => {
     const el = messagesContainerRef.current;
@@ -4276,6 +4313,8 @@ function ConversaViewBody() {
           onAppendConsumed={handleComposerAppendConsumed}
           onAppendTextApplied={handleComposerAppendApplied}
           onTextMetrics={handleComposerTextMetrics}
+          showScrollToRecent={showScrollToRecent}
+          onScrollToRecent={handleScrollToRecent}
           clearTyping={clearTyping}
           showToast={showToast}
         />
