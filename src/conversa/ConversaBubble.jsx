@@ -58,11 +58,20 @@ function BubbleImage({ msg, alt, className }) {
   const [idx, setIdx] = useState(0);
   const [exhausted, setExhausted] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef(null);
 
   useEffect(() => {
     setIdx(0);
     setExhausted(false);
-    setLoaded(false);
+    // Quando a lista de fontes muda mas a fonte exibida (candidates[0]) continua a mesma
+    // — caso da reconciliação otimista, em que o servidor apenas ANEXA a URL definitiva
+    // depois do blob local —, o <img> NÃO redispara `onLoad` (o src não mudou). Sem herdar
+    // o estado real do elemento, `loaded` ficaria falso para sempre e a imagem manteria a
+    // classe `is-loading` (min-height gigante, caixa cinza vazia). Derivamos `loaded` de
+    // `img.complete`; para uma fonte de fato nova, `complete` é falso e o onLoad assume.
+    const el = imgRef.current;
+    const nextSrc = candidates[0] || "";
+    setLoaded(!!(el && el.complete && el.naturalWidth > 0 && el.getAttribute("src") === nextSrc));
   }, [candidates.join("\u0001")]);
 
   const src = candidates[idx] || "";
@@ -70,6 +79,7 @@ function BubbleImage({ msg, alt, className }) {
 
   return (
     <img
+      ref={imgRef}
       src={src}
       alt={alt}
       className={`${className || ""} ${loaded ? "is-loaded" : "is-loading"}`.trim()}
@@ -442,6 +452,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
   const [sourceIdx, setSourceIdx] = useState(0);
   const activeSrc = sourceList[sourceIdx] || "";
   const audioRef = useRef(null);
+  const durationProbeRef = useRef(false);
   const waveMeasureRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [dur, setDur] = useState(0);
@@ -459,6 +470,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     setPlaying(false);
     setCur(0);
     setDur(0);
+    durationProbeRef.current = false;
   }, [sourceList.join("\u0001")]);
 
   useLayoutEffect(() => {
@@ -529,6 +541,24 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       if (Number.isFinite(d) && d > 0) {
         setDur(d);
         try { onDuration?.(d); } catch {}
+      } else if (d === Infinity && !durationProbeRef.current) {
+        // O webm gravado pelo MediaRecorder não escreve a duração no cabeçalho (streaming),
+        // então `duration` chega como Infinity e o áudio recém-enviado (blob local) mostrava
+        // 0:00 até recarregar. Truque padrão: forçar o navegador a varrer até o fim para
+        // calcular a duração real e voltar o cursor ao início. Só roda uma vez por fonte e só
+        // no caso Infinity — áudio do servidor (ogg) já vem com duração finita e não entra aqui.
+        durationProbeRef.current = true;
+        const onDurationFix = () => {
+          const fixed = Number(el.duration);
+          if (Number.isFinite(fixed) && fixed > 0) {
+            el.removeEventListener("durationchange", onDurationFix);
+            setDur(fixed);
+            try { onDuration?.(fixed); } catch {}
+            try { el.currentTime = 0; } catch { /* ignore */ }
+          }
+        };
+        el.addEventListener("durationchange", onDurationFix);
+        try { el.currentTime = 1e101; } catch { /* ignore */ }
       }
       try {
         el.playbackRate = playbackRate;
