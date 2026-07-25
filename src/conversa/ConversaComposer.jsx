@@ -1258,16 +1258,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       });
       return;
     }
-    // Fecha o teclado ao iniciar a gravação. O botão de mic usa preventDefault no mousedown (para
-    // não roubar foco/piscar), então o teclado NÃO fecha sozinho — fechamos aqui, de forma suave.
-    // Em telas touch, focusInput() só refoca se o input já estiver focado, então o teclado não
-    // reabre sozinho durante a gravação (a área de gravação continua visível acima do teclado fechado).
-    try {
-      const inputEl = inputRef.current;
-      if (inputEl && document.activeElement === inputEl) inputEl.blur();
-    } catch {
-      /* ignore */
-    }
+    // NÃO fechar o teclado ao iniciar a gravação. Queremos manter o teclado aberto e o textarea
+    // focado (comportamento do WhatsApp): assim a viewport não muda de altura e não há "pulo"
+    // visual. O textarea permanece montado durante a gravação (a barra de gravação apenas sobrepõe
+    // a linha de digitação), e os botões usam preventDefault em pointerdown/mousedown para não
+    // roubarem o foco. Por isso removemos o blur() antigo daqui.
     setRecordingSeconds(0);
     try {
       if (!window.isSecureContext) {
@@ -1775,38 +1770,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         </div>
       ) : null}
 
-      <div className="wa-footer">
-        {isRecording ? (
-          <div className="wa-recording-bar">
-            <button
-              type="button"
-              className="wa-recording-cancel"
-              onClick={handleCancelRecording}
-              title="Cancelar"
-              aria-label="Cancelar gravação"
-            >
-              <IconClose />
-            </button>
-            <div className="wa-recording-timer">
-              <span className="wa-recording-dot" aria-hidden="true" />
-              <span className="wa-recording-time">
-                {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, "0")}
-              </span>
-            </div>
-            <span className="wa-recording-hint">Toque para enviar</span>
-            <button
-              type="button"
-              className="wa-recording-send"
-              onClick={handleStopRecording}
-              title="Enviar áudio"
-              aria-label="Enviar áudio"
-            >
-              <IconSend />
-            </button>
-          </div>
-        ) : (
-          <>
-            {composerFooterHint ? (
+      {/*
+        Linha de digitação SEMPRE montada: durante a gravação a barra de áudio apenas SOBREPÕE
+        (overlay absoluto) esta linha, sem desmontar o textarea. Assim o textarea mantém o foco e
+        o teclado permanece aberto no mobile — a altura da viewport não muda e não há "pulo" visual.
+      */}
+      <div className={`wa-footer ${isRecording ? "wa-footer--recording" : ""}`}>
+            {composerFooterHint && !isRecording ? (
               <div className="wa-footer-hint" role="status">
                 {composerFooterHint}
               </div>
@@ -2016,6 +1986,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 ) : (
                   <button
                     onMouseDown={(e) => e.preventDefault()}
+                    onPointerDown={(e) => e.preventDefault()}
                     onClick={handleStartRecording}
                     disabled={!conversaId || !podeEnviar}
                     className="wa-micBtn"
@@ -2030,6 +2001,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 <>
                   <button
                     onMouseDown={(e) => e.preventDefault()}
+                    onPointerDown={(e) => e.preventDefault()}
                     onClick={handleStartRecording}
                     disabled={!conversaId || !podeEnviar}
                     className="wa-micBtn"
@@ -2056,8 +2028,42 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 </>
               )}
             </div>
-          </>
-        )}
+
+            {isRecording ? (
+              <div className="wa-recordingOverlay">
+                <div className="wa-recording-bar">
+                  <button
+                    type="button"
+                    className="wa-recording-cancel"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={handleCancelRecording}
+                    title="Cancelar"
+                    aria-label="Cancelar gravação"
+                  >
+                    <IconClose />
+                  </button>
+                  <div className="wa-recording-timer">
+                    <span className="wa-recording-dot" aria-hidden="true" />
+                    <span className="wa-recording-time">
+                      {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, "0")}
+                    </span>
+                  </div>
+                  <span className="wa-recording-hint">Toque para enviar</span>
+                  <button
+                    type="button"
+                    className="wa-recording-send"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={handleStopRecording}
+                    title="Enviar áudio"
+                    aria-label="Enviar áudio"
+                  >
+                    <IconSend />
+                  </button>
+                </div>
+              </div>
+            ) : null}
       </div>
       </div>
 

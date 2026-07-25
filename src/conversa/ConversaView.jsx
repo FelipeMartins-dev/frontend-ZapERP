@@ -631,6 +631,21 @@ function ConversaViewBody() {
           // o handleRecordingStateChange mantém a tela fixa nas últimas mensagens.
           shouldStickToBottomRef.current = false;
         }
+        if (keyboardOpen && shouldStickToBottomRef.current && !userScrollLockRef.current) {
+          // Teclado aberto (ou a mudar de altura): a área de mensagens encolheu. Se o utilizador
+          // já estava colado ao fim, reancora à última mensagem para ela ficar visível ACIMA do
+          // composer — sem ficar escondida atrás da barra de envio/teclado. Corremos isto a cada
+          // tick da animação do teclado (visualViewport), mantendo a última mensagem fixada.
+          // Guardado por shouldStickToBottomRef: quem está a ler histórico não é puxado para baixo.
+          const mc = messagesContainerRef.current;
+          if (mc) {
+            snapThreadToBottom(mc, virtualThreadRef, {
+              min: true,
+              followUpFrame: false,
+              canSnap: () => !userScrollLockRef.current && shouldStickToBottomRef.current,
+            });
+          }
+        }
       } else {
         setViewportCssVars({
           "--wa-keyboard-inset": null,

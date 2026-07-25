@@ -9062,6 +9062,33 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   box-sizing: border-box;
 }
 
+/* =========================================================
+   Gravação de áudio SEM fechar o teclado (mobile)
+   A linha de digitação continua montada (textarea mantém o foco); a barra de
+   gravação sobrepõe-na como overlay absoluto herdando o padding do .wa-footer,
+   de modo que a altura do composer não muda e a lista de mensagens não "pula".
+========================================================= */
+.wa-footer.wa-footer--recording {
+  position: relative;
+}
+
+.wa-recordingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  /* herda o padding computado do .wa-footer em qualquer breakpoint / estado (teclado aberto) */
+  padding: inherit;
+  /* fundo opaco cobrindo a linha de digitação por baixo */
+  background: var(--wa-header-bg);
+  box-sizing: border-box;
+}
+
+.wa-recordingOverlay .wa-recording-bar {
+  margin: 0;
+}
+
 .wa-recording-cancel {
   width: 36px;
   height: 36px;
