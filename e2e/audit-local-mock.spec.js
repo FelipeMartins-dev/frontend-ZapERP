@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-const API = "https://zapapi.wmsistemas.inf.br";
+// Mantém o mock alinhado ao VITE_API_URL que o webServer do Playwright injeta.
+const API = process.env.VITE_API_URL || "http://localhost:5000";
 
 const chats = [
   {
@@ -71,6 +72,78 @@ async function installAuditSession(page) {
         },
       })
     );
+  });
+}
+
+async function installFakeAudioRecorder(page) {
+  await page.addInitScript(() => {
+    const track = {
+      readyState: "live",
+      stop() {
+        this.readyState = "ended";
+      },
+      addEventListener() {},
+      removeEventListener() {},
+    };
+    const stream = {
+      getAudioTracks: () => [track],
+      getTracks: () => [track],
+    };
+
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: async () => stream },
+    });
+    Object.defineProperty(navigator, "permissions", {
+      configurable: true,
+      value: { query: async () => ({ state: "granted" }) },
+    });
+
+    class FakeMediaRecorder {
+      static isTypeSupported() {
+        return true;
+      }
+
+      constructor(_stream, options = {}) {
+        this.mimeType = options.mimeType || "audio/webm";
+        this.state = "inactive";
+        this.emitted = false;
+      }
+
+      start() {
+        this.state = "recording";
+      }
+
+      requestData() {
+        if (this.emitted) return;
+        this.emitted = true;
+        const data = new Blob([new Uint8Array(2048)], { type: this.mimeType });
+        this.ondataavailable?.({ data });
+      }
+
+      stop() {
+        this.requestData();
+        this.state = "inactive";
+        queueMicrotask(() => this.onstop?.());
+      }
+    }
+
+    class FakeAudio {
+      removeAttribute() {}
+      load() {}
+      set src(_value) {
+        queueMicrotask(() => this.onerror?.());
+      }
+    }
+
+    Object.defineProperty(window, "MediaRecorder", {
+      configurable: true,
+      value: FakeMediaRecorder,
+    });
+    Object.defineProperty(window, "Audio", {
+      configurable: true,
+      value: FakeAudio,
+    });
   });
 }
 
@@ -194,6 +267,119 @@ test("mensagens consecutivas entram na fila sem duplo envio", async ({ page }, t
     { conversaId: 1, texto: "Auditoria sequencial 2" },
     { conversaId: 1, texto: "Auditoria clique duplo" },
   ]);
+});
+
+test("áudios consecutivos aparecem imediatamente e mantêm upload FIFO", async ({ page }, testInfo) => {
+  const uploadedTempIds = [];
+  let activeUploads = 0;
+  let maxActiveUploads = 0;
+  let nextMessageId = 3000;
+
+  await installAuditSession(page);
+  await installFakeAudioRecorder(page);
+
+  await page.route(`${API}/**`, async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname;
+
+    if (path.startsWith("/socket.io")) {
+      await route.abort();
+      return;
+    }
+    if (path === "/usuarios/me") {
+      await route.fulfill({ json: { id: 1, perfil: "admin", role: "admin" } });
+      return;
+    }
+    if (path === "/usuarios/me/permissoes") {
+      await route.fulfill({ json: { permissoes: [] } });
+      return;
+    }
+    if (path === "/config/empresa") {
+      await route.fulfill({ json: { id: 1, nome: "ZapERP Auditoria" } });
+      return;
+    }
+    if (path === "/chats/whatsapp-instances") {
+      await route.fulfill({ json: { instances: [], active_count: 0 } });
+      return;
+    }
+    if (path === "/tags" || path === "/dashboard/departamentos") {
+      await route.fulfill({ json: [] });
+      return;
+    }
+    if (path === "/chats/counts") {
+      await route.fulfill({ json: { todas: 2, minha_fila: 2, em_atendimento: 2 } });
+      return;
+    }
+    if (path === "/chats" && request.method() === "GET") {
+      await route.fulfill({ json: chats });
+      return;
+    }
+    if (path === "/chats/1" && request.method() === "GET") {
+      await route.fulfill({ json: conversationPayload(1) });
+      return;
+    }
+    if (path === "/chats/1/arquivo" && request.method() === "POST") {
+      const multipart = request.postData() || "";
+      const tempId =
+        multipart.match(/name="client_temp_id"\r?\n\r?\n([^\r\n]+)/)?.[1]?.trim() ||
+        `sem-temp-${uploadedTempIds.length + 1}`;
+      uploadedTempIds.push(tempId);
+      activeUploads += 1;
+      maxActiveUploads = Math.max(maxActiveUploads, activeUploads);
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      nextMessageId += 1;
+      await route.fulfill({
+        json: {
+          id: nextMessageId,
+          conversa_id: 1,
+          client_temp_id: tempId,
+          direcao: "out",
+          tipo: "audio",
+          status: "enviado",
+          criado_em: new Date().toISOString(),
+          url: `/uploads/audio-${nextMessageId}.webm`,
+        },
+      });
+      activeUploads -= 1;
+      return;
+    }
+    await route.fulfill({ json: {} });
+  });
+
+  await page.goto("/atendimento");
+  const firstRow = page.locator(".chat-list-row").filter({ hasText: "Contato Auditoria" });
+  await expect(firstRow).toHaveCount(1);
+  if (testInfo.project.name.includes("mobile")) {
+    await firstRow.tap();
+  } else {
+    await firstRow.click();
+  }
+
+  const record = page.getByRole("button", { name: "Gravar áudio" });
+  const sendAudio = page.getByRole("button", { name: "Enviar áudio" });
+
+  await record.click();
+  await expect(sendAudio).toBeVisible();
+  await page.waitForTimeout(850);
+  await sendAudio.click();
+  await expect(page.locator(".audio-message")).toHaveCount(1);
+  await expect.poll(() => uploadedTempIds.length).toBe(1);
+
+  await expect(record).toBeVisible();
+  await record.click();
+  await expect(sendAudio).toBeVisible();
+  await page.waitForTimeout(850);
+  await sendAudio.click();
+
+  await expect(page.locator(".audio-message")).toHaveCount(2);
+  expect(uploadedTempIds).toHaveLength(1);
+  const pendingAudioCount = await page.locator(".audio-message .wa-ticks.isPending").count();
+  expect(pendingAudioCount).toBeGreaterThanOrEqual(1);
+
+  await expect.poll(() => uploadedTempIds.length, { timeout: 10_000 }).toBe(2);
+  expect(new Set(uploadedTempIds).size).toBe(2);
+  expect(maxActiveUploads).toBe(1);
 });
 
 test("troca rápida ignora resposta antiga e mantém thread longo virtualizado", async ({ page }, testInfo) => {

@@ -1861,6 +1861,17 @@ function ConversaViewBody() {
       if (conversa?.cliente_id != null) formData.append("cliente_id", String(conversa.cliente_id));
       if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
 
+      // Áudios consecutivos precisam aparecer imediatamente, mas devem chegar ao back-end em FIFO.
+      // A bolha otimista já foi anexada acima; somente o POST aguarda o upload anterior.
+      let releaseAudioUpload = null;
+      if (opts.enqueueAudio) {
+        const previousAudioUpload = enviarAudioQueueRef.current.catch(() => {});
+        enviarAudioQueueRef.current = new Promise((resolve) => {
+          releaseAudioUpload = resolve;
+        });
+        await previousAudioUpload;
+      }
+
       setSendingTracked(true);
       try {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData);
@@ -1913,6 +1924,7 @@ function ConversaViewBody() {
           message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar o arquivo. Tente novamente."),
         });
       } finally {
+        releaseAudioUpload?.();
         arquivoEnvioInFlightRef.current.delete(flightKey);
         setSendingTracked(false);
         focusMessageInput();
@@ -3633,17 +3645,7 @@ function ConversaViewBody() {
   );
 
   const handleComposerSendAudio = useCallback(
-    (file) => {
-      // Fila FIFO: cada áudio envia em sequência (aguarda o POST do anterior), preservando a
-      // ordem no back-end (criado_em) e na entrega ao contato. A gravação NÃO espera esta fila —
-      // o microfone é liberado ao parar (ver ConversaComposer.handleStartRecording).
-      // Isolamento de falha: `then(run, run)` roda o próximo mesmo que o anterior rejeite, e o
-      // `.catch` mantém a cadeia viva — a falha de um áudio não bloqueia os seguintes.
-      const run = () => handleEnviarArquivo(file, { tipo: "voice" });
-      const next = enviarAudioQueueRef.current.then(run, run).catch(() => {});
-      enviarAudioQueueRef.current = next;
-      return next;
-    },
+    (file) => handleEnviarArquivo(file, { tipo: "voice", enqueueAudio: true }),
     [handleEnviarArquivo]
   );
 
@@ -3663,14 +3665,11 @@ function ConversaViewBody() {
         });
         return;
       }
-      const run = () =>
-        handleEnviarArquivo(entry.file, {
-          tipo: entry.tipo || "voice",
-          reuseTempId: String(tempId),
-        });
-      const next = enviarAudioQueueRef.current.then(run, run).catch(() => {});
-      enviarAudioQueueRef.current = next;
-      return next;
+      return handleEnviarArquivo(entry.file, {
+        tipo: entry.tipo || "voice",
+        reuseTempId: String(tempId),
+        enqueueAudio: true,
+      });
     },
     [handleEnviarArquivo, showToast]
   );
