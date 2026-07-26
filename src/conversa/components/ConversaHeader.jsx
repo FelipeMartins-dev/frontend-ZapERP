@@ -266,6 +266,7 @@ function ConversaHeader({
                   src={avatarUrl}
                   alt=""
                   className="wa-avatar-img"
+                  decoding="async"
                   referrerPolicy="no-referrer"
                   onError={onAvatarError}
                 />

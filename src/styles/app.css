@@ -1,8 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-
 /* ==============================
    LAYOUT E COMPONENTES
    Tema definido em theme.css
+   Fonte Inter: carregada em index.html (preconnect + <link rel="stylesheet">,
+   display=swap). NÃO reimportar aqui — @import de CSS bloqueia a renderização
+   e duplicaria o mesmo request a cada carga.
 ============================== */
 
 /* Atendimento Layout */
