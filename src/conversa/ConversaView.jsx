@@ -3183,14 +3183,14 @@ function ConversaViewBody() {
   }, [mensagensComSeparadores]);
 
   useLayoutEffect(() => {
-    if (!headerCompact || !conversaId) {
+    if (!conversaId) {
       setThreadOpening(false);
       return undefined;
     }
     setThreadOpening(true);
     const fallback = window.setTimeout(() => setThreadOpening(false), 2500);
     return () => window.clearTimeout(fallback);
-  }, [headerCompact, conversaId]);
+  }, [conversaId]);
 
   useEffect(() => {
     if (!threadOpening || loading || hasThreadMessageRows) return;
@@ -3198,7 +3198,7 @@ function ConversaViewBody() {
   }, [threadOpening, loading, hasThreadMessageRows]);
 
   useLayoutEffect(() => {
-    if (!threadOpening || !headerCompact || loading || !conversaId) return undefined;
+    if (!threadOpening || loading || !conversaId) return undefined;
     if (!hasThreadMessageRows) return undefined;
 
     let rafId = 0;
@@ -3260,7 +3260,7 @@ function ConversaViewBody() {
       if (settleTimer) window.clearTimeout(settleTimer);
       if (fallbackTimer) window.clearTimeout(fallbackTimer);
     };
-  }, [threadOpening, headerCompact, loading, conversaId, hasThreadMessageRows, mensagensComSeparadores, virtualThreadRef]);
+  }, [threadOpening, loading, conversaId, hasThreadMessageRows, mensagensComSeparadores, virtualThreadRef]);
 
   useEffect(() => {
     if (!import.meta?.env?.DEV) return;
@@ -3741,7 +3741,7 @@ function ConversaViewBody() {
   const mensagensBloqueadasHint = Boolean(conversa?.mensagens_bloqueadas);
   const atendimentoEncerradoHint = !modoSimplesAtivo && !isGroup && isClosedAttendance(conversa);
   const atendenteNomeHint = conversa?.atendente_nome ?? "";
-  const maskThreadOpening = headerCompact && threadOpening && !loading;
+  const maskThreadOpening = threadOpening && !loading;
 
   /* Só tela cheia sem shell; com header da lista o thread mostra “Carregando mensagens…” inline. */
   if (!headerCompact && loading && !conversa) {
