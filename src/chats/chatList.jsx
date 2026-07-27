@@ -100,6 +100,10 @@ function getChatListPageLimit(isMobileLayout) {
   return isMobileLayout ? CHAT_LIST_MOBILE_PAGE_LIMIT : CHAT_LIST_DESKTOP_PAGE_LIMIT;
 }
 const MOBILE_ZAPI_STATUS_DELAY_MS = 3200;
+/** Revalidação periódica do status do WhatsApp (o banner precisa sumir sozinho ao reconectar). */
+const ZAPI_STATUS_REFRESH_MS = 120_000;
+/** Trava para o foco de janela não disparar checagem a cada alternância de aba. */
+const ZAPI_STATUS_FOCUS_MIN_INTERVAL_MS = 30_000;
 const MOBILE_SECONDARY_REFRESH_DELAY_MS = 2800;
 const MOBILE_COUNTS_DELAY_MS = 2600;
 const MOBILE_FILTERS_BOOT_DELAY_MS = 3600;
@@ -697,7 +701,10 @@ export default function ChatList() {
     let cancelled = false;
 
     const delay = isMobileLayout ? MOBILE_ZAPI_STATUS_DELAY_MS : 400;
-    const cancelStatus = scheduleAfterInitialPaint(() => {
+    let ultimaChecagem = 0;
+
+    const checar = () => {
+      ultimaChecagem = Date.now();
       getZapiStatus()
         .then((s) => {
           if (cancelled) return;
@@ -707,11 +714,31 @@ export default function ChatList() {
         .catch(() => {
           if (!cancelled) setZapiStatusLoaded(true);
         });
-    }, delay);
+    };
+
+    const cancelStatus = scheduleAfterInitialPaint(checar, delay);
+
+    // O status era lido UMA vez, ao montar. Depois de reconectar o WhatsApp o banner
+    // "mensagens não serão entregues" continuava na tela até o atendente dar F5 — e, ao
+    // contrário, uma queda no meio do expediente nunca aparecia. Agora revalida sozinho.
+    const intervalo = setInterval(checar, ZAPI_STATUS_REFRESH_MS);
+
+    // Voltar para a aba é o momento em que o atendente olha a tela: revalida na hora,
+    // com trava para não disparar a cada alternância de janela.
+    const aoFocar = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - ultimaChecagem < ZAPI_STATUS_FOCUS_MIN_INTERVAL_MS) return;
+      checar();
+    };
+    document.addEventListener("visibilitychange", aoFocar);
+    window.addEventListener("focus", aoFocar);
 
     return () => {
       cancelled = true;
       cancelStatus();
+      clearInterval(intervalo);
+      document.removeEventListener("visibilitychange", aoFocar);
+      window.removeEventListener("focus", aoFocar);
     };
   }, [isMobileLayout]);
 
