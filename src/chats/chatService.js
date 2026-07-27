@@ -343,6 +343,21 @@ export function buildTelefoneVariantsForContato(telefone) {
   return out;
 }
 
+/** Mantém o cartão de contato na mesma linha/instância WhatsApp da mensagem de origem. */
+export function resolveWhatsappInstanceIdForSharedContact(meta, conversa, fromChat) {
+  const raw =
+    meta?.whatsapp_instance_id ??
+    meta?.whatsappInstanceId ??
+    conversa?.whatsapp_instance_id ??
+    conversa?.whatsappInstanceId ??
+    fromChat?.whatsapp_instance_id ??
+    fromChat?.whatsappInstanceId ??
+    null;
+  if (raw == null || String(raw).trim() === "") return null;
+  const id = Number(raw);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 /**
  * Encontra chats na lista cujo telefone bate com alguma variante.
  * Se whatsapp_instance_id informado, restringe à instância.

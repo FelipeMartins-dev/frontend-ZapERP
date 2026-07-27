@@ -6,7 +6,7 @@
 const ENV_FIXO =
   '({ VITE_API_URL: "https://api.teste.local", DEV: false, VITE_WITH_CREDENTIALS: "0" })';
 
-const EXTENSOES = [".js", ".jsx", "/index.js", "/index.jsx"];
+const EXTENSOES = [".js", ".jsx", ".ts", "/index.js", "/index.jsx", "/index.ts"];
 
 /** O Vite resolve import sem extensão ("../../utils/x"); o node não. */
 export async function resolve(specifier, context, nextResolve) {

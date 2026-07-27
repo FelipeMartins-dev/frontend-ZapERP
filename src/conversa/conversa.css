@@ -4841,6 +4841,30 @@
   opacity: 0.8;
 }
 
+/* Todas as fontes do áudio falharam depois de o usuário pedir para tocar.
+   Fica na linha de baixo do player, discreto — não é erro de envio, é "não carregou agora". */
+.wa-audioUnavailable {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid var(--wa-danger, #e5484d);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--wa-danger, #e5484d);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+.wa-audioUnavailable:hover {
+  background: color-mix(in srgb, var(--wa-danger, #e5484d) 12%, transparent);
+}
+.wa-audioUnavailable:active {
+  opacity: 0.8;
+}
+
 /* Player custom (waveform estilo WhatsApp) */
 .wa-audioPlayer {
   display: flex;

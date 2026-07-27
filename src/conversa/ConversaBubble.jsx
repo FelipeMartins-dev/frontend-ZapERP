@@ -20,6 +20,7 @@ import {
   seedFromAny,
   makeWaveBars,
   resolveDownloadFilename,
+  buildMediaOpenHref,
   buildMediaDownloadHref,
 } from "./utils/conversaViewHelpers";
 import { renderTextWithLinks } from "./utils/conversaViewFormat";
@@ -162,6 +163,7 @@ function FileBubbleContent({ msg, mediaUrl, selectMode, onOpenMedia, isGroup, ou
   const size = formatFileSize(bytes);
   const typeSize = size ? `${ext} · ${size}` : ext;
   const encaminhado = !!msg?.encaminhado || (typeof msg?.texto === "string" && msg.texto.trimStart().startsWith("[Encaminhado]"));
+  const openHref = buildMediaOpenHref(msg?.url, msg?.url_absoluta, nome) || mediaUrl;
 
   const handleCardClick = (e) => {
     if (!selectMode) e.stopPropagation();
@@ -191,7 +193,7 @@ function FileBubbleContent({ msg, mediaUrl, selectMode, onOpenMedia, isGroup, ou
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (!selectMode && mediaUrl) onOpenMedia?.(mediaUrl, "arquivo", nome);
+            if (!selectMode && openHref) onOpenMedia?.(openHref, "arquivo", nome);
           }}
         >
           Abrir
@@ -225,6 +227,7 @@ function ContactBubbleContent({
   onConversar,
   onAdicionarGrupo,
 }) {
+  const [conversarBusy, setConversarBusy] = useState(false);
   const meta = contactMeta || resolveContactMetaFromMessage(msg);
   if (!meta) return null;
   const nome = meta.nome || "Contato";
@@ -273,14 +276,25 @@ function ContactBubbleContent({
         <button
           type="button"
           className="wa-bubble-contactAction"
-          disabled={!!selectMode}
-          onClick={(e) => {
+          disabled={!!selectMode || conversarBusy}
+          aria-busy={conversarBusy}
+          onClick={async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (!selectMode && onConversar) onConversar({ nome, telefone });
+            if (selectMode || conversarBusy || !onConversar) return;
+            setConversarBusy(true);
+            try {
+              await onConversar({
+                nome,
+                telefone,
+                whatsapp_instance_id: msg?.whatsapp_instance_id ?? null,
+              });
+            } finally {
+              setConversarBusy(false);
+            }
           }}
         >
-          Conversar
+          {conversarBusy ? "Abrindo…" : "Conversar"}
         </button>
         <button
           type="button"
@@ -462,6 +476,11 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
   const durationProbeRef = useRef(false);
   const waveMeasureRef = useRef(null);
   const [playing, setPlaying] = useState(false);
+  // Todos os candidatos falharam DEPOIS de o usuário pedir para tocar. Sem isto o player
+  // ficava mudo e sem explicação: o atendente clicava, nada acontecia, e não havia como
+  // forçar nova tentativa a não ser sair e reabrir a conversa. Só liga dentro de uma
+  // tentativa do usuário — erro de preload em segundo plano não acusa nada.
+  const [indisponivel, setIndisponivel] = useState(false);
   const [dur, setDur] = useState(0);
   const [cur, setCur] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -477,6 +496,9 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     setPlaying(false);
     setCur(0);
     setDur(0);
+    // Lista de fontes nova (ex.: o backfill trouxe a cópia em /uploads) merece recomeço
+    // limpo: o que estava indisponível pode ter passado a existir.
+    setIndisponivel(false);
     durationProbeRef.current = false;
     autoPlayRef.current = { ate: 0, tentativas: 0 };
   }, [sourceList.join("\u0001")]);
@@ -545,6 +567,8 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     if (!el) return;
 
     const onLoaded = () => {
+      // A fonte carregou: seja qual for o estado anterior, este áudio está disponível.
+      setIndisponivel(false);
       const d = Number(el.duration);
       if (Number.isFinite(d) && d > 0) {
         setDur(d);
@@ -581,6 +605,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     };
     const onPlay = () => {
       setPlaying(true);
+      setIndisponivel(false);
       autoPlayRef.current.ate = 0;
       try {
         el.playbackRate = playbackRate;
@@ -595,7 +620,12 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       if (auto.ate > Date.now()) {
         auto.tentativas += 1;
         // Teto duro: no máximo uma volta pela lista de fontes antes de parar de tentar sozinho.
-        if (auto.tentativas > sourceList.length) auto.ate = 0;
+        // Chegar aqui significa que o usuário pediu para tocar e TODAS as fontes falharam —
+        // é o único ponto em que dá para afirmar "este áudio não está disponível agora".
+        if (auto.tentativas > sourceList.length) {
+          auto.ate = 0;
+          setIndisponivel(true);
+        }
       }
       setSourceIdx((curIdx) => {
         if (curIdx + 1 < sourceList.length) return curIdx + 1;
@@ -717,6 +747,19 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       }
     }
   }, [playbackRate, sourceIdx, sourceList.length]);
+
+  /**
+   * "Tentar de novo" depois que todas as fontes falharam. Não inventa mecanismo novo:
+   * reabre a mesma janela de retomada que o clique de play usa, volta para a primeira
+   * fonte (ou força reload quando só existe uma) e deixa o efeito de `activeSrc/nonce`
+   * fazer o load() e tocar quando ficar pronto.
+   */
+  const tentarNovamente = useCallback(() => {
+    setIndisponivel(false);
+    autoPlayRef.current = { ate: Date.now() + 10_000, tentativas: 0 };
+    if (sourceIdx !== 0) setSourceIdx(0);
+    else setReloadNonce((n) => n + 1);
+  }, [sourceIdx]);
 
   const keepMobileKeyboardOpen = useCallback((e) => {
     if (e.pointerType !== "touch" && e.pointerType !== "pen") return false;
@@ -885,6 +928,23 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
           <span className="wa-audioTime wa-audioTime--cur" title={formatMmSs(cur)}>
             {formatMmSs(cur)}
           </span>
+          {indisponivel ? (
+            <button
+              type="button"
+              className="wa-audioUnavailable"
+              data-testid="audio-indisponivel"
+              onPointerDown={keepMobileKeyboardOpen}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                tentarNovamente();
+              }}
+              title="Não foi possível carregar este áudio. Clique para tentar de novo."
+              aria-label="Áudio indisponível. Tentar carregar de novo."
+            >
+              Áudio indisponível — tentar de novo
+            </button>
+          ) : null}
           {sentAtLabel ? (
             <span className="wa-audioSentAt" title={`Enviado às ${sentAtLabel}`}>
               {sentAtLabel}

@@ -83,7 +83,7 @@ export default function MediaViewerOverlay({
           (() => {
             const fn = (mediaViewer.fileName || "").toLowerCase();
             const isPdf = fn.endsWith(".pdf");
-            const isImg = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fn);
+            const isImg = /\.(jpg|jpeg|png|gif|webp|bmp|avif|svg)$/i.test(fn);
             if (isImg) {
               return (
                 <img

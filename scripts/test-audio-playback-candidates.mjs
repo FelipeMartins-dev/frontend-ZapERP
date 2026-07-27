@@ -8,7 +8,11 @@
  *
  * Executar: node --import ./scripts/vite-env-shim.mjs scripts/test-audio-playback-candidates.mjs
  */
-import { resolveAudioPlaybackCandidates } from "../src/conversa/utils/conversaViewHelpers.js";
+import {
+  buildMediaOpenHref,
+  getMediaPlaybackUrl,
+  resolveAudioPlaybackCandidates,
+} from "../src/conversa/utils/conversaViewHelpers.js";
 
 let falhas = 0;
 function checar(nome, condicao, detalhe) {
@@ -63,8 +67,29 @@ const BLOB = "blob:http://app.local/abc-123";
   checar("sem URL não gera candidato", c.length === 0, JSON.stringify(c));
 }
 
+// 6) URL que já aponta ao proxy não pode ser embrulhada em um segundo proxy.
+{
+  const proxy =
+    "https://api.teste.local/media/proxy?url=https%3A%2F%2Fcdn.ultramsg.com%2Fdocs%2Fa.pdf&access_token=token";
+  const playback = getMediaPlaybackUrl(proxy, null);
+  checar("proxy existente não vira proxy do proxy", playback === proxy, playback);
+}
+
+// 7) Abertura de documento externo inclui filename/MIME hint e usa disposition inline.
+{
+  const href = buildMediaOpenHref(
+    "https://cdn.ultramsg.com/download/abc123",
+    null,
+    "Relatório final.pdf"
+  );
+  const parsed = new URL(href);
+  checar("arquivo externo abre via proxy", parsed.pathname === "/media/proxy", href);
+  checar("abertura usa disposition inline", parsed.searchParams.get("disposition") === "inline", href);
+  checar("abertura preserva filename", parsed.searchParams.get("filename") === "Relatório final.pdf", href);
+}
+
 if (falhas > 0) {
   console.error(`\n${falhas} verificação(ões) falharam.`);
   process.exit(1);
 }
-console.log("OK — regressão de fontes de reprodução de áudio passou (5 cenários).");
+console.log("OK — regressão de mídia/arquivos passou (7 cenários).");

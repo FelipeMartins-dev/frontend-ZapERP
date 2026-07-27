@@ -14,6 +14,18 @@ function isLiveStream(stream) {
   return tracks.some((t) => t.readyState === "live");
 }
 
+/**
+ * O stream fica em cache entre gravações. Um track pode continuar "live" e ainda
+ * assim estar `muted` — o dispositivo foi trocado (fone bluetooth), silenciado pelo
+ * sistema ou tomado por outro app. Gravar por cima dele produz um arquivo só com
+ * silêncio, então nesse caso vale reabrir o microfone em vez de reaproveitar.
+ */
+function isUsableStream(stream) {
+  if (!stream) return false;
+  const tracks = stream.getAudioTracks?.() || [];
+  return tracks.some((t) => t.readyState === "live" && t.muted !== true);
+}
+
 function stopCachedStream() {
   if (!cachedStream) return;
   try {
@@ -100,7 +112,7 @@ function attachTrackEndedHandler(stream) {
  * Se o navegador já concedeu permissão permanentemente, não exibe popup.
  */
 export async function acquireMicStream() {
-  if (isLiveStream(cachedStream)) {
+  if (isUsableStream(cachedStream)) {
     return cachedStream;
   }
 

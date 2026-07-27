@@ -38,7 +38,13 @@ const MsgInfoModal = lazy(() => import("./components/MsgInfoModal"));
 const CallModal = lazy(() => import("./components/CallModal"));
 const AddToGroupModal = lazy(() => import("./components/AddToGroupModal"));
 const MediaViewerOverlay = lazy(() => import("./components/MediaViewerOverlay"));
-import { abrirConversaPorTelefone, carregarMensagensAntigasContato, conversaFromContatoResponse, fetchChats } from "../chats/chatService";
+import {
+  abrirConversaPorTelefone,
+  carregarMensagensAntigasContato,
+  conversaFromContatoResponse,
+  fetchChats,
+  resolveWhatsappInstanceIdForSharedContact,
+} from "../chats/chatService";
 import { getDisplayName } from "../chats/chatListDisplay";
 import { getSocket } from "../socket/socket";
 import { scheduleAfterInitialPaint } from "../chats/scheduleAfterInitialPaint";
@@ -2964,19 +2970,37 @@ function ConversaViewBody() {
     disabled: loading,
   });
 
+  const contactConversationOpeningRef = useRef(false);
   const handleConversarContact = useCallback(
     async (meta) => {
       if (!meta?.telefone) {
         showToast({ type: "warning", title: "Telefone indisponível", message: "Este contato não possui número para iniciar conversa." });
         return;
       }
+      if (contactConversationOpeningRef.current) return;
+      contactConversationOpeningRef.current = true;
       try {
-        const data = await abrirConversaPorTelefone(meta.nome || "Contato", meta.telefone);
+        const whatsappInstanceId = resolveWhatsappInstanceIdForSharedContact(
+          meta,
+          conversa,
+          fromChat
+        );
+        const data = await abrirConversaPorTelefone(
+          meta.nome || "Contato",
+          meta.telefone,
+          whatsappInstanceId
+        );
         const conv = data?.conversa ?? conversaFromContatoResponse(data) ?? null;
         if (!conv?.id) throw new Error("Não foi possível abrir a conversa.");
         try { useChatStore.getState().addChat(conv); } catch {}
-        setSelectedId(conv.id);
-        carregarConversa(conv.id);
+        // carregarConversa faz a troca atômica: sai da sala socket anterior, seleciona e carrega
+        // a conversa nova. Chamar setSelectedId antes perdia o ID anterior e mantinha a sala antiga.
+        await carregarConversa(conv.id);
+        const openedState = useConversaStore.getState();
+        if (String(openedState.selectedId ?? "") !== String(conv.id)) {
+          throw new Error("A conversa foi localizada, mas não pôde ser exibida.");
+        }
+        if (openedState.loadError) throw new Error(openedState.loadError);
         showToast({ type: "success", title: "Conversa aberta", message: `Conversa com ${meta.nome || "contato"} iniciada.` });
       } catch (e) {
         console.error("Erro ao abrir conversa do contato:", e);
@@ -2985,9 +3009,11 @@ function ConversaViewBody() {
           title: "Falha ao abrir conversa",
           message: e.response?.data?.error || e.message || "Não foi possível abrir a conversa com este contato.",
         });
+      } finally {
+        contactConversationOpeningRef.current = false;
       }
     },
-    [showToast, setSelectedId, carregarConversa]
+    [showToast, carregarConversa, conversa?.whatsapp_instance_id, fromChat?.whatsapp_instance_id]
   );
 
   const handleAdicionarGrupoContact = useCallback((meta) => {

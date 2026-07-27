@@ -497,6 +497,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     if (rec && isRecording) {
       rec.__zapCanceled = true;
       rec.__zapStopAt = Date.now();
+      rec.__zapDetachMicWatch?.();
       try {
         if (rec.state !== "inactive") {
           rec.stop();
@@ -536,6 +537,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       const rec = mediaRecorderRef.current;
       if (!rec) return;
       rec.__zapCanceled = true;
+      rec.__zapDetachMicWatch?.();
       try {
         if (rec.state !== "inactive") {
           rec.stop();
@@ -1316,18 +1318,103 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       recorder.__zapStartedAt = localStartedAt;
       recorder.__zapStopAt = 0;
       recorder.__zapCanceled = false;
+      recorder.__zapInterrupted = null;
+
+      // Microfone perdido no meio da gravação (dispositivo removido/trocado, outro app
+      // tomou o mic, chamada telefônica, aba suspensa no celular): o MediaRecorder para
+      // de receber amostras, mas o cronômetro da tela continua correndo. Sem isto o
+      // usuário falava 30s e enviava um arquivo com só os primeiros segundos — o contato
+      // recebia um áudio curto, começando mudo e com a voz cortada. Agora a gravação é
+      // encerrada na hora, o pedaço parcial é descartado e o microfone é reaberto na
+      // próxima tentativa (o stream é compartilhado e ficaria morto/mudo).
+      const micTrack = stream.getAudioTracks?.()[0] || null;
+      let muteTimer = null;
+      const desarmarVigiaMic = () => {
+        if (muteTimer) {
+          clearTimeout(muteTimer);
+          muteTimer = null;
+        }
+        if (!micTrack) return;
+        micTrack.removeEventListener("ended", onTrackEnded);
+        micTrack.removeEventListener("mute", onTrackMuted);
+        micTrack.removeEventListener("unmute", onTrackUnmuted);
+      };
+      const interromperGravacao = (motivo) => {
+        if (recorder.__zapCanceled || recorder.__zapInterrupted) return;
+        recorder.__zapInterrupted = motivo;
+        recorder.__zapStopAt = Date.now();
+        desarmarVigiaMic();
+        invalidateMicStream();
+        try {
+          if (recorder.state !== "inactive") recorder.stop();
+        } catch {
+          /* ignore */
+        }
+        if (mediaRecorderRef.current === recorder) {
+          mediaRecorderRef.current = null;
+          setIsRecording(false);
+          setRecordingSeconds(0);
+          if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+          }
+        }
+      };
+      function onTrackEnded() {
+        interromperGravacao("track_ended");
+      }
+      function onTrackMuted() {
+        // Mudo momentâneo (troca de dispositivo, blip do sistema) não deve matar a
+        // gravação; mudo que persiste significa que nada mais está sendo capturado.
+        if (muteTimer) clearTimeout(muteTimer);
+        muteTimer = setTimeout(() => {
+          muteTimer = null;
+          if (micTrack?.muted) interromperGravacao("track_muted");
+        }, 2000);
+      }
+      function onTrackUnmuted() {
+        if (muteTimer) {
+          clearTimeout(muteTimer);
+          muteTimer = null;
+        }
+      }
+      if (micTrack) {
+        micTrack.addEventListener("ended", onTrackEnded);
+        micTrack.addEventListener("mute", onTrackMuted);
+        micTrack.addEventListener("unmute", onTrackUnmuted);
+      }
+      recorder.onerror = () => interromperGravacao("recorder_error");
+      // Permite soltar os listeners do track compartilhado mesmo quando o `onstop`
+      // não chega a rodar (cancelar/desmontar com o recorder já inativo).
+      recorder.__zapDetachMicWatch = desarmarVigiaMic;
 
       recorder.ondataavailable = (e) => {
         if (e.data?.size > 0) localChunks.push(e.data);
       };
 
       recorder.onstop = async () => {
+        desarmarVigiaMic();
         const wasCanceled = recorder.__zapCanceled === true;
         const chunks = localChunks.slice();
         const startedAt = recorder.__zapStartedAt || localStartedAt;
         const stoppedAt = recorder.__zapStopAt || Date.now();
         const elapsedMs = Math.max(0, stoppedAt - startedAt);
-        if (wasCanceled || chunks.length === 0) return;
+        if (wasCanceled) return;
+        // `__zapStopAt` só fica em 0 quando ninguém pediu para parar: o próprio
+        // navegador encerrou a gravação (microfone perdido, erro interno). O que foi
+        // capturado até aqui está incompleto — descarta em vez de enviar cortado.
+        const interrompida = Boolean(recorder.__zapInterrupted) || recorder.__zapStopAt === 0;
+        if (interrompida) {
+          interromperGravacao(recorder.__zapInterrupted || "recorder_autostop");
+          showToast?.({
+            type: "error",
+            title: "Gravação interrompida",
+            message:
+              "O microfone parou de gravar antes do envio (pode ter sido desconectado ou usado por outro app). Grave o áudio novamente.",
+          });
+          return;
+        }
+        if (chunks.length === 0) return;
         const finalType = recorder.mimeType || mimeType || "audio/webm";
         const ext = audioExtensionFromMime(finalType);
         const blob = new Blob(chunks, { type: finalType });

@@ -611,6 +611,15 @@ export function needsProxiedMediaPlayback(absUrl) {
     const u = new URL(abs);
     const baseRaw = getApiBaseUrl().replace(/\/$/, "");
     const api = new URL(baseRaw.startsWith("http") ? baseRaw : `https://${baseRaw}`);
+    // A URL já autenticada do proxy é uma fonte final. Enviá-la novamente ao próprio proxy
+    // cria /media/proxy?url=/media/proxy?...; o backend bloqueia corretamente esse proxy
+    // recursivo e PDFs/documentos recebidos deixam de abrir.
+    if (
+      u.origin === api.origin &&
+      (u.pathname === "/media/proxy" || u.pathname === "/api/media/proxy")
+    ) {
+      return false;
+    }
     if (u.origin === api.origin && u.pathname.startsWith("/uploads/")) return false;
     return true;
   } catch {
@@ -660,7 +669,7 @@ export function mediaViewerSupportsPrint(viewerType, fileName) {
   if (t === "video" || t === "imagem" || t === "sticker" || t === "figurinha") return true;
   if (t === "arquivo") {
     const fn = String(fileName || "").toLowerCase();
-    return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fn);
+    return /\.(jpg|jpeg|png|gif|webp|bmp|avif|svg)$/i.test(fn);
   }
   return false;
 }
@@ -730,35 +739,47 @@ export function resolveDownloadFilename(nomeArquivo, mediaUrl) {
 }
 
 /**
- * Constrói URL de download via proxy autenticado com filename correto.
- * Garante que o backend defina Content-Disposition + Content-Type corretos.
- * Só usa o proxy para URLs externas (cross-origin); retorna a URL original para /uploads.
+ * Constrói URL de acesso via proxy autenticado com filename e disposition corretos.
+ * Só usa o proxy para URLs externas; /uploads continua direto.
  */
-export function buildMediaDownloadHref(rawUrl, rawUrlAbsoluta, filename) {
+function buildMediaAccessHref(rawUrl, rawUrlAbsoluta, filename, disposition) {
   const abs = getMediaUrl(rawUrl, rawUrlAbsoluta);
   if (!abs) return abs;
 
-  // Proxy já está na URL (foi construído em getMediaPlaybackUrl)
-  if (abs.includes("/media/proxy")) {
+  // Proxy já está na URL: apenas completa os metadados de abertura/download.
+  if (!needsProxiedMediaPlayback(abs) && abs.includes("/media/proxy")) {
     try {
-      const u = new URL(abs, window.location.href);
+      const base =
+        typeof window !== "undefined" && window.location?.href
+          ? window.location.href
+          : `${getApiBaseUrl().replace(/\/$/, "")}/`;
+      const u = new URL(abs, base);
       if (filename) u.searchParams.set("filename", filename);
-      u.searchParams.set("disposition", "attachment");
+      u.searchParams.set("disposition", disposition);
       return u.toString();
     } catch {
       return abs;
     }
   }
 
-  // URL local (/uploads ou same-origin) — não precisa de proxy
+  // URL local (/uploads ou same-origin) — não precisa de proxy.
   if (!needsProxiedMediaPlayback(abs)) return abs;
 
-  // URL externa — roteia pelo proxy com filename + disposition=attachment
+  // URL externa — o filename também permite ao backend corrigir MIME genérico.
   const token = getAuthTokenFromStorage();
-  const q = new URLSearchParams({ url: abs, disposition: "attachment" });
+  const q = new URLSearchParams({ url: abs, disposition });
   if (token) q.set("access_token", token);
   if (filename) q.set("filename", filename);
   return `${getApiBaseUrl().replace(/\/$/, "")}/media/proxy?${q.toString()}`;
+}
+
+/** URL autenticada para exibir o arquivo no navegador/visualizador. */
+export function buildMediaOpenHref(rawUrl, rawUrlAbsoluta, filename) {
+  return buildMediaAccessHref(rawUrl, rawUrlAbsoluta, filename, "inline");
+}
+
+export function buildMediaDownloadHref(rawUrl, rawUrlAbsoluta, filename) {
+  return buildMediaAccessHref(rawUrl, rawUrlAbsoluta, filename, "attachment");
 }
 
 
