@@ -554,31 +554,41 @@ export function resolveBubbleMediaUrl(msg) {
   return candidates[0] || "";
 }
 
-/** Candidatos de áudio prontos para `<audio>` — blob local primeiro, depois /uploads da API atual, depois proxy. */
+/**
+ * Candidatos de áudio prontos para `<audio>`.
+ *
+ * Enquanto o envio está pendente, o blob local vem primeiro: é o que deixa o áudio ouvível na hora.
+ * Assim que o servidor devolve o arquivo em /uploads, ele passa na frente — o blob é o webm cru do
+ * MediaRecorder, que não tem duração no cabeçalho e fazia a bolha exibir durações absurdas
+ * (ex.: 12:37 num áudio de 10s); o /uploads é o OGG/Opus já transcodificado, com duração correta.
+ * O blob permanece na lista como último recurso.
+ */
 export function resolveAudioPlaybackCandidates(msg) {
   if (!msg || typeof msg !== "object") return [];
-  const out = [];
+  const servidor = [];
+  const locais = [];
   const seen = new Set();
-  const push = (u) => {
+  const push = (destino, u) => {
     const s = String(u || "").trim();
     if (!s || seen.has(s)) return;
     seen.add(s);
-    out.push(s);
+    destino.push(s);
   };
 
   for (const raw of resolveBubbleMediaCandidates(msg)) {
     if (String(raw).startsWith("blob:")) {
-      push(raw);
+      push(locais, raw);
       continue;
     }
     const resolved = resolveMediaUrlForPlayback(raw);
     if (!resolved) continue;
     if (needsProxiedMediaPlayback(resolved)) {
-      push(getMediaPlaybackUrl(raw, raw) || resolved);
+      push(servidor, getMediaPlaybackUrl(raw, raw) || resolved);
     }
-    push(resolved);
+    push(servidor, resolved);
   }
-  return out;
+
+  return servidor.length ? [...servidor, ...locais] : locais;
 }
 
 function getAuthTokenFromStorage() {

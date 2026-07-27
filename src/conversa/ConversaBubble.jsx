@@ -450,8 +450,15 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     });
   }, [candidates, src]);
   const [sourceIdx, setSourceIdx] = useState(0);
+  // Bumped para forçar um novo load() mesmo quando a fonte não muda (fonte única que falhou).
+  const [reloadNonce, setReloadNonce] = useState(0);
   const activeSrc = sourceList[sourceIdx] || "";
   const audioRef = useRef(null);
+  // Janela curta, aberta por um clique, em que o player pode tentar o próximo candidato sozinho —
+  // sem ela, uma fonte que falhou consumia um clique sem produzir som. `ate` é um instante (não um
+  // contador) de propósito: efeitos são invocados duas vezes em StrictMode e um contador seria
+  // consumido indevidamente. `tentativas` é incrementado só no handler de erro, que não duplica.
+  const autoPlayRef = useRef({ ate: 0, tentativas: 0 });
   const durationProbeRef = useRef(false);
   const waveMeasureRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -471,6 +478,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     setCur(0);
     setDur(0);
     durationProbeRef.current = false;
+    autoPlayRef.current = { ate: 0, tentativas: 0 };
   }, [sourceList.join("\u0001")]);
 
   useLayoutEffect(() => {
@@ -573,6 +581,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     };
     const onPlay = () => {
       setPlaying(true);
+      autoPlayRef.current.ate = 0;
       try {
         el.playbackRate = playbackRate;
       } catch {
@@ -582,7 +591,20 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     const onPause = () => setPlaying(false);
     const onError = () => {
       setPlaying(false);
-      setSourceIdx((curIdx) => (curIdx + 1 < sourceList.length ? curIdx + 1 : curIdx));
+      const auto = autoPlayRef.current;
+      if (auto.ate > Date.now()) {
+        auto.tentativas += 1;
+        // Teto duro: no máximo uma volta pela lista de fontes antes de parar de tentar sozinho.
+        if (auto.tentativas > sourceList.length) auto.ate = 0;
+      }
+      setSourceIdx((curIdx) => {
+        if (curIdx + 1 < sourceList.length) return curIdx + 1;
+        // Já no último candidato. Se o usuário está esperando este áudio tocar, volta ao primeiro
+        // para fechar o ciclo — sem isso o player ficava parado no candidato ruim e o clique não
+        // produzia som. Fora de um pedido do usuário, não reinicia (evita rede em segundo plano).
+        if (autoPlayRef.current.ate > Date.now() && sourceList.length > 1) return 0;
+        return curIdx;
+      });
     };
 
     el.addEventListener("loadedmetadata", onLoaded);
@@ -616,7 +638,21 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     } catch {
       /* ignore */
     }
-  }, [activeSrc]);
+    // Retomada automática: quando a troca de fonte veio de uma tentativa de tocar que falhou,
+    // o áudio começa sozinho assim que a nova fonte fica pronta. Antes, cada falha consumia um
+    // clique — o atendente clicava, nada acontecia, e só o clique seguinte tocava.
+    // Só entra aqui dentro da janela aberta por um clique: nunca toca sozinho sem o usuário pedir.
+    if (autoPlayRef.current.ate <= Date.now()) return;
+    const tocarQuandoPronto = () => {
+      el.removeEventListener("canplay", tocarQuandoPronto);
+      autoPlayRef.current.ate = 0;
+      void Promise.resolve(el.play()).catch(() => {
+        /* o handler de erro decide o próximo candidato */
+      });
+    };
+    el.addEventListener("canplay", tocarQuandoPronto);
+    return () => el.removeEventListener("canplay", tocarQuandoPronto);
+  }, [activeSrc, reloadNonce]);
 
   // Progresso mais fluido (rAF com throttle leve) enquanto toca
   useEffect(() => {
@@ -667,15 +703,17 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
         el.pause();
       }
     } catch {
-      // Falhou tocar: tenta o próximo candidato; se não houver mais, volta ao melhor candidato e
-      // recarrega, para que o PRÓXIMO clique tente de novo — nunca fica permanentemente travado
-      // (era isto que exigia sair e reentrar na conversa para ouvir áudios anteriores).
+      // Falhou tocar: percorre os candidatos restantes sozinho, dentro deste mesmo clique.
+      // A janela (10s) e o teto de tentativas garantem que o ciclo termina; o atendente não
+      // precisa mais clicar duas vezes para um áudio cuja primeira fonte falhou.
+      autoPlayRef.current = { ate: Date.now() + 10_000, tentativas: 0 };
       if (sourceIdx + 1 < sourceList.length) {
         setSourceIdx((curIdx) => curIdx + 1);
       } else if (sourceIdx !== 0) {
         setSourceIdx(0);
       } else {
-        try { audioRef.current?.load(); } catch { /* ignore */ }
+        // Fonte única: a troca de índice não acontece, então força o recarregamento por nonce.
+        setReloadNonce((n) => n + 1);
       }
     }
   }, [playbackRate, sourceIdx, sourceList.length]);

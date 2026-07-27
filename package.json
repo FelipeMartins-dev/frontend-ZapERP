@@ -17,6 +17,7 @@
     "test:conversation-boundary": "node scripts/test-conversation-boundary.mjs",
     "test:sequential-messages": "node scripts/test-sequential-messages.mjs",
     "test:inbound-media-sequence": "node scripts/test-inbound-media-sequence.mjs",
+    "test:audio-playback": "node --import ./scripts/vite-env-shim.mjs scripts/test-audio-playback-candidates.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
