@@ -149,6 +149,31 @@ function estadoAudio(page) {
   });
 }
 
+async function retomarDepoisDaFonteVoltar(page) {
+  const aviso = page.getByTestId("audio-indisponivel");
+
+  if (await aviso.isVisible().catch(() => false)) {
+    try {
+      await aviso.click({ timeout: 4_000 });
+      return;
+    } catch (error) {
+      // A recuperação automática pode substituir o aviso pelo player entre a
+      // verificação acima e o clique. Só toleramos o erro se o aviso realmente
+      // tiver sido desmontado; qualquer outra falha de interação continua fatal.
+      if ((await aviso.count()) !== 0) {
+        throw error;
+      }
+    }
+  }
+
+  const audio = await estadoAudio(page);
+  if ((audio?.currentTime ?? 0) > 0.15 || audio?.paused === false) {
+    return;
+  }
+
+  await page.getByRole("button", { name: /tocar áudio/i }).first().click();
+}
+
 test.describe("reprodução de áudio", () => {
   test("áudio recebido carrega, tem a duração certa e toca de verdade", async ({ page }, testInfo) => {
     await installSession(page);
@@ -211,7 +236,7 @@ test.describe("reprodução de áudio", () => {
 
     // Fonte volta (ex.: backfill copiou a mídia, rede restabelecida) → o botão recupera.
     estado = "ok";
-    await aviso.click();
+    await retomarDepoisDaFonteVoltar(page);
 
     await expect
       .poll(async () => (await estadoAudio(page))?.currentTime ?? 0, { timeout: 25_000 })
