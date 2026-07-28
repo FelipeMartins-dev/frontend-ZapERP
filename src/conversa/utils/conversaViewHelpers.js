@@ -474,8 +474,18 @@ function getApiOrigin() {
 }
 
 /** Normaliza path relativo, blob ou URL absoluta para reprodução no host da API atual. */
+export function normalizeMediaUrlInput(raw) {
+  if (raw == null || typeof raw === "boolean" || typeof raw === "number") return "";
+  if (typeof raw !== "string") return "";
+  const s = raw.trim();
+  if (!s) return "";
+  const sentinel = s.toLowerCase();
+  if (["false", "true", "null", "undefined", "nan", "0"].includes(sentinel)) return "";
+  return s;
+}
+
 export function resolveMediaUrlForPlayback(raw) {
-  const s = String(raw || "").trim();
+  const s = normalizeMediaUrlInput(raw);
   if (!s) return "";
   if (s.startsWith("blob:")) return s;
   if (/^https?:\/\//i.test(s)) {
@@ -498,9 +508,9 @@ export function resolveMediaUrlForPlayback(raw) {
 }
 
 export function getMediaUrl(url, urlAbsoluta) {
-  const absRaw = urlAbsoluta != null && String(urlAbsoluta).trim() !== "" ? String(urlAbsoluta).trim() : "";
+  const absRaw = normalizeMediaUrlInput(urlAbsoluta);
   if (absRaw) return resolveMediaUrlForPlayback(absRaw);
-  const urlRaw = url != null && String(url).trim() !== "" ? String(url).trim() : "";
+  const urlRaw = normalizeMediaUrlInput(url);
   if (urlRaw) return resolveMediaUrlForPlayback(urlRaw);
   return "";
 }

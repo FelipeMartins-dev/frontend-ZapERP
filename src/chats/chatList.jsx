@@ -42,7 +42,7 @@ import {
   isConversaPagamentoPendente,
   isConversaEmAtrasoPagamento,
   sortChatListByRecent,
-  getChatListSortTimestampMs,
+  compareChatListRecency,
   mergeChatRowListaAtividade,
 } from "./chatListRowAtendimento";
 import { isUsuarioSetorFinanceiro } from "../utils/financeiroSector";
@@ -149,15 +149,9 @@ function pruneExpiredOptimisticRemoved(map) {
   }
 }
 
-function getChatSortTs(c) {
-  return getChatListSortTimestampMs(c) || 0;
-}
-
 function sortChatRowsByOrder(list, order) {
   return [...(Array.isArray(list) ? list : [])].sort((a, b) =>
-    order === "antigas"
-      ? new Date(getChatSortTs(a)) - new Date(getChatSortTs(b))
-      : new Date(getChatSortTs(b)) - new Date(getChatSortTs(a))
+    compareChatListRecency(a, b, order === "antigas" ? "asc" : "desc")
   );
 }
 

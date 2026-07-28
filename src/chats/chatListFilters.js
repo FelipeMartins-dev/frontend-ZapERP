@@ -7,7 +7,7 @@ import {
   isModoSimplesAguardandoCliente,
 } from "../utils/conversaUtils";
 import { getDisplayName, getPhone } from "./chatListDisplay";
-import { getLastMessage, isConversaAguardandoFuncionario, getChatListSortTimestampMs, sortChatListByRecent } from "./chatListRowAtendimento";
+import { getLastMessage, isConversaAguardandoFuncionario, compareChatListRecency, sortChatListByRecent } from "./chatListRowAtendimento";
 import { chatListsStoreEquivalent, chatListIdsInOrder } from "./chatListStoreCompare";
 
 export function digitsOnly(v) {
@@ -409,9 +409,7 @@ export function computeChatsFiltrados({
       const nb = (b.contato_nome || "").toString().toLowerCase();
       return na.localeCompare(nb);
     }
-    const aTs = getChatListSortTimestampMs(a);
-    const bTs = getChatListSortTimestampMs(b);
-    return order === "antigas" ? aTs - bTs : bTs - aTs;
+    return compareChatListRecency(a, b, order === "antigas" ? "asc" : "desc");
   });
 
   return list;
