@@ -16,7 +16,6 @@ import {
   isAguardandoClienteManual,
   isCobrancaFinanceiraStatus,
   isConversaModoSimplesAtiva,
-  isGroupConversation,
 } from "../utils/conversaUtils";
 import { isAtendenteSetorFinanceiro } from "../utils/financeiroSector";
 import {
@@ -25,10 +24,7 @@ import {
   loadChatListFiltersDataOnce,
 } from "../chats/chatListFiltersData";
 import AguardarPagamentoModal from "./AguardarPagamentoModal";
-import AtendentesModal from "./AtendentesModal";
-import { useConversaParticipantes } from "./useConversaParticipantes";
 import "./aguardarPagamento.css";
-import "./atendentes.css";
 
 function getApiErrorMessage(e) {
   return e?.response?.data?.error || e?.message || "Erro na operação.";
@@ -203,7 +199,6 @@ export default function AtendimentoActions({
     return Array.isArray(cached?.departamentos) ? cached.departamentos : [];
   });
   const [pagamentoModalOpen, setPagamentoModalOpen] = useState(false);
-  const [atendentesModalOpen, setAtendentesModalOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [atendentes, setAtendentes] = useState([]);
   const [search, setSearch] = useState("");
@@ -321,18 +316,6 @@ export default function AtendimentoActions({
       String(a?.nome || "").toLowerCase().includes(term)
     );
   }, [atendentes, search]);
-
-  // Participantes do atendimento. Fica ANTES do early-return abaixo porque hooks
-  // não podem ser condicionais; o próprio hook trata conversaId nulo.
-  const conversaIdAtual = conversa?.id ?? null;
-  const conversaEhGrupo = isGroupConversation(conversa);
-  const {
-    principal: participantePrincipal,
-    coAtendentes,
-    total: totalParticipantes,
-    loading: participantesLoading,
-    reload: recarregarParticipantes,
-  } = useConversaParticipantes(conversaEhGrupo ? null : conversaIdAtual);
 
   if (!conversa || !user) return null;
 
@@ -628,14 +611,6 @@ export default function AtendimentoActions({
     closeMenu();
   }, [closeMenu]);
 
-  const openAtendentes = useCallback(() => {
-    setAtendentesModalOpen(true);
-    closeMenu();
-  }, [closeMenu]);
-
-  /** Grupos não têm atendimento individual; conversa sem id não tem participantes. */
-  const podeVerAtendentes = !conversaEhGrupo && conversaIdAtual != null;
-
   const actions = [];
   if (podeAssumir) {
     actions.push({
@@ -679,20 +654,6 @@ export default function AtendimentoActions({
       onClick: openTransfer,
       title: "Transferir atendimento",
       ariaLabel: "Transferir atendimento",
-    });
-  }
-  // Logo depois de "Transferir": participantes do atendimento (só leitura para quem
-  // não pode gerenciar — ver quem acompanha a conversa é parte do atendimento).
-  if (podeVerAtendentes) {
-    const sufixoContador = totalParticipantes > 0 ? ` · ${totalParticipantes}` : "";
-    actions.push({
-      id: "atendentes",
-      className: "wa-btn-atendentes",
-      labelLong: `Atendentes${sufixoContador}`,
-      labelShort: `Atend.${sufixoContador}`,
-      onClick: openAtendentes,
-      title: "Ver e gerenciar quem participa deste atendimento",
-      ariaLabel: `Atendentes do atendimento${sufixoContador ? `, ${totalParticipantes} participantes` : ""}`,
     });
   }
   if (podeMarcarAguardandoPagamento) {
@@ -882,29 +843,12 @@ export default function AtendimentoActions({
     />
   );
 
-  const atendentesModal = podeVerAtendentes ? (
-    <AtendentesModal
-      open={atendentesModalOpen}
-      onClose={() => setAtendentesModalOpen(false)}
-      conversaId={conversaIdAtual}
-      principal={participantePrincipal}
-      coAtendentes={coAtendentes}
-      loading={participantesLoading}
-      onReload={recarregarParticipantes}
-      meuUserId={meuId}
-      meuPerfil={userRole}
-      conversaEncerrada={isFechada}
-      showToast={showToast}
-    />
-  ) : null;
-
   if (!compactToolbar) {
     return (
       <>
         <div className="wa-actions">{actions.map((a) => renderToolbarButton(a))}</div>
         {transferModal}
         {pagamentoModal}
-        {atendentesModal}
       </>
     );
   }
@@ -998,7 +942,6 @@ export default function AtendimentoActions({
         </div>
         {transferModal}
         {pagamentoModal}
-        {atendentesModal}
       </>
     );
   }
@@ -1012,7 +955,6 @@ export default function AtendimentoActions({
       </div>
       {transferModal}
       {pagamentoModal}
-      {atendentesModal}
     </>
   );
 }

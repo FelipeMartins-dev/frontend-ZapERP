@@ -14,7 +14,7 @@ import { getSocket } from "../socket/socket";
  * Aqui apenas recarregamos a lista — nunca montamos participante no cliente,
  * para não divergir das regras de permissão do servidor.
  */
-export function useConversaParticipantes(conversaId) {
+export function useConversaParticipantes(conversaId, atendenteId = null) {
   const [participantes, setParticipantes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [carregado, setCarregado] = useState(false);
@@ -56,6 +56,9 @@ export function useConversaParticipantes(conversaId) {
       return undefined;
     }
     let ativo = true;
+    // `atendenteId` entra nas dependências de propósito: assumir e transferir trocam o
+    // responsável principal SEM emitir evento de participante, então só o socket não
+    // bastaria — o modal continuaria dizendo "assuma a conversa" logo após assumir.
     reload();
 
     const socket = getSocket();
@@ -77,7 +80,7 @@ export function useConversaParticipantes(conversaId) {
       socket.off("conversa_atendente_removido", onMudanca);
       socket.off("conversa_participantes_atualizados", onMudanca);
     };
-  }, [conversaId, reload]);
+  }, [conversaId, atendenteId, reload]);
 
   const principal = participantes.find((p) => p?.tipo === "principal") || null;
   const coAtendentes = participantes.filter((p) => p?.tipo !== "principal");

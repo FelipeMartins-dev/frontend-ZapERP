@@ -9,8 +9,6 @@ import {
   enviarReacao,
   removerReacao,
   registrarLigacao,
-  listarAtendentesDisponiveisConversa,
-  adicionarAtendenteConversa,
   marcarLidaModoSimplesChat,
 } from "./conversaService";
 import {
@@ -66,6 +64,9 @@ import {
 } from "./scrollUtils";
 import ConversaThread from "./ConversaThread";
 import ConversaComposer from "./ConversaComposer";
+import AtendentesModal from "../atendimento/AtendentesModal";
+import { useConversaParticipantes } from "../atendimento/useConversaParticipantes";
+import "../atendimento/atendentes.css";
 
 import { FORWARD_SELECT_MAX, MAX_DOCUMENTOS_LOTE_ENVIO, STICKER_RECENTS_LIMIT } from "./conversaConstants";
 import {
@@ -458,11 +459,7 @@ function ConversaViewBody() {
   const [showTransferirSetor, setShowTransferirSetor] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
   const [transferirSetorLoading, setTransferirSetorLoading] = useState(false);
-  const [showAdicionarAtendente, setShowAdicionarAtendente] = useState(false);
-  const [atendentesDisponiveis, setAtendentesDisponiveis] = useState([]);
-  const [atendenteSearch, setAtendenteSearch] = useState("");
-  const [atendentesLoading, setAtendentesLoading] = useState(false);
-  const [adicionarAtendenteLoadingId, setAdicionarAtendenteLoadingId] = useState(null);
+  const [atendentesModalOpen, setAtendentesModalOpen] = useState(false);
   const [showProdutosPanel, setShowProdutosPanel] = useState(false);
 
   const userRole = String(user?.role || user?.perfil || "").toLowerCase();
@@ -754,11 +751,26 @@ function ConversaViewBody() {
   );
 
   const isGroup = useMemo(() => isGroupConversation(conversa), [conversa]);
-  const podeAdicionarAtendente =
-    ["admin", "supervisor", "atendente"].includes(userRole) &&
-    !!conversaId &&
-    !isGroup &&
-    !isClosedAttendance(conversa);
+  /**
+   * Ver participantes é parte do atendimento: não exige conversa aberta nem assumida.
+   * O que cada um pode FAZER dentro do modal (adicionar/remover) é decidido lá e,
+   * de forma definitiva, pelo backend.
+   */
+  const podeVerAtendentes =
+    ["admin", "supervisor", "atendente"].includes(userRole) && !!conversaId && !isGroup;
+
+  /**
+   * Participantes do atendimento. Depende de `atendente_id` porque assumir/transferir
+   * trocam o responsável principal sem emitir evento de participante — sem isso a lista
+   * ficaria velha logo após "Assumir".
+   */
+  const {
+    principal: participantePrincipal,
+    coAtendentes,
+    total: totalParticipantes,
+    loading: participantesLoading,
+    reload: recarregarParticipantes,
+  } = useConversaParticipantes(isGroup ? null : conversaId, conversa?.atendente_id ?? null);
 
   // Nunca exibir LID (lid:xxx) como nome ou número — identificador interno do WhatsApp
   const isLidValue = (v) => v != null && String(v).trim().toLowerCase().startsWith("lid:");
@@ -3586,70 +3598,16 @@ function ConversaViewBody() {
     [conversaId, refresh, showToast, transferirSetorLoading]
   );
 
-  const handleOpenAdicionarAtendente = useCallback(async () => {
-    if (!conversaId || atendentesLoading) return;
-    setShowAdicionarAtendente(true);
-    setAtendenteSearch("");
-    setAtendentesLoading(true);
-    try {
-      const data = await listarAtendentesDisponiveisConversa(conversaId);
-      setAtendentesDisponiveis(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Erro ao listar atendentes disponiveis:", e);
-      setAtendentesDisponiveis([]);
-      showToast({
-        type: "error",
-        title: "Falha ao carregar atendentes",
-        message: e?.response?.data?.error || "Tente novamente.",
-      });
-    } finally {
-      setAtendentesLoading(false);
-    }
-  }, [atendentesLoading, conversaId, showToast]);
-
-  const atendentesDisponiveisFiltrados = useMemo(() => {
-    const term = safeString(atendenteSearch).toLowerCase();
-    const list = Array.isArray(atendentesDisponiveis) ? atendentesDisponiveis : [];
-    if (!term) return list;
-    return list.filter((u) => {
-      const hay = `${safeString(u.nome)} ${safeString(u.email)} ${safeString(u.perfil)}`.toLowerCase();
-      return hay.includes(term);
-    });
-  }, [atendenteSearch, atendentesDisponiveis]);
-
-  const handleAdicionarAtendente = useCallback(
-    async (usuarioId) => {
-      if (!conversaId || adicionarAtendenteLoadingId != null) return;
-      const uid = Number(usuarioId);
-      if (!Number.isFinite(uid) || uid <= 0) return;
-      setAdicionarAtendenteLoadingId(uid);
-      try {
-        const res = await adicionarAtendenteConversa(conversaId, uid);
-        const nomeAdicionado = res?.usuario?.nome || "Atendente";
-        setShowAdicionarAtendente(false);
-        setAtendentesDisponiveis([]);
-        await Promise.all([
-          refresh({ silent: true }),
-          carregarAtendimentos(conversaId).catch(() => null),
-        ]);
-        showToast({
-          type: "success",
-          title: "Atendente adicionado",
-          message: `${nomeAdicionado} agora participa deste atendimento.`,
-        });
-      } catch (e) {
-        console.error("Erro ao adicionar atendente:", e);
-        showToast({
-          type: "error",
-          title: "Falha ao adicionar",
-          message: e?.response?.data?.error || e?.message || "Tente novamente.",
-        });
-      } finally {
-        setAdicionarAtendenteLoadingId(null);
-      }
-    },
-    [adicionarAtendenteLoadingId, carregarAtendimentos, conversaId, refresh, showToast]
-  );
+  /**
+   * Abre o modal de participantes. Recarrega a lista ao abrir: assumir/transferir
+   * mudam o responsável principal sem emitir evento de participante, então sem este
+   * reload o modal mostraria "assuma a conversa" logo depois de assumir.
+   */
+  const handleOpenAtendentes = useCallback(() => {
+    if (!conversaId) return;
+    setAtendentesModalOpen(true);
+    recarregarParticipantes();
+  }, [conversaId, recarregarParticipantes]);
 
   const carregarTags = useCallback(
     async (opts = {}) => {
@@ -3898,8 +3856,9 @@ function ConversaViewBody() {
           setorAtual={setorAtual}
           podeTransferirSetor={podeTransferirSetor}
           onOpenTransferirSetor={handleOpenTransferirSetor}
-          podeAdicionarAtendente={podeAdicionarAtendente}
-          onOpenAdicionarAtendente={handleOpenAdicionarAtendente}
+          podeVerAtendentes={podeVerAtendentes}
+          totalAtendentes={totalParticipantes}
+          onOpenAtendentes={handleOpenAtendentes}
           isSomeoneTyping={isSomeoneTyping}
           podeGerenciarTags={podeGerenciarTags}
           tagsOpen={tagsOpen}
@@ -3984,68 +3943,6 @@ function ConversaViewBody() {
           </>
         )}
 
-        {!isGroup && podeAdicionarAtendente && showAdicionarAtendente && (
-          <>
-            <button
-              type="button"
-              className="wa-floatingSheet-backdrop"
-              aria-label="Fechar painel de atendentes"
-              onClick={() => setShowAdicionarAtendente(false)}
-            />
-          <div
-            className="wa-tagsPanel wa-tagsPanel--setor"
-            role="dialog"
-            aria-label="Adicionar atendente"
-          >
-            <div className="wa-tagsPanel-head">
-              <span className="wa-tagsPanel-title">Adicionar atendente</span>
-              <button
-                type="button"
-                className="wa-iconBtn"
-                onClick={() => setShowAdicionarAtendente(false)}
-                title="Fechar"
-              >
-                <IconClose />
-              </button>
-            </div>
-            <div className="wa-tagsPanel-body">
-              <input
-                className="wa-transferSearch"
-                value={atendenteSearch}
-                onChange={(e) => setAtendenteSearch(e.target.value)}
-                placeholder="Buscar por nome ou email"
-                autoFocus
-              />
-              {atendentesLoading ? (
-                <div className="wa-muted">Carregando atendentes...</div>
-              ) : atendentesDisponiveisFiltrados.length === 0 ? (
-                <div className="wa-muted">Nenhum atendente disponivel.</div>
-              ) : (
-                <div className="wa-tagsList">
-                  {atendentesDisponiveisFiltrados.map((u) => {
-                    const uid = Number(u.usuario_id ?? u.id);
-                    const busy = adicionarAtendenteLoadingId === uid;
-                    return (
-                      <button
-                        key={uid}
-                        type="button"
-                        className="wa-tagItem"
-                        onClick={() => handleAdicionarAtendente(uid)}
-                        disabled={adicionarAtendenteLoadingId != null}
-                        title={u.email || u.nome || "Atendente"}
-                      >
-                        <span>{u.nome || u.email || "Atendente"}</span>
-                        {u.perfil ? <span className="wa-muted"> {u.perfil}</span> : null}
-                        {busy ? " adicionando..." : ""}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-          </>
-        )}
 
         {!isGroup && podeGerenciarTags && tagsOpen && (
           <>
@@ -4468,6 +4365,22 @@ function ConversaViewBody() {
           clearTyping={clearTyping}
           showToast={showToast}
         />
+
+        {podeVerAtendentes ? (
+          <AtendentesModal
+            open={atendentesModalOpen}
+            onClose={() => setAtendentesModalOpen(false)}
+            conversaId={conversaId}
+            principal={participantePrincipal}
+            coAtendentes={coAtendentes}
+            loading={participantesLoading}
+            onReload={recarregarParticipantes}
+            meuUserId={user?.id}
+            meuPerfil={userRole}
+            conversaEncerrada={isClosedAttendance(conversa)}
+            showToast={showToast}
+          />
+        ) : null}
 
         {/* ESC handler central */}
         <button
