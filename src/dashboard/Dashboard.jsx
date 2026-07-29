@@ -53,17 +53,21 @@ const STATUS_OPTIONS = [
 ]
 
 function dateKey(date = new Date()) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${map.year}-${map.month}-${map.day}`
 }
 
 function defaultPeriod(days = 6) {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(end.getDate() - days)
-  return { data_inicio: dateKey(start), data_fim: dateKey(end) }
+  const dataFim = dateKey()
+  const [year, month, day] = dataFim.split('-').map(Number)
+  const start = new Date(Date.UTC(year, month - 1, day - days, 12))
+  return { data_inicio: dateKey(start), data_fim: dataFim }
 }
 
 function buildParams(filters = {}) {
@@ -84,7 +88,7 @@ export default function Dashboard() {
     try {
       setLoading(true)
       setLoadErr('')
-      const data = await dashboardApi.getOverview(rangeDays ? { range_days: rangeDays } : {})
+      const data = await dashboardApi.getOverview({ range_days: rangeDays })
       setOverview(data)
     } catch (e) {
       console.error('Erro ao carregar dashboard', e)
@@ -179,11 +183,14 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
     mensagens_por_tipo = [],
     conversas_por_setor = [],
     conversas_por_atendente = [],
+    conversas_por_status = [],
     conversas_por_hora = [],
     periodo,
+    instancia,
+    auditoria = {},
   } = overview
 
-  const periodoLabel = !rangeDays ? 'Tudo' : rangeDays === 1 ? 'Hoje' : `Últimos ${rangeDays} dias`
+  const periodoLabel = !rangeDays ? 'Todo o histórico até agora' : rangeDays === 1 ? 'Hoje (dia local)' : `Últimos ${rangeDays} dias locais, incluindo hoje`
   const ticketsAbertos = kpis.tickets_abertos ?? ((kpis.abertas || 0) + (kpis.em_atendimento || 0))
 
   return (
@@ -191,15 +198,15 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
       <InfoStrip
         icon={Activity}
         title="Leitura do período"
-        text={`KPIs e gráficos abaixo consideram ${periodoLabel}. Indicadores sem base suficiente aparecem sem número calculado.`}
+        text={`KPIs e gráficos abaixo consideram ${periodoLabel}, no fuso ${periodo?.timezone || 'America/Sao_Paulo'}, e a instância ${instancia?.nome || 'WhatsApp principal'}. Indicadores sem base suficiente aparecem sem número calculado.`}
       />
 
       <section className="dash-kpi-grid" aria-label="Indicadores principais">
-        <MetricCard icon={Inbox} label="Atendimentos hoje" value={kpis.atendimentos_hoje ?? 0} hint="Ações registradas em atendimentos." />
-        <MetricCard icon={TimerReset} label="Tempo médio 1ª resposta" value={formatMin(kpis.tempo_medio_resposta_min ?? kpis.tempo_primeira_resposta_min)} tone="blue" hint="Primeira entrada do cliente até a primeira saída." />
+        <MetricCard icon={Inbox} label="Atendimentos hoje" value={kpis.atendimentos_hoje ?? 0} hint="Conversas distintas com atividade real de WhatsApp no dia local." />
+        <MetricCard icon={TimerReset} label="Tempo médio 1ª resposta" value={formatMin(kpis.tempo_medio_resposta_min ?? kpis.tempo_primeira_resposta_min)} tone="blue" hint="Primeira entrada do cliente até a primeira saída humana válida." />
         <MetricCard icon={ShieldCheck} label="SLA 1ª resposta" value={kpis.sla_percent != null ? `${kpis.sla_percent}%` : 'Sem dados'} tone="green" hint="Somente conversas com resposta válida." />
         <MetricCard icon={Users} label="Atendente destaque" value={kpis.atendente_mais_produtivo || 'Sem dados'} tone="muted" hint="Maior volume de conversas atribuídas." />
-        <MetricCard icon={AlertTriangle} label="Tickets abertos" value={ticketsAbertos} tone="amber" hint="Abertas e em atendimento." />
+        <MetricCard icon={AlertTriangle} label="Tickets abertos agora" value={ticketsAbertos} tone="amber" hint="Fotografia atual: abertas, em atendimento e aguardando cliente; independe do período." />
         <MetricCard icon={Target} label="Taxa de conversão" value={kpis.taxa_conversao_percent != null ? `${kpis.taxa_conversao_percent}%` : 'Sem dados'} tone="green" hint="Exibida só quando houver cálculo confiável." />
       </section>
 
@@ -209,6 +216,11 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
             <MiniStat label="Total" value={mensagens_kpis.total ?? 0} />
             <MiniStat label="Recebidas" value={mensagens_kpis.in ?? 0} />
             <MiniStat label="Enviadas" value={mensagens_kpis.out ?? 0} />
+          </div>
+          <div className="dash-mini-grid">
+            <MiniStat label="Pelo sistema" value={mensagens_kpis.origens?.sistema_humano ?? 0} />
+            <MiniStat label="Pelo celular" value={mensagens_kpis.origens?.whatsapp_celular ?? 0} />
+            <MiniStat label="Automações" value={(mensagens_kpis.origens?.automacao ?? 0) + (mensagens_kpis.origens?.bot ?? 0)} />
           </div>
           <BarList
             title="Mensagens por tipo"
@@ -238,13 +250,28 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
             emptyText="Sem atendentes no período."
           />
         </Panel>
-        <Panel title="Conversas por hora" subtitle="Distribuição por hora de criação da conversa.">
+        <Panel title="Conversas por status" subtitle="Status atual das conversas com atividade no período.">
           <BarList
-            items={(conversas_por_hora || []).map((x) => ({ label: x.hora, value: Number(x.total || 0) }))}
+            items={(conversas_por_status || []).map((x) => ({ label: statusLabel(x.status), value: Number(x.total || 0) }))}
             emptyText="Sem conversas no período."
           />
         </Panel>
       </section>
+
+      <Panel title="Conversas por hora" subtitle="Hora local da primeira atividade da conversa dentro do período.">
+          <BarList
+            items={(conversas_por_hora || []).map((x) => ({ label: x.hora, value: Number(x.total || 0) }))}
+            emptyText="Sem conversas no período."
+          />
+      </Panel>
+
+      {(auditoria.mensagens_duplicadas_excluidas || auditoria.mensagens_invalidas_excluidas || auditoria.mensagens_legadas_sem_instancia) ? (
+        <InfoStrip
+          icon={ShieldCheck}
+          title="Rastreabilidade da consulta"
+          text={`${auditoria.mensagens_duplicadas_excluidas || 0} duplicidade(s) excluída(s), ${auditoria.mensagens_invalidas_excluidas || 0} mensagem(ns) inválida(s) excluída(s) e ${auditoria.mensagens_legadas_sem_instancia || 0} registro(s) legado(s) sem instância explícita.`}
+        />
+      ) : null}
     </div>
   )
 }
@@ -320,7 +347,10 @@ function DashboardRelatorios() {
         <button type="button" className={relTab === 'mensagens' ? 'is-active' : ''} onClick={() => setRelTab('mensagens')}>Mensagens</button>
       </div>
 
-      <Panel title="Filtros do relatório" subtitle="A exportação usa os mesmos filtros aplicados na tela.">
+      <Panel
+        title="Filtros do relatório"
+        subtitle={`A exportação usa os mesmos filtros. ${relTab === 'conversas' ? 'O período filtra a data de criação da conversa.' : 'O período filtra a data de envio/recebimento da mensagem em America/São_Paulo.'}`}
+      >
         <FilterGrid>
           <input type="date" value={filters.data_inicio} onChange={(e) => setFilters((f) => ({ ...f, data_inicio: e.target.value }))} className="dash-input" aria-label="Data inicial" />
           <input type="date" value={filters.data_fim} onChange={(e) => setFilters((f) => ({ ...f, data_fim: e.target.value }))} className="dash-input" aria-label="Data final" />
@@ -376,10 +406,10 @@ function DashboardRelatorios() {
           />
         ) : (
           <Table
-            columns={['Dia', 'Total', 'Recebidas', 'Enviadas', 'Texto', 'Áudio', 'Imagem', 'Vídeo', 'Figurinha', 'Arquivo']}
+            columns={['Dia', 'Total', 'Recebidas', 'Enviadas', 'Texto', 'Áudio', 'Imagem', 'Vídeo', 'Documento', 'Outros']}
             emptyText="Selecione o período e aplique os filtros."
             rows={msgRows}
-            renderRow={(r) => [formatDia(r.dia), r.total ?? 0, r.in ?? 0, r.out ?? 0, r.texto ?? 0, r.audio ?? 0, r.imagem ?? 0, r.video ?? 0, r.sticker ?? 0, r.arquivo ?? 0]}
+            renderRow={(r) => [formatDia(r.dia), r.total ?? 0, r.in ?? 0, r.out ?? 0, r.texto ?? 0, r.audio ?? 0, r.imagem ?? 0, r.video ?? 0, r.documento ?? 0, r.outros ?? 0]}
           />
         )}
       </Panel>
@@ -452,6 +482,12 @@ function DashboardRespostasSalvas() {
         <MetricCard icon={Users} label="Globais" value={globais} tone="green" />
         <MetricCard icon={Filter} label="Por setor" value={setoriais} tone="blue" />
       </section>
+
+      <InfoStrip
+        icon={HelpCircle}
+        title="Uso de respostas salvas: sem dados confiáveis"
+        text="O ZapERP ainda não persiste qual resposta salva originou uma mensagem enviada. A biblioteca é exibida, mas nenhum ranking de uso é calculado por comparação de texto."
+      />
 
       <section className="dash-layout-2 dash-layout-2--wide-left">
         <Panel title="Nova resposta salva" subtitle="Disponível por empresa, com vínculo opcional por setor.">
@@ -673,8 +709,8 @@ function DashboardSLA({ navigate }) {
             <MetricCard icon={FileText} label="Conversas analisadas" value={resumo.total_analisadas ?? 0} tone="blue" />
             <MetricCard icon={CheckCircle2} label="Dentro do SLA" value={resumo.dentro_sla ?? 0} tone="green" />
             <MetricCard icon={XCircle} label="Fora do SLA" value={resumo.fora_sla ?? 0} tone="red" />
-            <MetricCard icon={AlertTriangle} label="Sem resposta" value={resumo.sem_resposta ?? 0} tone="amber" hint="Não contam como violação." />
-            <MetricCard icon={HelpCircle} label="Dados insuficientes" value={resumo.dados_insuficientes ?? 0} tone="muted" hint="Só bot/automação detectada." />
+            <MetricCard icon={AlertTriangle} label="Aguardando 1ª resposta" value={resumo.sem_resposta ?? 0} tone="amber" hint="Exibidas separadamente; não elevam silenciosamente o total analisado." />
+            <MetricCard icon={HelpCircle} label="Dados insuficientes" value={resumo.dados_insuficientes ?? 0} tone="muted" hint="Registros sem base temporal válida para cálculo." />
             <MetricCard icon={TimerReset} label="Tempo médio 1ª resp." value={formatMin(resumo.tempo_medio_primeira_resposta_min)} tone="blue" />
             <MetricCard icon={TrendingUp} label="Melhor tempo" value={formatMin(resumo.melhor_tempo_resposta_min)} tone="green" />
             <MetricCard icon={TrendingUp} label="Pior tempo" value={formatMin(resumo.pior_tempo_resposta_min)} tone="red" />
@@ -1565,6 +1601,8 @@ function prettyTipo(t) {
   if (s === 'audio') return 'Áudio'
   if (s === 'imagem') return 'Imagem'
   if (s === 'video') return 'Vídeo'
+  if (s === 'documento') return 'Documento'
+  if (s === 'outros') return 'Outros'
   if (s === 'sticker') return 'Figurinha'
   if (s === 'arquivo') return 'Arquivo'
   if (s === 'contact') return 'Contato'
