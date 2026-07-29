@@ -14,6 +14,7 @@ import { acquireMicStream, invalidateMicStream, isMicSupported, queryMicPermissi
 import { getRespostasSalvas } from "../api/configService";
 import { getSocket } from "../socket/socket";
 import { capitalizeMessageStart, getAutocorrectEdit } from "../utils/autocorrectText";
+import { INTERNAL_NOTE_MAX_LEN } from "./internalNote";
 import {
   IconCamera,
   IconClose,
@@ -28,9 +29,11 @@ import {
 } from "./conversaComposerIcons";
 import {
   IconCamera as TablerCamera,
+  IconEyeOff,
   IconFileText,
   IconLayoutGrid,
   IconMapPin,
+  IconNote,
   IconPhoto,
   IconSettings2,
   IconUser,
@@ -260,10 +263,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     showScrollToRecent = false,
     onScrollToRecent,
     onRecordingStateChange,
+    podeAnotar = false,
+    onSendInternalNote,
   },
   ref
 ) {
   const [texto, setTexto] = useState("");
+  const [notaInternaAtiva, setNotaInternaAtiva] = useState(false);
   const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
   const [autoCorrectFlash, setAutoCorrectFlash] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -310,6 +316,12 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const documentInputRef = useRef(null);
   const stickerInputRef = useRef(null);
   const inputRef = useRef(null);
+  /**
+   * Rascunho do modo NÃO ativo. Duas gavetas separadas de propósito: um texto escrito
+   * para o cliente nunca pode virar nota por engano — e, principalmente, uma nota
+   * nunca pode escorregar para o campo de mensagem e ser enviada ao WhatsApp.
+   */
+  const draftDoOutroModoRef = useRef("");
   const typingTimeoutRef = useRef(null);
   const autoCorrectFlashTimeoutRef = useRef(null);
   const autoCorrectTrackedRef = useRef([]);
@@ -411,9 +423,11 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const emitTypingStart = useCallback(() => {
     if (!conversaId) return;
+    // Escrever nota não é "digitando" no atendimento: não sinaliza atividade voltada ao cliente.
+    if (notaInternaAtiva) return;
     const socket = getSocket();
     if (socket?.connected) socket.emit("typing_start", { conversa_id: conversaId });
-  }, [conversaId]);
+  }, [conversaId, notaInternaAtiva]);
 
   const closeSavedReplies = useCallback(() => {
     slashCtxRef.current = null;
@@ -937,19 +951,62 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const handleSendFromComposer = useCallback(
     (textToSend) => {
-      if (!conversaId || !podeEnviar) return;
+      if (!conversaId) return;
       const t = safeString(textToSend).trim();
       if (!t) return;
       // O mesmo texto ainda travado é o mesmo gesto duplicado. Um novo rascunho libera
       // a trava no efeito acima, mesmo que o POST anterior continue em andamento.
       if (sendLockedRef.current === t) return;
+
+      // Modo nota: caminho totalmente separado — nunca chama onSendMessage.
+      if (notaInternaAtiva) {
+        if (!podeAnotar) return;
+        sendLockedRef.current = t;
+        resetAutocorrectTracking();
+        setTexto("");
+        onSendInternalNote?.(t);
+        return;
+      }
+
+      if (!podeEnviar) return;
       sendLockedRef.current = t;
       resetAutocorrectTracking();
       setTexto("");
       onSendMessage?.(t);
     },
-    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking]
+    [conversaId, notaInternaAtiva, onSendInternalNote, onSendMessage, podeAnotar, podeEnviar, resetAutocorrectTracking]
   );
+
+  /**
+   * Alterna entre "Mensagem para o cliente" e "Nota interna", trocando os rascunhos
+   * de gaveta em vez de reaproveitar o mesmo texto (ver draftDoOutroModoRef).
+   */
+  const toggleNotaInterna = useCallback(() => {
+    if (isRecording) return;
+    setTexto((atual) => {
+      const proximo = draftDoOutroModoRef.current;
+      draftDoOutroModoRef.current = atual;
+      return proximo;
+    });
+    setNotaInternaAtiva((v) => !v);
+    setAttachMenuOpen(false);
+    setStickerOpen(false);
+    closeSavedReplies();
+    clearTyping?.();
+    focusInput();
+  }, [clearTyping, closeSavedReplies, focusInput, isRecording]);
+
+  // Trocar de conversa zera o modo e as duas gavetas: nota escrita em uma conversa
+  // nunca pode reaparecer no campo de outra.
+  useEffect(() => {
+    setNotaInternaAtiva(false);
+    draftDoOutroModoRef.current = "";
+  }, [conversaId]);
+
+  // Perder a permissão de anotar (ex.: troca de perfil) volta para o modo normal.
+  useEffect(() => {
+    if (!podeAnotar) setNotaInternaAtiva(false);
+  }, [podeAnotar]);
 
   const insertSavedReply = useCallback(
     (replyText) => {
@@ -1098,6 +1155,9 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const handlePaste = useCallback(
     (e) => {
       if (!conversaId) return;
+      // Em nota interna, colar imagem NÃO abre o fluxo de envio de arquivo (que iria ao
+      // cliente). O texto do clipboard segue colando normalmente pelo comportamento nativo.
+      if (notaInternaAtiva) return;
       const dt = e.clipboardData;
       if (!dt) return;
 
@@ -1118,7 +1178,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         onPasteImageFile?.(pickedFile);
       }
     },
-    [conversaId, onPasteImageFile]
+    [conversaId, notaInternaAtiva, onPasteImageFile]
   );
 
   const openNativeCameraFallback = useCallback(() => {
@@ -1568,15 +1628,27 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         : "Assuma esta conversa para enviar mensagens"
     : null;
 
-  const composerPlaceholderText = atendimentoEncerradoHint && !podeEnviar
-    ? "Reabra o atendimento para enviar mensagens"
-    : placeholderText;
-  const composerInputAriaLabel = atendimentoEncerradoHint && !podeEnviar
-    ? "Reabra o atendimento para enviar mensagens."
-    : inputAriaLabel;
-  const composerFooterHint = atendimentoEncerradoHint && !podeEnviar
-    ? "Reabra o atendimento para enviar mensagens"
-    : footerHint;
+  // No modo nota o composer ignora as restrições de ENVIO (assumir conversa, atendimento
+  // encerrado, conversa de outro atendente): anotar é ação interna e o backend valida pelo
+  // mesmo acesso à conversa. Só depende de `podeAnotar`.
+  const composerHabilitado = notaInternaAtiva ? Boolean(conversaId && podeAnotar) : Boolean(conversaId && podeEnviar);
+  const composerDesabilitado = !composerHabilitado;
+
+  const composerPlaceholderText = notaInternaAtiva
+    ? "Nota interna — o cliente não verá esta mensagem"
+    : atendimentoEncerradoHint && !podeEnviar
+      ? "Reabra o atendimento para enviar mensagens"
+      : placeholderText;
+  const composerInputAriaLabel = notaInternaAtiva
+    ? "Nota interna. O cliente não verá esta mensagem. Ela fica visível apenas para a equipe."
+    : atendimentoEncerradoHint && !podeEnviar
+      ? "Reabra o atendimento para enviar mensagens."
+      : inputAriaLabel;
+  const composerFooterHint = notaInternaAtiva
+    ? null
+    : atendimentoEncerradoHint && !podeEnviar
+      ? "Reabra o atendimento para enviar mensagens"
+      : footerHint;
 
   const attachMenuItems = (
     <>
@@ -1598,7 +1670,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         onClick={() => {
           openSavedRepliesPicker();
         }}
-        disabled={sending || !conversaId || !podeEnviar}
+        disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-savedReplies" aria-hidden="true">
           <IconSavedReplies />
@@ -1614,7 +1686,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           openFototecaPicker();
           setAttachMenuOpen(false);
         }}
-        disabled={sending || !conversaId || !podeEnviar}
+        disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-doc" aria-hidden="true">
           <IconPhoto size={16} strokeWidth={1.6} />
@@ -1629,7 +1701,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           openFototecaPicker();
           setAttachMenuOpen(false);
         }}
-        disabled={sending || !conversaId || !podeEnviar}
+        disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-gallery" aria-hidden="true">
           <IconLayoutGrid size={16} strokeWidth={1.6} />
@@ -1641,7 +1713,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         className="wa-attachItem"
         role="menuitem"
         onClick={handleOpenCameraCapture}
-        disabled={sending || !conversaId || !podeEnviar}
+        disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-camera" aria-hidden="true">
           <TablerCamera size={16} strokeWidth={1.6} />
@@ -1657,7 +1729,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           documentInputRef.current?.click();
           setAttachMenuOpen(false);
         }}
-        disabled={sending || !conversaId || !podeEnviar}
+        disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-document" aria-hidden="true">
           <IconFileText size={16} strokeWidth={1.6} />
@@ -1672,7 +1744,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           onPixMenuClick?.();
           setAttachMenuOpen(false);
         }}
-        disabled={pixActionBusy || sending || !conversaId || !podeEnviar}
+        disabled={pixActionBusy || sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-pix" aria-hidden="true">
           <IconPix />
@@ -1703,7 +1775,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           onShareContact?.();
           setAttachMenuOpen(false);
         }}
-        disabled={sending || !conversaId || !podeEnviar}
+        disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-contact" aria-hidden="true">
           <IconUser size={16} strokeWidth={1.6} />
@@ -1718,7 +1790,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           onShareLocation?.();
           setAttachMenuOpen(false);
         }}
-        disabled={sending || !conversaId || !podeEnviar}
+        disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
       >
         <span className="wa-attachItem-icon wa-attachIcon-location" aria-hidden="true">
           <IconMapPin size={16} strokeWidth={1.6} />
@@ -1862,7 +1934,49 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         (overlay absoluto) esta linha, sem desmontar o textarea. Assim o textarea mantém o foco e
         o teclado permanece aberto no mobile — a altura da viewport não muda e não há "pulo" visual.
       */}
-      <div className={`wa-footer ${isRecording ? "wa-footer--recording" : ""}`}>
+      {/* Alternador de modo: sempre visível quando o usuário pode anotar, para que o modo
+          atual do campo nunca fique implícito. */}
+      {podeAnotar && !isRecording ? (
+        <div className="wa-composerModeBar" role="radiogroup" aria-label="Modo do campo de digitação">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!notaInternaAtiva}
+            className={`wa-composerMode ${!notaInternaAtiva ? "isActive" : ""}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (notaInternaAtiva) toggleNotaInterna();
+            }}
+            disabled={sending || !conversaId}
+            title="Escrever mensagem que será enviada ao cliente"
+          >
+            <IconSend />
+            <span>Mensagem para o cliente</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={notaInternaAtiva}
+            className={`wa-composerMode wa-composerMode--nota ${notaInternaAtiva ? "isActive" : ""}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (!notaInternaAtiva) toggleNotaInterna();
+            }}
+            disabled={sending || !conversaId}
+            title="Registrar nota interna — o cliente não verá esta mensagem"
+          >
+            <IconEyeOff size={15} strokeWidth={1.8} aria-hidden="true" />
+            <span>Nota interna</span>
+          </button>
+        </div>
+      ) : null}
+
+      <div className={`wa-footer ${isRecording ? "wa-footer--recording" : ""} ${notaInternaAtiva ? "wa-footer--nota" : ""}`}>
+            {notaInternaAtiva && !isRecording ? (
+              <div className="wa-footer-hint wa-footer-hint--nota" role="status">
+                Nota interna — o cliente não verá esta mensagem
+              </div>
+            ) : null}
             {composerFooterHint && !isRecording ? (
               <div className="wa-footer-hint" role="status">
                 {composerFooterHint}
@@ -1882,7 +1996,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 title="Anexos e mais"
                 aria-label="Anexos e mais"
                 aria-expanded={attachMenuOpen}
-                disabled={sending || !conversaId || !podeEnviar}
+                disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
               >
                 <IconPlus />
               </button>
@@ -1934,7 +2048,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 title="Figurinhas"
                 aria-label="Figurinhas"
                 aria-expanded={stickerOpen}
-                disabled={sending || !conversaId || !podeEnviar}
+                disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
               >
                 <IconSticker />
               </button>
@@ -2009,9 +2123,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               onBlur={emitTypingStop}
               onPaste={handlePaste}
               placeholder={composerPlaceholderText}
-              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""} ${atendimentoEncerradoHint && !podeEnviar ? "wa-input--closedAttendance" : ""}`}
+              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""} ${notaInternaAtiva ? "wa-input--nota" : ""} ${!notaInternaAtiva && atendimentoEncerradoHint && !podeEnviar ? "wa-input--closedAttendance" : ""}`}
               onKeyDown={handleKeyDownInput}
-              disabled={!conversaId || !podeEnviar}
+              disabled={composerDesabilitado}
+              maxLength={notaInternaAtiva ? INTERNAL_NOTE_MAX_LEN : undefined}
               aria-label={composerInputAriaLabel}
               rows={1}
               enterKeyHint={composerEnterInsertsNewline ? "enter" : "send"}
@@ -2033,7 +2148,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
                 }}
                 title="Emojis"
                 aria-label="Emojis"
-                disabled={sending || !conversaId || !podeEnviar}
+                disabled={sending || composerDesabilitado}
               >
                 <IconEmoji />
               </button>
@@ -2043,7 +2158,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               <button
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={handleOpenCameraCapture}
-                disabled={sending || !conversaId || !podeEnviar}
+                disabled={sending || !conversaId || !podeEnviar || notaInternaAtiva}
                 className="wa-iconBtn wa-cameraQuickBtn"
                 title="Câmera"
                 type="button"
@@ -2054,7 +2169,25 @@ const ConversaComposer = forwardRef(function ConversaComposer(
             ) : null}
 
             <div className="wa-footer-right">
-              {headerCompact ? (
+              {notaInternaAtiva ? (
+                /* Nota interna aceita só texto e emoji: nada de microfone aqui — sem
+                   microfone não há como uma gravação escapar pelo caminho de envio. */
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.preventDefault();
+                  }}
+                  onClick={() => handleSendFromComposer(texto)}
+                  disabled={!hasDraft || composerDesabilitado}
+                  className="wa-sendBtn wa-sendBtn--nota"
+                  title="Adicionar nota interna"
+                  aria-label="Adicionar nota interna"
+                >
+                  <IconNote size={18} strokeWidth={1.9} aria-hidden="true" />
+                  <span className="wa-sendBtn-label">Adicionar nota</span>
+                </button>
+              ) : headerCompact ? (
                 hasDraft ? (
                   <button
                     type="button"

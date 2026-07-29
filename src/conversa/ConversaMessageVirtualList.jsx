@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { getMessageListReactKey } from "./conversaStore";
+import { isInternalNote } from "./internalNote";
 
 function isInternalMovementEstimate(item) {
   if (!item) return false;
@@ -17,6 +18,12 @@ function isInternalMovementEstimate(item) {
 function estimateThreadRowSize(item, mobileThread) {
   if (!item) return mobileThread ? 112 : 96;
   if (item.__type === "day") return mobileThread ? 34 : 32;
+  if (isInternalNote(item)) {
+    // Card de nota: cabeçalho + corpo variável + rodapé de aviso.
+    const texto = String(item.texto ?? item.conteudo ?? "");
+    const linhas = Math.max(1, Math.ceil(texto.length / (mobileThread ? 34 : 42)));
+    return Math.min(mobileThread ? 320 : 340, (mobileThread ? 92 : 86) + linhas * (mobileThread ? 18 : 20));
+  }
   if (isInternalMovementEstimate(item)) return mobileThread ? 116 : 98;
   const tipo = String(item.tipo || "").toLowerCase();
   if (["imagem", "image", "video", "sticker"].includes(tipo)) return mobileThread ? 200 : 240;

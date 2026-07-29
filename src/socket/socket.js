@@ -5,6 +5,7 @@ import {
   ultimaMensagemRefsEqual,
 } from "../chats/chatListStoreCompare"
 import { useConversaStore } from "../conversa/conversaStore"
+import { isInternalNote } from "../conversa/internalNote"
 import { useNotificationStore } from "../notifications/notificationStore"
 import { shouldNotifyIncomingMessage } from "../notifications/chatNotificationService"
 import { notifyIncomingDesktopMessage } from "../notifications/desktopNotificationService"
@@ -882,8 +883,12 @@ export function initSocket(token) {
   })
 
   socket.on(SOCKET_EVENTS.MENSAGEM_INTERNA_ATENDIMENTO, (rawMsg) => {
-    if (!canViewInternalAttendanceMessage()) return
     const msg = normalizeNovaMensagemPayload(rawMsg)
+    // Nota interna: quem pode ver a conversa pode ver a nota — o backend já resolveu
+    // os destinatários pelo mesmo helper central de visibilidade e só emite para eles.
+    // O filtro por perfil abaixo continua valendo para os registros de MOVIMENTAÇÃO
+    // interna (assumiu/transferiu), que seguem restritos a admin/supervisor.
+    if (!isInternalNote(msg) && !canViewInternalAttendanceMessage()) return
     const conversaId = msg?.conversa_id
     if (!conversaId) return
     if (shouldIgnoreByCompany(msg)) return

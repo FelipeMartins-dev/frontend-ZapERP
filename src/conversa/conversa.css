@@ -13369,3 +13369,310 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   cursor: wait;
   opacity: 0.58;
 }
+
+/* =====================================================================
+   NOTA INTERNA ("mensagem invisível")
+   Card na linha do tempo + modo do composer.
+   Paleta âmbar/amarelo, deliberadamente distinta dos balões de WhatsApp
+   (verde = enviado ao cliente, branco/cinza = recebido) e do card azul de
+   movimentação interna. Sem relógio, sem ticks, sem status.
+   ===================================================================== */
+
+.wa-row-internalNote {
+  display: flex;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 8px 14px;
+  margin: 7px 0;
+}
+
+.wa-internalNote-card {
+  --note-accent: #f59e0b;
+  --note-accent-2: #fbbf24;
+  width: min(560px, 78%);
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  position: relative;
+  overflow: hidden;
+  padding: 10px 13px 9px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-left: 3px solid var(--note-accent);
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.98), rgba(254, 243, 199, 0.92));
+  border-radius: 8px;
+  box-shadow: 0 10px 26px -22px rgba(120, 53, 15, 0.65);
+  color: #451a03;
+  font-family: "Inter", "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+.wa-internalNote-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--note-accent-2), var(--note-accent));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.wa-internalNote-content {
+  min-width: 0;
+}
+
+.wa-internalNote-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wa-internalNote-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid rgba(180, 83, 9, 0.34);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #92400e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+
+.wa-internalNote-autor {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #78350f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.wa-internalNote-time {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: rgba(120, 53, 15, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-internalNote-body {
+  margin-top: 5px;
+  font-size: 12.75px;
+  line-height: 1.45;
+  color: #451a03;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wa-internalNote-footer {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(180, 83, 9, 0.18);
+  color: rgba(120, 53, 15, 0.7);
+  font-size: 9.75px;
+  line-height: 1.25;
+}
+
+[data-theme="dark"] .wa-internalNote-card {
+  border-color: rgba(245, 158, 11, 0.34);
+  background: linear-gradient(135deg, rgba(41, 27, 8, 0.96), rgba(53, 36, 10, 0.92));
+  color: #fef3c7;
+  box-shadow: 0 12px 30px -24px rgba(0, 0, 0, 0.9);
+}
+
+[data-theme="dark"] .wa-internalNote-kicker {
+  background: rgba(0, 0, 0, 0.22);
+  border-color: rgba(251, 191, 36, 0.34);
+  color: #fcd34d;
+}
+
+[data-theme="dark"] .wa-internalNote-autor {
+  color: #fde68a;
+}
+
+[data-theme="dark"] .wa-internalNote-time {
+  color: rgba(253, 230, 138, 0.72);
+}
+
+[data-theme="dark"] .wa-internalNote-body {
+  color: #fef3c7;
+}
+
+[data-theme="dark"] .wa-internalNote-footer {
+  border-top-color: rgba(251, 191, 36, 0.18);
+  color: rgba(253, 230, 138, 0.7);
+}
+
+/* --- Composer: alternador de modo --- */
+
+.wa-composerModeBar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 0;
+  flex-wrap: wrap;
+}
+
+.wa-composerMode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--wa-text-muted, #64748b);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+
+.wa-composerMode svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.wa-composerMode:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.wa-composerMode:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wa-composerMode.isActive {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.wa-composerMode--nota.isActive {
+  border-color: rgba(180, 83, 9, 0.55);
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+[data-theme="dark"] .wa-composerMode.isActive {
+  color: #93c5fd;
+}
+
+[data-theme="dark"] .wa-composerMode--nota.isActive {
+  color: #fcd34d;
+}
+
+/* --- Composer: campo em modo nota --- */
+
+.wa-footer--nota {
+  background: linear-gradient(180deg, rgba(254, 243, 199, 0.5), rgba(254, 243, 199, 0.24));
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+[data-theme="dark"] .wa-footer--nota {
+  background: linear-gradient(180deg, rgba(69, 26, 3, 0.42), rgba(69, 26, 3, 0.2));
+}
+
+.wa-footer-hint--nota {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #b45309;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .wa-footer-hint--nota {
+  color: #fcd34d;
+}
+
+.wa-input--nota {
+  background: rgba(255, 251, 235, 0.92) !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  color: #451a03 !important;
+}
+
+.wa-input--nota::placeholder {
+  color: rgba(146, 64, 14, 0.65) !important;
+}
+
+[data-theme="dark"] .wa-input--nota {
+  background: rgba(41, 27, 8, 0.85) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  color: #fef3c7 !important;
+}
+
+[data-theme="dark"] .wa-input--nota::placeholder {
+  color: rgba(253, 230, 138, 0.6) !important;
+}
+
+.wa-sendBtn--nota {
+  width: auto !important;
+  min-width: 0;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #451a03 !important;
+  white-space: nowrap;
+}
+
+.wa-sendBtn--nota .wa-sendBtn-label {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.wa-sendBtn--nota:disabled {
+  opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+  .wa-row-internalNote {
+    padding: 7px;
+  }
+
+  .wa-internalNote-card {
+    width: min(94%, 520px);
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 9px;
+    padding: 9px 11px;
+  }
+
+  .wa-internalNote-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .wa-internalNote-autor {
+    max-width: 140px;
+  }
+
+  .wa-composerModeBar {
+    padding: 5px 8px 0;
+    gap: 5px;
+  }
+
+  .wa-composerMode {
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  /* No mobile o rótulo do botão sai; o ícone + a barra âmbar já identificam o modo. */
+  .wa-sendBtn--nota .wa-sendBtn-label {
+    display: none;
+  }
+
+  .wa-sendBtn--nota {
+    padding: 0;
+    width: 42px !important;
+  }
+}

@@ -248,6 +248,8 @@ export function isPlainCaptionFollowMessage(msg) {
     "call",
     "reaction",
     "link",
+    // Nota interna nunca é legenda de mídia — não pode ser agrupada a uma foto/vídeo.
+    "internal_note",
   ]);
   if (nonText.has(t)) return false;
   if (resolveContactMetaFromMessage(msg)) return false;

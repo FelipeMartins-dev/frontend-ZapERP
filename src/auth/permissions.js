@@ -74,6 +74,19 @@ export function canGerenciarRespostasSalvas(user) {
   return ["admin", "supervisor", "atendente"].includes(role(user));
 }
 
+/**
+ * Admin, supervisor e atendente podem registrar nota interna (mesmo padrão do catálogo
+ * central; um deny explícito da API tem prioridade). Isto controla apenas a UI — quem
+ * autoriza de fato é o backend em POST /chats/:id/notas-internas.
+ */
+export function canNotaInterna(user) {
+  const permissoes = usePermissoesStore.getState().permissoes;
+  if (permissoes != null && Object.prototype.hasOwnProperty.call(permissoes, "atendimentos.nota_interna")) {
+    return !!permissoes["atendimentos.nota_interna"];
+  }
+  return ["admin", "administrador", "supervisor", "atendente"].includes(role(user));
+}
+
 /** Supervisor e admin podem acessar Configurações (usa can() para priorizar API) */
 export function canAcessarConfiguracoes(user) {
   return can("config_acessar", user);

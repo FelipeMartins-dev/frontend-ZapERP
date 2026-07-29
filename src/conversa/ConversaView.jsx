@@ -4,6 +4,7 @@ import { shallow } from "zustand/shallow";
 import { useConversaStore, getMessageListReactKey, isPendingOutgoingTemp } from "./conversaStore";
 import {
   enviarMensagem,
+  criarNotaInterna,
   excluirMensagem,
   enviarReacao,
   removerReacao,
@@ -27,7 +28,7 @@ import "./conversa.css";
 import "../styles/zap-animations.css";
 import api from "../api/http";
 import { useAuthStore } from "../auth/authStore";
-import { canAssumir, canReabrir, canTag, canTransferirSetorConversa } from "../auth/permissions";
+import { canAssumir, canNotaInterna, canReabrir, canTag, canTransferirSetorConversa } from "../auth/permissions";
 const ProdutoConsultaPanel = lazy(() => import("./ProdutoConsultaPanel"));
 const SidebarCliente = lazy(() => import("./SidebarCliente"));
 const ForwardModal = lazy(() => import("./components/ForwardModal"));
@@ -2514,6 +2515,60 @@ function ConversaViewBody() {
     setSendingTracked,
   ]);
 
+  /**
+   * Nota interna: existe apenas para a equipe e nunca sai para o WhatsApp.
+   * Diferente de `podeEnviar`, não exige assumir a conversa nem reabrir atendimento
+   * encerrado — mas quem não consegue LER o histórico também não anota nele
+   * (mesma regra aplicada no backend).
+   */
+  const podeAnotar = useMemo(
+    () => Boolean(conversaId && conversa?.id && !conversa?.mensagens_bloqueadas && canNotaInterna(user)),
+    [conversaId, conversa?.id, conversa?.mensagens_bloqueadas, user]
+  );
+
+  const notaInternaEmAndamentoRef = useRef(false);
+
+  /**
+   * Sem bolha otimista de propósito: a nota só aparece depois de gravada. Assim nada
+   * pode ficar na tela como "salvo" se o banco falhar (o backend responde 500 e não emite).
+   * O socket `mensagem_interna_atendimento` chega em seguida e o store faz upsert por id,
+   * então abrir a conversa em duas abas não duplica a nota.
+   */
+  const handleAdicionarNotaInterna = useCallback(
+    async (texto) => {
+      const conteudo = safeString(texto).trim();
+      if (!conversaId || !conteudo) return;
+      if (notaInternaEmAndamentoRef.current) return;
+      notaInternaEmAndamentoRef.current = true;
+      try {
+        const res = await criarNotaInterna(conversaId, conteudo);
+        const nota = res?.nota;
+        if (nota?.id != null) {
+          anexarMensagemImediata({ ...nota, conversa_id: nota.conversa_id ?? conversaId });
+        }
+      } catch (err) {
+        const apiMsg = err?.response?.data?.error;
+        const is403 = err?.response?.status === 403;
+        // Devolve o texto ao campo só se o atendente ainda não começou outro rascunho.
+        const draftAtual = safeString(composerRef.current?.getText?.()).trim();
+        if (!draftAtual) composerRef.current?.setText?.(conteudo);
+        showToast({
+          type: "error",
+          title: is403 ? "Sem permissão" : "Falha ao salvar nota",
+          message:
+            apiMsg ||
+            (is403
+              ? "Você não tem permissão para criar notas internas nesta conversa."
+              : "Não foi possível salvar a nota interna. Verifique sua conexão."),
+        });
+      } finally {
+        notaInternaEmAndamentoRef.current = false;
+        focusMessageInput();
+      }
+    },
+    [anexarMensagemImediata, conversaId, focusMessageInput, showToast]
+  );
+
   const {
     pixModalOpen,
     setPixModalOpen,
@@ -4386,6 +4441,8 @@ function ConversaViewBody() {
           replyBarPreview={replyBarPreview}
           onCancelReply={handleComposerCancelReply}
           onSendMessage={handleEnviar}
+          podeAnotar={podeAnotar}
+          onSendInternalNote={handleAdicionarNotaInterna}
           onSendAudioFile={handleComposerSendAudio}
           onPasteImageFile={handleComposerPasteImage}
           onFileInputChange={handleFileInputChange}
