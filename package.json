@@ -17,7 +17,6 @@
     "test:conversation-boundary": "node scripts/test-conversation-boundary.mjs",
     "test:sequential-messages": "node scripts/test-sequential-messages.mjs",
     "test:inbound-media-sequence": "node scripts/test-inbound-media-sequence.mjs",
-    "test:nota-interna": "node --import ./scripts/vite-env-shim.mjs scripts/test-nota-interna.mjs",
     "test:audio-playback": "node --import ./scripts/vite-env-shim.mjs scripts/test-audio-playback-candidates.mjs",
     "test:contact-routing": "node --import ./scripts/vite-env-shim.mjs scripts/test-contact-conversation-routing.mjs",
     "test:mic-stream": "node --import ./scripts/vite-env-shim.mjs scripts/test-mic-stream-service.mjs",

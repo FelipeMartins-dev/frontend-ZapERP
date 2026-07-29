@@ -18,7 +18,6 @@ import {
   formatPrazoPagamentoTooltip,
 } from "../utils/pagamentoPrazoFormat";
 import ConversationActionMenuTrigger from "./ConversationActionMenuTrigger";
-import { isInternalNote } from "../conversa/internalNote";
 import { getContactDisplay } from "./chatListDisplay";
 import {
   rowPrefs,
@@ -328,12 +327,6 @@ function getPreview(chat, { audioDurationSec } = {}) {
   const ultima = chat?.ultima_mensagem || chat?.ultima_mensagem_preview;
   const last = ultima || getLastMessage(chat);
   if (!last) return "Sem mensagens";
-
-  // Nota interna: rotulada para não ser confundida com mensagem trocada com o cliente.
-  if (isInternalNote(last)) {
-    const nota = String(last?.texto || last?.conteudo || "").trim();
-    return `Nota interna${nota ? `: ${nota.slice(0, 60)}` : ""}`;
-  }
 
   const outPrefix = String(last?.direcao || "").toLowerCase() === "out" ? "Você: " : "";
   const tipoRaw = String(last?.tipo || "").toLowerCase();
@@ -1186,9 +1179,7 @@ function ChatRow({
     (isPlaceholderVideoText(lastTxt) ? "video" : "") ||
     (isPlaceholderStickerText(lastTxt) ? "sticker" : "") ||
     (isPlaceholderFileText(lastTxt) ? "arquivo" : "");
-  // Mesma chave usada na ordenação: sem mensagem, cai para a atividade da conversa —
-  // assim a hora exibida nunca contradiz a posição da linha na lista.
-  const ts = last?.criado_em || chat?.ultima_atividade || chat?.criado_em;
+  const ts = last?.criado_em || chat?.criado_em;
   const hora = formatHora(ts);
   const audioUrl =
     !semConversa && lastTipoResolved === "audio" && (last?.url || last?.url_absoluta)

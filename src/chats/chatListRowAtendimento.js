@@ -202,32 +202,6 @@ export function getChatListSortTimestampMs(c) {
   return Math.max(toMs(c?.ultima_atividade), toMs(c?.criado_em));
 }
 
-/**
- * A conversa já tem alguma mensagem?
- * Linha "Sem mensagens" existe porque a conversa foi criada ao abrir/importar um contato —
- * `ultima_atividade`/`criado_em` marcam o momento da criação, não uma conversa real. Sem essa
- * distinção elas ocupam o topo de "Todas" à frente de conversas com mensagem mais antiga.
- */
-export function chatRowTemMensagem(c) {
-  if (!c || c.sem_conversa) return false;
-  const last = pickListaUltimaMensagem(c);
-  return Boolean(last && last.criado_em);
-}
-
-/**
- * Comparador padrão da lista: conversas com mensagem primeiro, depois recência.
- * @param {'desc'|'asc'} direction 'desc' = mais recentes no topo (padrão)
- */
-export function compareChatListRecency(a, b, direction = "desc") {
-  const aTem = chatRowTemMensagem(a);
-  const bTem = chatRowTemMensagem(b);
-  // Sem mensagem fica no fim nos dois sentidos — "mais antigas" não deve trazê-las ao topo.
-  if (aTem !== bTem) return aTem ? -1 : 1;
-  const ta = getChatListSortTimestampMs(a);
-  const tb = getChatListSortTimestampMs(b);
-  return direction === "asc" ? ta - tb : tb - ta;
-}
-
 /** Mescla campos de preview/atividade preservando sempre o timestamp mais recente (socket > API stale). */
 export function mergeChatRowListaAtividade(apiRow, localRow) {
   const base = { ...(localRow && typeof localRow === "object" ? localRow : {}), ...(apiRow && typeof apiRow === "object" ? apiRow : {}) };
@@ -250,10 +224,12 @@ export function mergeChatRowListaAtividade(apiRow, localRow) {
   return base;
 }
 
-/** Ordena conversas por atividade mais recente (DESC); sem mensagem vai para o fim. */
+/** Ordena conversas por atividade mais recente (DESC). */
 export function sortChatListByRecent(arr) {
   if (!Array.isArray(arr) || arr.length <= 1) return arr;
-  return [...arr].sort((a, b) => compareChatListRecency(a, b));
+  return [...arr].sort(
+    (a, b) => getChatListSortTimestampMs(b) - getChatListSortTimestampMs(a)
+  );
 }
 
 export function isConversaAguardandoCliente(c, user) {

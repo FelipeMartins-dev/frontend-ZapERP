@@ -3,7 +3,6 @@ import AtendimentoActions from "../../atendimento/AtendimentoActions";
 import SendToCrmChatButton, { IconFunnelSend } from "../SendToCrmChatButton";
 import { safeString } from "../utils/conversaViewHelpers";
 import { IconClock, IconMore, IconTag, IconContact, IconSearch } from "../conversaViewIcons";
-import { IconUsers } from "@tabler/icons-react";
 
 function HeaderOverflowSheetBtn({ icon, label, onClick, disabled = false }) {
   return (
@@ -43,9 +42,8 @@ function ConversaHeader({
   setorAtual,
   podeTransferirSetor,
   onOpenTransferirSetor,
-  podeVerAtendentes,
-  totalAtendentes = 0,
-  onOpenAtendentes,
+  podeAdicionarAtendente,
+  onOpenAdicionarAtendente,
   isSomeoneTyping,
   podeGerenciarTags,
   tagsOpen,
@@ -97,12 +95,12 @@ function ConversaHeader({
             close();
           }}
         />
-        {!isGroup && conversaId && podeVerAtendentes ? (
+        {!isGroup && conversaId && podeAdicionarAtendente ? (
           <HeaderOverflowSheetBtn
-            icon={<IconUsers size={20} strokeWidth={1.8} />}
-            label={`Atendentes${totalAtendentes > 0 ? ` · ${totalAtendentes}` : ""}`}
+            icon={<IconContact />}
+            label="Adicionar atendente"
             onClick={() => {
-              onOpenAtendentes();
+              onOpenAdicionarAtendente();
               close();
             }}
           />
@@ -134,12 +132,11 @@ function ConversaHeader({
       canConsultarProdutos,
       conversaId,
       isGroup,
-      onOpenAtendentes,
+      onOpenAdicionarAtendente,
       onOpenProdutosPanel,
       onToggleTagPanel,
       onToggleTimeline,
-      podeVerAtendentes,
-      totalAtendentes,
+      podeAdicionarAtendente,
       podeGerenciarTags,
     ]
   );

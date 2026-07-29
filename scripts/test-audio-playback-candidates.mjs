@@ -11,7 +11,6 @@
 import {
   buildMediaOpenHref,
   getMediaPlaybackUrl,
-  getMediaUrl,
   resolveAudioPlaybackCandidates,
 } from "../src/conversa/utils/conversaViewHelpers.js";
 
@@ -89,19 +88,8 @@ const BLOB = "blob:http://app.local/abc-123";
   checar("abertura preserva filename", parsed.searchParams.get("filename") === "Relatório final.pdf", href);
 }
 
-// 8) Sentinelas antigas do provider não podem virar https://api/false nem chegar ao proxy.
-{
-  for (const invalid of [false, "false", "null", "undefined", 0]) {
-    checar(`URL inválida ${String(invalid)} é descartada`, getMediaUrl(invalid, null) === "");
-    checar(
-      `documento com URL inválida ${String(invalid)} não cria proxy`,
-      buildMediaOpenHref(invalid, null, "comprovante.pdf") === ""
-    );
-  }
-}
-
 if (falhas > 0) {
   console.error(`\n${falhas} verificação(ões) falharam.`);
   process.exit(1);
 }
-console.log("OK — regressão de mídia/arquivos passou (8 cenários).");
+console.log("OK — regressão de mídia/arquivos passou (7 cenários).");

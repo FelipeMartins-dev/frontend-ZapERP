@@ -274,10 +274,6 @@ test("áudios consecutivos aparecem imediatamente e mantêm upload FIFO", async 
   let activeUploads = 0;
   let maxActiveUploads = 0;
   let nextMessageId = 3000;
-  let liberarPrimeiroUpload = () => {};
-  const primeiroUploadLiberado = new Promise((resolve) => {
-    liberarPrimeiroUpload = resolve;
-  });
 
   await installAuditSession(page);
   await installFakeAudioRecorder(page);
@@ -331,11 +327,7 @@ test("áudios consecutivos aparecem imediatamente e mantêm upload FIFO", async 
       uploadedTempIds.push(tempId);
       activeUploads += 1;
       maxActiveUploads = Math.max(maxActiveUploads, activeUploads);
-      const numeroUpload = uploadedTempIds.length;
-      if (numeroUpload === 1) {
-        await primeiroUploadLiberado;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 2500));
       nextMessageId += 1;
       await route.fulfill({
         json: {
@@ -357,7 +349,7 @@ test("áudios consecutivos aparecem imediatamente e mantêm upload FIFO", async 
 
   await page.goto("/atendimento");
   const firstRow = page.locator(".chat-list-row").filter({ hasText: "Contato Auditoria" });
-  await expect(firstRow).toBeVisible({ timeout: 30_000 });
+  await expect(firstRow).toHaveCount(1);
   if (testInfo.project.name.includes("mobile")) {
     await firstRow.tap();
   } else {
@@ -367,30 +359,23 @@ test("áudios consecutivos aparecem imediatamente e mantêm upload FIFO", async 
   const record = page.getByRole("button", { name: "Gravar áudio" });
   const sendAudio = page.getByRole("button", { name: "Enviar áudio" });
 
-  try {
-    await record.click();
-    await expect(sendAudio).toBeVisible();
-    await page.waitForTimeout(850);
-    await sendAudio.click();
-    await expect(page.locator(".audio-message")).toHaveCount(1);
-    await expect.poll(() => uploadedTempIds.length).toBe(1);
+  await record.click();
+  await expect(sendAudio).toBeVisible();
+  await page.waitForTimeout(850);
+  await sendAudio.click();
+  await expect(page.locator(".audio-message")).toHaveCount(1);
+  await expect.poll(() => uploadedTempIds.length).toBe(1);
 
-    await expect(record).toBeVisible();
-    await record.click();
-    await expect(sendAudio).toBeVisible();
-    await page.waitForTimeout(850);
-    await sendAudio.click();
+  await expect(record).toBeVisible();
+  await record.click();
+  await expect(sendAudio).toBeVisible();
+  await page.waitForTimeout(850);
+  await sendAudio.click();
 
-    // O primeiro request fica deliberadamente aberto: assim provamos que o
-    // segundo áudio aparece otimisticamente enquanto ainda aguarda sua vez,
-    // sem depender da velocidade da máquina ou de um timeout arbitrário.
-    await expect(page.locator(".audio-message")).toHaveCount(2);
-    expect(uploadedTempIds).toHaveLength(1);
-    const pendingAudioCount = await page.locator(".audio-message .wa-ticks.isPending").count();
-    expect(pendingAudioCount).toBeGreaterThanOrEqual(1);
-  } finally {
-    liberarPrimeiroUpload();
-  }
+  await expect(page.locator(".audio-message")).toHaveCount(2);
+  expect(uploadedTempIds).toHaveLength(1);
+  const pendingAudioCount = await page.locator(".audio-message .wa-ticks.isPending").count();
+  expect(pendingAudioCount).toBeGreaterThanOrEqual(1);
 
   await expect.poll(() => uploadedTempIds.length, { timeout: 10_000 }).toBe(2);
   expect(new Set(uploadedTempIds).size).toBe(2);

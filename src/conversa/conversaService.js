@@ -108,20 +108,6 @@ export async function enviarMensagem(conversaId, texto, reply_meta, client_temp_
 }
 
 /**
- * Cria uma nota interna ("mensagem invisível") na conversa.
- * Rota própria: nunca passa pelo caminho de envio ao WhatsApp.
- * Retorna a linha já persistida — o backend só emite o realtime depois de gravar.
- */
-export async function criarNotaInterna(conversaId, texto) {
-  const id = conversaId != null ? String(conversaId) : "";
-  if (!id) throw new Error("conversaId inválido");
-  const conteudo = String(texto ?? "").trim();
-  if (!conteudo) throw new Error("Escreva o conteúdo da nota interna.");
-  const { data } = await api.post(`/chats/${id}/notas-internas`, { texto: conteudo });
-  return data;
-}
-
-/**
  * Envia um link estruturado com metadados de preview na conversa.
  */
 export async function enviarLink(conversaId, { url, titulo, descricao, imagem, texto, reply_meta } = {}) {
@@ -309,16 +295,6 @@ export async function adicionarAtendenteConversa(conversaId, usuarioId) {
     throw new Error("Atendente invalido.");
   }
   const { data } = await api.post(`/chats/${conversaId}/atendentes`, { usuario_id: paraId });
-  return data;
-}
-
-/** Remove um co-atendente. O responsável principal só muda por transferência (backend recusa). */
-export async function removerAtendenteConversa(conversaId, usuarioId) {
-  const uid = Number(usuarioId);
-  if (!Number.isFinite(uid) || uid <= 0) {
-    throw new Error("Atendente inválido.");
-  }
-  const { data } = await api.delete(`/chats/${conversaId}/atendentes/${uid}`);
   return data;
 }
 

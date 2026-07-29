@@ -248,8 +248,6 @@ export function isPlainCaptionFollowMessage(msg) {
     "call",
     "reaction",
     "link",
-    // Nota interna nunca é legenda de mídia — não pode ser agrupada a uma foto/vídeo.
-    "internal_note",
   ]);
   if (nonText.has(t)) return false;
   if (resolveContactMetaFromMessage(msg)) return false;
@@ -476,18 +474,8 @@ function getApiOrigin() {
 }
 
 /** Normaliza path relativo, blob ou URL absoluta para reprodução no host da API atual. */
-export function normalizeMediaUrlInput(raw) {
-  if (raw == null || typeof raw === "boolean" || typeof raw === "number") return "";
-  if (typeof raw !== "string") return "";
-  const s = raw.trim();
-  if (!s) return "";
-  const sentinel = s.toLowerCase();
-  if (["false", "true", "null", "undefined", "nan", "0"].includes(sentinel)) return "";
-  return s;
-}
-
 export function resolveMediaUrlForPlayback(raw) {
-  const s = normalizeMediaUrlInput(raw);
+  const s = String(raw || "").trim();
   if (!s) return "";
   if (s.startsWith("blob:")) return s;
   if (/^https?:\/\//i.test(s)) {
@@ -510,9 +498,9 @@ export function resolveMediaUrlForPlayback(raw) {
 }
 
 export function getMediaUrl(url, urlAbsoluta) {
-  const absRaw = normalizeMediaUrlInput(urlAbsoluta);
+  const absRaw = urlAbsoluta != null && String(urlAbsoluta).trim() !== "" ? String(urlAbsoluta).trim() : "";
   if (absRaw) return resolveMediaUrlForPlayback(absRaw);
-  const urlRaw = normalizeMediaUrlInput(url);
+  const urlRaw = url != null && String(url).trim() !== "" ? String(url).trim() : "";
   if (urlRaw) return resolveMediaUrlForPlayback(urlRaw);
   return "";
 }

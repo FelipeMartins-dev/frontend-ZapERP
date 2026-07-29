@@ -42,7 +42,7 @@ import {
   isConversaPagamentoPendente,
   isConversaEmAtrasoPagamento,
   sortChatListByRecent,
-  compareChatListRecency,
+  getChatListSortTimestampMs,
   mergeChatRowListaAtividade,
 } from "./chatListRowAtendimento";
 import { isUsuarioSetorFinanceiro } from "../utils/financeiroSector";
@@ -99,64 +99,6 @@ const CHAT_LIST_MOBILE_PAGE_LIMIT = 40;
 function getChatListPageLimit(isMobileLayout) {
   return isMobileLayout ? CHAT_LIST_MOBILE_PAGE_LIMIT : CHAT_LIST_DESKTOP_PAGE_LIMIT;
 }
-/** Teto de páginas por clique em "Carregar mais" — o clique precisa render progresso visível. */
-const CHAT_LIST_LOAD_MORE_MAX_PAGES = 15;
-/** "Minha fila" se completa sozinha em segundo plano; teto para não varrer a base inteira. */
-const MINHA_FILA_AUTO_PAGES_MAX = 40;
-/** Janela em que a fila completa é reaproveitada — refresh por mensagem não repagina tudo. */
-const MINHA_FILA_DRAIN_TTL_MS = 180_000;
-/** Página maior no preenchimento em segundo plano: menos idas ao servidor até esgotar o cursor. */
-function getMinhaFilaAutoPageLimit(isMobileLayout) {
-  return isMobileLayout ? 120 : 250;
-}
-
-/**
- * O backend pagina por `ultima_atividade` ANTES dos filtros aplicados em JS (Minha fila,
- * Em atendimento, Aguardando…), então uma página inteira do cursor pode não conter nenhuma
- * linha da aba — era isso que fazia "Carregar mais conversas" parecer sem efeito.
- * Aqui seguimos puxando páginas do mesmo cursor até aparecer linha nova (clique manual)
- * ou até o cursor acabar (preenchimento automático da Minha fila).
- */
-async function fetchChatListPagesUntil({
-  baseParams,
-  cursor,
-  cursorId,
-  limit,
-  maxPages,
-  signal,
-  shouldStop,
-}) {
-  let rows = [];
-  let nextCursor = cursor || null;
-  let nextCursorId = cursorId ?? null;
-  let hasMore = Boolean(nextCursor);
-  let totalCount = null;
-
-  for (let page = 0; page < maxPages && hasMore && nextCursor; page += 1) {
-    const data = await fetchChats(
-      { ...baseParams, cursor: nextCursor, cursorId: nextCursorId, limit },
-      { signal }
-    );
-    const pageRows = Array.isArray(data) ? data : [];
-    const meta = getChatsPageMeta(data);
-    if (pageRows.length > 0) rows = rows.concat(pageRows);
-    totalCount = meta.totalCount ?? totalCount;
-    hasMore = Boolean(meta.hasMore && meta.nextCursor);
-    nextCursor = hasMore ? meta.nextCursor : null;
-    nextCursorId = hasMore ? meta.nextCursorId ?? null : null;
-    if (hasMore && typeof shouldStop === "function" && shouldStop(rows)) break;
-  }
-
-  return {
-    rows,
-    meta: {
-      hasMore: Boolean(hasMore && nextCursor),
-      nextCursor,
-      nextCursorId,
-      totalCount,
-    },
-  };
-}
 const MOBILE_ZAPI_STATUS_DELAY_MS = 3200;
 /** Revalidação periódica do status do WhatsApp (o banner precisa sumir sozinho ao reconectar). */
 const ZAPI_STATUS_REFRESH_MS = 120_000;
@@ -207,9 +149,15 @@ function pruneExpiredOptimisticRemoved(map) {
   }
 }
 
+function getChatSortTs(c) {
+  return getChatListSortTimestampMs(c) || 0;
+}
+
 function sortChatRowsByOrder(list, order) {
   return [...(Array.isArray(list) ? list : [])].sort((a, b) =>
-    compareChatListRecency(a, b, order === "antigas" ? "asc" : "desc")
+    order === "antigas"
+      ? new Date(getChatSortTs(a)) - new Date(getChatSortTs(b))
+      : new Date(getChatSortTs(b)) - new Date(getChatSortTs(a))
   );
 }
 
@@ -242,29 +190,6 @@ function mergeChatRowsPreservingCurrent(current, incoming, order) {
   (Array.isArray(current) ? current : []).forEach((row) => put(row, false));
   (Array.isArray(incoming) ? incoming : []).forEach((row) => put(row, true));
   return sortChatRowsByOrder(Array.from(byKey.values()), order);
-}
-
-/**
- * Refresh em segundo plano traz só a 1ª página (as conversas mais recentes). Sem isto, a fila
- * completada em segundo plano voltaria a mostrar só as primeiras linhas a cada atualização.
- * `boundaryIso` é o cursor da próxima página: tudo mais antigo que ele está fora da janela
- * recarregada e precisa ser preservado; dentro da janela vale exatamente o que a API devolveu.
- */
-function mergeMinhaFilaPageWindow(prevRows, freshRows, boundaryIso, order) {
-  const prev = Array.isArray(prevRows) ? prevRows : [];
-  const fresh = Array.isArray(freshRows) ? freshRows : [];
-  if (prev.length === 0 || !boundaryIso) return fresh;
-  const boundaryMs = Date.parse(boundaryIso);
-  if (!Number.isFinite(boundaryMs)) return fresh;
-  const freshKeys = new Set(fresh.map((c) => chatRowStableKey(c)).filter(Boolean));
-  const foraDaJanela = prev.filter((row) => {
-    const key = chatRowStableKey(row);
-    if (!key || freshKeys.has(key)) return false;
-    const ms = Date.parse(row?.ultima_atividade || "");
-    return Number.isFinite(ms) && ms < boundaryMs;
-  });
-  if (foraDaJanela.length === 0) return fresh;
-  return mergeChatRowsPreservingCurrent(foraDaJanela, fresh, order);
 }
 
 function rowStillBelongsToEmAtendimentoLiveScope(row, { user, adminAtendenteFilterId, pendentesFuncionarioSet }) {
@@ -602,8 +527,6 @@ export default function ChatList() {
   /** GET /chats?minha_fila=1 — fila do atendente (abertas + em atendimento comigo); sem status_atendimento na query. */
   const [minhaFilaList, setMinhaFilaList] = useState(null);
   const minhaFilaListRef = useRef(null);
-  /** Controle do preenchimento automático da fila (escopo do filtro + quando terminou). */
-  const minhaFilaDrainRef = useRef({ key: null, at: 0, done: false });
   const optimisticRemovedMinhaFilaRef = useRef(new Map());
   const filterRequestKeyRef = useRef("");
   const filterRequestBaseKeyRef = useRef("");
@@ -1265,24 +1188,7 @@ export default function ChatList() {
       if (minhaFilaTab || TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
         list = filterOptimisticRemovedMinhaFila(list);
       }
-      // Preenchimento automático da "Minha fila" (ver bloco mais abaixo): enquanto a varredura
-      // do escopo atual continuar válida, o refresh da página 1 não pode ressuscitar o botão
-      // "Carregar mais" — a fila já está inteira na tela e o clique não teria nada a trazer.
-      const minhaFilaDrainKey = `${filterScopeKey}|${filterRequestKey}`;
-      const minhaFilaDrainState = minhaFilaDrainRef.current;
-      const minhaFilaDrainFresco =
-        minhaFilaDrainState.key === minhaFilaDrainKey &&
-        minhaFilaDrainState.done === true &&
-        Date.now() - minhaFilaDrainState.at <= MINHA_FILA_DRAIN_TTL_MS;
-      /** Fila já varrida até o fim neste filtro: o botão fica fora até uma varredura dizer o contrário. */
-      const minhaFilaCompleta =
-        minhaFilaTab &&
-        minhaFilaDrainState.key === minhaFilaDrainKey &&
-        minhaFilaDrainState.exhausted === true;
-      const pageStateBruto = buildChatListPageState(data);
-      const pageState = minhaFilaCompleta
-        ? { ...pageStateBruto, hasMore: false, nextCursor: null, nextCursorId: null }
-        : pageStateBruto;
+      const pageState = buildChatListPageState(data);
       setChatListPage(pageState);
       if (pageState.totalCount != null) {
         setActiveListTotalCount(pageState.totalCount);
@@ -1293,14 +1199,7 @@ export default function ChatList() {
       // Desduplicar por id (conversas) ou por cliente_id (clientes sem conversa) — NÃO descartar itens com id null
       list = sortChatRowsByOrder(dedupeChatRowsByStableKey(list), order);
       if (!adminPorFuncionario && tabRef.current === "minha_fila") {
-        setMinhaFilaList((prev) =>
-          mergeMinhaFilaPageWindow(
-            filterOptimisticRemovedMinhaFila(Array.isArray(prev) ? prev : []),
-            list,
-            pageStateBruto.nextCursor,
-            order
-          )
-        );
+        setMinhaFilaList(list);
       }
       // Merge defensivo: nunca sobrescrever contato_nome/foto_perfil com undefined ou string vazia. Preserva chats locais não retornados pela API.
       setChats((prev) => {
@@ -1376,69 +1275,6 @@ export default function ChatList() {
           mensagensDisparadasCount,
         });
       }
-      // "Minha fila" filtra a página DEPOIS de o backend paginar por atividade: uma página do
-      // cursor pode não trazer nenhuma conversa da fila (o clique em "Carregar mais" não mostrava
-      // nada). Aqui a fila termina de carregar sozinha, em segundo plano, até o cursor esgotar.
-      // Refresh em segundo plano reaproveita a cauda já carregada (mergeMinhaFilaPageWindow) —
-      // só varre de novo quando muda o filtro ou depois do TTL, para não repetir requisições.
-      if (minhaFilaTab && pageStateBruto.hasMore && pageStateBruto.nextCursor && !minhaFilaDrainFresco) {
-        minhaFilaDrainRef.current = {
-          key: minhaFilaDrainKey,
-          at: Date.now(),
-          done: false,
-          // Revarredura de fila já completa mantém o botão fora enquanto confere.
-          exhausted: minhaFilaCompleta,
-        };
-        // Revarredura periódica de uma fila já completa é silenciosa: nada de piscar o rodapé.
-        if (!minhaFilaCompleta) {
-          setChatListPage((prev) => ({ ...prev, loading: true, error: "" }));
-        }
-        void (async () => {
-          try {
-            const { rows, meta } = await fetchChatListPagesUntil({
-              baseParams: params,
-              cursor: pageStateBruto.nextCursor,
-              cursorId: pageStateBruto.nextCursorId,
-              limit: getMinhaFilaAutoPageLimit(isMobileLayout),
-              maxPages: MINHA_FILA_AUTO_PAGES_MAX,
-              signal: abortController.signal,
-            });
-            if (requestId !== loadRequestIdRef.current) return;
-            minhaFilaDrainRef.current = {
-              key: minhaFilaDrainKey,
-              at: Date.now(),
-              done: true,
-              exhausted: meta.hasMore !== true,
-            };
-            if (!minhaFilaCompleta || meta.hasMore === true) {
-              setChatListPage((prev) => ({
-                ...prev,
-                hasMore: meta.hasMore,
-                nextCursor: meta.nextCursor,
-                nextCursorId: meta.nextCursorId,
-                loading: false,
-              }));
-            }
-            const extras = sortChatRowsByOrder(
-              dedupeChatRowsByStableKey(filterOptimisticRemovedMinhaFila(rows)),
-              order
-            );
-            if (extras.length === 0) return;
-            setMinhaFilaList((prev) => {
-              const merged = mergeChatRowsPreservingCurrent(prev || [], extras, order);
-              persistChatListSidebarToSession(filterScopeKey, useChatStore.getState().chats || [], {
-                minhaFila: merged,
-              });
-              return merged;
-            });
-          } catch (e) {
-            if (isAbortError(e)) return;
-            if (requestId !== loadRequestIdRef.current) return;
-            if (!minhaFilaCompleta) setChatListPage((prev) => ({ ...prev, loading: false }));
-          }
-        })();
-      }
-
       const rid = requestId;
       const minhaFilaAuxPrimed =
         !adminPorFuncionario && tabRef.current === "minha_fila";
@@ -1530,38 +1366,21 @@ export default function ChatList() {
     setChatListPage((prev) => ({ ...prev, loading: true, error: "" }));
     const loadMoreAbort = new AbortController();
 
-    const adminPorFuncionario =
-      adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
-    const minhaFilaTab = !adminPorFuncionario && tabRef.current === "minha_fila";
-    /** Linhas já visíveis: o clique só para quando trouxer conversa que ainda não está na lista. */
-    const knownKeys = new Set(
-      (minhaFilaTab
-        ? Array.isArray(minhaFilaListRef.current)
-          ? minhaFilaListRef.current
-          : []
-        : useChatStore.getState().chats || []
-      )
-        .map((c) => chatRowStableKey(c))
-        .filter(Boolean)
-    );
-
     try {
-      const { rows, meta } = await fetchChatListPagesUntil({
-        baseParams,
-        cursor: page.nextCursor,
-        cursorId: page.nextCursorId,
-        limit: getChatListPageLimit(isMobileLayout),
-        maxPages: CHAT_LIST_LOAD_MORE_MAX_PAGES,
-        signal: loadMoreAbort.signal,
-        shouldStop: (acc) =>
-          acc.some((row) => {
-            const key = chatRowStableKey(row);
-            return key && !knownKeys.has(key);
-          }),
-      });
+      const data = await fetchChats(
+        {
+          ...baseParams,
+          cursor: page.nextCursor,
+          cursorId: page.nextCursorId,
+          limit: getChatListPageLimit(isMobileLayout),
+        },
+        { signal: loadMoreAbort.signal }
+      );
       if (requestId !== loadRequestIdRef.current) return;
 
-      let list = rows;
+      const adminPorFuncionario =
+        adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
+      let list = Array.isArray(data) ? data : [];
       if (TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
         list = filterOptimisticRemovedMinhaFila(list);
       }
@@ -1569,26 +1388,9 @@ export default function ChatList() {
         list = list.filter((c) => String(c.atendente_id) === String(user.id));
       }
       list = sortChatRowsByOrder(dedupeChatRowsByStableKey(list), order);
-      setChatListPage((prev) => ({
-        ...prev,
-        hasMore: meta.hasMore,
-        nextCursor: meta.nextCursor,
-        nextCursorId: meta.nextCursorId,
-        totalCount: meta.totalCount ?? prev.totalCount ?? null,
-        loading: false,
-        error: "",
-      }));
+      setChatListPage(buildChatListPageState(data));
 
-      if (minhaFilaTab) {
-        // Fila terminada na mão: o refresh da página 1 não pode trazer o botão de volta.
-        if (meta.hasMore !== true) {
-          minhaFilaDrainRef.current = {
-            key: `${filterScopeKey}|${filterRequestKey}`,
-            at: Date.now(),
-            done: true,
-            exhausted: true,
-          };
-        }
+      if (!adminPorFuncionario && tabRef.current === "minha_fila") {
         setMinhaFilaList((prev) => {
           const merged = mergeChatRowsPreservingCurrent(prev || [], list, order);
           persistChatListSidebarToSession(filterScopeKey, useChatStore.getState().chats || [], {
@@ -1626,7 +1428,6 @@ export default function ChatList() {
     mensagensDisparadasCount,
     filterOptimisticRemovedMinhaFila,
     isMobileLayout,
-    filterRequestKey,
   ]);
 
   useEffect(() => {
