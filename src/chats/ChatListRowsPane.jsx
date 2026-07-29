@@ -81,8 +81,7 @@ function ChatListRowsPane({
             pendentesFuncionarioSet={pendentesFuncionarioSet}
           />
         )}
-        {/* Página sem nenhuma linha visível também precisa do botão: sem ele o filtro fica sem saída. */}
-        {!loading && (canLoadMoreChats || loadingMoreChats || loadMoreChatsError) ? (
+        {!loading && filteredLen > 0 && (canLoadMoreChats || loadingMoreChats || loadMoreChatsError) ? (
           <div className="chat-list-pagination-footer">
             {loadMoreChatsError ? (
               <p className="chat-list-pagination-error" role="alert">

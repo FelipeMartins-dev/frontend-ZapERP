@@ -147,19 +147,12 @@ function ChatListBody({
     separarMensagensDisparadasLigado,
   });
 
-  /**
-   * GET /chats/counts é a fonte dos chips. Enquanto não responde (1ª pintura / F5) valem os
-   * contadores locais já hidratados — sem isto todo chip piscava 0 antes do primeiro counts.
-   */
-  const temCountsDoServidor = chatFilterCounts != null;
-  const resolveCount = (doServidor, local) => (temCountsDoServidor ? doServidor : (local ?? doServidor ?? 0));
-
-  const minhaFilaCountResolved = resolveCount(minhaFilaCountFromServer, minhaFilaCount);
-  const countEmAtendimentoResolved = resolveCount(countEmAtendimento, emAtendimentoBadgeCount);
-  const countAguardandoClienteResolved = resolveCount(countAguardandoCliente, aguardandoClienteBadgeCount);
-  const countPagamentosPendentesResolved = resolveCount(countPagamentosPendentes, pagamentosPendentesBadgeCount);
-  const countEmAtrasoResolved = resolveCount(countEmAtraso, emAtrasoBadgeCount);
-  const mensagensDisparadasResolved = resolveCount(mensagensDisparadasFromServer, mensagensDisparadasCount);
+  const minhaFilaCountResolved = minhaFilaCountFromServer ?? minhaFilaCount ?? 0;
+  const countEmAtendimentoResolved = countEmAtendimento ?? emAtendimentoBadgeCount ?? 0;
+  const countAguardandoClienteResolved = countAguardandoCliente ?? aguardandoClienteBadgeCount ?? 0;
+  const countPagamentosPendentesResolved = countPagamentosPendentes ?? pagamentosPendentesBadgeCount ?? 0;
+  const countEmAtrasoResolved = countEmAtraso ?? emAtrasoBadgeCount ?? 0;
+  const mensagensDisparadasResolved = mensagensDisparadasFromServer ?? mensagensDisparadasCount ?? 0;
 
   const activeFilterTotalCount = getActiveFilterTotalCount({
     tab,
