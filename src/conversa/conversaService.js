@@ -312,6 +312,16 @@ export async function adicionarAtendenteConversa(conversaId, usuarioId) {
   return data;
 }
 
+/** Remove um co-atendente. O responsável principal só muda por transferência (backend recusa). */
+export async function removerAtendenteConversa(conversaId, usuarioId) {
+  const uid = Number(usuarioId);
+  if (!Number.isFinite(uid) || uid <= 0) {
+    throw new Error("Atendente inválido.");
+  }
+  const { data } = await api.delete(`/chats/${conversaId}/atendentes/${uid}`);
+  return data;
+}
+
 /** Modo simples: remove da fila Aguardando atendente sem enviar mensagem. */
 export async function marcarLidaModoSimplesChat(conversaId) {
   const id = conversaId != null ? String(conversaId) : "";

@@ -1,0 +1,266 @@
+/* =====================================================================
+   Participantes do atendimento (múltiplos atendentes).
+   Botão "Atendentes · N" na barra de ações + modal de gerenciamento.
+   Usa as mesmas primitivas do modal de transferência (.wa-modalOverlay,
+   .wa-modal, .wa-modal-head/body, .wa-transferSearch) para não divergir.
+   ===================================================================== */
+
+.wa-btn-atendentes {
+  border-color: rgba(139, 92, 246, 0.45);
+  color: #a78bfa;
+}
+
+.wa-btn-atendentes:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.14);
+  border-color: rgba(139, 92, 246, 0.62);
+}
+
+.wa-atendentesModal {
+  width: min(560px, 94vw);
+  max-height: min(82vh, 760px);
+  display: flex;
+  flex-direction: column;
+}
+
+.wa-atendentesModal .wa-modal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wa-atendentesModal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.wa-atendentesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wa-atendentesSection-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--wa-text-muted, #94a3b8);
+}
+
+.wa-atendentesHint {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--wa-text-muted, #94a3b8);
+}
+
+.wa-atendentesEmpty {
+  padding: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--wa-text-muted, #94a3b8);
+}
+
+.wa-participanteList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wa-participante {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 9px;
+  background: rgba(148, 163, 184, 0.06);
+  text-align: left;
+}
+
+.wa-participante--principal {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(245, 158, 11, 0.09);
+}
+
+.wa-participante--add {
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.wa-participante--add:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.13);
+  border-color: rgba(139, 92, 246, 0.45);
+}
+
+.wa-participante--add:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.wa-participante-avatar {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.wa-participante--principal .wa-participante-avatar {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #451a03;
+}
+
+.wa-participante-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wa-participante-nome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--wa-text, #e2e8f0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-participante-voce {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.wa-participante-meta {
+  font-size: 11px;
+  color: var(--wa-text-muted, #94a3b8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-participante-badgePrincipal {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid rgba(180, 83, 9, 0.45);
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.18);
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+[data-theme="dark"] .wa-participante-badgePrincipal {
+  color: #fcd34d;
+}
+
+.wa-participante-remover,
+.wa-participante-add {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.wa-participante-remover {
+  border: 1px solid rgba(239, 68, 68, 0.42);
+  background: transparent;
+  color: #f87171;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.wa-participante-remover:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.wa-participante-remover:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wa-participante-add {
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #a78bfa;
+}
+
+.wa-atendentesSearch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wa-atendentesSearch > svg {
+  position: absolute;
+  left: 10px;
+  color: var(--wa-text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.wa-atendentesSearch .wa-transferSearch {
+  width: 100%;
+  padding-left: 32px;
+}
+
+@media (max-width: 640px) {
+  .wa-atendentesModal {
+    width: 96vw;
+    max-height: 88vh;
+  }
+
+  .wa-atendentesModal-body {
+    gap: 15px;
+  }
+
+  .wa-participante {
+    padding: 8px 9px;
+    gap: 8px;
+  }
+
+  .wa-participante-avatar {
+    width: 29px;
+    height: 29px;
+    font-size: 10.5px;
+  }
+
+  /* No mobile o rótulo some para caber; o ícone + contador seguem legíveis. */
+  .wa-participante-remover span,
+  .wa-participante-add span {
+    display: none;
+  }
+
+  .wa-participante-remover,
+  .wa-participante-add {
+    padding: 6px;
+  }
+}
