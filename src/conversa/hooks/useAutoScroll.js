@@ -207,7 +207,7 @@ export function useAutoScroll({
     }
 
     if (lastMsgKey && lastMsgKey !== prevLastKeyRef.current) {
-      if (openSnapInProgressRef.current || isUserScrollLocked()) {
+      if (isUserScrollLocked()) {
         prevLastKeyRef.current = lastMsgKey;
         return;
       }

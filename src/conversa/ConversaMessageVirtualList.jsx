@@ -39,10 +39,8 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
   const scrollMarginRef = useRef(0);
   const [scrollMargin, setScrollMargin] = useState(0);
   const isScrollingRef = useRef(false);
-  const resizeAfterScrollRef = useRef(false);
   const pendingScrollMarginRef = useRef(null);
   const applyMarginFnRef = useRef(null);
-  const resizeThrottleRef = useRef(0);
   const count = Array.isArray(items) ? items.length : 0;
 
   const virtualizer = useVirtualizer({
@@ -79,8 +77,12 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
         const itemBottom = item.end + margin;
         return itemBottom <= scrollTop;
       }
-      const offset = instance.scrollOffset ?? scrollTop;
-      return item.start < offset + (instance.scrollAdjustments ?? 0);
+      /*
+       * Perto do fim, o ConversaView é o único responsável por manter a âncora inferior.
+       * Se o virtualizer também compensar cada medição de bolha, as duas correções se
+       * somam e produzem o "pulo" visível (principalmente em envio otimista e mídia).
+       */
+      return false;
     };
   }, [virtualizer, scrollRef]);
 
@@ -204,9 +206,6 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
         applyMarginFnRef.current?.(pendingScrollMarginRef.current);
         pendingScrollMarginRef.current = null;
       }
-      if (!resizeAfterScrollRef.current || !onVirtualContentResize) return;
-      resizeAfterScrollRef.current = false;
-      onVirtualContentResize();
     };
 
     const onScroll = () => {
@@ -257,27 +256,13 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     const el = innerRootRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
 
-    let rafOuter = 0;
-    let rafInner = 0;
     const run = () => { onVirtualContentResize(); };
     const schedule = () => {
-      if (isScrollingRef.current) {
-        resizeAfterScrollRef.current = true;
-        return;
-      }
-      if (mobileThread) {
-        const now = Date.now();
-        if (now - resizeThrottleRef.current < 320) return;
-        resizeThrottleRef.current = now;
-      }
-      if (rafOuter || rafInner) return;
-      rafOuter = requestAnimationFrame(() => {
-        rafOuter = 0;
-        rafInner = requestAnimationFrame(() => {
-          rafInner = 0;
-          run();
-        });
-      });
+      /*
+       * ResizeObserver roda após o layout e antes do paint. Reancorar aqui evita
+       * expor 1–2 frames com espaço vazio; o antigo duplo rAF tornava o salto visível.
+       */
+      run();
     };
 
     const ro = new ResizeObserver(schedule);
@@ -285,8 +270,6 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     schedule();
     return () => {
       ro.disconnect();
-      if (rafOuter) cancelAnimationFrame(rafOuter);
-      if (rafInner) cancelAnimationFrame(rafInner);
     };
   }, [onVirtualContentResize, count, mobileThread]);
 
@@ -426,18 +409,12 @@ export const ConversaMessageStaticList = forwardRef(function ConversaMessageStat
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || !onVirtualContentResize || typeof ResizeObserver === "undefined") return undefined;
-    let raf = 0;
     const ro = new ResizeObserver(() => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        onVirtualContentResize();
-      });
+      onVirtualContentResize();
     });
     ro.observe(root);
     return () => {
       ro.disconnect();
-      if (raf) cancelAnimationFrame(raf);
     };
   }, [onVirtualContentResize, count]);
 

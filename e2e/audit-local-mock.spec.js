@@ -497,3 +497,132 @@ test("troca rápida ignora resposta antiga e mantém thread longo virtualizado",
   );
   expect(scrollGap).toBeLessThan(240);
 });
+
+test("abertura e envio mantêm o thread visualmente estável", async ({ page }, testInfo) => {
+  await installAuditSession(page);
+
+  const stableMessages = Array.from({ length: 120 }, (_, index) => ({
+    id: 40_000 + index,
+    conversa_id: 1,
+    texto: `Mensagem de estabilidade ${index + 1} ${"conteúdo ".repeat((index % 4) + 1)}`,
+    direcao: index % 2 === 0 ? "in" : "out",
+    criado_em: new Date(Date.UTC(2026, 6, 24, 12, 0, 0) + index * 1000).toISOString(),
+    status: "lido",
+  }));
+
+  await page.route(`${API}/**`, async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname;
+
+    if (path.startsWith("/socket.io")) {
+      await route.abort();
+      return;
+    }
+    if (path === "/usuarios/me") {
+      await route.fulfill({ json: { id: 1, perfil: "admin", role: "admin" } });
+      return;
+    }
+    if (path === "/usuarios/me/permissoes") {
+      await route.fulfill({ json: { permissoes: [] } });
+      return;
+    }
+    if (path === "/config/empresa") {
+      await route.fulfill({ json: { id: 1, nome: "ZapERP Auditoria" } });
+      return;
+    }
+    if (path === "/chats/whatsapp-instances") {
+      await route.fulfill({ json: { instances: [], active_count: 0 } });
+      return;
+    }
+    if (path === "/tags" || path === "/dashboard/departamentos") {
+      await route.fulfill({ json: [] });
+      return;
+    }
+    if (path === "/chats/counts") {
+      await route.fulfill({ json: { todas: 2, minha_fila: 2, em_atendimento: 2 } });
+      return;
+    }
+    if (path === "/chats" && request.method() === "GET") {
+      await route.fulfill({ json: chats });
+      return;
+    }
+    if (path === "/chats/1" && request.method() === "GET") {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      await route.fulfill({
+        json: {
+          conversa: { ...chats[0], cliente_nome: chats[0].contato_nome, mensagens_bloqueadas: false },
+          mensagens: stableMessages,
+          next_cursor: null,
+          tags: [],
+        },
+      });
+      return;
+    }
+    if (path === "/chats/1/mensagens" && request.method() === "POST") {
+      const body = request.postDataJSON();
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      await route.fulfill({
+        json: {
+          mensagem: {
+            id: 50_001,
+            conversa_id: 1,
+            texto: body.texto,
+            client_temp_id: body.client_temp_id,
+            direcao: "out",
+            criado_em: new Date().toISOString(),
+            status: "enviado",
+          },
+        },
+      });
+      return;
+    }
+    await route.fulfill({ json: {} });
+  });
+
+  await page.goto("/atendimento");
+  const firstRow = page.locator(".chat-list-row").filter({ hasText: "Contato Auditoria" });
+  await expect(firstRow).toHaveCount(1);
+  if (testInfo.project.name.includes("mobile")) {
+    await firstRow.tap();
+  } else {
+    await firstRow.click();
+  }
+
+  const threadRoot = page.locator(".wa-messages-virtual-root");
+  await expect(threadRoot).toBeVisible();
+  await expect(page.locator(".wa-messages")).not.toHaveClass(/wa-messages--opening/);
+
+  const revealStyle = await threadRoot.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { animationName: style.animationName, opacity: Number(style.opacity) };
+  });
+
+  const composer = page.locator(".wa-input");
+  await composer.fill("Linha visual 1\nLinha visual 2\nLinha visual 3");
+  await page.locator(".wa-messages").evaluate((element) => {
+    window.__waVisualSamples = [];
+    const startedAt = performance.now();
+    const sample = () => {
+      const gap = Math.max(0, element.scrollHeight - element.clientHeight - element.scrollTop);
+      window.__waVisualSamples.push(gap);
+      if (performance.now() - startedAt < 700) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+
+  await page.getByRole("button", { name: "Enviar mensagem" }).click();
+  await expect(page.locator(".wa-bubble").filter({ hasText: "Linha visual 1" })).toHaveCount(1);
+  await page.waitForTimeout(750);
+
+  const scrollSamples = await page.evaluate(() => window.__waVisualSamples || []);
+  expect(scrollSamples.length).toBeGreaterThan(5);
+  const displacedFrames = scrollSamples.filter((gap) => gap > 4);
+  expect(
+    displacedFrames.length,
+    `gaps observados: ${JSON.stringify(scrollSamples.slice(0, 20))}`
+  ).toBeLessThanOrEqual(1);
+  expect(scrollSamples.at(-1)).toBeLessThanOrEqual(4);
+  expect(revealStyle.animationName).toBe("none");
+  expect(revealStyle.opacity).toBe(1);
+});

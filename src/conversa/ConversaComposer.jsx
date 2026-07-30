@@ -584,7 +584,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   useLayoutEffect(() => {
     const len = String(texto ?? "").length;
     const threadKey = scrollThreadId ?? conversaId;
-    onTextMetrics?.({ length: len, threadKey, loading });
+    const height = Number(inputRef.current?.offsetHeight) || 0;
+    onTextMetrics?.({ length: len, height, threadKey, loading });
     if (String(prevTextConversaRef.current) !== String(threadKey ?? "")) {
       prevTextConversaRef.current = threadKey;
       prevTextLenRef.current = len;
@@ -593,7 +594,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     const prevLen = prevTextLenRef.current;
     prevTextLenRef.current = len;
     if (prevLen <= 0 || len !== 0) return;
-    onTextMetrics?.({ length: len, threadKey, loading, cleared: true });
+    onTextMetrics?.({ length: len, height, threadKey, loading, cleared: true });
   }, [texto, conversaId, scrollThreadId, loading, onTextMetrics]);
 
   useEffect(() => {

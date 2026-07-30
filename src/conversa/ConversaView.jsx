@@ -505,8 +505,35 @@ function ConversaViewBody() {
     composerRef.current?.focusInput?.({ force });
   }, []);
 
-  /** Métricas do composer — scroll ao enviar fica só em useAutoScroll (evita duplo snap). */
-  const handleComposerTextMetrics = useCallback(() => {}, []);
+  const composerTextareaHeightRef = useRef({ threadKey: null, height: 0 });
+
+  /**
+   * Quando o textarea ganha uma linha, a viewport das mensagens encolhe. Como o thread
+   * desliga o scroll anchoring nativo, preservamos explicitamente a âncora inferior antes
+   * do paint. Ao limpar/enviar, useAutoScroll continua sendo a única rotina de snap.
+   */
+  const handleComposerTextMetrics = useCallback(({ height, threadKey, cleared } = {}) => {
+    const nextThreadKey = threadKey == null ? null : String(threadKey);
+    const nextHeight = Math.max(0, Number(height) || 0);
+    const previous = composerTextareaHeightRef.current;
+
+    if (previous.threadKey !== nextThreadKey) {
+      composerTextareaHeightRef.current = { threadKey: nextThreadKey, height: nextHeight };
+      return;
+    }
+
+    composerTextareaHeightRef.current = { threadKey: nextThreadKey, height: nextHeight };
+    if (cleared || nextHeight <= previous.height) return;
+    if (userScrollLockRef.current || !shouldStickToBottomRef.current) return;
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    try {
+      container.scrollTop = container.scrollHeight;
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     const currentBlobUrl = pendingPreview || null;
@@ -1022,24 +1049,6 @@ function ConversaViewBody() {
     restoreMessagesScrollAnchor(messagesContainerRef.current, anchor);
   }, [selectMode]);
 
-  const snapOptimisticSendToBottom = useCallback(() => {
-    if (userScrollLockRef.current) return;
-    const c = messagesContainerRef.current;
-    if (!c) return;
-    const guard = {
-      canSnap: () => !userScrollLockRef.current,
-      followUpFrame: !headerCompact,
-    };
-    snapThreadToBottom(c, virtualThreadRef, { min: true, ...guard });
-    if (!headerCompact && typeof window !== "undefined") {
-      window.requestAnimationFrame?.(() => {
-        if (!userScrollLockRef.current) {
-          snapThreadToBottom(c, virtualThreadRef, { min: true, followUpFrame: false, ...guard });
-        }
-      });
-    }
-  }, [headerCompact]);
-
   /** Evita animação zapAnimateIn na bolha otimista (parece “pulo” ao enviar). */
   const markOptimisticSeen = useCallback(
     (msg) => {
@@ -1080,7 +1089,6 @@ function ConversaViewBody() {
           bumpList: false,
         }).revert;
       }
-      snapOptimisticSendToBottom();
       return modoSimplesRevert;
     },
     [
@@ -1090,7 +1098,6 @@ function ConversaViewBody() {
       fromChat,
       markOptimisticSeen,
       modoSimplesAtivo,
-      snapOptimisticSendToBottom,
     ]
   );
 
@@ -1514,10 +1521,14 @@ function ConversaViewBody() {
     if (!el) return;
     const top = el.scrollTop;
     const prevTop = messagesLastScrollTopRef.current;
-    if (top < prevTop - 1) {
+    /*
+     * Um scroll para cima não prova intenção do utilizador: o virtualizer também
+     * altera scrollTop durante medições. Só bloqueamos a âncora quando wheel/touch
+     * já marcou uma interação humana, evitando confundir correção interna com gesto.
+     */
+    if (top < prevTop - 1 && userScrollLockRef.current) {
       shouldStickToBottomRef.current = false;
       cancelOpenSnapPendingRef.current?.();
-      lockUserScroll();
       scheduleUserScrollUnlock(headerCompact ? 320 : 240);
     } else {
       if (isNearBottom(el, 120)) {
@@ -1599,11 +1610,14 @@ function ConversaViewBody() {
       }
     };
     const onPointerDown = (e) => {
-      if (e.pointerType && e.pointerType !== "touch") return;
+      const isTouchPointer = !e.pointerType || e.pointerType === "touch";
+      const isScrollbarPointer = e.pointerType === "mouse" && e.target === el;
+      if (!isTouchPointer && !isScrollbarPointer) return;
       userInterruptedOpenSnapRef.current = true;
       lockUserScroll();
       releaseStickToBottom();
       cancelOpenSnapPendingRef.current?.();
+      if (isScrollbarPointer) scheduleUserScrollUnlock(240);
     };
     el.addEventListener("pointerdown", onPointerDown, { passive: true });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -3214,7 +3228,7 @@ function ConversaViewBody() {
       return undefined;
     }
     setThreadOpening(true);
-    const fallback = window.setTimeout(() => setThreadOpening(false), 2500);
+    const fallback = window.setTimeout(() => setThreadOpening(false), 1000);
     return () => window.clearTimeout(fallback);
   }, [conversaId]);
 
@@ -3227,66 +3241,23 @@ function ConversaViewBody() {
     if (!threadOpening || loading || !conversaId) return undefined;
     if (!hasThreadMessageRows) return undefined;
 
-    let rafId = 0;
-    let settleTimer = 0;
-    let fallbackTimer = 0;
-    let released = false;
-    let attempts = 0;
-
-    const release = () => {
-      if (released) return;
-      released = true;
-      const container = messagesContainerRef.current;
-      if (container && !userScrollLockRef.current) {
-        snapThreadToBottom(container, virtualThreadRef, {
-          min: true,
-          followUpFrame: false,
-          canSnap: () => !userScrollLockRef.current,
-        });
-      }
-      setThreadOpening(false);
-    };
-
-    const waitForRenderedRows = () => {
-      const container = messagesContainerRef.current;
-      const renderedRows =
-        container?.querySelectorAll?.(".wa-row, .wa-messages-virtual-root [data-virtual-index]")?.length || 0;
-      if (renderedRows === 0 && attempts < 8) {
-        attempts += 1;
-        rafId = window.requestAnimationFrame(waitForRenderedRows);
-        return;
-      }
-
-      if (container && !userScrollLockRef.current) {
-        snapThreadToBottom(container, virtualThreadRef, {
-          min: true,
-          followUpFrame: false,
-          canSnap: () => !userScrollLockRef.current,
-        });
-      }
-
-      rafId = window.requestAnimationFrame(() => {
-        const container = messagesContainerRef.current;
-        const hasLoadingImage = Boolean(container?.querySelector?.(".wa-bubble-img.is-loading"));
-        const hasAudioLayout = Boolean(container?.querySelector?.(".audio-message, .wa-audioPlayer, audio"));
-        if (hasLoadingImage || hasAudioLayout) {
-          settleTimer = window.setTimeout(release, hasAudioLayout ? 380 : 220);
-        } else {
-          release();
-        }
+    const container = messagesContainerRef.current;
+    if (container && !userScrollLockRef.current) {
+      snapThreadToBottom(container, virtualThreadRef, {
+        min: true,
+        followUpFrame: false,
+        canSnap: () => !userScrollLockRef.current,
       });
-    };
+    }
 
-    rafId = window.requestAnimationFrame(waitForRenderedRows);
-    fallbackTimer = window.setTimeout(release, 950);
-
-    return () => {
-      released = true;
-      if (rafId) window.cancelAnimationFrame(rafId);
-      if (settleTimer) window.clearTimeout(settleTimer);
-      if (fallbackTimer) window.clearTimeout(fallbackTimer);
-    };
-  }, [threadOpening, loading, conversaId, hasThreadMessageRows, mensagensComSeparadores, virtualThreadRef]);
+    /*
+     * useLayoutEffect termina antes do paint: a conversa já chega ao primeiro frame
+     * posicionada no fim, sem manter o conteúdo invisível por timers arbitrários.
+     * Redimensionamentos tardios de mídia continuam cobertos por snapIfStickBottom.
+     */
+    setThreadOpening(false);
+    return undefined;
+  }, [threadOpening, loading, conversaId, hasThreadMessageRows]);
 
   useEffect(() => {
     if (!import.meta?.env?.DEV) return;

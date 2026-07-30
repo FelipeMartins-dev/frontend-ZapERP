@@ -1920,24 +1920,6 @@
   opacity: 0;
 }
 
-/*
- * Correção do "pisca" ao abrir/trocar conversa no mobile.
- * A animação wa-threadReveal (definida mais abaixo) roda no mount da lista e, por
- * ser animação ativa, SOBREPUNHA o `opacity:0` do mask de abertura acima — ou seja,
- * o conteúdo não ficava realmente oculto durante o snap para o fim da conversa, e o
- * salto de scroll aparecia como um piscar. Aqui, enquanto o mask está ativo,
- * desligamos a animação e forçamos oculto (seletor com mais especificidade vence).
- * Ao liberar (classe removida), `animation` volta a wa-threadReveal e faz UM fade
- * limpo, já posicionado no fim — sem piscar. Vale para mobile e desktop: o mask
- * espera as linhas renderizarem e o snap para o fim antes de revelar, então o
- * "pulo" nunca aparece em nenhuma tela.
- */
-.wa-messages.wa-messages--opening .wa-messages-virtual-root,
-.wa-messages.wa-messages--opening .wa-messages-static-root {
-  animation: none;
-  opacity: 0;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .wa-messages .wa-bubble.zap-message-enter {
     animation: none !important;
@@ -1987,6 +1969,10 @@
 }
 
 @media (min-width: 641px) {
+  .wa-messages {
+    scrollbar-gutter: stable;
+  }
+
   .wa-messages.is-scrolling .wa-messages-virtual-root > div {
     contain: layout style paint;
   }
@@ -2093,32 +2079,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-}
-
-/*
- * Revelação suave ao abrir a conversa.
- * A lista remonta ao entrar em cada conversa (key por conversaId) e após o
- * skeleton, então esta animação reexecuta só na abertura — nunca a cada nova
- * mensagem. O breve "hold" invisível inicial mascara o reposicionamento do
- * virtualizer (estimativa -> medição real) e o snap para o fim, eliminando os
- * "pisques". É CSS puro e termina sempre em opacity:1 (jamais oculta mensagens).
- */
-@keyframes wa-threadReveal {
-  0% { opacity: 0; }
-  22% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-.wa-messages-virtual-root,
-.wa-messages-static-root {
-  animation: wa-threadReveal 180ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wa-messages-virtual-root,
-  .wa-messages-static-root {
-    animation: none;
-  }
 }
 
 .wa-messages::-webkit-scrollbar {
