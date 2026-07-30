@@ -119,6 +119,10 @@
   grid-template-columns: repeat(4, minmax(170px, 1fr));
 }
 
+.dash-kpi-grid--overview {
+  grid-template-columns: repeat(7, minmax(145px, 1fr));
+}
+
 .dash-layout-2 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1043,7 +1047,7 @@
 
 .dash-sla-focus-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1636,6 +1640,12 @@
   .dash-sla-config-panel,
   .dash-sla-tipo-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1500px) {
+  .dash-kpi-grid--overview {
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
   }
 }
 

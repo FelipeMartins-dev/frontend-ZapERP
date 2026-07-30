@@ -203,9 +203,10 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
         text={`KPIs e gráficos abaixo consideram ${periodoLabel}, no fuso ${periodo?.timezone || 'America/Sao_Paulo'}, e a instância ${instancia?.nome || 'WhatsApp principal'}. Indicadores sem base suficiente aparecem sem número calculado.`}
       />
 
-      <section className="dash-kpi-grid" aria-label="Indicadores principais">
-        <MetricCard icon={Inbox} label="Clientes atendidos hoje" value={kpis.atendimentos_hoje ?? 0} hint="Clientes distintos que receberam ao menos uma resposta humana hoje, pelo sistema ou celular." />
-        <MetricCard icon={TimerReset} label="Tempo médio de resposta" value={formatMin(kpis.tempo_medio_resposta_min ?? kpis.tempo_primeira_resposta_min)} tone="blue" hint={`Média de cada espera do cliente até a ${slaContaAutomacao ? 'resposta válida seguinte; a configuração atual inclui automações' : 'resposta humana seguinte'}.`} />
+      <section className="dash-kpi-grid dash-kpi-grid--overview" aria-label="Indicadores principais">
+        <MetricCard icon={Inbox} label="Clientes com conversa hoje" value={kpis.atendimentos_hoje ?? 0} hint="Clientes distintos com ao menos uma mensagem real recebida ou enviada hoje. Grupos não entram nesta contagem." />
+        <MetricCard icon={TimerReset} label="Tempo médio de resposta" value={formatMin(kpis.tempo_medio_resposta_min)} tone="blue" hint={`Média de todas as esperas respondidas no período até a ${slaContaAutomacao ? 'resposta válida seguinte; a configuração atual inclui automações' : 'resposta humana seguinte'}.`} />
+        <MetricCard icon={Clock} label="Tempo médio 1ª resposta" value={formatMin(kpis.tempo_primeira_resposta_min)} tone="blue" hint="Em cada cliente, considera somente a primeira espera iniciada dentro do período selecionado." />
         <MetricCard icon={ShieldCheck} label="SLA das respostas" value={kpis.sla_percent != null ? `${kpis.sla_percent}%` : 'Sem dados'} tone="green" hint={`Percentual dos ciclos respondidos dentro da meta${slaContaAutomacao ? ', incluindo automações conforme a configuração atual' : ''}.`} />
         <MetricCard icon={Users} label="Atendente destaque" value={kpis.atendente_mais_produtivo || 'Sem dados'} tone="muted" hint="Maior volume de conversas atribuídas." />
         {simpleMode ? (
@@ -266,7 +267,7 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
             <div className="dash-mini-grid">
               <MiniStat label="Aguardando atendente" value={kpis.aguardando_atendente ?? 0} />
               <MiniStat label="Aguardando cliente" value={kpis.aguardando_cliente ?? 0} />
-              <MiniStat label="Clientes atendidos hoje" value={kpis.atendimentos_hoje ?? 0} />
+              <MiniStat label="Clientes com conversa hoje" value={kpis.atendimentos_hoje ?? 0} />
             </div>
             <p className="dash-footnote">Os estados legados de ticket permanecem apenas no banco para compatibilidade e não definem esta fila.</p>
           </Panel>
@@ -735,7 +736,8 @@ function DashboardSLA({ navigate }) {
           />
 
           <section className="dash-sla-focus-grid" aria-label="Indicadores essenciais do SLA">
-            <MetricCard icon={TimerReset} label="Espera média" value={formatMin(resumo.tempo_medio_primeira_resposta_min)} tone="blue" hint={`Média entre o início de cada espera e a ${contaAutomacao ? 'resposta válida seguinte' : 'resposta humana seguinte'}.`} />
+            <MetricCard icon={TimerReset} label="Resposta média" value={formatMin(resumo.tempo_medio_resposta_min)} tone="blue" hint={`Média de todas as esperas respondidas até a ${contaAutomacao ? 'resposta válida seguinte' : 'resposta humana seguinte'}.`} />
+            <MetricCard icon={Clock} label="Primeira resposta média" value={formatMin(resumo.tempo_medio_primeira_resposta_min)} tone="blue" hint="Primeira espera de cada cliente iniciada dentro do período." />
             <MetricCard icon={MessageSquareText} label="Ciclos respondidos" value={ciclosInfo.respondidos ?? resumo.total_analisadas ?? 0} tone="green" hint="Cada nova sequência do cliente conta uma vez, mesmo na mesma conversa." />
             <MetricCard icon={AlertTriangle} label="Aguardando resposta" value={ciclosInfo.sem_resposta ?? resumo.sem_resposta ?? 0} tone="amber" hint={`Ciclos que ainda não receberam ${contaAutomacao ? 'uma resposta válida' : 'resposta humana'}.`} />
             <MetricCard icon={XCircle} label="Acima da meta" value={resumo.fora_sla ?? 0} tone="red" hint={`Respostas que ultrapassaram ${limiteMin} minutos.`} />
@@ -927,7 +929,7 @@ function DashboardSlaDiaria({ navigate }) {
             <MetricCard icon={CalendarDays} label="Dias no período" value={rows.length} />
             <MetricCard icon={FileText} label="Ciclos respondidos" value={data.resumo?.total_analisadas ?? 0} tone="blue" />
             <MetricCard icon={Target} label="Percentual cumprido" value={data.resumo?.percentual_cumprido != null ? `${data.resumo.percentual_cumprido}%` : 'Sem dados'} tone="green" />
-            <MetricCard icon={TimerReset} label="Tempo médio" value={formatMin(data.resumo?.tempo_medio_primeira_resposta_min)} tone="blue" />
+            <MetricCard icon={TimerReset} label="Resposta média" value={formatMin(data.resumo?.tempo_medio_resposta_min)} tone="blue" />
           </section>
 
           {(data.melhor_dia || data.pior_dia) ? (
@@ -985,7 +987,7 @@ function DashboardSlaDiaria({ navigate }) {
                 r.dentro_sla ?? 0,
                 r.fora_sla ?? 0,
                 r.percentual_cumprido != null ? `${r.percentual_cumprido}%` : 'Sem dados',
-                formatMin(r.tempo_medio_primeira_resposta_min),
+                formatMin(r.tempo_medio_resposta_min ?? r.tempo_medio_primeira_resposta_min),
                 formatMin(r.pior_tempo_resposta_min),
                 formatMin(r.melhor_tempo_resposta_min),
                 r.sem_resposta ?? 0,
