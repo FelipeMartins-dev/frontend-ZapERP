@@ -205,8 +205,8 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
 
       <section className="dash-kpi-grid dash-kpi-grid--overview" aria-label="Indicadores principais">
         <MetricCard icon={Inbox} label="Clientes com conversa hoje" value={kpis.atendimentos_hoje ?? 0} hint="Clientes distintos com ao menos uma mensagem real recebida ou enviada hoje. Grupos não entram nesta contagem." />
-        <MetricCard icon={TimerReset} label="Tempo médio de resposta" value={formatMin(kpis.tempo_medio_resposta_min)} tone="blue" hint={`Média de todas as esperas respondidas no período até a ${slaContaAutomacao ? 'resposta válida seguinte; a configuração atual inclui automações' : 'resposta humana seguinte'}.`} />
-        <MetricCard icon={Clock} label="Tempo médio 1ª resposta" value={formatMin(kpis.tempo_primeira_resposta_min)} tone="blue" hint="Em cada cliente, considera somente a primeira espera iniciada dentro do período selecionado." />
+        <MetricCard icon={TimerReset} label="Tempo médio de resposta" value={formatMin(kpis.tempo_medio_resposta_min)} tone="blue" hint={`Média de todas as esperas respondidas no período até a ${slaContaAutomacao ? 'resposta válida seguinte; a configuração atual inclui automações' : 'resposta humana seguinte'}, contando somente das 07:00 às 18:00.`} />
+        <MetricCard icon={Clock} label="Tempo médio 1ª resposta" value={formatMin(kpis.tempo_primeira_resposta_min)} tone="blue" hint="Em cada cliente, considera somente a primeira espera do período e os minutos entre 07:00 e 18:00." />
         <MetricCard icon={ShieldCheck} label="SLA das respostas" value={kpis.sla_percent != null ? `${kpis.sla_percent}%` : 'Sem dados'} tone="green" hint={`Percentual dos ciclos respondidos dentro da meta${slaContaAutomacao ? ', incluindo automações conforme a configuração atual' : ''}.`} />
         <MetricCard icon={Users} label="Atendente destaque" value={kpis.atendente_mais_produtivo || 'Sem dados'} tone="muted" hint="Maior volume de conversas atribuídas." />
         {simpleMode ? (
@@ -553,7 +553,7 @@ function DashboardSLA({ navigate }) {
   const [config, setConfig] = useState({
     sla_minutos_sem_resposta: 30,
     sla_meta_percentual: 90,
-    sla_usar_horario_comercial: false,
+    sla_usar_horario_comercial: true,
     sla_contar_bot_como_resposta: false,
   })
   const [configDraft, setConfigDraft] = useState(null)
@@ -578,7 +578,7 @@ function DashboardSLA({ navigate }) {
         setConfigDraft({
           sla_minutos_sem_resposta: String(merged.sla_minutos_sem_resposta ?? 30),
           sla_meta_percentual: String(merged.sla_meta_percentual ?? 90),
-          sla_usar_horario_comercial: merged.sla_usar_horario_comercial === true,
+          sla_usar_horario_comercial: true,
           sla_contar_bot_como_resposta: merged.sla_contar_bot_como_resposta === true,
           metas_departamentos: (dept || []).map((d) => ({
             departamento_id: d.id,
@@ -618,7 +618,7 @@ function DashboardSLA({ navigate }) {
       const saved = await dashboardApi.setSlaConfig({
         sla_minutos_sem_resposta: Math.max(1, Math.min(1440, parseInt(configDraft.sla_minutos_sem_resposta, 10) || 30)),
         sla_meta_percentual: Math.max(1, Math.min(100, parseInt(configDraft.sla_meta_percentual, 10) || 90)),
-        sla_usar_horario_comercial: configDraft.sla_usar_horario_comercial === true,
+        sla_usar_horario_comercial: true,
         sla_contar_bot_como_resposta: configDraft.sla_contar_bot_como_resposta === true,
         metas_departamentos: configDraft.metas_departamentos || [],
         metas_usuarios: configDraft.metas_usuarios || [],
@@ -627,7 +627,7 @@ function DashboardSLA({ navigate }) {
       setConfigDraft({
         sla_minutos_sem_resposta: String(saved.sla_minutos_sem_resposta ?? 30),
         sla_meta_percentual: String(saved.sla_meta_percentual ?? 90),
-        sla_usar_horario_comercial: saved.sla_usar_horario_comercial === true,
+        sla_usar_horario_comercial: true,
         sla_contar_bot_como_resposta: saved.sla_contar_bot_como_resposta === true,
         metas_departamentos: departamentos.map((d) => ({
           departamento_id: d.id,
@@ -736,8 +736,8 @@ function DashboardSLA({ navigate }) {
           />
 
           <section className="dash-sla-focus-grid" aria-label="Indicadores essenciais do SLA">
-            <MetricCard icon={TimerReset} label="Resposta média" value={formatMin(resumo.tempo_medio_resposta_min)} tone="blue" hint={`Média de todas as esperas respondidas até a ${contaAutomacao ? 'resposta válida seguinte' : 'resposta humana seguinte'}.`} />
-            <MetricCard icon={Clock} label="Primeira resposta média" value={formatMin(resumo.tempo_medio_primeira_resposta_min)} tone="blue" hint="Primeira espera de cada cliente iniciada dentro do período." />
+            <MetricCard icon={TimerReset} label="Resposta média" value={formatMin(resumo.tempo_medio_resposta_min)} tone="blue" hint={`Média de todas as esperas respondidas até a ${contaAutomacao ? 'resposta válida seguinte' : 'resposta humana seguinte'}, contando somente das 07:00 às 18:00.`} />
+            <MetricCard icon={Clock} label="Primeira resposta média" value={formatMin(resumo.tempo_medio_primeira_resposta_min)} tone="blue" hint="Primeira espera de cada cliente no período, contando somente das 07:00 às 18:00." />
             <MetricCard icon={MessageSquareText} label="Ciclos respondidos" value={ciclosInfo.respondidos ?? resumo.total_analisadas ?? 0} tone="green" hint="Cada nova sequência do cliente conta uma vez, mesmo na mesma conversa." />
             <MetricCard icon={AlertTriangle} label="Aguardando resposta" value={ciclosInfo.sem_resposta ?? resumo.sem_resposta ?? 0} tone="amber" hint={`Ciclos que ainda não receberam ${contaAutomacao ? 'uma resposta válida' : 'resposta humana'}.`} />
             <MetricCard icon={XCircle} label="Acima da meta" value={resumo.fora_sla ?? 0} tone="red" hint={`Respostas que ultrapassaram ${limiteMin} minutos.`} />
@@ -746,7 +746,7 @@ function DashboardSLA({ navigate }) {
           <InfoStrip
             icon={ShieldCheck}
             title="Cálculo transparente"
-            text={`Cada ciclo começa na primeira mensagem de uma sequência do cliente e termina na primeira resposta válida. Mensagens seguidas do cliente contam uma vez. ${contaAutomacao ? 'A configuração atual permite que bot/automações encerrem o prazo.' : 'Bot e automações não encerram o prazo.'} Contagem em ${horarioInfo?.modo_contagem === 'horario_comercial' ? 'horário comercial' : 'tempo corrido'}.`}
+            text={`Cada ciclo começa na primeira mensagem de uma sequência do cliente e termina na primeira resposta válida. Mensagens seguidas do cliente contam uma vez. ${contaAutomacao ? 'A configuração atual permite que bot/automações encerrem o prazo.' : 'Bot e automações não encerram o prazo.'} Os minutos contam todos os dias somente das 07:00 às 18:00, no fuso America/Sao_Paulo.`}
           />
 
           {(data.criticas_sem_resposta || []).length > 0 ? (
@@ -1087,10 +1087,10 @@ function SlaConfigPanel({ draft, setDraft, onSave, saving, horarioInfo, departam
             <span className="dash-filter-label">Meta percentual (%)</span>
             <input type="number" min={1} max={100} className="dash-input" value={draft.sla_meta_percentual} onChange={(e) => setDraft((d) => ({ ...d, sla_meta_percentual: e.target.value }))} />
           </label>
-          <label className="dash-sla-check">
-            <input type="checkbox" checked={draft.sla_usar_horario_comercial} onChange={(e) => setDraft((d) => ({ ...d, sla_usar_horario_comercial: e.target.checked }))} />
-            <span>Usar horário comercial no cálculo</span>
-          </label>
+          <div className="dash-sla-check" role="note">
+            <Clock size={18} aria-hidden="true" />
+            <span>Contagem fixa: todos os dias, das 07:00 às 18:00</span>
+          </div>
           <label className="dash-sla-check">
             <input type="checkbox" checked={draft.sla_contar_bot_como_resposta} onChange={(e) => setDraft((d) => ({ ...d, sla_contar_bot_como_resposta: e.target.checked }))} />
             <span>Contar bot/automação como primeira resposta</span>
