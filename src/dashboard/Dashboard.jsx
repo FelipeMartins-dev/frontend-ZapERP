@@ -191,6 +191,8 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
   } = overview
 
   const periodoLabel = !rangeDays ? 'Todo o histórico até agora' : rangeDays === 1 ? 'Hoje (dia local)' : `Últimos ${rangeDays} dias locais, incluindo hoje`
+  const simpleMode = kpis.atendimento_modo_simples === true
+  const slaContaAutomacao = kpis.sla_conta_automacao === true
   const ticketsAbertos = kpis.tickets_abertos ?? ((kpis.abertas || 0) + (kpis.em_atendimento || 0))
 
   return (
@@ -202,12 +204,21 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
       />
 
       <section className="dash-kpi-grid" aria-label="Indicadores principais">
-        <MetricCard icon={Inbox} label="Atendimentos hoje" value={kpis.atendimentos_hoje ?? 0} hint="Conversas distintas com atividade real de WhatsApp no dia local." />
-        <MetricCard icon={TimerReset} label="Tempo médio 1ª resposta" value={formatMin(kpis.tempo_medio_resposta_min ?? kpis.tempo_primeira_resposta_min)} tone="blue" hint="Primeira entrada do cliente até a primeira saída humana válida." />
-        <MetricCard icon={ShieldCheck} label="SLA 1ª resposta" value={kpis.sla_percent != null ? `${kpis.sla_percent}%` : 'Sem dados'} tone="green" hint="Somente conversas com resposta válida." />
+        <MetricCard icon={Inbox} label="Clientes atendidos hoje" value={kpis.atendimentos_hoje ?? 0} hint="Clientes distintos que receberam ao menos uma resposta humana hoje, pelo sistema ou celular." />
+        <MetricCard icon={TimerReset} label="Tempo médio de resposta" value={formatMin(kpis.tempo_medio_resposta_min ?? kpis.tempo_primeira_resposta_min)} tone="blue" hint={`Média de cada espera do cliente até a ${slaContaAutomacao ? 'resposta válida seguinte; a configuração atual inclui automações' : 'resposta humana seguinte'}.`} />
+        <MetricCard icon={ShieldCheck} label="SLA das respostas" value={kpis.sla_percent != null ? `${kpis.sla_percent}%` : 'Sem dados'} tone="green" hint={`Percentual dos ciclos respondidos dentro da meta${slaContaAutomacao ? ', incluindo automações conforme a configuração atual' : ''}.`} />
         <MetricCard icon={Users} label="Atendente destaque" value={kpis.atendente_mais_produtivo || 'Sem dados'} tone="muted" hint="Maior volume de conversas atribuídas." />
-        <MetricCard icon={AlertTriangle} label="Tickets abertos agora" value={ticketsAbertos} tone="amber" hint="Fotografia atual: abertas, em atendimento e aguardando cliente; independe do período." />
-        <MetricCard icon={Target} label="Taxa de conversão" value={kpis.taxa_conversao_percent != null ? `${kpis.taxa_conversao_percent}%` : 'Sem dados'} tone="green" hint="Exibida só quando houver cálculo confiável." />
+        {simpleMode ? (
+          <>
+            <MetricCard icon={AlertTriangle} label="Aguardando atendente" value={kpis.aguardando_atendente ?? 0} tone="amber" hint="Clientes cuja última mensagem real foi recebida e grupos não lidos pelo único atendente." />
+            <MetricCard icon={Clock} label="Aguardando cliente" value={kpis.aguardando_cliente ?? 0} tone="green" hint="Clientes cuja última interação real foi uma resposta humana." />
+          </>
+        ) : (
+          <>
+            <MetricCard icon={AlertTriangle} label="Tickets abertos agora" value={ticketsAbertos} tone="amber" hint="Fotografia atual: abertas, em atendimento e aguardando cliente; independe do período." />
+            <MetricCard icon={Target} label="Taxa de conversão" value={kpis.taxa_conversao_percent != null ? `${kpis.taxa_conversao_percent}%` : 'Sem dados'} tone="green" hint="Exibida só quando houver cálculo confiável." />
+          </>
+        )}
       </section>
 
       <section className="dash-layout-2">
@@ -250,12 +261,23 @@ function DashboardOverview({ overview, loading, loadErr, rangeDays, onRefresh })
             emptyText="Sem atendentes no período."
           />
         </Panel>
-        <Panel title="Conversas por status" subtitle="Status atual das conversas com atividade no período.">
-          <BarList
-            items={(conversas_por_status || []).map((x) => ({ label: statusLabel(x.status), value: Number(x.total || 0) }))}
-            emptyText="Sem conversas no período."
-          />
-        </Panel>
+        {simpleMode ? (
+          <Panel title="Fila do atendimento simples" subtitle="Situação atual, sem reinterpretar a operação como tickets.">
+            <div className="dash-mini-grid">
+              <MiniStat label="Aguardando atendente" value={kpis.aguardando_atendente ?? 0} />
+              <MiniStat label="Aguardando cliente" value={kpis.aguardando_cliente ?? 0} />
+              <MiniStat label="Clientes atendidos hoje" value={kpis.atendimentos_hoje ?? 0} />
+            </div>
+            <p className="dash-footnote">Os estados legados de ticket permanecem apenas no banco para compatibilidade e não definem esta fila.</p>
+          </Panel>
+        ) : (
+          <Panel title="Conversas por status" subtitle="Status atual das conversas com atividade no período.">
+            <BarList
+              items={(conversas_por_status || []).map((x) => ({ label: statusLabel(x.status), value: Number(x.total || 0) }))}
+              emptyText="Sem conversas no período."
+            />
+          </Panel>
+        )}
       </section>
 
       <Panel title="Conversas por hora" subtitle="Hora local da primeira atividade da conversa dentro do período.">
@@ -655,32 +677,46 @@ function DashboardSLA({ navigate }) {
   const limiteMin = data?.limite_min ?? config.sla_minutos_sem_resposta ?? 30
   const metaPct = data?.meta_percentual ?? config.sla_meta_percentual ?? 90
   const horarioInfo = data?.horario_comercial || config.horario_comercial
+  const ciclosInfo = data?.por_tipo?.ciclos_resposta || {}
+  const contaAutomacao = data?.config?.sla_contar_bot_como_resposta === true
+  const respostaValidaLabel = contaAutomacao ? 'Resposta válida' : 'Resposta humana'
 
   return (
     <div className="dash-stack dash-sla-page">
       <SlaPageHeader
         icon={Zap}
-        title="SLA de primeira resposta"
-        description="Métricas confiáveis com exclusão de bot/automação, horário comercial opcional e metas por empresa, setor ou atendente."
+        title="SLA de atendimento"
+        description="Uma leitura simples de quanto o cliente espera por cada resposta humana, com dados do sistema e do celular."
       />
 
       {(erro || ok) ? <AlertBanner type={ok ? 'success' : 'error'} text={erro || ok} onClose={() => { setErro(''); setOk('') }} /> : null}
 
-      <Panel title="Filtros de SLA" subtitle="Refine por período, atendente, setor ou status da conversa." className="dash-sla-panel-filters">
+      <Panel title="Período analisado" subtitle="Escolha a janela que o administrador quer acompanhar." className="dash-sla-panel-filters">
         <SlaFilters filters={filters} setFilters={setFilters} usuarios={usuarios} departamentos={departamentos} onApply={() => loadSla()} loading={loading} />
       </Panel>
 
       {configDraft ? (
-        <SlaConfigPanel
-          draft={configDraft}
-          setDraft={setConfigDraft}
-          onSave={salvarSla}
-          saving={saving}
-          horarioInfo={horarioInfo}
-          departamentos={departamentos}
-          usuarios={usuarios}
-          config={config}
-        />
+        <details className="dash-sla-disclosure">
+          <summary>
+            <span>
+              <strong>Configuração do SLA</strong>
+              <small>Meta, horário comercial e regras avançadas</small>
+            </span>
+            <span className="dash-sla-disclosure-badge">{limiteMin} min</span>
+          </summary>
+          <div className="dash-sla-disclosure-body">
+            <SlaConfigPanel
+              draft={configDraft}
+              setDraft={setConfigDraft}
+              onSave={salvarSla}
+              saving={saving}
+              horarioInfo={horarioInfo}
+              departamentos={departamentos}
+              usuarios={usuarios}
+              config={config}
+            />
+          </div>
+        </details>
       ) : null}
 
       {loading ? (
@@ -692,107 +728,107 @@ function DashboardSLA({ navigate }) {
           <SlaSummaryBanner
             percentual={resumo.percentual_cumprido}
             limiteMin={limiteMin}
+            metaPercentual={metaPct}
             totalAnalisadas={resumo.total_analisadas ?? 0}
             dentroSla={resumo.dentro_sla ?? 0}
             foraSla={resumo.fora_sla ?? 0}
           />
 
-          {data.tendencia ? <SlaTrendBadge tendencia={data.tendencia} /> : null}
-
-          {horarioInfo?.resumo ? (
-            <InfoStrip icon={Clock} title={`Modo de contagem: ${horarioInfo.modo_contagem === 'horario_comercial' ? 'Horário comercial' : 'Tempo corrido'}`} text={horarioInfo.resumo} />
-          ) : null}
-
-          <SlaTipoBreakdown porTipo={data.por_tipo} resumo={resumo} metaPct={metaPct} limiteMin={limiteMin} />
-
-          <section className="dash-kpi-grid dash-sla-kpi-grid dash-sla-kpi-grid--wide">
-            <MetricCard icon={FileText} label="Conversas analisadas" value={resumo.total_analisadas ?? 0} tone="blue" />
-            <MetricCard icon={CheckCircle2} label="Dentro do SLA" value={resumo.dentro_sla ?? 0} tone="green" />
-            <MetricCard icon={XCircle} label="Fora do SLA" value={resumo.fora_sla ?? 0} tone="red" />
-            <MetricCard icon={AlertTriangle} label="Aguardando 1ª resposta" value={resumo.sem_resposta ?? 0} tone="amber" hint="Exibidas separadamente; não elevam silenciosamente o total analisado." />
-            <MetricCard icon={HelpCircle} label="Dados insuficientes" value={resumo.dados_insuficientes ?? 0} tone="muted" hint="Registros sem base temporal válida para cálculo." />
-            <MetricCard icon={TimerReset} label="Tempo médio 1ª resp." value={formatMin(resumo.tempo_medio_primeira_resposta_min)} tone="blue" />
-            <MetricCard icon={TrendingUp} label="Melhor tempo" value={formatMin(resumo.melhor_tempo_resposta_min)} tone="green" />
-            <MetricCard icon={TrendingUp} label="Pior tempo" value={formatMin(resumo.pior_tempo_resposta_min)} tone="red" />
-            <MetricCard icon={Target} label="% cumprimento" value={resumo.percentual_cumprido != null ? `${resumo.percentual_cumprido}%` : 'Sem dados'} tone="green" />
-            <MetricCard icon={Clock} label="Meta configurada" value={`${limiteMin} min`} hint={`Referência ${metaPct}%`} />
+          <section className="dash-sla-focus-grid" aria-label="Indicadores essenciais do SLA">
+            <MetricCard icon={TimerReset} label="Espera média" value={formatMin(resumo.tempo_medio_primeira_resposta_min)} tone="blue" hint={`Média entre o início de cada espera e a ${contaAutomacao ? 'resposta válida seguinte' : 'resposta humana seguinte'}.`} />
+            <MetricCard icon={MessageSquareText} label="Ciclos respondidos" value={ciclosInfo.respondidos ?? resumo.total_analisadas ?? 0} tone="green" hint="Cada nova sequência do cliente conta uma vez, mesmo na mesma conversa." />
+            <MetricCard icon={AlertTriangle} label="Aguardando resposta" value={ciclosInfo.sem_resposta ?? resumo.sem_resposta ?? 0} tone="amber" hint={`Ciclos que ainda não receberam ${contaAutomacao ? 'uma resposta válida' : 'resposta humana'}.`} />
+            <MetricCard icon={XCircle} label="Acima da meta" value={resumo.fora_sla ?? 0} tone="red" hint={`Respostas que ultrapassaram ${limiteMin} minutos.`} />
           </section>
 
-          <div className="dash-sla-export-bar">
-            <div className="dash-sla-export-copy">
-              <Download size={18} aria-hidden="true" />
-              <div>
-                <strong>Exportar dados de SLA</strong>
-                <span>Mesmos filtros da tela — resumo ou lista detalhada (CSV/XLSX).</span>
-              </div>
-            </div>
-            <div className="dash-sla-export-actions">
-              <IconButton icon={Download} label={exporting ? 'Exportando' : 'CSV detalhado'} onClick={() => exportarSla('csv', 'detalhado')} variant="outline" disabled={exporting} />
-              <IconButton icon={Download} label="XLSX detalhado" onClick={() => exportarSla('xlsx', 'detalhado')} variant="outline" disabled={exporting} />
-              <IconButton icon={Download} label="CSV resumo" onClick={() => exportarSla('csv', 'resumo')} variant="outline" disabled={exporting} />
-            </div>
-          </div>
-
-          <section className="dash-layout-2">
-            <Panel title="Melhor SLA por atendente" subtitle="Maior percentual de cumprimento.">
-              <SlaRankingList rows={data.ranking_atendentes_melhor} />
-            </Panel>
-            <Panel title="Mais violações por atendente" subtitle="Maior quantidade de conversas fora do SLA.">
-              <SlaViolationRankingList rows={data.ranking_atendentes_violacoes} />
-            </Panel>
-          </section>
-
-          <section className="dash-layout-2">
-            <Panel title="Ranking por setor" subtitle="Comparativo de cumprimento entre departamentos.">
-              <SlaRankingList rows={data.ranking_setores} />
-            </Panel>
-            <Panel title="Horários com mais violações" subtitle="Baseado na hora da primeira mensagem do cliente.">
-              <SlaHourRanking rows={data.horarios_maior_violacao} />
-            </Panel>
-          </section>
-
-          <Panel title="Dias da semana com pior SLA" subtitle="Concentração de violações por dia da semana.">
-            <SlaWeekdayRanking rows={data.dias_semana_pior_sla} />
-          </Panel>
+          <InfoStrip
+            icon={ShieldCheck}
+            title="Cálculo transparente"
+            text={`Cada ciclo começa na primeira mensagem de uma sequência do cliente e termina na primeira resposta válida. Mensagens seguidas do cliente contam uma vez. ${contaAutomacao ? 'A configuração atual permite que bot/automações encerrem o prazo.' : 'Bot e automações não encerram o prazo.'} Contagem em ${horarioInfo?.modo_contagem === 'horario_comercial' ? 'horário comercial' : 'tempo corrido'}.`}
+          />
 
           {(data.criticas_sem_resposta || []).length > 0 ? (
-            <Panel title="Conversas críticas sem resposta" subtitle="Abertas/em atendimento acima da meta — requerem ação." className="dash-sla-panel-danger">
-              <SlaDetailedTable rows={data.criticas_sem_resposta} onOpen={(id) => navigate('/atendimento', { state: { openConversaId: id } })} />
+            <Panel title="Precisa de atenção agora" subtitle={`Clientes ainda sem ${contaAutomacao ? 'resposta válida' : 'resposta humana'} e acima da meta.`} className="dash-sla-panel-danger">
+              <SlaDetailedTable rows={data.criticas_sem_resposta} responseLabel={respostaValidaLabel} onOpen={(id) => navigate('/atendimento', { state: { openConversaId: id } })} />
             </Panel>
           ) : null}
 
-          <Panel title="Lista detalhada de conversas" subtitle="Todas as categorias: cumpriu, violou, sem resposta e dados insuficientes." className="dash-sla-panel-danger">
-            <SlaDetailedTable rows={data.conversas_detalhadas || data.violacoes} onOpen={(id) => navigate('/atendimento', { state: { openConversaId: id } })} />
+          <Panel title="Ciclos de atendimento" subtitle="Histórico auditável: cada linha é uma espera real do cliente no período.">
+            <SlaDetailedTable rows={(data.conversas_detalhadas || []).slice(0, 100)} responseLabel={respostaValidaLabel} onOpen={(id) => navigate('/atendimento', { state: { openConversaId: id } })} />
           </Panel>
 
-          {(data.reabertura || []).length > 0 ? (
-            <Panel title="SLA após reabertura" subtitle="Conversas reabertas por falta de interação — ciclo separado da primeira resposta.">
-              <SlaDetailedTable rows={data.reabertura} onOpen={(id) => navigate('/atendimento', { state: { openConversaId: id } })} />
-            </Panel>
-          ) : null}
+          <details className="dash-sla-disclosure dash-sla-disclosure--analysis">
+            <summary>
+              <span>
+                <strong>Análise avançada e exportação</strong>
+                <small>Tendência, rankings, horários, auditoria e arquivos</small>
+              </span>
+              <span className="dash-sla-disclosure-badge">Opcional</span>
+            </summary>
+            <div className="dash-sla-disclosure-body dash-stack">
+              {data.tendencia ? <SlaTrendBadge tendencia={data.tendencia} /> : null}
 
-          <Panel title="Validar SLA de uma conversa" subtitle="Conferência manual: compare passo a passo com o banco de dados.">
-            <div className="dash-sla-validacao">
-              <div className="dash-sla-config-input-row">
-                <input type="number" className="dash-input" placeholder="ID da conversa" value={validacaoId} onChange={(e) => setValidacaoId(e.target.value)} aria-label="ID da conversa para validação" />
-                <IconButton icon={Search} label={validando ? 'Validando' : 'Validar'} onClick={validarConversa} disabled={validando || !validacaoId} />
-              </div>
-              {validacao ? (
-                <div className="dash-sla-validacao-result">
-                  <p><strong>Status:</strong> <SlaStatusBadge status={validacao.resultado?.status_sla} /> · Meta: {validacao.config?.limite_min} min ({validacao.config?.meta_origem_label})</p>
-                  <ol className="dash-sla-validacao-steps">
-                    {(validacao.passos_validacao || []).map((p) => (
-                      <li key={p.passo}>
-                        <strong>Passo {p.passo}:</strong> {p.descricao}
-                        {p.em ? ` — ${formatDateTime(p.em)}` : ''}
-                        {p.minutos != null ? ` — ${p.minutos} min (${p.status_sla})` : ''}
-                      </li>
-                    ))}
-                  </ol>
+              <div className="dash-sla-export-bar">
+                <div className="dash-sla-export-copy">
+                  <Download size={18} aria-hidden="true" />
+                  <div>
+                    <strong>Exportar dados auditáveis</strong>
+                    <span>Mesmos filtros da tela, em resumo ou lista detalhada.</span>
+                  </div>
                 </div>
-              ) : null}
+                <div className="dash-sla-export-actions">
+                  <IconButton icon={Download} label={exporting ? 'Exportando' : 'CSV detalhado'} onClick={() => exportarSla('csv', 'detalhado')} variant="outline" disabled={exporting} />
+                  <IconButton icon={Download} label="XLSX detalhado" onClick={() => exportarSla('xlsx', 'detalhado')} variant="outline" disabled={exporting} />
+                  <IconButton icon={Download} label="CSV resumo" onClick={() => exportarSla('csv', 'resumo')} variant="outline" disabled={exporting} />
+                </div>
+              </div>
+
+              <section className="dash-layout-2">
+                <Panel title="Cumprimento por atendente" subtitle="Percentual dos ciclos respondidos dentro da meta.">
+                  <SlaRankingList rows={data.ranking_atendentes_melhor} />
+                </Panel>
+                <Panel title="Violações por atendente" subtitle="Quantidade de ciclos acima da meta.">
+                  <SlaViolationRankingList rows={data.ranking_atendentes_violacoes} />
+                </Panel>
+              </section>
+
+              <section className="dash-layout-2">
+                <Panel title="Comparativo por setor" subtitle="Ciclos e cumprimento por área.">
+                  <SlaRankingList rows={data.ranking_setores} />
+                </Panel>
+                <Panel title="Horários mais críticos" subtitle="Horário em que a espera do cliente começou.">
+                  <SlaHourRanking rows={data.horarios_maior_violacao} />
+                </Panel>
+              </section>
+
+              <Panel title="Dias da semana mais críticos" subtitle="Concentração de ciclos acima da meta.">
+                <SlaWeekdayRanking rows={data.dias_semana_pior_sla} />
+              </Panel>
+
+              <Panel title="Auditar uma conversa" subtitle="Mostra passo a passo o ciclo mais recente da conversa.">
+                <div className="dash-sla-validacao">
+                  <div className="dash-sla-config-input-row">
+                    <input type="number" className="dash-input" placeholder="ID da conversa" value={validacaoId} onChange={(e) => setValidacaoId(e.target.value)} aria-label="ID da conversa para validação" />
+                    <IconButton icon={Search} label={validando ? 'Validando' : 'Validar'} onClick={validarConversa} disabled={validando || !validacaoId} />
+                  </div>
+                  {validacao ? (
+                    <div className="dash-sla-validacao-result">
+                      <p><strong>Status:</strong> <SlaStatusBadge status={validacao.resultado?.status_sla} /> · Meta: {validacao.config?.limite_min} min ({validacao.config?.meta_origem_label})</p>
+                      <ol className="dash-sla-validacao-steps">
+                        {(validacao.passos_validacao || []).map((p) => (
+                          <li key={p.passo}>
+                            <strong>Passo {p.passo}:</strong> {p.descricao}
+                            {p.em ? ` — ${formatDateTime(p.em)}` : ''}
+                            {p.minutos != null ? ` — ${p.minutos} min (${p.status_sla})` : ''}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ) : null}
+                </div>
+              </Panel>
             </div>
-          </Panel>
+          </details>
         </>
       )}
     </div>
@@ -865,13 +901,14 @@ function DashboardSlaDiaria({ navigate }) {
 
   const rows = data?.diario || []
   const metaPct = data?.meta_percentual ?? 90
+  const contaAutomacao = data?.config?.sla_contar_bot_como_resposta === true
 
   return (
     <div className="dash-stack dash-sla-diaria-page">
       <SlaPageHeader
         icon={TrendingUp}
         title="SLA diária"
-        description="Comparativo dia a dia com meta configurável. Clique em um dia para ver as conversas daquela data."
+        description="Comparativo simples dos ciclos de resposta por dia. Clique em uma data para auditar cada espera do cliente."
       />
 
       {erro ? <AlertBanner type="error" text={erro} onClose={() => setErro('')} /> : null}
@@ -888,7 +925,7 @@ function DashboardSlaDiaria({ navigate }) {
         <>
           <section className="dash-kpi-grid dash-kpi-grid--compact dash-sla-kpi-grid">
             <MetricCard icon={CalendarDays} label="Dias no período" value={rows.length} />
-            <MetricCard icon={FileText} label="Conversas analisadas" value={data.resumo?.total_analisadas ?? 0} tone="blue" />
+            <MetricCard icon={FileText} label="Ciclos respondidos" value={data.resumo?.total_analisadas ?? 0} tone="blue" />
             <MetricCard icon={Target} label="Percentual cumprido" value={data.resumo?.percentual_cumprido != null ? `${data.resumo.percentual_cumprido}%` : 'Sem dados'} tone="green" />
             <MetricCard icon={TimerReset} label="Tempo médio" value={formatMin(data.resumo?.tempo_medio_primeira_resposta_min)} tone="blue" />
           </section>
@@ -914,7 +951,7 @@ function DashboardSlaDiaria({ navigate }) {
             </section>
           ) : null}
 
-          <Panel title="Evolução diária" subtitle={`Clique em um dia para detalhar conversas. Meta: ${metaPct}%.`} className="dash-sla-panel-chart">
+          <Panel title="Evolução diária" subtitle={`Clique em um dia para detalhar os ciclos. Meta: ${metaPct}%.`} className="dash-sla-panel-chart">
             <DailySlaChart rows={rows} meta={metaPct} selectedDay={diaSelecionado} onDayClick={abrirDia} />
           </Panel>
 
@@ -934,7 +971,7 @@ function DashboardSlaDiaria({ navigate }) {
 
           <Panel title="Tabela diária" subtitle="Dias abaixo da meta ficam destacados em amarelo.">
             <Table
-              columns={['Data', 'Analisadas', 'Dentro SLA', 'Fora SLA', '% cumprido', 'Média 1ª resp.', 'Pior tempo', 'Melhor tempo', 'Sem resp.', 'Dados insuf.', '']}
+              columns={['Data', 'Ciclos', 'Dentro SLA', 'Fora SLA', '% cumprido', 'Espera média', 'Pior tempo', 'Melhor tempo', 'Sem resp.', 'Dados insuf.', '']}
               rows={rows}
               emptyText="Nenhum dia com dados para os filtros aplicados."
               rowClassName={(r) => {
@@ -959,9 +996,13 @@ function DashboardSlaDiaria({ navigate }) {
           </Panel>
 
           {diaSelecionado ? (
-            <Panel title={`Conversas do dia ${formatDia(diaSelecionado)}`} subtitle="Detalhamento das conversas cuja primeira mensagem do cliente foi nesta data.">
+            <Panel title={`Ciclos do dia ${formatDia(diaSelecionado)}`} subtitle="Cada linha começa em uma nova sequência de mensagens do cliente nesta data.">
               {loadingDia ? <SkeletonGrid count={2} /> : (
-                <SlaDetailedTable rows={diaDetalhe?.conversas_detalhadas || []} onOpen={(id) => navigate('/atendimento', { state: { openConversaId: id } })} />
+                <SlaDetailedTable
+                  rows={diaDetalhe?.conversas_detalhadas || []}
+                  responseLabel={contaAutomacao ? 'Resposta válida' : 'Resposta humana'}
+                  onOpen={(id) => navigate('/atendimento', { state: { openConversaId: id } })}
+                />
               )}
             </Panel>
           ) : null}
@@ -1089,9 +1130,19 @@ function SlaConfigPanel({ draft, setDraft, onSave, saving, horarioInfo, departam
         </div>
         {horarioInfo?.resumo ? <p className="dash-sla-config-hint">{horarioInfo.resumo}</p> : null}
       </Panel>
-      <InfoStrip icon={ShieldCheck} title="Critério seguro" text="Bot, URA e mensagens automáticas não contam como primeira resposta humana, salvo se você ativar a opção acima. Conversas sem resposta humana não entram como violação." />
+      <InfoStrip icon={ShieldCheck} title="Critério seguro" text="Bot, URA e mensagens automáticas não encerram uma espera humana, salvo se você ativar a opção acima. Ciclos sem resposta ficam visíveis separadamente e não inflam o percentual." />
     </section>
   )
+}
+
+function slaCycleLabel(tipo, numero) {
+  const labels = {
+    primeira_resposta: 'Primeiro contato',
+    nova_interacao: 'Nova interação',
+    reabertura: 'Reabertura',
+  }
+  const label = labels[tipo] || 'Atendimento'
+  return numero ? `${label} #${numero}` : label
 }
 
 function SlaStatusBadge({ status }) {
@@ -1158,14 +1209,15 @@ function SlaTipoBreakdown({ porTipo, resumo, metaPct, limiteMin }) {
   )
 }
 
-function SlaDetailedTable({ rows = [], onOpen, showOpen = true }) {
+function SlaDetailedTable({ rows = [], onOpen, showOpen = true, responseLabel = 'Resposta humana' }) {
   return (
     <Table
-      columns={['Cliente', 'Telefone', 'Atendente', 'Setor', '1ª msg cliente', '1ª resposta', 'Tempo', 'Meta', 'Origem meta', 'Status SLA', 'Conversa', ...(showOpen ? [''] : [])]}
+      columns={['Ciclo', 'Cliente', 'Telefone', 'Atendente', 'Setor', 'Início da espera', responseLabel, 'Tempo', 'Meta', 'Origem meta', 'Status SLA', ...(showOpen ? [''] : [])]}
       rows={rows}
-      emptyText="Nenhuma conversa para exibir."
+      emptyText="Nenhum ciclo de atendimento para exibir."
       rowClassName={(r) => (r.status_sla === 'violou' ? 'is-warning' : '')}
       renderRow={(r) => [
+        slaCycleLabel(r.tipo_sla, r.ciclo_numero),
         r.cliente_nome,
         r.telefone || '—',
         r.atendente_nome || '—',
@@ -1176,7 +1228,6 @@ function SlaDetailedTable({ rows = [], onOpen, showOpen = true }) {
         r.limite_min != null ? `${r.limite_min} min` : '—',
         r.meta_origem_label || r.meta_origem || 'Empresa',
         <SlaStatusBadge status={r.status_sla} />,
-        statusLabel(r.status_atendimento),
         ...(showOpen ? [<button type="button" className="dash-link-btn" onClick={() => onOpen(r.conversa_id)}>Abrir</button>] : []),
       ]}
     />
@@ -1253,10 +1304,11 @@ function SlaPageHeader({ icon: Icon, title, description }) {
   )
 }
 
-function SlaSummaryBanner({ percentual, limiteMin, totalAnalisadas, dentroSla, foraSla }) {
+function SlaSummaryBanner({ percentual, limiteMin, metaPercentual, totalAnalisadas, dentroSla, foraSla }) {
   const hasPct = percentual != null
   const pct = hasPct ? Number(percentual) : null
-  const tone = !hasPct ? 'neutral' : pct >= 90 ? 'good' : pct >= 70 ? 'warn' : 'bad'
+  const target = Number(metaPercentual) || 90
+  const tone = !hasPct ? 'neutral' : pct >= target ? 'good' : pct >= Math.max(0, target - 20) ? 'warn' : 'bad'
 
   return (
     <section className={`dash-sla-summary dash-sla-summary--${tone}`} aria-label="Resumo do SLA no período">
@@ -1281,7 +1333,7 @@ function SlaSummaryBanner({ percentual, limiteMin, totalAnalisadas, dentroSla, f
       <div className="dash-sla-summary-details">
         <h3 className="dash-sla-summary-title">Resumo do período</h3>
         <p className="dash-sla-summary-text">
-          Meta de <strong>{limiteMin} min</strong> para a primeira resposta · <strong>{totalAnalisadas}</strong> conversas analisadas.
+          Resposta válida em até <strong>{limiteMin} min</strong> · meta de qualidade <strong>{target}%</strong> · <strong>{totalAnalisadas}</strong> ciclos respondidos.
         </p>
         <div className="dash-sla-summary-chips">
           <span className="dash-sla-chip dash-sla-chip--green">
