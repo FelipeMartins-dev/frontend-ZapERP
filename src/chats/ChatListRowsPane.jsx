@@ -81,7 +81,10 @@ function ChatListRowsPane({
             pendentesFuncionarioSet={pendentesFuncionarioSet}
           />
         )}
-        {!loading && filteredLen > 0 && (canLoadMoreChats || loadingMoreChats || loadMoreChatsError) ? (
+        {tab !== "minha_fila" &&
+        !loading &&
+        filteredLen > 0 &&
+        (canLoadMoreChats || loadingMoreChats || loadMoreChatsError) ? (
           <div className="chat-list-pagination-footer">
             {loadMoreChatsError ? (
               <p className="chat-list-pagination-error" role="alert">

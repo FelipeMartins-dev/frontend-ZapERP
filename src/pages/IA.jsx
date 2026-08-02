@@ -57,6 +57,7 @@ const DEFAULT_CONFIG = {
     finalizar_por_ausencia_ativo: false,
     finalizar_por_ausencia_prazo: 24,
     finalizar_por_ausencia_unidade: "horas_corridas",
+    finalizar_por_ausencia_enviar_mensagem: false,
     finalizar_por_ausencia_mensagem: "",
     finalizar_por_ausencia_reabrir_automaticamente: true,
     finalizar_por_ausencia_reabrir_sem_chatbot: true,
@@ -135,12 +136,17 @@ function mergeIaConfigFromApi(server) {
   if (!server || typeof server !== "object") return { ...DEFAULT_CONFIG };
   const ctRaw = server.chatbot_triage;
   const ct = ctRaw && typeof ctRaw === "object" ? ctRaw : {};
+  const enviarMensagemAusencia =
+    ct.finalizar_por_ausencia_enviar_mensagem == null
+      ? Boolean(String(ct.finalizar_por_ausencia_mensagem ?? "").trim())
+      : ct.finalizar_por_ausencia_enviar_mensagem !== false;
   return {
     ia: { ...DEFAULT_CONFIG.ia, ...(server.ia || {}) },
     automacoes: { ...DEFAULT_CONFIG.automacoes, ...(server.automacoes || {}) },
     chatbot_triage: {
       ...DEFAULT_CONFIG.chatbot_triage,
       ...ct,
+      finalizar_por_ausencia_enviar_mensagem: enviarMensagemAusencia,
       options: Array.isArray(ct.options) ? ct.options : DEFAULT_CONFIG.chatbot_triage.options,
     },
     admin_atendimento_alerta: mergeAdminAtendimentoAlertaFromApi(server.admin_atendimento_alerta),
@@ -1442,17 +1448,33 @@ function SecaoChatbotTriagem({
                   <strong>Atenção:</strong> no backend atual, &quot;horas úteis&quot; ainda são tratadas como horas corridas até haver suporte completo a calendário comercial. Ajuste o prazo considerando essa limitação.
                 </p>
               ) : null}
-              <div className="ia-field" style={{ marginTop: 12 }}>
-                <label>Mensagem enviada ao cliente antes de encerrar (opcional)</label>
+              <div className="ds-switch-row" style={{ marginTop: 16 }}>
+                <Switch
+                  checked={v.finalizar_por_ausencia_enviar_mensagem === true}
+                  onChange={(x) => setV((c) => ({ ...c, finalizar_por_ausencia_enviar_mensagem: x }))}
+                />
+                <span>Enviar mensagem de finalização ao cliente</span>
+              </div>
+              <p className="chatbot-hint" style={{ marginTop: 4, marginBottom: 12 }}>
+                Quando desligado, a conversa será encerrada apenas dentro do sistema, sem enviar nada ao cliente.
+              </p>
+              <div
+                className="ia-field"
+                style={{
+                  opacity: v.finalizar_por_ausencia_enviar_mensagem === true ? 1 : 0.55,
+                }}
+              >
+                <label>Mensagem enviada ao cliente antes de encerrar</label>
                 <textarea
                   className="ia-textarea"
                   rows={4}
+                  disabled={v.finalizar_por_ausencia_enviar_mensagem !== true}
                   value={v.finalizar_por_ausencia_mensagem ?? ""}
                   onChange={(e) => setV((c) => ({ ...c, finalizar_por_ausencia_mensagem: e.target.value }))}
-                  placeholder="Vazio = finaliza sem enviar mensagem ao cliente."
+                  placeholder="Digite a mensagem de finalização enviada ao cliente."
                 />
                 <p className="chatbot-hint" style={{ marginTop: 6 }}>
-                  Preencha para avisar o cliente antes de encerrar. Deixe em branco para apenas finalizar sem enviar aviso.
+                  O texto fica salvo ao desligar a opção e poderá ser reutilizado se o envio for ativado novamente.
                 </p>
               </div>
               <div className="ds-switch-row" style={{ marginTop: 16 }}>
