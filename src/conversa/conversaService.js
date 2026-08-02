@@ -97,12 +97,13 @@ export async function buscarMensagensNaConversa(conversaId, opts = {}) {
 /**
  * Envia uma mensagem de texto simples ou com metadados de resposta (Reply).
  */
-export async function enviarMensagem(conversaId, texto, reply_meta, client_temp_id) {
+export async function enviarMensagem(conversaId, texto, reply_meta, client_temp_id, options = {}) {
   const body = { texto };
   if (reply_meta && typeof reply_meta === "object") body.reply_meta = reply_meta;
   if (client_temp_id != null && String(client_temp_id).trim() !== "") {
     body.client_temp_id = String(client_temp_id).trim();
   }
+  if (options?.retryManual === true) body.retry_manual = true;
   const { data } = await api.post(`/chats/${conversaId}/mensagens`, body);
   return data;
 }

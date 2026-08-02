@@ -2424,6 +2424,9 @@ function ConversaViewBody() {
 
   const enviarTextoEmAndamentoRef = useRef(false);
   const enviarTextoQueueRef = useRef(Promise.resolve());
+  // Mantém a mesma chave idempotente somente para uma nova tentativa explícita do mesmo texto.
+  // É memória local de transporte; não altera interface, bolhas, ícones ou fluxos de mídia.
+  const manualTextRetryRef = useRef(null);
 
   const handleEnviar = useCallback(async (forcedText) => {
     if (!conversaId) return;
@@ -2448,11 +2451,18 @@ function ConversaViewBody() {
     if (socket?.connected) socket.emit("typing_stop", { conversa_id: conversaId });
     const chatParaNome = fromChat ?? conversa;
     const replyMeta = buildReplyMetaForPersist(replyTo, nome, chatParaNome);
+    const retryCandidate = manualTextRetryRef.current;
+    const isManualRetry =
+      retryCandidate &&
+      String(retryCandidate.conversaId) === String(conversaId) &&
+      retryCandidate.texto === t;
+    if (retryCandidate && !isManualRetry) manualTextRetryRef.current = null;
 
     const optimisticMsg = buildOptimisticOutgoingMessage({
       conversaId,
       texto: t,
       replyMeta: replyMeta || undefined,
+      ...(isManualRetry ? { tempId: retryCandidate.tempId } : {}),
     });
     const tempId = optimisticMsg.tempId;
     const revertOutgoingStatus = applyOutgoingStatusOptimistic();
@@ -2464,7 +2474,13 @@ function ConversaViewBody() {
       enviarTextoEmAndamentoRef.current = true;
       setSendingTracked(true);
       try {
-        const res = await enviarMensagem(conversaId, t, replyMeta || undefined, tempId);
+        const res = await enviarMensagem(
+          conversaId,
+          t,
+          replyMeta || undefined,
+          tempId,
+          { retryManual: !!isManualRetry }
+        );
         const resMsgId = res?.mensagem?.id ?? res?.id;
         const realMsg = normalizeTextSendApiToMessage(res, conversaId);
         if (realMsg) {
@@ -2476,14 +2492,32 @@ function ConversaViewBody() {
         if (res?.ok === false && (resMsgId == null || resMsgId === "")) {
           marcarMensagemTempErro(tempId);
         }
+        manualTextRetryRef.current = null;
       } catch (err) {
         envioFalhou = true;
         revertModoSimples?.();
         revertOutgoingStatus?.();
         console.error("Erro ao enviar mensagem:", err);
         const is403 = err?.response?.status === 403;
-        const apiMsg = err?.response?.data?.error;
+        const failureData = err?.response?.data;
+        const apiMsg = failureData?.error || failureData?.motivo;
+        const persistedFailure = normalizeTextSendApiToMessage(failureData, conversaId);
+        if (persistedFailure) {
+          reconciliarMensagem(tempId, persistedFailure);
+        }
         marcarMensagemTempErro(tempId, { erro_mensagem: apiMsg || err?.message });
+        // Se o backend persistiu a tentativa (ou a resposta HTTP se perdeu), o próximo clique
+        // com o mesmo texto reutiliza o client_temp_id. O backend consulta a UltraMsg antes
+        // de qualquer novo POST e impede duplicidade.
+        if (!is403 && (failureData?.id != null || !err?.response)) {
+          manualTextRetryRef.current = {
+            conversaId,
+            texto: t,
+            tempId,
+          };
+        } else if (manualTextRetryRef.current?.tempId === tempId) {
+          manualTextRetryRef.current = null;
+        }
         // Restaura o texto no composer SOMENTE se estiver vazio — se o atendente já
         // continuou digitando um novo rascunho, não sobrescrever/misturar com o texto
         // que falhou (ele fica preservado na bolha de erro, com botão de retry).

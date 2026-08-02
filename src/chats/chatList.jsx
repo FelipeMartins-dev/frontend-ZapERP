@@ -3,6 +3,7 @@ import { shallow } from "zustand/shallow";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import {
   fetchChats,
+  fetchMinhaFilaChatsCompleto,
   fetchChatCounts,
   getChatsPageMeta,
   abrirConversaCliente,
@@ -808,8 +809,7 @@ export default function ChatList() {
         params.finalizacao_motivo = "ausencia_cliente";
       }
       if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
-      params.limit = getChatListPageLimit(isMobileLayout);
-      const data = await fetchChats(params, { silent: true });
+      const data = await fetchMinhaFilaChatsCompleto(params, { silent: true });
       const list = filterOptimisticRemovedMinhaFila(Array.isArray(data) ? data : []);
       const pageMeta = getChatsPageMeta(data);
       const count = pageMeta.totalCount ?? countDistinctConversas(list);
@@ -1182,7 +1182,9 @@ export default function ChatList() {
           }
         }
       }
-      const data = await fetchChats(params, { signal: abortController.signal });
+      const data = minhaFilaTab
+        ? await fetchMinhaFilaChatsCompleto(params, { signal: abortController.signal })
+        : await fetchChats(params, { signal: abortController.signal });
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
       if (minhaFilaTab || TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
