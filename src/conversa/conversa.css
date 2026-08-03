@@ -4786,6 +4786,20 @@
 }
 
 /* Botão "Tentar novamente" em áudio outbound que falhou (retry por item). */
+.wa-msgRetryWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 6px;
+}
+.wa-msgRetryHint {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--wa-danger, #e5484d);
+  line-height: 1.2;
+}
+.wa-msgRetryBtn,
 .wa-audioRetryBtn {
   align-self: flex-start;
   display: inline-flex;
@@ -4803,11 +4817,18 @@
   cursor: pointer;
   transition: background-color 0.15s ease, opacity 0.15s ease;
 }
+.wa-msgRetryBtn:hover,
 .wa-audioRetryBtn:hover {
   background: color-mix(in srgb, var(--wa-danger, #e5484d) 12%, transparent);
 }
+.wa-msgRetryBtn:active,
 .wa-audioRetryBtn:active {
   opacity: 0.8;
+}
+.wa-msgRetryBtn:disabled,
+.wa-audioRetryBtn:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 /* Todas as fontes do áudio falharam depois de o usuário pedir para tocar.

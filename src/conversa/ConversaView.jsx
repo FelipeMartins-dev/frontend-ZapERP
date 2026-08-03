@@ -3910,7 +3910,18 @@ function ConversaViewBody() {
           });
         }
       } catch (err) {
+        const httpSt = Number(err?.response?.status) || 0;
         const apiMsg = err?.response?.data?.error || err?.message || "Não foi possível reenviar.";
+        // 409: outra tentativa em andamento ou já resolvida — não forçar erro local.
+        if (httpSt === 409) {
+          await refresh({ silent: true });
+          showToast({
+            type: "warning",
+            title: "Reenvio em andamento",
+            message: apiMsg,
+          });
+          return;
+        }
         const bodyMsg = err?.response?.data?.mensagem;
         if (bodyMsg?.id != null) {
           store.patchMensagem(
