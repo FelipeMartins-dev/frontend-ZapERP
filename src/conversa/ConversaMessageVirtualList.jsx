@@ -19,11 +19,8 @@ function estimateThreadRowSize(item, mobileThread) {
   if (item.__type === "day") return mobileThread ? 34 : 32;
   if (isInternalMovementEstimate(item)) return mobileThread ? 116 : 98;
   const tipo = String(item.tipo || "").toLowerCase();
-  // Mantém a estimativa próxima dos placeholders reais. Diferenças grandes aqui fazem o
-  // virtualizer corrigir a altura total logo após o primeiro paint e deslocam o thread.
-  if (["imagem", "image", "video"].includes(tipo)) return mobileThread ? 260 : 270;
-  if (tipo === "sticker") return mobileThread ? 142 : 178;
-  if (["audio", "ptt", "voice"].includes(tipo)) return mobileThread ? 96 : 92;
+  if (["imagem", "image", "video", "sticker"].includes(tipo)) return mobileThread ? 200 : 240;
+  if (["audio", "ptt", "voice"].includes(tipo)) return mobileThread ? 72 : 68;
   if (["documento", "document", "arquivo", "file"].includes(tipo)) return mobileThread ? 76 : 72;
   const text = String(item.texto ?? item.conteudo ?? item.message ?? item.body ?? "");
   const lines = Math.max(1, Math.ceil(text.length / (mobileThread ? 38 : 44)));
@@ -231,6 +228,28 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
       scrollEl.classList.remove("is-scrolling");
     };
   }, [scrollRef, onVirtualContentResize, mobileThread]);
+
+  const prevCountRef = useRef(0);
+  useLayoutEffect(() => {
+    const prev = prevCountRef.current;
+    prevCountRef.current = count;
+    /* Mobile: useAutoScroll já ancora ao abrir — evita 2º scrollToIndex competindo com o dedo. */
+    if (mobileThread) return;
+    if (prev === 0 && count > 0) {
+      requestAnimationFrame(() => {
+        if (count <= 0) return;
+        virtualizer.scrollToIndex(count - 1, { align: "end", behavior: "auto" });
+        const scrollEl = scrollRef?.current;
+        if (scrollEl) {
+          try {
+            scrollEl.scrollTop = scrollEl.scrollHeight;
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+    }
+  }, [count, virtualizer, mobileThread]);
 
   useLayoutEffect(() => {
     if (!onVirtualContentResize) return undefined;

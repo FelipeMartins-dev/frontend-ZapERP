@@ -141,6 +141,7 @@ export function useAutoScroll({
   const prevLoadingForSnapRef = useRef(loading);
   const prevSnapConversaKeyRef = useRef(null);
   const openSnapInProgressRef = useRef(false);
+  const openSnapUserCancelledRef = useRef(false);
 
   function isUserScrollLocked() {
     return userScrollLockRef?.current === true;
@@ -157,6 +158,7 @@ export function useAutoScroll({
     pendingJumpToBottomRef.current = false;
     anchorLatestUntilMsgsRef.current = false;
     openSnapInProgressRef.current = false;
+    openSnapUserCancelledRef.current = true;
   }
 
   useLayoutEffect(() => {
@@ -189,6 +191,7 @@ export function useAutoScroll({
       pendingJumpToBottomRef.current = true;
       anchorLatestUntilMsgsRef.current = true;
       openSnapInProgressRef.current = false;
+      openSnapUserCancelledRef.current = false;
       return;
     }
 
@@ -199,6 +202,7 @@ export function useAutoScroll({
       pendingJumpToBottomRef.current = true;
       anchorLatestUntilMsgsRef.current = true;
       openSnapInProgressRef.current = false;
+      openSnapUserCancelledRef.current = false;
       return;
     }
 
@@ -273,37 +277,125 @@ export function useAutoScroll({
     anchorLatestUntilMsgsRef.current = false;
 
     shouldStickToBottomRef.current = true;
-    /*
-     * A abertura tem um unico dono: este hook. Um snap sincrono posiciona antes do paint e
-     * um unico rAF absorve a primeira medicao do virtualizer. Redimensionamentos posteriores
-     * de midia sao tratados pelo ResizeObserver do thread, sem manter timers concorrentes
-     * alterando scrollTop depois que a conversa ja esta visivel.
-     */
+    const mobileLike =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 640px)").matches;
+
     openSnapInProgressRef.current = true;
     let cancelled = false;
-    let rafStabilize = 0;
+    let rafChain = 0;
+    let rafStick = 0;
+    let rafOnce = 0;
+    let t1 = 0;
+    let t2 = 0;
+    let t3 = 0;
+    let t4 = 0;
+    let t5 = 0;
+    let finished = false;
 
-    const guard = snapGuardOpts();
-    const snap = () => {
-      if (cancelled || isUserScrollLocked()) return;
-      if (!shouldStickToBottomRef.current) return;
-      const c = messagesContainerRef?.current;
-      snapThreadToBottom(c, virtualListRef, { min: true, followUpFrame: false, ...guard });
+    const finishOpenSnap = () => {
+      if (finished || cancelled) return;
+      finished = true;
+      openSnapInProgressRef.current = false;
     };
 
+    const guard = snapGuardOpts();
+    const snap = ({ force = false } = {}) => {
+      if (cancelled || isUserScrollLocked()) return;
+      if (force && openSnapUserCancelledRef.current) return;
+      if (!force && !shouldStickToBottomRef.current) return;
+      const c = messagesContainerRef?.current;
+      snapThreadToBottom(c, virtualListRef, { followUpFrame: false, ...guard });
+    };
+
+    if (mobileLike) {
+      const snapHard = () => {
+        if (cancelled || isUserScrollLocked()) return;
+        if (!shouldStickToBottomRef.current) return;
+        const c = messagesContainerRef?.current;
+        snapThreadToBottom(c, virtualListRef, { min: true, followUpFrame: false, ...guard });
+      };
+      snapHard();
+      rafOnce = scheduleFrame(() => {
+        snapHard();
+        finishOpenSnap();
+      });
+      return () => {
+        cancelled = true;
+        cancelFrame(rafOnce);
+        openSnapInProgressRef.current = false;
+      };
+    }
+
+    const rafCap = 6;
+    const stickMax = 12;
+    let n = 0;
+
     snap();
-    rafStabilize = scheduleFrame(() => {
-      if (!cancelled) {
-        // O segundo e ultimo ajuste cobre a estimativa -> medicao real do ultimo item.
-        // Depois deste ponto nenhuma rotina de abertura continua disputando o scroll.
-        snap();
+    const chain = () => {
+      if (cancelled) return;
+      n += 1;
+      snap();
+      if (n < rafCap) {
+        rafChain = scheduleFrame(chain);
+      } else {
+        finishOpenSnap();
       }
-      if (!cancelled) openSnapInProgressRef.current = false;
-    });
+    };
+    rafChain = scheduleFrame(chain);
+
+    t1 = window.setTimeout(() => {
+      if (!cancelled) snap();
+    }, 0);
+    t2 = window.setTimeout(() => {
+      if (!cancelled) snap();
+    }, 120);
+    t3 = window.setTimeout(() => {
+      if (!cancelled) {
+        snap();
+        finishOpenSnap();
+      }
+    }, 380);
+    t4 = window.setTimeout(() => {
+      if (!cancelled) snap({ force: true });
+    }, 800);
+    t5 = window.setTimeout(() => {
+      if (!cancelled) snap({ force: true });
+    }, 1400);
+
+    let stickAttempts = 0;
+    const tryStickOpen = () => {
+      if (cancelled || finished) return;
+      const c = messagesContainerRef?.current;
+      stickAttempts += 1;
+      if (!c || stickAttempts > stickMax) {
+        finishOpenSnap();
+        return;
+      }
+      if (!shouldStickToBottomRef.current || isUserScrollLocked()) {
+        finishOpenSnap();
+        return;
+      }
+      if (isNearBottom(c, 200)) {
+        finishOpenSnap();
+        return;
+      }
+      snap();
+      rafStick = scheduleFrame(tryStickOpen);
+    };
+    rafStick = scheduleFrame(tryStickOpen);
 
     return () => {
       cancelled = true;
-      cancelFrame(rafStabilize);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      window.clearTimeout(t4);
+      window.clearTimeout(t5);
+      cancelFrame(rafChain);
+      cancelFrame(rafStick);
+      cancelFrame(rafOnce);
       openSnapInProgressRef.current = false;
     };
   }, [
