@@ -26,7 +26,7 @@ const Atalhos = lazy(() => import("../pages/Atalhos"));
 const InternalChat = lazy(() => import("../pages/InternalChat"));
 const Supervisao = lazy(() => import("../pages/Supervisao"));
 
-const CrmLayout = lazy(() => import("../crm/CrmLayout"));
+const CrmAvancadoRedirect = lazy(() => import("../crm/CrmAvancadoRedirect"));
 const CrmDashboard = lazy(() => import("../crm/pages/CrmDashboard"));
 const CrmKanban = lazy(() => import("../crm/pages/CrmKanban"));
 const CrmAgenda = lazy(() => import("../crm/pages/CrmAgenda"));
@@ -259,7 +259,9 @@ export default function AppRoutes() {
             path="/crm"
             element={
               <LazyPage>
-                <CrmLayout />
+                {/* Entra no CRM Avançado (SSO). Sem a integração configurada,
+                    o componente cai no CrmLayout interno via <Outlet/>. */}
+                <CrmAvancadoRedirect />
               </LazyPage>
             }
           >
