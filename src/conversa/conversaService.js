@@ -1,4 +1,8 @@
 import api from "../api/http";
+import { HTTP_TIMEOUT_TEXT_MS } from "../api/httpTimeouts";
+import { assertSpecialtyOutboundAccepted } from "./specialtyOutboundAccept";
+
+export { assertSpecialtyOutboundAccepted } from "./specialtyOutboundAccept";
 
 /**
  * Salva uma observação interna no chat/cliente.
@@ -104,7 +108,11 @@ export async function enviarMensagem(conversaId, texto, reply_meta, client_temp_
     body.client_temp_id = String(client_temp_id).trim();
   }
   if (options?.retryManual === true) body.retry_manual = true;
-  const { data } = await api.post(`/chats/${conversaId}/mensagens`, body);
+  const { data } = await api.post(`/chats/${conversaId}/mensagens`, body, {
+    timeout: HTTP_TIMEOUT_TEXT_MS,
+    skipGlobalNetworkToast: true,
+    skipGlobal500Toast: true,
+  });
   return data;
 }
 
@@ -126,8 +134,12 @@ export async function enviarLink(conversaId, { url, titulo, descricao, imagem, t
     },
   };
   if (reply_meta && typeof reply_meta === "object") body.reply_meta = reply_meta;
-  const { data } = await api.post(`/chats/${conversaId}/mensagens`, body);
-  return data;
+  const { data } = await api.post(`/chats/${conversaId}/mensagens`, body, {
+    timeout: HTTP_TIMEOUT_TEXT_MS,
+    skipGlobalNetworkToast: true,
+    skipGlobal500Toast: true,
+  });
+  return assertSpecialtyOutboundAccepted(data, "Não foi possível enviar o link.");
 }
 
 export async function getPixConfig() {
@@ -354,8 +366,11 @@ export async function enviarLocalizacao(conversaId, payload = {}) {
   if (nome != null && String(nome).trim()) body.nome = String(nome).trim();
   if (endereco != null && String(endereco).trim()) body.endereco = String(endereco).trim();
   
-  const { data } = await api.post(`/chats/${conversaId}/localizacao`, body);
-  return data;
+  const { data } = await api.post(`/chats/${conversaId}/localizacao`, body, {
+    timeout: HTTP_TIMEOUT_TEXT_MS,
+    skipGlobalNetworkToast: true,
+  });
+  return assertSpecialtyOutboundAccepted(data, "Não foi possível enviar a localização.");
 }
 
 /**
@@ -364,14 +379,39 @@ export async function enviarLocalizacao(conversaId, payload = {}) {
 export async function enviarContato(conversaId, cliente_id, messageId) {
   const body = { cliente_id };
   if (messageId) body.messageId = messageId;
-  const { data } = await api.post(`/chats/${conversaId}/contatos`, body);
-  return data;
+  const { data } = await api.post(`/chats/${conversaId}/contatos`, body, {
+    timeout: HTTP_TIMEOUT_TEXT_MS,
+    skipGlobalNetworkToast: true,
+  });
+  return assertSpecialtyOutboundAccepted(data, "Não foi possível enviar o contato.");
 }
 
 export async function registrarLigacao(conversaId, callDuration) {
   const body = {};
   if (callDuration != null) body.callDuration = callDuration;
-  const { data } = await api.post(`/chats/${conversaId}/ligacao`, body);
+  const { data } = await api.post(`/chats/${conversaId}/ligacao`, body, {
+    timeout: HTTP_TIMEOUT_TEXT_MS,
+    skipGlobalNetworkToast: true,
+  });
+  return assertSpecialtyOutboundAccepted(data, "Não foi possível registrar a ligação.");
+}
+
+/** Reenvio manual de mídia persistida (sem novo upload / sem novo registro). */
+export async function reenviarMidiaFalha(conversaId, mensagemId) {
+  const { data } = await api.post(`/chats/${conversaId}/mensagens/${mensagemId}/retry-media`, null, {
+    skipGlobalNetworkToast: true,
+    skipGlobal500Toast: true,
+  });
+  return data;
+}
+
+/** Reenvio manual de texto persistido (reutiliza mensagem_id + idempotência). */
+export async function reenviarTextoFalha(conversaId, mensagemId) {
+  const { data } = await api.post(`/chats/${conversaId}/mensagens/${mensagemId}/retry-text`, null, {
+    timeout: HTTP_TIMEOUT_TEXT_MS,
+    skipGlobalNetworkToast: true,
+    skipGlobal500Toast: true,
+  });
   return data;
 }
 

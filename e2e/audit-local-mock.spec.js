@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 // Mantém o mock alinhado ao VITE_API_URL que o webServer do Playwright injeta.
 const API = process.env.VITE_API_URL || "http://localhost:5000";
+const auditAudioFixture = readFileSync(new URL("./fixtures/voz-2s.ogg", import.meta.url));
 
 const chats = [
   {
@@ -625,4 +627,169 @@ test("abertura e envio mantêm o thread visualmente estável", async ({ page }, 
   expect(scrollSamples.at(-1)).toBeLessThanOrEqual(4);
   expect(revealStyle.animationName).toBe("none");
   expect(revealStyle.opacity).toBe(1);
+});
+
+test("historico com muitas midias abre e envia sem saltos tardios", async ({ page }, testInfo) => {
+  await installAuditSession(page);
+
+  const mixedMessages = Array.from({ length: 180 }, (_, index) => {
+    const base = {
+      id: 60_000 + index,
+      conversa_id: 1,
+      direcao: index % 2 === 0 ? "in" : "out",
+      criado_em: new Date(Date.UTC(2026, 6, 25, 12, 0, 0) + index * 1000).toISOString(),
+      status: "lido",
+    };
+    if (index % 5 === 1) {
+      return { ...base, tipo: "imagem", url: `/uploads/audit-image-${index}.svg` };
+    }
+    if (index % 5 === 3) {
+      return {
+        ...base,
+        tipo: "audio",
+        url: `/uploads/audit-audio-${index}.ogg`,
+        audio_duracao_sec: 2,
+      };
+    }
+    return {
+      ...base,
+      tipo: "texto",
+      texto: `Mensagem mista ${index + 1} ${"conteudo ".repeat((index % 3) + 1)}`,
+    };
+  });
+
+  await page.route(`${API}/**`, async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname;
+
+    if (path.startsWith("/socket.io")) {
+      await route.abort();
+      return;
+    }
+    if (/^\/uploads\/audit-image-\d+\.svg$/.test(path)) {
+      const imageNumber = Number(path.match(/(\d+)/)?.[1] || 0);
+      await new Promise((resolve) => setTimeout(resolve, 180 + (imageNumber % 4) * 90));
+      const portrait = imageNumber % 2 === 0;
+      const width = portrait ? 360 : 640;
+      const height = portrait ? 540 : 360;
+      await route.fulfill({
+        status: 200,
+        contentType: "image/svg+xml",
+        body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#d9ece6"/><circle cx="50%" cy="45%" r="72" fill="#79b8a5"/></svg>`,
+      });
+      return;
+    }
+    if (/^\/uploads\/audit-audio-\d+\.ogg$/.test(path)) {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      await route.fulfill({ status: 200, contentType: "audio/ogg", body: auditAudioFixture });
+      return;
+    }
+    if (path === "/usuarios/me") {
+      await route.fulfill({ json: { id: 1, perfil: "admin", role: "admin" } });
+      return;
+    }
+    if (path === "/usuarios/me/permissoes") {
+      await route.fulfill({ json: { permissoes: [] } });
+      return;
+    }
+    if (path === "/config/empresa") {
+      await route.fulfill({ json: { id: 1, nome: "ZapERP Auditoria" } });
+      return;
+    }
+    if (path === "/chats/whatsapp-instances") {
+      await route.fulfill({ json: { instances: [], active_count: 0 } });
+      return;
+    }
+    if (path === "/tags" || path === "/dashboard/departamentos") {
+      await route.fulfill({ json: [] });
+      return;
+    }
+    if (path === "/chats/counts") {
+      await route.fulfill({ json: { todas: 2, minha_fila: 2, em_atendimento: 2 } });
+      return;
+    }
+    if (path === "/chats" && request.method() === "GET") {
+      await route.fulfill({ json: chats });
+      return;
+    }
+    if (path === "/chats/1" && request.method() === "GET") {
+      await route.fulfill({
+        json: {
+          conversa: { ...chats[0], cliente_nome: chats[0].contato_nome, mensagens_bloqueadas: false },
+          mensagens: mixedMessages,
+          next_cursor: null,
+          tags: [],
+        },
+      });
+      return;
+    }
+    if (path === "/chats/1/mensagens" && request.method() === "POST") {
+      const body = request.postDataJSON();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await route.fulfill({
+        json: {
+          mensagem: {
+            id: 70_001,
+            conversa_id: 1,
+            texto: body.texto,
+            client_temp_id: body.client_temp_id,
+            direcao: "out",
+            criado_em: new Date().toISOString(),
+            status: "enviado",
+          },
+        },
+      });
+      return;
+    }
+    await route.fulfill({ json: {} });
+  });
+
+  await page.goto("/atendimento");
+  const firstRow = page.locator(".chat-list-row").filter({ hasText: "Contato Auditoria" });
+  await expect(firstRow).toBeVisible();
+  if (testInfo.project.name.includes("mobile")) {
+    await firstRow.tap();
+  } else {
+    await firstRow.click();
+  }
+
+  const messages = page.locator(".wa-messages");
+  await expect(page.locator(".wa-messages-virtual-root")).toBeVisible();
+  await messages.evaluate((element) => {
+    window.__waMediaSamples = [];
+    const startedAt = performance.now();
+    const sample = () => {
+      window.__waMediaSamples.push(
+        Math.max(0, element.scrollHeight - element.clientHeight - element.scrollTop)
+      );
+      if (performance.now() - startedAt < 1100) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+
+  await expect(page.locator(".wa-bubble-img").first()).toBeVisible();
+  await expect(page.locator(".audio-message").first()).toBeVisible();
+  await page.waitForTimeout(1150);
+
+  const openingSamples = await page.evaluate(() => window.__waMediaSamples || []);
+  expect(openingSamples.length).toBeGreaterThan(20);
+  expect(
+    openingSamples.filter((gap) => gap > 6).length,
+    `gaps de abertura: ${JSON.stringify(openingSamples.slice(0, 30))}`
+  ).toBeLessThanOrEqual(2);
+  expect(openingSamples.at(-1)).toBeLessThanOrEqual(6);
+
+  const renderedCount = await page.locator(".wa-bubble").count();
+  expect(renderedCount).toBeGreaterThan(0);
+  expect(renderedCount).toBeLessThan(80);
+
+  const composer = page.locator(".wa-input");
+  await composer.fill("Mensagem apos historico pesado");
+  await page.getByRole("button", { name: "Enviar mensagem" }).click();
+  await expect(page.locator(".wa-bubble").filter({ hasText: "Mensagem apos historico pesado" })).toHaveCount(1);
+  await expect.poll(
+    () => messages.evaluate((element) => Math.max(0, element.scrollHeight - element.clientHeight - element.scrollTop)),
+    { timeout: 5_000 }
+  ).toBeLessThanOrEqual(6);
 });

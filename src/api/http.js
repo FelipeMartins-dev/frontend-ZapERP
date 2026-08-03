@@ -3,6 +3,7 @@ import { getApiBaseUrl } from "./baseUrl"
 import { disconnectSocket } from "../socket/socket"
 import { useNotificationStore } from "../notifications/notificationStore"
 import { clearConversaSessionCaches } from "../conversa/conversaStore"
+import { HTTP_TIMEOUT_DEFAULT_MS, resolveRequestTimeoutMs } from "./httpTimeouts"
 
 const baseURL = getApiBaseUrl()
 
@@ -12,10 +13,11 @@ const withCredentials =
 
 const api = axios.create({
   baseURL,
+  timeout: HTTP_TIMEOUT_DEFAULT_MS,
   ...(withCredentials ? { withCredentials: true } : {}),
 })
 
-// 🔐 injeta token sempre do localStorage
+// 🔐 injeta token sempre do localStorage + timeout seguro por tipo de request
 api.interceptors.request.use((config) => {
   const raw = localStorage.getItem("zap_erp_auth")
 
@@ -29,6 +31,18 @@ api.interceptors.request.use((config) => {
     }
   }
 
+  // Caller pode definir timeout próprio (ex.: upload de vídeo). Caso contrário, resolve por URL/FormData.
+  if (config.timeout == null || config.timeout === 0) {
+    config.timeout = resolveRequestTimeoutMs(config)
+  } else if (
+    config.timeout === HTTP_TIMEOUT_DEFAULT_MS &&
+    typeof FormData !== "undefined" &&
+    config.data instanceof FormData
+  ) {
+    // create() aplica 55s por padrão; uploads precisam do timeout maior automático.
+    config.timeout = resolveRequestTimeoutMs({ ...config, timeout: undefined })
+  }
+
   return config
 })
 
@@ -37,6 +51,14 @@ function requestHadBearerToken(config) {
   if (!h) return false
   const auth = h.Authorization ?? h.authorization
   return typeof auth === "string" && /^Bearer\s+\S+/i.test(auth)
+}
+
+function isTimeoutError(err) {
+  return (
+    err?.code === "ECONNABORTED" ||
+    err?.code === "ETIMEDOUT" ||
+    /timeout/i.test(String(err?.message || ""))
+  )
 }
 
 api.interceptors.response.use(
@@ -96,7 +118,19 @@ api.interceptors.response.use(
         show({ type: "error", title: "Erro no servidor", message: err?.response?.data?.error || "Tente novamente em instantes." })
       } else if (status === 429) {
         show({ type: "warning", title: "Muitas requisições", message: "Aguarde um momento antes de tentar de novo." })
-      } else if (err?.message === "Network Error" || err?.code === "ECONNABORTED") {
+      } else if (isTimeoutError(err)) {
+        if (err?.config?.skipGlobalNetworkToast === true) {
+          return Promise.reject(err)
+        }
+        show({
+          type: "warning",
+          title: "Demora na resposta",
+          message: "A requisição excedeu o tempo limite. Estamos verificando se a ação foi concluída.",
+        })
+      } else if (err?.message === "Network Error" || err?.code === "ERR_NETWORK") {
+        if (err?.config?.skipGlobalNetworkToast === true) {
+          return Promise.reject(err)
+        }
         show({ type: "error", title: "Sem conexão", message: "Verifique sua internet e tente novamente." })
       }
     }

@@ -18,6 +18,7 @@ import { getStatusAtendimentoEffective } from "../utils/conversaUtils"
 import { normalizeMensagemStatusKey } from "../chats/chatListStoreCompare"
 import { attachReplyMeta } from "./replyMeta"
 import { revokeOptimisticBlobFromMessage } from "./conversaOptimisticMessage"
+import { applyPendingWatchdogToList } from "./pendingMessageWatchdog"
 import {
   stableSyntheticMessageKey,
   mapDedupeKey,
@@ -1291,10 +1292,76 @@ export const useConversaStore = create((set, get) => {
           status: errStatus,
           status_mensagem: errStatus,
           envio_erro: true,
+          envio_demorado: false,
+          envio_incerto: false,
+          ...(opts?.mensagem_id != null && String(opts.mensagem_id).trim() !== ""
+            ? { id: opts.mensagem_id }
+            : {}),
           ...(opts?.erro_mensagem ? { erro_mensagem: String(opts.erro_mensagem) } : {}),
         }
         return { mensagens: next }
       })
+    },
+
+    /**
+     * Timeout/rede sem confirmação do provedor: NÃO marca erro definitivo.
+     * Mantém client_temp_id, deixa a bolha visível e permite reconciliação posterior.
+     */
+    marcarMensagemEnvioIncerto: (tempId, opts = {}) => {
+      if (!tempId) return
+      takeAndApplyAnexarBatch()
+      set((state) => {
+        const list = state.mensagens || []
+        const idx = list.findIndex((m) => String(m.tempId) === String(tempId))
+        if (idx < 0) return state
+        const prev = list[idx]
+        const curStatus = String(prev.status_mensagem ?? prev.status ?? "").toLowerCase()
+        // Nunca regressar sent/delivered/read para incerto.
+        if (["sent", "enviada", "enviado", "delivered", "entregue", "read", "lida", "played"].includes(curStatus)) {
+          return state
+        }
+        const next = [...list]
+        next[idx] = {
+          ...prev,
+          status: "status_indefinido",
+          status_mensagem: "status_indefinido",
+          envio_erro: false,
+          envio_demorado: true,
+          envio_incerto: true,
+          retry_preparado: true,
+          client_temp_id: prev.client_temp_id || prev.tempId || tempId,
+          ...(opts?.mensagem_id != null && String(opts.mensagem_id).trim() !== ""
+            ? { id: opts.mensagem_id }
+            : {}),
+          ...(opts?.erro_mensagem
+            ? { erro_mensagem: String(opts.erro_mensagem) }
+            : {
+                erro_mensagem:
+                  "Não foi possível confirmar o envio a tempo. Verificando com o servidor…",
+              }),
+        }
+        return { mensagens: next }
+      })
+    },
+
+    /** Aplica watchdog de demora / status_indefinido sem marcar erro falso. */
+    applyPendingOutgoingWatchdog: () => {
+      takeAndApplyAnexarBatch()
+      let needsRefresh = false
+      set((state) => {
+        const { next, needsRefresh: refresh, changed } = applyPendingWatchdogToList(state.mensagens || [])
+        needsRefresh = refresh
+        if (!changed) return state
+        return { mensagens: next }
+      })
+      if (needsRefresh) {
+        try {
+          get().refresh?.({ silent: true })
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      return { needsRefresh }
     },
 
     setTags: (tags) => set({ tags: tags || [] }),

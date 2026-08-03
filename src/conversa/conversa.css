@@ -3458,6 +3458,15 @@
   color: rgba(245, 158, 11, .9);
   opacity: 1;
 }
+.wa-ticks.isDemorado{
+  color: rgba(245, 158, 11, .95);
+  opacity: 1;
+  animation: wa-tick-demorado-pulse 1.6s ease-in-out infinite;
+}
+@keyframes wa-tick-demorado-pulse{
+  0%, 100%{ opacity: .55; }
+  50%{ opacity: 1; }
+}
 
 .wa-bubble-remetente {
   display: flex;
@@ -3656,7 +3665,7 @@
 
 .wa-bubble.image-message .wa-bubble-img.is-loading {
   min-width: min(240px, calc(100vw - 96px));
-  min-height: min(420px, 72vh);
+  min-height: min(240px, 42vh);
   background: rgba(11, 20, 26, 0.06);
 }
 
@@ -11481,7 +11490,7 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   .wa-bubble.image-message .wa-bubble-img.is-loading {
     width: min(360px, calc(100vw - 30px));
     min-width: min(300px, calc(100vw - 56px));
-    min-height: min(480px, 68vh);
+    min-height: min(240px, 42vh);
   }
 
   .wa-bubble.image-message .wa-bubble-img {
@@ -11898,7 +11907,7 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   .wa-bubble.image-message .wa-bubble-img.is-loading {
     width: min(360px, calc(100vw - 30px));
     min-width: min(calc(100vw - 44px), 300px);
-    min-height: min(480px, 68vh);
+    min-height: min(240px, 42vh);
   }
 
   .wa-bubble-meta { font-size: 10px; gap: 2px; padding: 0 8px; }

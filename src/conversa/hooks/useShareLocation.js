@@ -64,12 +64,17 @@ export function useShareLocation({ conversaId, showToast, composerRef }) {
     }
     setShareLocationSending(true);
     try {
-      await enviarLocalizacao(conversaId, {
+      const data = await enviarLocalizacao(conversaId, {
         lat: la,
         lng: ln,
         nome: shareLocationNome.trim() || undefined,
         endereco: shareLocationEndereco.trim() || undefined,
       });
+      if (data?.ok === false) {
+        throw Object.assign(new Error(data?.error || data?.motivo || "Falha ao enviar localização"), {
+          response: { status: 502, data },
+        });
+      }
       setShareLocationOpen(false);
       setShareLocationGeoError(null);
       showToast({
@@ -80,7 +85,7 @@ export function useShareLocation({ conversaId, showToast, composerRef }) {
     } catch (err) {
       console.error("Erro ao enviar localização:", err);
       const is403 = err?.response?.status === 403;
-      const apiMsg = err?.response?.data?.error;
+      const apiMsg = err?.response?.data?.error || err?.response?.data?.motivo || err?.message;
       showToast({
         type: "error",
         title: is403 ? "Acesso restrito" : "Falha ao enviar localização",

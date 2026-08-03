@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { createPortal } from "react-dom";
 import { resolveContactMetaFromMessage } from "../utils/conversaUtils";
 import { SwipeReplyTrack } from "./SwipeReplyTrack";
-import { useConversaStore } from "./conversaStore";
 import {
   safeString,
   isOutgoingMessage,
@@ -48,6 +47,8 @@ import {
 
 let __waCurrentAudio = null;
 const WA_AUDIO_SPEEDS = [1, 1.5, 2];
+const WA_AUDIO_DURATION_CACHE_MAX = 1000;
+const __waAudioDurationCache = new Map();
 const WA_REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "👏"];
 const WA_REACTION_MORE_EMOJIS = ["😍", "🔥", "🎉", "✅", "🤔", "😡"];
 
@@ -130,8 +131,12 @@ function MessageTicks({ msg, isGroup }) {
   const hasReadKeyword = /lida|read|seen|visualiz|played/.test(s);
   const hasDeliveredKeyword = /entregue|deliver|receiv/.test(s);
   const isErr = s === "erro" || s === "error" || s === "failed" || s === "falhou";
-  const isRetry = !isErr && !!(msg?.em_retry);
-  const isPending = !isRetry && (s === "pending" || s === "enviando" || s === "sending");
+  const isIndefinido = !isErr && (s === "status_indefinido" || !!msg?.envio_incerto);
+  const isDemorado = !isErr && !!(msg?.envio_demorado || isIndefinido);
+  const isRetry = !isErr && !isIndefinido && !!(msg?.em_retry);
+  const isPending =
+    !isRetry &&
+    (isIndefinido || s === "pending" || s === "enviando" || s === "sending");
   let isRead =
     s === "lida" || s === "read" || s === "seen" ||
     s === "visualizada" || s === "played" ||
@@ -147,10 +152,18 @@ function MessageTicks({ msg, isGroup }) {
   const isSent = !isErr && !isPending && !isDelivered && !isRead &&
     (!s || s === "sent" || s === "enviada" || s === "enviado");
 
+  const tickTitle = isRetry
+    ? "Aguardando reenvio automático"
+    : isIndefinido
+      ? "Verificando se a mensagem foi enviada…"
+      : isDemorado
+        ? "Envio demorado — ainda verificando…"
+        : undefined;
+
   return (
     <span
-      className={`wa-ticks ${isDelivered ? "isDelivered" : ""} ${isRead ? "isRead" : ""} ${isErr ? "isErr" : ""} ${isPending ? "isPending" : ""} ${isRetry ? "isPending isRetry" : ""}`}
-      title={isRetry ? "Aguardando reenvio automático" : undefined}
+      className={`wa-ticks ${isDelivered ? "isDelivered" : ""} ${isRead ? "isRead" : ""} ${isErr ? "isErr" : ""} ${isPending ? "isPending" : ""} ${isRetry ? "isPending isRetry" : ""} ${isDemorado ? "isDemorado" : ""}`}
+      title={tickTitle}
     >
       <TickSvg kind={isErr ? "err" : (isPending || isRetry) ? "pending" : isRead ? "read" : isDelivered ? "delivered" : isSent ? "sent" : "sent"} />
     </span>
@@ -460,7 +473,26 @@ function LocationBubbleContent({ msg, selectMode, isGroup, out }) {
   );
 }
 
-function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDuration, sentAtLabel }) {
+function normalizeAudioDuration(value) {
+  const duration = Number(value);
+  return Number.isFinite(duration) && duration > 0 ? duration : 0;
+}
+
+function rememberAudioDuration(msgKey, value) {
+  const duration = normalizeAudioDuration(value);
+  const key = msgKey == null ? "" : String(msgKey);
+  if (!key || !duration) return duration;
+  __waAudioDurationCache.delete(key);
+  __waAudioDurationCache.set(key, duration);
+  while (__waAudioDurationCache.size > WA_AUDIO_DURATION_CACHE_MAX) {
+    const oldest = __waAudioDurationCache.keys().next().value;
+    if (oldest == null) break;
+    __waAudioDurationCache.delete(oldest);
+  }
+  return duration;
+}
+
+function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, initialDuration, sentAtLabel }) {
   const sourceList = useMemo(() => {
     const list = Array.isArray(candidates) && candidates.length ? candidates : src ? [src] : [];
     const seen = new Set();
@@ -524,7 +556,10 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
   // forçar nova tentativa a não ser sair e reabrir a conversa. Só liga dentro de uma
   // tentativa do usuário — erro de preload em segundo plano não acusa nada.
   const [indisponivel, setIndisponivel] = useState(false);
-  const [dur, setDur] = useState(0);
+  const seedDuration =
+    normalizeAudioDuration(initialDuration) ||
+    normalizeAudioDuration(__waAudioDurationCache.get(String(msgKey ?? "")));
+  const [dur, setDur] = useState(seedDuration);
   const [cur, setCur] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [waveBarCount, setWaveBarCount] = useState(34);
@@ -538,13 +573,16 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     setSourceIdx(0);
     setPlaying(false);
     setCur(0);
-    setDur(0);
+    setDur(
+      normalizeAudioDuration(initialDuration) ||
+        normalizeAudioDuration(__waAudioDurationCache.get(String(msgKey ?? "")))
+    );
     // Lista de fontes nova (ex.: o backfill trouxe a cópia em /uploads) merece recomeço
     // limpo: o que estava indisponível pode ter passado a existir.
     setIndisponivel(false);
     durationProbeRef.current = false;
     autoPlayRef.current = { ate: 0, tentativas: 0 };
-  }, [sourceList.join("\u0001")]);
+  }, [sourceList.join("\u0001"), msgKey, initialDuration]);
 
   useLayoutEffect(() => {
     const el = waveMeasureRef.current;
@@ -615,7 +653,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       const d = Number(el.duration);
       if (Number.isFinite(d) && d > 0) {
         setDur(d);
-        try { onDuration?.(d); } catch {}
+        rememberAudioDuration(msgKey, d);
       } else if (d === Infinity && !durationProbeRef.current) {
         // O webm gravado pelo MediaRecorder não escreve a duração no cabeçalho (streaming),
         // então `duration` chega como Infinity e o áudio recém-enviado (blob local) mostrava
@@ -628,7 +666,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
           if (Number.isFinite(fixed) && fixed > 0) {
             el.removeEventListener("durationchange", onDurationFix);
             setDur(fixed);
-            try { onDuration?.(fixed); } catch {}
+            rememberAudioDuration(msgKey, fixed);
             try { el.currentTime = 0; } catch { /* ignore */ }
           }
         };
@@ -693,7 +731,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       el.removeEventListener("pause", onPause);
       el.removeEventListener("error", onError);
     };
-  }, [activeSrc, playbackRate, sourceList.length]);
+  }, [activeSrc, playbackRate, sourceList.length, msgKey]);
 
   // Recarrega o elemento quando a fonte muda EM TEMPO REAL. Trocar o atributo `src` de um <audio>
   // já montado NÃO faz o navegador buscar a nova mídia — é preciso chamar load(). Sem isto, o áudio
@@ -1124,6 +1162,7 @@ const Bubble = memo(function Bubble({
   onJumpToReply,
   onOpenMedia,
   onReenviarAudio,
+  onReenviarFalha,
   localReaction,
   onReact,
   onRemoveReaction,
@@ -1264,17 +1303,53 @@ const Bubble = memo(function Bubble({
     isFilenameOnlyText(texto, msg?.nome_arquivo);
   const showCaption = (isImg || isVideo || isSticker) && hasText && !isPlaceholderCaption;
   const showAudioText = isAudioOrVoice && hasText && !isPlaceholderCaption;
-  // Retry por item: só áudio outbound que falhou (status erro) e ainda tem tempId (bolha otimista
-  // desta sessão — o File retido no ConversaView é a fonte do reenvio). Após recarregar, some.
-  const audioSendError =
+  // Retry: texto/mídia outbound persistidos com falha confirmada (não pending/sending/indefinido).
+  const retryMensagemId = msg?.id ?? msg?.mensagem_id;
+  const retryStatus = String(msg?.status_mensagem ?? msg?.status ?? "").toLowerCase();
+  const retryFailedConfirmed =
+    msg?.envio_erro === true ||
+    ["erro", "error", "failed", "falhou"].includes(retryStatus);
+  const retryBlockedStatus = [
+    "pending",
+    "sending",
+    "enviando",
+    "sent",
+    "enviada",
+    "delivered",
+    "entregue",
+    "read",
+    "lida",
+    "played",
+    "status_indefinido",
+  ].includes(retryStatus);
+  const tipoNorm = String(msg?.tipo || "").toLowerCase();
+  const isRetryableText =
+    !isAudioOrVoice &&
+    !isImg &&
+    !isVideo &&
+    !isSticker &&
+    !isFile &&
+    !isLocation &&
+    !isContact &&
+    tipoMsg !== "call" &&
+    (tipoNorm === "" || tipoNorm === "texto" || tipoNorm === "text" || tipoNorm === "chat");
+  const isRetryableMedia =
+    isAudioOrVoice || isImg || isVideo || isFile || isSticker;
+  const onRetry =
+    typeof onReenviarFalha === "function"
+      ? onReenviarFalha
+      : typeof onReenviarAudio === "function"
+        ? onReenviarAudio
+        : null;
+  const canShowRetry =
     out &&
-    isAudioOrVoice &&
-    !!msg?.tempId &&
-    typeof onReenviarAudio === "function" &&
-    (msg?.envio_erro === true ||
-      ["erro", "error", "failed", "falhou"].includes(
-        String(msg?.status ?? msg?.status_mensagem ?? "").toLowerCase()
-      ));
+    retryMensagemId != null &&
+    String(retryMensagemId).trim() !== "" &&
+    typeof onRetry === "function" &&
+    retryFailedConfirmed &&
+    !retryBlockedStatus &&
+    (isRetryableText || isRetryableMedia);
+  const isRetrying = !!(msg?.em_retry || msg?._retrying);
   // Detecta mensagem encaminhada: campo encaminhado=true ou texto começa com [Encaminhado]
   const isEncaminhado =
     !isApagadaParaTodos &&
@@ -1346,9 +1421,6 @@ const Bubble = memo(function Bubble({
   const reactionEmojiOptions = reactionExpanded
     ? [...WA_REACTION_EMOJIS, ...WA_REACTION_MORE_EMOJIS]
     : WA_REACTION_EMOJIS;
-  const [audioDur, setAudioDur] = useState(0);
-  const audioDurLabel = useMemo(() => (audioDur > 0 ? formatMmSs(audioDur) : null), [audioDur]);
-
   useEffect(() => {
     if (!menuOpen) return;
     const onDoc = (e) => {
@@ -1965,30 +2037,32 @@ const Bubble = memo(function Bubble({
                   avatarUrl={!out ? peerAvatarUrl : null}
                   avatarLabel={!out ? peerName : null}
                   sentAtLabel={formatHora(msg?.criado_em)}
-                  onDuration={(d) => {
-                    setAudioDur(d);
-                    if (msg?.id) {
-                      try {
-                        useConversaStore.getState().patchMensagem(msg.id, { audio_duracao_sec: d });
-                      } catch {}
-                    }
-                  }}
+                  initialDuration={
+                    msg?.audio_duracao_sec ?? msg?.duration ?? msg?.media_duration ?? 0
+                  }
                 />
               </div>
               {showAudioText ? <div className="wa-bubble-audioCaption">{renderTextWithLinks(texto)}</div> : null}
-              {audioSendError ? (
+              {canShowRetry && isAudioOrVoice ? (
                 <button
                   type="button"
-                  className="wa-audioRetryBtn"
+                  className="wa-msgRetryBtn wa-audioRetryBtn"
+                  disabled={isRetrying}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onReenviarAudio(msg.tempId);
+                    if (isRetrying) return;
+                    onRetry({
+                      mensagemId: retryMensagemId,
+                      tempId: msg?.tempId ?? msg?.client_temp_id ?? null,
+                      kind: "media",
+                      tipo: tipoNorm || "audio",
+                    });
                   }}
-                  title="Reenviar áudio"
-                  aria-label="Tentar enviar o áudio novamente"
+                  title={isRetrying ? "Reenviando…" : "Tentar novamente"}
+                  aria-label={isRetrying ? "Reenviando mensagem" : "Tentar enviar novamente"}
                 >
-                  <span aria-hidden="true">↻</span> Tentar novamente
+                  <span aria-hidden="true">↻</span> {isRetrying ? "Reenviando…" : "Tentar novamente"}
                 </button>
               ) : null}
             </div>
@@ -2035,6 +2109,33 @@ const Bubble = memo(function Bubble({
           ) : (
             <span className="wa-bubble-text wa-muted">{fallbackContentLabel}</span>
           )}
+          {canShowRetry && !isAudioOrVoice ? (
+            <div className="wa-msgRetryWrap">
+              <div className="wa-msgRetryHint" role="status">
+                Não foi possível enviar
+              </div>
+              <button
+                type="button"
+                className="wa-msgRetryBtn"
+                disabled={isRetrying}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (isRetrying) return;
+                  onRetry({
+                    mensagemId: retryMensagemId,
+                    tempId: msg?.tempId ?? msg?.client_temp_id ?? null,
+                    kind: isRetryableText ? "text" : "media",
+                    tipo: tipoNorm || (isRetryableText ? "texto" : "arquivo"),
+                  });
+                }}
+                title={isRetrying ? "Reenviando…" : "Tentar novamente"}
+                aria-label={isRetrying ? "Reenviando mensagem" : "Tentar enviar novamente"}
+              >
+                <span aria-hidden="true">↻</span> {isRetrying ? "Reenviando…" : "Tentar novamente"}
+              </button>
+            </div>
+          ) : null}
         </div>
         {!isCall && !mobileMessageChrome ? (
           <button

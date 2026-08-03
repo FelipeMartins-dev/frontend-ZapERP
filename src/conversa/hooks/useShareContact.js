@@ -54,7 +54,13 @@ export function useShareContact({ conversaId, showToast }) {
       if (!conversaId || shareContactSending) return;
       setShareContactSending(true);
       try {
-        await enviarContato(conversaId, c.id);
+        const data = await enviarContato(conversaId, c.id);
+        // Sucesso somente com aceite válido (ok !== false e status ≠ erro).
+        if (data?.ok === false) {
+          throw Object.assign(new Error(data?.error || data?.motivo || "Falha ao enviar contato"), {
+            response: { status: 502, data },
+          });
+        }
         setShareContactOpen(false);
         setShareContactQuery("");
         setShareContactList([]);
@@ -66,7 +72,7 @@ export function useShareContact({ conversaId, showToast }) {
       } catch (err) {
         console.error("Erro ao enviar contato:", err);
         const is403 = err?.response?.status === 403;
-        const apiMsg = err?.response?.data?.error;
+        const apiMsg = err?.response?.data?.error || err?.response?.data?.motivo || err?.message;
         showToast({
           type: "error",
           title: is403 ? "Acesso restrito" : "Falha ao enviar contato",

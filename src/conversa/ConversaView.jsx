@@ -8,6 +8,8 @@ import {
   enviarReacao,
   removerReacao,
   registrarLigacao,
+  reenviarMidiaFalha,
+  reenviarTextoFalha,
   listarAtendentesDisponiveisConversa,
   adicionarAtendenteConversa,
   marcarLidaModoSimplesChat,
@@ -26,6 +28,13 @@ import {
 import "./conversa.css";
 import "../styles/zap-animations.css";
 import api from "../api/http";
+import { resolveUploadTimeoutMs } from "../api/httpTimeouts";
+import {
+  classifyOutboundAxiosError,
+  shouldShowOutboundToast,
+  OUTBOUND_ERROR_KIND,
+} from "./outboundSendError";
+import { WATCHDOG_TICK_MS } from "./pendingMessageWatchdog";
 import { useAuthStore } from "../auth/authStore";
 import { canAssumir, canReabrir, canTag, canTransferirSetorConversa } from "../auth/permissions";
 const ProdutoConsultaPanel = lazy(() => import("./ProdutoConsultaPanel"));
@@ -224,6 +233,8 @@ function ConversaViewBody() {
     removerMensagem,
     removerMensagemTemp,
     marcarMensagemTempErro,
+    marcarMensagemEnvioIncerto,
+    applyPendingOutgoingWatchdog,
     carregarAtendimentos,
     clearTyping,
     assumirConversa,
@@ -241,6 +252,8 @@ function ConversaViewBody() {
       removerMensagem: s.removerMensagem,
       removerMensagemTemp: s.removerMensagemTemp,
       marcarMensagemTempErro: s.marcarMensagemTempErro,
+      marcarMensagemEnvioIncerto: s.marcarMensagemEnvioIncerto,
+      applyPendingOutgoingWatchdog: s.applyPendingOutgoingWatchdog,
       carregarAtendimentos: s.carregarAtendimentos,
       clearTyping: s.clearTyping,
       assumirConversa: s.assumirConversa,
@@ -412,14 +425,20 @@ function ConversaViewBody() {
   /** Fila FIFO de envio de áudios: cada gravação envia em sequência (ordem preservada). */
   const enviarAudioQueueRef = useRef(Promise.resolve());
   /**
-   * Retenção do File de áudios que falharam, por tempId → { file, tipo, attempts }.
-   * Base para o botão "tentar novamente" por item (o blob precisa ser retido no envio;
-   * não dá para recuperá-lo depois). Removido ao confirmar o envio; limpo ao desmontar.
+   * Retenção transitória do File por tempId → { file, tipo, attempts } durante o envio inicial.
+   * O retry manual usa o mensagem_id e o arquivo persistido no servidor. Removido ao confirmar
+   * o envio ou o retry; limpo ao desmontar.
    */
   const audioRetryFilesRef = useRef(new Map());
+  /** Evita clique duplo no retry manual da mesma mensagem enquanto o endpoint responde. */
+  const audioRetryRequestInFlightRef = useRef(new Set());
   useEffect(() => {
     const retidos = audioRetryFilesRef.current;
-    return () => retidos.clear();
+    const retries = audioRetryRequestInFlightRef.current;
+    return () => {
+      retidos.clear();
+      retries.clear();
+    };
   }, []);
   const [localReactions, setLocalReactions] = useState({});
   const [reactionLoading, setReactionLoading] = useState({});
@@ -1285,6 +1304,73 @@ function ConversaViewBody() {
     [toastT]
   );
 
+  /**
+   * Timeout/rede: status_indefinido + refresh (não erro/provedor).
+   * Falha confirmada: erro. Preserva client_temp_id; não cria segunda mensagem.
+   */
+  const applyOutboundSendFailure = useCallback(
+    (tempId, err, { toastTitle = "Falha ao enviar", mensagemId = null } = {}) => {
+      const classified = classifyOutboundAxiosError(err);
+      const toastKey = `out-${tempId || mensagemId || "x"}-${classified.kind}`;
+      if (classified.uncertain) {
+        marcarMensagemEnvioIncerto(tempId, {
+          erro_mensagem: classified.message,
+          ...(mensagemId != null ? { mensagem_id: mensagemId } : {}),
+        });
+        void refresh({ silent: true });
+        if (shouldShowOutboundToast(toastKey)) {
+          showToast({
+            type: "warning",
+            title:
+              classified.kind === OUTBOUND_ERROR_KIND.TIMEOUT
+                ? "Demora no envio"
+                : classified.kind === OUTBOUND_ERROR_KIND.OFFLINE
+                  ? "Sem conexão"
+                  : "Verificando envio",
+            message: classified.message,
+          });
+        }
+        return classified;
+      }
+      marcarMensagemTempErro(tempId, {
+        erro_mensagem: classified.message,
+        ...(mensagemId != null ? { mensagem_id: mensagemId } : {}),
+      });
+      if (shouldShowOutboundToast(toastKey)) {
+        showToast({
+          type: "error",
+          title: classified.httpStatus === 403 ? "Acesso restrito" : toastTitle,
+          message: classified.message,
+        });
+      }
+      return classified;
+    },
+    [marcarMensagemEnvioIncerto, marcarMensagemTempErro, refresh, showToast]
+  );
+
+  // Watchdog: demora visual + status_indefinido; reconcilia via refresh (sem reenvio automático).
+  useEffect(() => {
+    if (!conversaId) return undefined;
+    const tick = () => {
+      try {
+        applyPendingOutgoingWatchdog?.();
+      } catch (_) {
+        /* ignore */
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, WATCHDOG_TICK_MS);
+    const onOnline = () => {
+      tick();
+      void refresh({ silent: true });
+    };
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [conversaId, applyPendingOutgoingWatchdog, refresh]);
+
   const {
     mediaViewer,
     mediaPdfBlobUrl,
@@ -1909,7 +1995,11 @@ function ConversaViewBody() {
 
       setSendingTracked(true);
       try {
-        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData);
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
+          timeout: resolveUploadTimeoutMs(file),
+          skipGlobalNetworkToast: true,
+          skipGlobal500Toast: true,
+        });
 
         const reconciliations = extractArquivoApiReconciliations(data, conversaId, [tempId]);
         if (reconciliations.length) {
@@ -1943,21 +2033,24 @@ function ConversaViewBody() {
       } catch (err) {
         revertModoSimples?.();
         revertOutgoingStatus?.();
-        const is403 = err?.response?.status === 403;
-        const apiMsg = err?.response?.data?.error;
-        marcarMensagemTempErro(tempId, {
-          erro_mensagem: apiMsg || err?.message,
+        const persistedFailure = Array.isArray(err?.response?.data?.results)
+          ? err.response.data.results.find(
+              (row) =>
+                row?.persisted === true &&
+                row?.id != null &&
+                String(row?.client_temp_id ?? "") === String(tempId)
+            )
+          : null;
+        applyOutboundSendFailure(tempId, err, {
+          toastTitle: "Falha ao enviar",
+          mensagemId: persistedFailure?.id ?? null,
         });
-        // Mantém o File retido e registra a tentativa — base para o reenvio por item.
+        // Mantém o File retido apenas durante esta sessão; o botão de retry usa o mensagem_id
+        // persistido e o arquivo salvo no servidor.
         if (isAudioSend) {
           const entry = audioRetryFilesRef.current.get(tempId);
           if (entry) entry.attempts = (entry.attempts || 0) + 1;
         }
-        showToast({
-          type: "error",
-          title: is403 ? "Acesso restrito" : "Falha ao enviar",
-          message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar o arquivo. Tente novamente."),
-        });
       } finally {
         releaseAudioUpload?.();
         arquivoEnvioInFlightRef.current.delete(flightKey);
@@ -1976,6 +2069,7 @@ function ConversaViewBody() {
       focusMessageInput,
       reconciliarMensagem,
       marcarMensagemTempErro,
+      applyOutboundSendFailure,
       removerMensagemTemp,
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
@@ -2055,7 +2149,12 @@ function ConversaViewBody() {
       if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
       setSendingTracked(true);
       try {
-        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData);
+        const batchBytes = files.reduce((sum, f) => sum + (Number(f?.size) || 0), 0);
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
+          timeout: resolveUploadTimeoutMs(batchBytes),
+          skipGlobalNetworkToast: true,
+          skipGlobal500Toast: true,
+        });
         const reconciliations = extractArquivoApiReconciliations(data, conversaId, tempIds);
         reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
 
@@ -2120,12 +2219,28 @@ function ConversaViewBody() {
                 : apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar as fotos. Tente novamente."),
           });
         } else {
-          tempIds.forEach((tid) => marcarMensagemTempErro(tid, { erro_mensagem: apiMsg || err?.message }));
-          showToast({
-            type: "error",
-            title: is403 ? "Acesso restrito" : "Falha ao enviar",
-            message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar as fotos. Tente novamente."),
+          const classified = classifyOutboundAxiosError(err);
+          tempIds.forEach((tid) => {
+            if (classified.uncertain) {
+              marcarMensagemEnvioIncerto(tid, { erro_mensagem: classified.message });
+            } else {
+              marcarMensagemTempErro(tid, { erro_mensagem: classified.message });
+            }
           });
+          if (classified.uncertain) void refresh({ silent: true });
+          if (shouldShowOutboundToast(`batch-fotos-${conversaId}-${classified.kind}`)) {
+            showToast({
+              type: classified.uncertain ? "warning" : "error",
+              title: classified.uncertain
+                ? classified.kind === OUTBOUND_ERROR_KIND.TIMEOUT
+                  ? "Demora no envio"
+                  : "Sem conexão"
+                : is403
+                  ? "Acesso restrito"
+                  : "Falha ao enviar",
+              message: classified.message,
+            });
+          }
         }
       } finally {
         setSendingTracked(false);
@@ -2141,6 +2256,8 @@ function ConversaViewBody() {
       garantirConversaAbertaParaEnvio,
       focusMessageInput,
       marcarMensagemTempErro,
+      marcarMensagemEnvioIncerto,
+      refresh,
       reconciliarMensagem,
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
@@ -2221,7 +2338,12 @@ function ConversaViewBody() {
       if (conversa?.telefone != null) formData.append("phone", String(conversa.telefone));
       setSendingTracked(true);
       try {
-        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData);
+        const batchBytes = files.reduce((sum, f) => sum + (Number(f?.size) || 0), 0);
+        const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
+          timeout: resolveUploadTimeoutMs(batchBytes),
+          skipGlobalNetworkToast: true,
+          skipGlobal500Toast: true,
+        });
         const reconciliations = extractArquivoApiReconciliations(data, conversaId, tempIds);
         reconciliations.forEach(({ tempId, realMsg }) => reconciliarMensagem(tempId, realMsg));
 
@@ -2286,12 +2408,28 @@ function ConversaViewBody() {
                 : apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar os documentos. Tente novamente."),
           });
         } else {
-          tempIds.forEach((tid) => marcarMensagemTempErro(tid, { erro_mensagem: apiMsg || err?.message }));
-          showToast({
-            type: "error",
-            title: is403 ? "Acesso restrito" : "Falha ao enviar",
-            message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar os documentos. Tente novamente."),
+          const classified = classifyOutboundAxiosError(err);
+          tempIds.forEach((tid) => {
+            if (classified.uncertain) {
+              marcarMensagemEnvioIncerto(tid, { erro_mensagem: classified.message });
+            } else {
+              marcarMensagemTempErro(tid, { erro_mensagem: classified.message });
+            }
           });
+          if (classified.uncertain) void refresh({ silent: true });
+          if (shouldShowOutboundToast(`batch-docs-${conversaId}-${classified.kind}`)) {
+            showToast({
+              type: classified.uncertain ? "warning" : "error",
+              title: classified.uncertain
+                ? classified.kind === OUTBOUND_ERROR_KIND.TIMEOUT
+                  ? "Demora no envio"
+                  : "Sem conexão"
+                : is403
+                  ? "Acesso restrito"
+                  : "Falha ao enviar",
+              message: classified.message,
+            });
+          }
         }
       } finally {
         setSendingTracked(false);
@@ -2308,6 +2446,8 @@ function ConversaViewBody() {
       garantirConversaAbertaParaEnvio,
       focusMessageInput,
       marcarMensagemTempErro,
+      marcarMensagemEnvioIncerto,
+      refresh,
       reconciliarMensagem,
       appendOutgoingOptimisticMessage,
       applyOutgoingStatusOptimistic,
@@ -2500,16 +2640,17 @@ function ConversaViewBody() {
         console.error("Erro ao enviar mensagem:", err);
         const is403 = err?.response?.status === 403;
         const failureData = err?.response?.data;
-        const apiMsg = failureData?.error || failureData?.motivo;
         const persistedFailure = normalizeTextSendApiToMessage(failureData, conversaId);
         if (persistedFailure) {
           reconciliarMensagem(tempId, persistedFailure);
         }
-        marcarMensagemTempErro(tempId, { erro_mensagem: apiMsg || err?.message });
-        // Se o backend persistiu a tentativa (ou a resposta HTTP se perdeu), o próximo clique
-        // com o mesmo texto reutiliza o client_temp_id. O backend consulta a UltraMsg antes
-        // de qualquer novo POST e impede duplicidade.
-        if (!is403 && (failureData?.id != null || !err?.response)) {
+        const classified = applyOutboundSendFailure(tempId, err, {
+          toastTitle: "Falha ao enviar",
+          mensagemId: failureData?.id ?? persistedFailure?.id ?? null,
+        });
+        // Timeout/rede: preserva client_temp_id para reconciliar sem duplicar.
+        // Falha confirmada: mesmo texto no próximo clique reutiliza o tempId.
+        if (!is403 && (failureData?.id != null || classified.uncertain || !err?.response)) {
           manualTextRetryRef.current = {
             conversaId,
             texto: t,
@@ -2521,16 +2662,13 @@ function ConversaViewBody() {
         // Restaura o texto no composer SOMENTE se estiver vazio — se o atendente já
         // continuou digitando um novo rascunho, não sobrescrever/misturar com o texto
         // que falhou (ele fica preservado na bolha de erro, com botão de retry).
-        const draftAtual = String(composerRef.current?.getText?.() ?? "").trim();
-        if (!draftAtual) {
-          composerRef.current?.setText?.(t);
+        if (!classified.uncertain) {
+          const draftAtual = String(composerRef.current?.getText?.() ?? "").trim();
+          if (!draftAtual) {
+            composerRef.current?.setText?.(t);
+          }
+          if (replyTo) setReplyTo(replyTo);
         }
-        if (replyTo) setReplyTo(replyTo);
-        showToast({
-          type: "error",
-          title: is403 ? "Acesso restrito" : "Falha ao enviar",
-          message: apiMsg || (is403 ? "Assuma a conversa antes de enviar mensagens." : "Não foi possível enviar a mensagem. Verifique sua conexão."),
-        });
         focusMessageInput();
       } finally {
         enviarTextoEmAndamentoRef.current = false;
@@ -2553,6 +2691,7 @@ function ConversaViewBody() {
     applyOutgoingStatusOptimistic,
     reconciliarMensagem,
     marcarMensagemTempErro,
+    applyOutboundSendFailure,
     nome,
     conversa,
     fromChat,
@@ -3274,20 +3413,9 @@ function ConversaViewBody() {
   useLayoutEffect(() => {
     if (!threadOpening || loading || !conversaId) return undefined;
     if (!hasThreadMessageRows) return undefined;
-
-    const container = messagesContainerRef.current;
-    if (container && !userScrollLockRef.current) {
-      snapThreadToBottom(container, virtualThreadRef, {
-        min: true,
-        followUpFrame: false,
-        canSnap: () => !userScrollLockRef.current,
-      });
-    }
-
     /*
-     * useLayoutEffect termina antes do paint: a conversa já chega ao primeiro frame
-     * posicionada no fim, sem manter o conteúdo invisível por timers arbitrários.
-     * Redimensionamentos tardios de mídia continuam cobertos por snapIfStickBottom.
+     * useAutoScroll é o único responsável por posicionar a abertura. Este efeito apenas
+     * libera a máscara no mesmo ciclo de layout, depois que o snap inicial foi aplicado.
      */
     setThreadOpening(false);
     return undefined;
@@ -3696,28 +3824,125 @@ function ConversaViewBody() {
   );
 
   /**
-   * Reenvia por item um áudio que falhou, usando o File retido (mesma fila FIFO, idempotente por
-   * client_temp_id). Se o File não está mais disponível (ex.: após recarregar a página), avisa.
+   * Reenvio manual seguro: reutiliza mensagem_id (texto ou mídia).
+   * Não cria bolha/registro novos; CAS no backend impede clique duplo / dois atendentes.
    */
-  const reenviarAudioFalho = useCallback(
-    (tempId) => {
-      if (!tempId) return;
-      const entry = audioRetryFilesRef.current.get(String(tempId));
-      if (!entry?.file) {
+  const reenviarMensagemFalha = useCallback(
+    async ({ mensagemId, tempId, kind } = {}) => {
+      const mid = Number(mensagemId);
+      if (!Number.isSafeInteger(mid) || mid <= 0 || !conversaId) {
         showToast({
           type: "warning",
           title: "Não é possível reenviar",
-          message: "O áudio não está mais disponível. Grave novamente.",
+          message: "Esta mensagem não foi salva no servidor.",
         });
         return;
       }
-      return handleEnviarArquivo(entry.file, {
-        tipo: entry.tipo || "voice",
-        reuseTempId: String(tempId),
-        enqueueAudio: true,
-      });
+
+      const retryKey = String(mid);
+      if (audioRetryRequestInFlightRef.current.has(retryKey)) return;
+      audioRetryRequestInFlightRef.current.add(retryKey);
+
+      const store = useConversaStore.getState();
+      store.patchMensagem(
+        mid,
+        {
+          status: "sending",
+          status_mensagem: "sending",
+          em_retry: true,
+          envio_erro: false,
+          envio_incerto: false,
+          tempId: tempId || undefined,
+        },
+        { conversa_id: conversaId }
+      );
+
+      try {
+        const isText = kind === "text";
+        const data = isText
+          ? await reenviarTextoFalha(conversaId, mid)
+          : await reenviarMidiaFalha(conversaId, mid);
+
+        const realMsg = data?.mensagem
+          ? { ...data.mensagem, em_retry: false, envio_erro: false }
+          : data?.id != null
+            ? {
+                id: data.id,
+                status: data.status,
+                status_mensagem: data.status_mensagem || data.status,
+                whatsapp_id: data.whatsapp_id,
+                client_temp_id: data.client_temp_id,
+                em_retry: false,
+                envio_erro: false,
+              }
+            : null;
+
+        // Sucesso / already_sent: atualiza a mesma bolha. Sem toast verde — ticks bastam.
+        if (data?.ok === false && !realMsg) {
+          throw Object.assign(new Error(data?.error || data?.motivo || "Falha ao reenviar"), {
+            response: { status: 502, data },
+          });
+        }
+
+        if (realMsg && tempId) {
+          reconciliarMensagem(String(tempId), { ...realMsg, id: realMsg.id ?? mid });
+        } else if (realMsg?.id != null || mid) {
+          store.patchMensagem(
+            realMsg?.id ?? mid,
+            {
+              ...(realMsg || {}),
+              status: realMsg?.status || data?.status || "sending",
+              status_mensagem: realMsg?.status_mensagem || data?.status_mensagem || data?.status || "sending",
+              em_retry: false,
+              envio_erro: false,
+            },
+            { conversa_id: conversaId }
+          );
+        } else {
+          await refresh({ silent: true });
+        }
+        if (tempId) audioRetryFilesRef.current.delete(String(tempId));
+        if (data?.ok === false) {
+          showToast({
+            type: "error",
+            title: "Falha ao reenviar",
+            message: data?.error || data?.motivo || "Não foi possível reenviar.",
+          });
+        }
+      } catch (err) {
+        const apiMsg = err?.response?.data?.error || err?.message || "Não foi possível reenviar.";
+        const bodyMsg = err?.response?.data?.mensagem;
+        if (bodyMsg?.id != null) {
+          store.patchMensagem(
+            bodyMsg.id,
+            { ...bodyMsg, status: "erro", status_mensagem: "erro", em_retry: false, envio_erro: true, erro_mensagem: apiMsg },
+            { conversa_id: conversaId }
+          );
+        } else if (tempId) {
+          marcarMensagemTempErro(String(tempId), { mensagem_id: mid, erro_mensagem: apiMsg });
+        } else {
+          store.patchMensagem(
+            mid,
+            { status: "erro", status_mensagem: "erro", em_retry: false, envio_erro: true, erro_mensagem: apiMsg },
+            { conversa_id: conversaId }
+          );
+        }
+        showToast({
+          type: "error",
+          title: "Falha ao reenviar",
+          message: apiMsg,
+        });
+      } finally {
+        audioRetryRequestInFlightRef.current.delete(retryKey);
+      }
     },
-    [handleEnviarArquivo, showToast]
+    [conversaId, marcarMensagemTempErro, reconciliarMensagem, refresh, showToast]
+  );
+
+  /** Compat: áudio antigo chama o mesmo fluxo de mídia. */
+  const reenviarAudioFalho = useCallback(
+    (payload) => reenviarMensagemFalha({ ...payload, kind: "media" }),
+    [reenviarMensagemFalha]
   );
 
   const handleComposerOpenPixConfig = useCallback(async () => {
@@ -3746,7 +3971,12 @@ function ConversaViewBody() {
     const dur = Math.min(15, Math.max(1, Number(callDuration) || 5));
     setCallSending(true);
     try {
-      await registrarLigacao(conversaId, dur);
+      const data = await registrarLigacao(conversaId, dur);
+      if (data?.ok === false) {
+        throw Object.assign(new Error(data?.error || data?.motivo || "Falha ao registrar ligação"), {
+          response: { status: 502, data },
+        });
+      }
       setCallModalOpen(false);
       showToast({
         type: "success",
@@ -3756,7 +3986,7 @@ function ConversaViewBody() {
     } catch (err) {
       console.error("Erro ao registrar ligação:", err);
       const is403 = err?.response?.status === 403;
-      const apiMsg = err?.response?.data?.error;
+      const apiMsg = err?.response?.data?.error || err?.response?.data?.motivo || err?.message;
       showToast({
         type: "error",
         title: is403 ? "Acesso restrito" : "Falha ao registrar ligação",
@@ -4203,6 +4433,7 @@ function ConversaViewBody() {
             onJumpToReply={jumpToReply}
             onOpenMedia={openMediaViewer}
             onReenviarAudio={reenviarAudioFalho}
+            onReenviarFalha={reenviarMensagemFalha}
             onReact={handleThreadReaction}
             onRemoveReaction={handleThreadRemoveReaction}
             onConversarContact={handleConversarContact}

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { normalizeFinalizationMessage } from "../src/pages/iaConfigPayload.js";
 import {
   installVitePreloadRecovery,
@@ -80,6 +81,14 @@ assert.equal(
   true
 );
 assert.equal(isDynamicImportFetchError(new Error("Network Error")), false);
+
+const sourceIndexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
+assert.match(
+  sourceIndexHtml,
+  /http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/
+);
+assert.match(sourceIndexHtml, /http-equiv="Pragma" content="no-cache"/);
+assert.match(sourceIndexHtml, /http-equiv="Expires" content="0"/);
 
 const listeners = new Map();
 const installedRuntime = {

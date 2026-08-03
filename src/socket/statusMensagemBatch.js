@@ -7,6 +7,8 @@ const STATUS_RANK = {
   pending: 0,
   enviando: 0,
   sending: 0,
+  // Incerteza pós-timeout: rank baixo para sent/delivered/read poderem reconciliar sem regressão.
+  status_indefinido: 0,
   sent: 1,
   enviada: 1,
   enviado: 1,

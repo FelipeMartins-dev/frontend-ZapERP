@@ -102,6 +102,7 @@ function ThreadRow({
   onJumpToReply,
   onOpenMedia,
   onReenviarAudio,
+  onReenviarFalha,
   onReact,
   onRemoveReaction,
   onConversarContact,
@@ -164,6 +165,7 @@ function ThreadRow({
       onJumpToReply={onJumpToReply}
       onOpenMedia={onOpenMedia}
       onReenviarAudio={onReenviarAudio}
+      onReenviarFalha={onReenviarFalha}
       localReaction={reactionForMessage}
       onReact={onReact}
       onRemoveReaction={onRemoveReaction}

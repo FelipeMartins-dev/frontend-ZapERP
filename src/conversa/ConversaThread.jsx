@@ -96,6 +96,7 @@ export default function ConversaThread({
   onJumpToReply,
   onOpenMedia,
   onReenviarAudio,
+  onReenviarFalha,
   onReact,
   onRemoveReaction,
   onConversarContact,
@@ -211,6 +212,7 @@ export default function ConversaThread({
           onJumpToReply={onJumpToReply}
           onOpenMedia={onOpenMedia}
           onReenviarAudio={onReenviarAudio}
+          onReenviarFalha={onReenviarFalha}
           onReact={onReact}
           onRemoveReaction={onRemoveReaction}
           onConversarContact={onConversarContact}
@@ -252,6 +254,7 @@ export default function ConversaThread({
       onJumpToReply,
       onOpenMedia,
       onReenviarAudio,
+      onReenviarFalha,
       onReact,
       onRemoveReaction,
       onConversarContact,
