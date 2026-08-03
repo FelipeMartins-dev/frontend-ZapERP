@@ -19,7 +19,10 @@ function estimateThreadRowSize(item, mobileThread) {
   if (item.__type === "day") return mobileThread ? 34 : 32;
   if (isInternalMovementEstimate(item)) return mobileThread ? 116 : 98;
   const tipo = String(item.tipo || "").toLowerCase();
-  if (["imagem", "image", "video", "sticker"].includes(tipo)) return mobileThread ? 200 : 240;
+  if (tipo === "sticker") return mobileThread ? 132 : 140;
+  /* Alinhado à caixa reservada da imagem (width + aspect-ratio no CSS): reduz a correção
+     do measureElement na abertura, que era parte do "pulo". */
+  if (["imagem", "image", "video"].includes(tipo)) return mobileThread ? 300 : 320;
   if (["audio", "ptt", "voice"].includes(tipo)) return mobileThread ? 72 : 68;
   if (["documento", "document", "arquivo", "file"].includes(tipo)) return mobileThread ? 76 : 72;
   const text = String(item.texto ?? item.conteudo ?? item.message ?? item.body ?? "");
@@ -231,25 +234,16 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
 
   const prevCountRef = useRef(0);
   useLayoutEffect(() => {
-    const prev = prevCountRef.current;
+    /*
+     * O snap de abertura pertence exclusivamente ao useAutoScroll (ConversaView).
+     * Antes, ao aparecer o 1º lote (prev === 0 && count > 0), este componente também
+     * disparava scrollToIndex(count-1) + scrollTop = scrollHeight — no desktop os dois
+     * snaps corriam juntos e, reagindo às remedições do virtualizer, produziam o "pulo"
+     * (ir ao topo e voltar ao fim). O mobile já pulava este trecho; agora o desktop
+     * também, deixando uma única fonte de âncora na abertura.
+     */
     prevCountRef.current = count;
-    /* Mobile: useAutoScroll já ancora ao abrir — evita 2º scrollToIndex competindo com o dedo. */
-    if (mobileThread) return;
-    if (prev === 0 && count > 0) {
-      requestAnimationFrame(() => {
-        if (count <= 0) return;
-        virtualizer.scrollToIndex(count - 1, { align: "end", behavior: "auto" });
-        const scrollEl = scrollRef?.current;
-        if (scrollEl) {
-          try {
-            scrollEl.scrollTop = scrollEl.scrollHeight;
-          } catch {
-            /* ignore */
-          }
-        }
-      });
-    }
-  }, [count, virtualizer, mobileThread]);
+  }, [count]);
 
   useLayoutEffect(() => {
     if (!onVirtualContentResize) return undefined;
