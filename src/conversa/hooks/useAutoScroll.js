@@ -285,13 +285,9 @@ export function useAutoScroll({
     openSnapInProgressRef.current = true;
     let cancelled = false;
     let rafChain = 0;
-    let rafStick = 0;
     let rafOnce = 0;
     let t1 = 0;
     let t2 = 0;
-    let t3 = 0;
-    let t4 = 0;
-    let t5 = 0;
     let finished = false;
 
     const finishOpenSnap = () => {
@@ -328,73 +324,51 @@ export function useAutoScroll({
       };
     }
 
-    const rafCap = 6;
-    const stickMax = 12;
-    let n = 0;
+    /*
+     * Abertura (desktop): 1 snap síncrono + poucos frames de acomodação enquanto o
+     * virtualizer mede as bolhas + 2 fallbacks tardios (medição/fonte/mídia que assenta
+     * depois). Antes: 6 rAF + 5 timers (até 1400 ms) + um loop de até 12 tentativas, todos
+     * re-snapando em paralelo — a maior parte do "pulo" residual na abertura vinha dessa
+     * competição. Com a mídia já reservada (aspect-ratio no CSS) e as estimativas alinhadas,
+     * a diferença estimativa↔medição é pequena e poucos frames bastam para assentar.
+     */
+    const SETTLE_FRAMES = 6;
+    let settleFrame = 0;
 
     snap();
-    const chain = () => {
+    const settle = () => {
       if (cancelled) return;
-      n += 1;
+      if (isUserScrollLocked() || !shouldStickToBottomRef.current) {
+        finishOpenSnap();
+        return;
+      }
+      settleFrame += 1;
       snap();
-      if (n < rafCap) {
-        rafChain = scheduleFrame(chain);
+      if (settleFrame < SETTLE_FRAMES) {
+        rafChain = scheduleFrame(settle);
       } else {
         finishOpenSnap();
       }
     };
-    rafChain = scheduleFrame(chain);
+    rafChain = scheduleFrame(settle);
 
+    // Fallbacks tardios: cobrem medição de bolha/fonte/mídia que assenta após os frames
+    // iniciais. `force` mantém a âncora mesmo se um scroll programático tiver mexido no ref.
     t1 = window.setTimeout(() => {
-      if (!cancelled) snap();
-    }, 0);
+      if (!cancelled) snap({ force: true });
+    }, 320);
     t2 = window.setTimeout(() => {
-      if (!cancelled) snap();
-    }, 120);
-    t3 = window.setTimeout(() => {
       if (!cancelled) {
-        snap();
+        snap({ force: true });
         finishOpenSnap();
       }
-    }, 380);
-    t4 = window.setTimeout(() => {
-      if (!cancelled) snap({ force: true });
-    }, 800);
-    t5 = window.setTimeout(() => {
-      if (!cancelled) snap({ force: true });
-    }, 1400);
-
-    let stickAttempts = 0;
-    const tryStickOpen = () => {
-      if (cancelled || finished) return;
-      const c = messagesContainerRef?.current;
-      stickAttempts += 1;
-      if (!c || stickAttempts > stickMax) {
-        finishOpenSnap();
-        return;
-      }
-      if (!shouldStickToBottomRef.current || isUserScrollLocked()) {
-        finishOpenSnap();
-        return;
-      }
-      if (isNearBottom(c, 200)) {
-        finishOpenSnap();
-        return;
-      }
-      snap();
-      rafStick = scheduleFrame(tryStickOpen);
-    };
-    rafStick = scheduleFrame(tryStickOpen);
+    }, 760);
 
     return () => {
       cancelled = true;
       window.clearTimeout(t1);
       window.clearTimeout(t2);
-      window.clearTimeout(t3);
-      window.clearTimeout(t4);
-      window.clearTimeout(t5);
       cancelFrame(rafChain);
-      cancelFrame(rafStick);
       cancelFrame(rafOnce);
       openSnapInProgressRef.current = false;
     };

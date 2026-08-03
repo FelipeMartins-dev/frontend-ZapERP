@@ -33,8 +33,8 @@
   --wa-glass-strong: color-mix(in srgb, var(--wa-panel) 92%, #ffffff 8%);
   --wa-header-shadow: 0 12px 30px -28px rgba(15, 23, 42, 0.36);
   --wa-composer-shadow: 0 -14px 32px -30px rgba(15, 23, 42, 0.46);
-  --wa-bubble-border-in: rgba(15, 23, 42, 0.08);
-  --wa-bubble-border-out: rgba(0, 92, 75, 0.14);
+  --wa-bubble-border-in: rgba(15, 23, 42, 0.14);
+  --wa-bubble-border-out: rgba(5, 150, 105, 0.22);
   --wa-action-blue: #2563eb;
   --wa-action-blue-soft: rgba(37, 99, 235, 0.12);
   --wa-action-amber: #b45309;
@@ -207,7 +207,7 @@
   justify-content: space-between;
   background:
     linear-gradient(180deg, var(--wa-glass-surface) 0%, var(--wa-header-bg) 100%);
-  border-bottom: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--wa-panel-border) 100%, transparent);
   box-shadow: var(--wa-header-shadow);
   backdrop-filter: blur(14px);
   flex-shrink: 0;
@@ -217,6 +217,13 @@
   overflow: visible;
   position: relative;
   z-index: 10;
+}
+
+html:not([data-theme="dark"]) .wa-header {
+  background: #e8eef5;
+  border-bottom-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  backdrop-filter: none;
 }
 
 [data-theme="dark"] .wa-header {
@@ -724,6 +731,13 @@
   transition: background var(--ds-transition), color var(--ds-transition), border-color var(--ds-transition);
 }
 
+html:not([data-theme="dark"]) .wa-header-setorBtn {
+  background: #ffffff;
+  border-color: rgba(5, 150, 105, 0.34);
+  color: #047857;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
 .wa-header-setorBtn:hover {
   background: color-mix(in srgb, var(--wa-green) 9%, var(--wa-panel));
   border-color: color-mix(in srgb, var(--wa-green) 28%, var(--wa-panel-border));
@@ -1132,6 +1146,19 @@
   transition: background var(--ds-transition), color var(--ds-transition), transform 0.15s ease, border-color var(--ds-transition);
 }
 
+html:not([data-theme="dark"]) .wa-header-btn {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.16);
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+html:not([data-theme="dark"]) .wa-header-btn:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.22);
+  color: #0f172a;
+}
+
 .wa-header-btn:hover {
   background: color-mix(in srgb, var(--wa-green) 8%, var(--wa-panel));
   border-color: color-mix(in srgb, var(--wa-green) 22%, var(--wa-panel-border));
@@ -1416,6 +1443,46 @@
     transform .12s ease,
     border-color .18s ease,
     box-shadow .18s ease;
+}
+
+html:not([data-theme="dark"]) .wa-actions button {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.16);
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+html:not([data-theme="dark"]) .wa-actions button:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.22);
+  color: #0f172a;
+}
+
+html:not([data-theme="dark"]) .wa-actions .wa-btn-primary,
+html:not([data-theme="dark"]) .wa-actions .wa-btn-assumir-destaque {
+  background: #059669;
+  color: #ffffff;
+  border-color: #047857;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.22);
+}
+
+html:not([data-theme="dark"]) .wa-actions .wa-btn-primary:hover:not(:disabled),
+html:not([data-theme="dark"]) .wa-actions .wa-btn-assumir-destaque:hover:not(:disabled) {
+  background: #047857;
+  border-color: #047857;
+  color: #ffffff;
+}
+
+html:not([data-theme="dark"]) .wa-actions .wa-btn-secondary {
+  background: rgba(5, 150, 105, 0.08);
+  color: #047857;
+  border-color: rgba(5, 150, 105, 0.34);
+}
+
+html:not([data-theme="dark"]) .wa-actions .wa-btn-transferir {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.28);
 }
 
 /* micro animação tecnológica */
@@ -2317,6 +2384,18 @@
   gap: 10px;
 }
 
+html:not([data-theme="dark"]) .wa-closedAttendance-panel {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.16);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+html:not([data-theme="dark"]) .wa-closedAttendance-reopenBtn {
+  background: rgba(5, 150, 105, 0.1);
+  border-color: rgba(5, 150, 105, 0.36);
+  color: #047857;
+}
+
 .wa-closedAttendance-text {
   flex: 1 1 auto;
   min-width: 0;
@@ -2687,6 +2766,18 @@
   border: 1px solid var(--wa-bubble-border-out);
   border-top-right-radius: 4px;
   color: var(--wa-text);
+}
+
+html:not([data-theme="dark"]) .wa-bubble-in {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+html:not([data-theme="dark"]) .wa-bubble-out {
+  background: #d9f5e5;
+  border-color: rgba(5, 150, 105, 0.24);
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.08);
 }
 
 [data-theme="dark"] .wa-bubble-in {
@@ -5064,6 +5155,18 @@
   transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease, background .18s ease;
   box-sizing: border-box;
 }
+
+html:not([data-theme="dark"]) .wa-audioPlayer {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+html:not([data-theme="dark"]) .wa-bubble-out .wa-audioPlayer {
+  background: rgba(255, 255, 255, 0.45);
+  border-color: rgba(5, 150, 105, 0.18);
+}
+
 .wa-audioPlayer:hover{
   box-shadow: var(--wa-audio-glow);
   border-color: rgba(0,0,0,.10);
@@ -7947,6 +8050,13 @@
   animation: wa-dayPillFade 0.3s ease-out;
 }
 
+html:not([data-theme="dark"]) .wa-daySep-pill {
+  background: #ffffff;
+  color: #475569;
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
 /* =========================================================
    PENDING FILE (pré-envio de arquivo)
 ========================================================= */
@@ -9071,13 +9181,34 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   gap: 10px;
   background:
     linear-gradient(180deg, var(--wa-header-bg) 0%, var(--wa-glass-surface) 100%);
-  border-top: 1px solid color-mix(in srgb, var(--wa-panel-border) 84%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--wa-panel-border) 100%, transparent);
   box-shadow: var(--wa-composer-shadow);
   backdrop-filter: blur(14px);
   flex-shrink: 0;
   min-width: 0;
   /* precisa ser visível para o menu de anexos (+) não ser cortado */
   overflow: visible;
+}
+
+html:not([data-theme="dark"]) .wa-footer {
+  background: #e8eef5;
+  border-top-color: rgba(15, 23, 42, 0.14);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+html:not([data-theme="dark"]) .wa-footer .wa-iconBtn {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  color: #475569;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+html:not([data-theme="dark"]) .wa-footer .wa-iconBtn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.2);
+  color: #0f172a;
 }
 
 [data-theme="dark"] .wa-footer {
@@ -9527,7 +9658,7 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   height: auto;
   padding: 10px 16px;
   border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--wa-panel-border) 100%, transparent);
   background: var(--wa-input-bg);
   color: var(--wa-text);
   font-size: 15px;
@@ -9543,10 +9674,24 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   word-break: break-word;
   transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent),
-    0 1px 0 rgba(0, 0, 0, 0.02);
+    inset 0 1px 0 color-mix(in srgb, #ffffff 55%, transparent),
+    0 1px 2px rgba(15, 23, 42, 0.04);
   max-width: 100%;
   box-sizing: border-box;
+}
+
+html:not([data-theme="dark"]) .wa-input {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html:not([data-theme="dark"]) .wa-input:focus {
+  background: #ffffff;
+  border-color: rgba(5, 150, 105, 0.45);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
 .wa-input::-webkit-scrollbar {

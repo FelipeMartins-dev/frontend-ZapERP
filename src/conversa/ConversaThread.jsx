@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { Archive } from "lucide-react";
 import { getMessageListReactKey } from "./conversaStore";
 import { getStatusAtendimentoEffective, isClosedAttendanceStatus } from "../utils/conversaUtils";
@@ -42,7 +42,7 @@ function extractProtocolFromMessages(mensagens) {
  * Lista virtualizada de mensagens + estados vazios/bloqueado + carregar histórico.
  * Scroll container (.wa-messages) permanece no ConversaView.
  */
-export default function ConversaThread({
+function ConversaThread({
   virtualThreadRef,
   messagesContainerRef,
   scrollThreadId,
@@ -418,3 +418,11 @@ export default function ConversaThread({
     </>
   );
 }
+
+/*
+ * Memoizado: o ConversaThread recebe só props estáveis (dados via useMemo/store, callbacks
+ * via useCallback, refs). Sem isto, cada setState do ConversaView (toast, typing, sending…)
+ * re-executava o renderItem e o diffing do virtualizer à toa. As linhas (ThreadRow) já são
+ * memo; isto evita o trabalho de re-render do container quando os dados não mudaram.
+ */
+export default memo(ConversaThread);
