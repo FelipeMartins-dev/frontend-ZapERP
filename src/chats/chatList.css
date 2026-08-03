@@ -65,29 +65,29 @@
 
 /* Tema escuro — Design System premium (WhatsApp Web) */
 [data-theme="dark"] {
-  --cl-bg: #0d1117;
-  --cl-surface: var(--ds-surface-1);
-  --cl-surface-elevated: var(--ds-surface-2);
+  --cl-bg: var(--zaperp-sidebar-bg);
+  --cl-surface: var(--zaperp-card-bg);
+  --cl-surface-elevated: var(--zaperp-card-hover);
 
-  --cl-beige-50: var(--ds-surface-2);
-  --cl-beige-100: var(--ds-surface-2);
-  --cl-beige-200: var(--ds-surface-3);
-  --cl-beige-300: var(--ds-bg-overlay);
+  --cl-beige-50: var(--zaperp-panel-bg);
+  --cl-beige-100: var(--zaperp-panel-bg);
+  --cl-beige-200: var(--zaperp-card-bg);
+  --cl-beige-300: var(--zaperp-card-hover);
 
   --cl-green: var(--ds-accent);
   --cl-green-soft: rgba(0, 168, 132, 0.35);
   --cl-green-border: rgba(0, 168, 132, 0.5);
   --cl-chip-active: var(--ds-accent);
-  --cl-beige-light: var(--ds-surface-2);
-  --cl-beige-warm: var(--ds-surface-3);
+  --cl-beige-light: var(--zaperp-card-hover);
+  --cl-beige-warm: var(--zaperp-panel-bg);
 
   --cl-text: var(--ds-text-primary);
   --cl-text-secondary: var(--ds-text-secondary);
   --cl-text-muted: var(--ds-text-tertiary);
 
-  --cl-border: var(--ds-border);
-  --cl-border-subtle: var(--ds-border);
-  --cl-chips-primary-bg: rgba(32, 44, 51, 0.72);
+  --cl-border: var(--zaperp-border);
+  --cl-border-subtle: var(--zaperp-border);
+  --cl-chips-primary-bg: var(--zaperp-panel-bg);
   --cl-chip-secondary-active-bg: rgba(0, 168, 132, 0.18);
   --cl-chip-secondary-active-text: #5fe3c0;
   --cl-chip-secondary-active-border: rgba(0, 168, 132, 0.42);
@@ -239,7 +239,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-header {
-  background: #0d1117;
+  background: var(--zaperp-sidebar-bg);
+  border-bottom-color: var(--zaperp-border);
 }
 
 .chat-list-header-left {
@@ -1219,9 +1220,16 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card {
-  background: rgba(32, 44, 51, 0.92);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: var(--zaperp-card-bg);
+  border-color: var(--zaperp-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
+}
+
+[data-theme="dark"] .chat-list-row.zap-conversation-card:not(.chat-list-row--atendimento-calm):not(.chat-list-row--atendimento-alerta):not(
+    .chat-list-row--await-staff-premium
+  ):not(.chat-list-row--await-client-card):hover {
+  background: var(--zaperp-card-hover);
+  border-color: var(--zaperp-border);
 }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card.is-active {
@@ -1238,6 +1246,11 @@ a { color: inherit; text-decoration: none; }
     box-shadow:
       0 1px 2px rgba(11, 20, 26, 0.08),
       0 1px 5px rgba(11, 20, 26, 0.05);
+  }
+
+  [data-theme="dark"] .chat-list-row.zap-conversation-card {
+    border-color: var(--zaperp-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
   }
 
   .chat-list-row.zap-conversation-card:active:not(.is-active) {
@@ -1347,15 +1360,15 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-row {
-  border-color: rgba(255, 255, 255, 0.07);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--zaperp-border);
+  border-bottom-color: var(--zaperp-border);
   box-shadow: none;
-  background: rgba(32, 44, 51, 0.4);
+  background: transparent;
 }
 
 [data-theme="dark"] .chat-list-row:hover {
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(255, 255, 255, 0.095);
+  background: transparent;
+  border-color: var(--zaperp-border);
 }
 
 /* Lista: “Em atendimento” — superfície neutra levemente elevada (slate) */

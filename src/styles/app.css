@@ -100,8 +100,13 @@
   z-index: 2;
 }
 
+[data-theme="dark"] .atendimento-layout {
+  background: var(--zaperp-chat-bg);
+}
+
 [data-theme="dark"] .atendimento-sidebar {
-  background: #0d1117;
+  background: var(--zaperp-sidebar-bg);
+  border-right-color: var(--zaperp-border);
 }
 
 .atendimento-chat-area {
@@ -125,6 +130,12 @@
     radial-gradient(circle at 88% 18%, rgba(14, 165, 233, 0.09), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 38%, rgba(0, 0, 0, 0.18));
   opacity: 0.62;
+}
+
+/* Dark: sem overlay extra — o fundo já é --zaperp-messages-bg no container */
+[data-theme="dark"] .atendimento-chat-area::before {
+  background: none;
+  opacity: 0;
 }
 
 .atendimento-chat-area > * {
