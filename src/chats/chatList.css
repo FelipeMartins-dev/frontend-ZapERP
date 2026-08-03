@@ -93,11 +93,11 @@
   --cl-chip-secondary-active-border: rgba(0, 168, 132, 0.42);
 }
 
-/* Sidebar dark: item selecionado com contraste legível */
+/* Sidebar dark: selecionado plano (borda verde fina, sem glow) */
 [data-theme="dark"] .chat-list-row.is-active {
-  background: rgba(0, 168, 132, 0.28);
-  border-color: rgba(0, 168, 132, 0.45);
-  box-shadow: 0 0 0 1px rgba(0, 168, 132, 0.12);
+  background: var(--zaperp-card-bg);
+  border-color: rgba(0, 168, 132, 0.55);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-title,
@@ -113,8 +113,37 @@
     0 0 2px rgba(0, 0, 0, 0.35);
 }
 
+/* Campo de pesquisa — pill premium (igual referência do composer) */
+[data-theme="dark"] .chat-list-search-wrap {
+  background: var(--zaperp-sidebar-bg);
+  border-bottom-color: var(--zaperp-border);
+}
+
+[data-theme="dark"] .chat-list-search-box {
+  background: var(--zaperp-chat-bg);
+  border: 1px solid var(--zaperp-border);
+  border-radius: 999px;
+  box-shadow: none;
+  min-height: 44px;
+  padding: 10px 16px;
+  gap: 10px;
+  color: var(--cl-text-muted);
+}
+
+[data-theme="dark"] .chat-list-search-box:focus-within {
+  border-color: rgba(0, 168, 132, 0.35);
+  box-shadow: none;
+  outline: none;
+}
+
+[data-theme="dark"] .chat-list-search-input {
+  background: transparent;
+  color: var(--cl-text);
+  font-size: 14px;
+}
+
 [data-theme="dark"] .chat-list-search-input::placeholder {
-  color: rgba(233, 237, 239, 0.6);
+  color: rgba(148, 163, 184, 0.72);
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.open.chat-list-status--hud-open {
@@ -1068,6 +1097,12 @@ a { color: inherit; text-decoration: none; }
     will-change: auto !important;
     opacity: 0.34;
   }
+
+  [data-theme="dark"] .chat-list-row--atendimento-tech::after {
+    content: none;
+    display: none;
+    opacity: 0;
+  }
 }
 
 .chat-list-scroll::-webkit-scrollbar {
@@ -1221,8 +1256,8 @@ a { color: inherit; text-decoration: none; }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card {
   background: var(--zaperp-card-bg);
-  border-color: var(--zaperp-border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
+  border: 1px solid var(--zaperp-border);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card:not(.chat-list-row--atendimento-calm):not(.chat-list-row--atendimento-alerta):not(
@@ -1230,11 +1265,13 @@ a { color: inherit; text-decoration: none; }
   ):not(.chat-list-row--await-client-card):hover {
   background: var(--zaperp-card-hover);
   border-color: var(--zaperp-border);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.zap-conversation-card.is-active {
-  border-color: rgba(0, 168, 132, 0.45);
-  border-left-width: 3px;
+  background: var(--zaperp-card-bg);
+  border: 1px solid rgba(0, 168, 132, 0.55);
+  box-shadow: none;
 }
 
 @media (max-width: 640px) {
@@ -1250,7 +1287,7 @@ a { color: inherit; text-decoration: none; }
 
   [data-theme="dark"] .chat-list-row.zap-conversation-card {
     border-color: var(--zaperp-border);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
+    box-shadow: none;
   }
 
   .chat-list-row.zap-conversation-card:active:not(.is-active) {
@@ -1371,56 +1408,32 @@ a { color: inherit; text-decoration: none; }
   border-color: var(--zaperp-border);
 }
 
-/* Lista: “Em atendimento” — superfície neutra levemente elevada (slate) */
+/* Lista dark: cards flat — sem barra/glow nas bordas (tags de status intactas) */
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-calm:not(.is-active) {
-  background: rgba(38, 47, 58, 0.78);
-  border-color: rgba(100, 116, 139, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.06);
+  background: var(--zaperp-card-bg);
+  border: 1px solid var(--zaperp-border);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-calm:not(.is-active):hover {
-  background: rgba(44, 54, 66, 0.85);
-  border-color: rgba(148, 163, 184, 0.28);
+  background: var(--zaperp-card-hover);
+  border-color: var(--zaperp-border);
 }
 
-/* Cliente aguardando o funcionário — destaque reforçado (âmbar/ciano) */
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active) {
-  background: linear-gradient(
-    108deg,
-    rgba(251, 146, 60, 0.36) 0%,
-    rgba(251, 146, 60, 0.17) 16%,
-    rgba(56, 189, 248, 0.06) 32%,
-    rgba(68, 48, 36, 0.84) 40%,
-    rgba(28, 32, 40, 0.98) 86%
-  );
-  background-size: 100% 100%;
-  border-color: rgba(252, 211, 77, 0.55);
-  box-shadow:
-    inset 6px 0 0 rgba(253, 186, 116, 1),
-    inset 0 0 0 1px rgba(251, 191, 36, 0.28),
-    0 0 0 1px rgba(251, 146, 60, 0.22),
-    0 6px 28px rgba(251, 146, 60, 0.34),
-    0 12px 40px rgba(234, 88, 12, 0.16),
-    0 0 24px rgba(34, 211, 238, 0.08);
+  background: var(--zaperp-card-bg);
+  background-size: auto;
+  border: 1px solid var(--zaperp-border);
+  box-shadow: none;
+  filter: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta:not(.is-active):hover {
   filter: none;
-  background: linear-gradient(
-    108deg,
-    rgba(251, 146, 60, 0.4) 0%,
-    rgba(251, 146, 60, 0.19) 20%,
-    rgba(78, 54, 40, 0.9) 42%,
-    rgba(34, 38, 48, 1) 88%
-  );
-  background-size: 100% 100%;
-  border-color: rgba(254, 243, 199, 0.6);
-  box-shadow:
-    inset 6px 0 0 rgba(254, 215, 170, 1),
-    inset 0 0 0 1px rgba(252, 211, 77, 0.3),
-    0 0 0 1px rgba(251, 146, 60, 0.28),
-    0 8px 34px rgba(251, 146, 60, 0.4),
-    0 14px 48px rgba(234, 88, 12, 0.22);
+  background: var(--zaperp-card-hover);
+  background-size: auto;
+  border-color: var(--zaperp-border);
+  box-shadow: none;
 }
 
 /* Tema claro: índigo suave vs âmbar — contraste limpo */
@@ -1524,25 +1537,28 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-staff-premium:not(.is-active) {
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  border-left: 4px solid #38bdf8;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(2, 100, 180, 0.18);
+  border: 1px solid var(--zaperp-border);
+  border-left-width: 1px;
+  background: var(--zaperp-card-bg);
   box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-staff-premium:not(.is-active):hover {
-  background: rgba(2, 100, 180, 0.22);
+  background: var(--zaperp-card-hover);
+  border-color: var(--zaperp-border);
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-staff-premium.is-active {
-  border: 1px solid rgba(56, 189, 248, 0.32);
-  border-left: 4px solid #38bdf8;
-  background: linear-gradient(90deg, rgba(2, 100, 180, 0.2) 0%, rgba(32, 44, 51, 0.55) 48%);
+  border: 1px solid rgba(0, 168, 132, 0.55);
+  border-left-width: 1px;
+  background: var(--zaperp-card-bg);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--atendimento-alerta.chat-list-row--await-staff-premium:not(.is-active) {
-  background: rgba(2, 100, 180, 0.18);
+  background: var(--zaperp-card-bg);
+  border-color: var(--zaperp-border);
+  box-shadow: none;
 }
 
 .chat-list-row.chat-list-row--await-staff-premium .chat-list-avatar,
@@ -1637,27 +1653,28 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
-  border: 1px solid rgba(251, 191, 36, 0.22);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-  border-left: 4px solid #f59e0b;
-  background: rgba(180, 100, 0, 0.14);
+  border: 1px solid var(--zaperp-border);
+  border-left-width: 1px;
+  background: var(--zaperp-card-bg);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card:not(.is-active):hover {
-  background: rgba(180, 100, 0, 0.17);
+  background: var(--zaperp-card-hover);
+  border-color: var(--zaperp-border);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card.is-active {
-  border: 1px solid rgba(251, 191, 36, 0.26);
-  border-left: 4px solid #fbbf24;
-  background: linear-gradient(90deg, rgba(180, 100, 0, 0.16) 0%, rgba(32, 44, 51, 0.5) 55%);
+  border: 1px solid rgba(0, 168, 132, 0.55);
+  border-left-width: 1px;
+  background: var(--zaperp-card-bg);
+  box-shadow: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
   [data-theme="dark"] .chat-list-row.chat-list-row--await-client-card:not(.is-active) {
-    box-shadow:
-      inset 0 0 0 1px rgba(251, 191, 36, 0.1),
-      0 0 12px rgba(180, 83, 9, 0.16);
+    box-shadow: none;
   }
 }
 
@@ -1673,6 +1690,12 @@ a { color: inherit; text-decoration: none; }
     animation: none !important;
     opacity: 0.38;
     will-change: auto;
+  }
+
+  [data-theme="dark"] .chat-list-row--atendimento-tech::after {
+    content: none;
+    display: none;
+    opacity: 0;
   }
 
   .chat-list-row.chat-list-row--atendimento-alerta .chat-list-atendimento-dot {
@@ -1758,11 +1781,22 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-row--atendimento-tech::after {
-  mix-blend-mode: screen;
+  content: none;
+  display: none;
+  animation: none;
+  opacity: 0;
+  background: none;
+  mix-blend-mode: normal;
 }
 
 .chat-list-row--atendimento-tech.is-active::after {
   animation: chat-list-tech-pulse-opacity 3s ease-in-out infinite;
+}
+
+[data-theme="dark"] .chat-list-row--atendimento-tech.is-active::after {
+  content: none;
+  display: none;
+  animation: none;
 }
 
 /* Staff + tech: substitui animações pesadas por bruma cyan (pulso só desktop claro) */
@@ -1798,12 +1832,12 @@ a { color: inherit; text-decoration: none; }
 }
 
 [data-theme="dark"] .chat-list-row.chat-list-row--await-staff-premium.chat-list-row--atendimento-tech::after {
+  content: none;
+  display: none;
   animation: none !important;
-  mix-blend-mode: screen;
-  opacity: 0.34;
-  transform: none;
-  background: radial-gradient(ellipse 125% 130% at 0% 50%, rgba(56, 189, 248, 0.22) 0%, transparent 64%);
-  background-size: auto;
+  opacity: 0;
+  background: none;
+  mix-blend-mode: normal;
   will-change: auto;
 }
 

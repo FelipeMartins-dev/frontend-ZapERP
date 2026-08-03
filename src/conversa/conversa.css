@@ -8803,6 +8803,46 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
   background: var(--zaperp-header-bg);
   border-top-color: var(--zaperp-border);
   backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Composer dark — pill + botões flat (referência premium) */
+[data-theme="dark"] .wa-footer .wa-iconBtn {
+  border-radius: 12px;
+  background: var(--zaperp-card-bg);
+  border: 1px solid var(--zaperp-border);
+  color: rgba(226, 232, 240, 0.78);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .wa-footer .wa-iconBtn:hover:not(:disabled) {
+  background: var(--zaperp-card-hover);
+  border-color: var(--zaperp-border);
+  color: var(--wa-text);
+}
+
+[data-theme="dark"] .wa-input {
+  background: var(--zaperp-chat-bg);
+  border: 1px solid var(--zaperp-border);
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--wa-text);
+}
+
+[data-theme="dark"] .wa-input::placeholder {
+  color: rgba(148, 163, 184, 0.72);
+}
+
+[data-theme="dark"] .wa-input:focus {
+  border-color: rgba(0, 168, 132, 0.35);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .wa-input--closedAttendance,
+[data-theme="dark"] .wa-input--closedAttendance:disabled {
+  background: color-mix(in srgb, var(--zaperp-chat-bg) 88%, var(--zaperp-border) 12%);
+  border-color: var(--zaperp-border);
+  box-shadow: none;
 }
 
 .wa-footer-hint {
@@ -9365,13 +9405,16 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
 }
 
 [data-theme="dark"] .wa-micBtn{
-  border-color: rgba(255,255,255,.1);
-  background: rgba(255,255,255,.06);
-  color: var(--wa-text-muted);
+  border-radius: 12px;
+  border-color: var(--zaperp-border);
+  background: var(--zaperp-card-bg);
+  color: rgba(226, 232, 240, 0.78);
+  box-shadow: none;
 }
 [data-theme="dark"] .wa-micBtn:hover:not(:disabled){
-  background: var(--ds-accent-soft);
-  color: var(--wa-green);
+  background: var(--zaperp-card-hover);
+  border-color: var(--zaperp-border);
+  color: var(--wa-text);
 }
 
 /* Emoji picker — leve, profissional, não bloqueia a UI */
