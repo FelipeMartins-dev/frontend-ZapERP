@@ -637,6 +637,39 @@ export function getMediaPlaybackUrl(url, urlAbsoluta) {
   return `${getApiBaseUrl().replace(/\/$/, "")}/media/proxy?${q.toString()}`;
 }
 
+/**
+ * Reescreve o `access_token`/`token` embutido numa URL do `/media/proxy` com o token atual do
+ * storage. O `<audio>`/`<video>` não envia header Authorization (usa `?access_token=`), e a URL do
+ * candidato de mídia é calculada uma única vez (memo, no momento da render). Se o JWT rotacionar
+ * entre o 1º play e um (re)load — resume que precisa de rede, retry, backfill — o pedido saía com o
+ * token velho e a origem respondia 401; o `<audio>` então travava mudo. Chamado imediatamente antes
+ * de cada `load()` para o request sair com o token novo. URLs não-proxy (blob, /uploads, direto do
+ * provedor) e URLs sem token são devolvidas inalteradas — nenhuma reescrita, nenhum reload extra.
+ */
+export function refreshProxyMediaToken(url) {
+  const s = String(url || "").trim();
+  if (!s || s.startsWith("blob:") || !/^https?:\/\//i.test(s)) return s;
+  try {
+    const u = new URL(s);
+    const baseRaw = getApiBaseUrl().replace(/\/$/, "");
+    const api = new URL(baseRaw.startsWith("http") ? baseRaw : `https://${baseRaw}`);
+    const isProxy =
+      u.origin === api.origin &&
+      (u.pathname === "/media/proxy" || u.pathname === "/api/media/proxy");
+    if (!isProxy) return s;
+    const hasAccessToken = u.searchParams.has("access_token");
+    const hasToken = u.searchParams.has("token");
+    if (!hasAccessToken && !hasToken) return s;
+    const token = getAuthTokenFromStorage();
+    if (!token) return s;
+    if (hasAccessToken) u.searchParams.set("access_token", token);
+    if (hasToken) u.searchParams.set("token", token);
+    return u.toString();
+  } catch {
+    return s;
+  }
+}
+
 export function credentialedFetchMode() {
   const v = String(import.meta.env.VITE_WITH_CREDENTIALS || "").trim().toLowerCase();
   return v === "1" || v === "true" ? "include" : "omit";

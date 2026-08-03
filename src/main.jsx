@@ -7,8 +7,13 @@ import { initPushSubscriptionLifecycle } from "./push/pushSubscriptionLifecycle"
 import { initServiceWorkerBridge } from "./push/swBridge";
 import { initNativeFcmBridge } from "./push/nativeFcmBridge";
 import { initNotificationDiagnostics } from "./push/notificationDiagnostics";
+import { installVitePreloadRecovery } from "./runtime/vitePreloadRecovery";
 import "./styles/theme.css";
 import "./styles/app.css";
+
+if (typeof window !== "undefined") {
+  installVitePreloadRecovery(window);
+}
 
 useAuthStore.getState().restore();
 

@@ -29,7 +29,15 @@ import {
   getReplySenderLabel,
   nameColor,
 } from "./utils/conversaMessageDisplay";
-import { copyTextToClipboard } from "./utils/conversaViewHelpers";
+import { copyTextToClipboard, refreshProxyMediaToken } from "./utils/conversaViewHelpers";
+import {
+  nextSourceIndexOnError,
+  shouldGiveUpOnError,
+  planReloadOnPlayFailure,
+  classifyStallRecovery,
+  planReloadOnStall,
+  needsReloadBeforeResume,
+} from "./utils/audioPlaybackRecovery";
 import {
   IconPlay,
   IconPause,
@@ -468,6 +476,41 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
   const [reloadNonce, setReloadNonce] = useState(0);
   const activeSrc = sourceList[sourceIdx] || "";
   const audioRef = useRef(null);
+  // Atualiza o token do proxy na URL do elemento imediatamente antes de um (re)load. A URL do
+  // candidato é congelada no memo da render; se o JWT rotacionou desde então, um resume/retry que
+  // precise de rede iria com token velho → 401 → áudio mudo. Só reescreve URL de /media/proxy com
+  // token (blob/uploads/direto voltam inalterados), e só toca no DOM quando o valor muda de fato —
+  // evita reload espúrio no caminho comum. Ver refreshProxyMediaToken.
+  const applyFreshSrc = useCallback(
+    (el) => {
+      if (!el || !activeSrc) return;
+      const fresh = refreshProxyMediaToken(activeSrc);
+      if (fresh && fresh !== el.getAttribute("src")) {
+        try {
+          el.src = fresh;
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [activeSrc]
+  );
+
+  // A posição atual está dentro de algum range já bufferizado? No mobile, um <audio> pausado tem o
+  // buffer liberado e passa a reportar "nenhum range cobre currentTime", sinal de que o resume vai
+  // travar. Epsilon pequeno absorve arredondamento de borda de range.
+  const isPositionBuffered = (el) => {
+    try {
+      const t = Number(el.currentTime) || 0;
+      const b = el.buffered;
+      for (let i = 0; i < b.length; i += 1) {
+        if (t >= b.start(i) - 0.25 && t < b.end(i)) return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return false;
+  };
   // Janela curta, aberta por um clique, em que o player pode tentar o próximo candidato sozinho —
   // sem ela, uma fonte que falhou consumia um clique sem produzir som. `ate` é um instante (não um
   // contador) de propósito: efeitos são invocados duas vezes em StrictMode e um contador seria
@@ -622,19 +665,18 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
         // Teto duro: no máximo uma volta pela lista de fontes antes de parar de tentar sozinho.
         // Chegar aqui significa que o usuário pediu para tocar e TODAS as fontes falharam —
         // é o único ponto em que dá para afirmar "este áudio não está disponível agora".
-        if (auto.tentativas > sourceList.length) {
+        if (shouldGiveUpOnError({ tentativas: auto.tentativas, sourceCount: sourceList.length })) {
           auto.ate = 0;
           setIndisponivel(true);
         }
       }
-      setSourceIdx((curIdx) => {
-        if (curIdx + 1 < sourceList.length) return curIdx + 1;
-        // Já no último candidato. Se o usuário está esperando este áudio tocar, volta ao primeiro
-        // para fechar o ciclo — sem isso o player ficava parado no candidato ruim e o clique não
-        // produzia som. Fora de um pedido do usuário, não reinicia (evita rede em segundo plano).
-        if (autoPlayRef.current.ate > Date.now() && sourceList.length > 1) return 0;
-        return curIdx;
-      });
+      setSourceIdx((curIdx) =>
+        nextSourceIndexOnError({
+          sourceIdx: curIdx,
+          sourceCount: sourceList.length,
+          autoWindowOpen: autoPlayRef.current.ate > Date.now(),
+        })
+      );
     };
 
     el.addEventListener("loadedmetadata", onLoaded);
@@ -663,6 +705,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
   useEffect(() => {
     const el = audioRef.current;
     if (!el || !activeSrc) return;
+    applyFreshSrc(el);
     try {
       el.load();
     } catch {
@@ -682,7 +725,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     };
     el.addEventListener("canplay", tocarQuandoPronto);
     return () => el.removeEventListener("canplay", tocarQuandoPronto);
-  }, [activeSrc, reloadNonce]);
+  }, [activeSrc, reloadNonce, applyFreshSrc]);
 
   // Progresso mais fluido (rAF com throttle leve) enquanto toca
   useEffect(() => {
@@ -706,6 +749,77 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
     };
   }, [playing]);
 
+  // Vigia de reprodução muda: no mobile, um <audio> pausado ou em segundo plano costuma ter o
+  // buffer decodificado liberado pelo navegador. Ao voltar a tocar (despausar) ou ao tocar um áudio
+  // recebido, `play()` RESOLVE mas a mídia fica presa em 'waiting'/'stalled' com o currentTime
+  // congelado e NENHUM evento 'error' dispara — proxy com Range intermitente, link do provedor
+  // expirado, ou limite de conexões do navegador numa rajada de áudios. Como a máquina de
+  // recuperação só acorda no 'error'/rejeição de play(), esse travamento silencioso deixava o áudio
+  // mudo até a conversa remontar (sair e reabrir). Aqui, se depois de um stall o tempo não anda numa
+  // janela curta, dispara UMA recuperação (recarrega a fonte e retoma dentro da janela do clique).
+  // Se travar de novo, marca "indisponível" em vez de ficar em loop; o timeout generoso evita cortar
+  // um buffering lento porém legítimo.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || !playing) return;
+    let timer = 0;
+    let recovered = false;
+    let baseline = Number(el.currentTime || 0);
+    const progressed = () => Number(el.currentTime || 0) > baseline + 0.2;
+    const clear = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = 0;
+      }
+    };
+    const recover = () => {
+      clear();
+      const decisao = classifyStallRecovery({
+        paused: el.paused,
+        ended: el.ended,
+        seeking: el.seeking,
+        progressed: progressed(),
+        alreadyRecovered: recovered,
+      });
+      if (decisao === "noop") return;
+      if (decisao === "giveup") {
+        // Já tentamos recarregar nesta fonte e continua sem andar: é o único ponto seguro para
+        // afirmar que este áudio não vai tocar agora. Reusa a UI de "indisponível — tentar de novo".
+        setIndisponivel(true);
+        return;
+      }
+      recovered = true;
+      // Mesma retomada que um play() falho usa: abre a janela do clique e recarrega/avança a fonte,
+      // deixando o efeito de `activeSrc/reloadNonce` fazer load() e tocar quando ficar pronto.
+      autoPlayRef.current = { ate: Date.now() + 10_000, tentativas: autoPlayRef.current.tentativas || 0 };
+      const plano = planReloadOnStall({ sourceIdx, sourceCount: sourceList.length });
+      if (plano.type === "advance") setSourceIdx(plano.sourceIdx);
+      else setReloadNonce((n) => n + 1);
+    };
+    const armFromStall = () => {
+      if (timer) return;
+      baseline = Number(el.currentTime || 0);
+      timer = setTimeout(recover, 4000);
+    };
+    const cancelIfMoving = () => {
+      if (progressed()) {
+        clear();
+        baseline = Number(el.currentTime || 0);
+      }
+    };
+    el.addEventListener("waiting", armFromStall);
+    el.addEventListener("stalled", armFromStall);
+    el.addEventListener("playing", cancelIfMoving);
+    el.addEventListener("timeupdate", cancelIfMoving);
+    return () => {
+      clear();
+      el.removeEventListener("waiting", armFromStall);
+      el.removeEventListener("stalled", armFromStall);
+      el.removeEventListener("playing", cancelIfMoving);
+      el.removeEventListener("timeupdate", cancelIfMoving);
+    };
+  }, [playing, sourceIdx, sourceList.length]);
+
   const toggle = useCallback(async () => {
     const el = audioRef.current;
     if (!el) return;
@@ -724,9 +838,28 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
         // "travado" em estado de erro ou sem nada carregado — limite de conexões do navegador, link
         // do provedor que expirou, ou proxy intermitente. Antes, clicar em tocar chamava play() num
         // elemento com erro (rejeita) e o áudio só voltava ao sair/entrar da conversa. Agora, se o
-        // elemento errou ou não carregou, recarrega na hora antes de tocar.
-        if (el.error || el.readyState === 0) {
+        // elemento errou, não carregou, OU teve o buffer liberado no meio da faixa (resume no mobile),
+        // recarrega na hora — preservando a posição — antes de tocar.
+        if (
+          needsReloadBeforeResume({
+            hasError: !!el.error,
+            readyState: el.readyState,
+            positionCovered: isPositionBuffered(el),
+            currentTime: el.currentTime,
+          })
+        ) {
+          const resumeAt = Number(el.currentTime) || 0;
+          applyFreshSrc(el);
           try { el.load(); } catch { /* ignore */ }
+          // load() zera o currentTime; se estávamos no meio da faixa, restaura a posição assim que
+          // os metadados voltam, para o resume continuar de onde parou em vez de recomeçar do zero.
+          if (resumeAt > 0.25) {
+            const restaurarPosicao = () => {
+              el.removeEventListener("loadedmetadata", restaurarPosicao);
+              try { el.currentTime = resumeAt; } catch { /* ignore */ }
+            };
+            el.addEventListener("loadedmetadata", restaurarPosicao);
+          }
         }
         await el.play();
       } else {
@@ -737,16 +870,15 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, onDu
       // A janela (10s) e o teto de tentativas garantem que o ciclo termina; o atendente não
       // precisa mais clicar duas vezes para um áudio cuja primeira fonte falhou.
       autoPlayRef.current = { ate: Date.now() + 10_000, tentativas: 0 };
-      if (sourceIdx + 1 < sourceList.length) {
-        setSourceIdx((curIdx) => curIdx + 1);
-      } else if (sourceIdx !== 0) {
-        setSourceIdx(0);
-      } else {
+      const plano = planReloadOnPlayFailure({ sourceIdx, sourceCount: sourceList.length });
+      if (plano.type === "nonce") {
         // Fonte única: a troca de índice não acontece, então força o recarregamento por nonce.
         setReloadNonce((n) => n + 1);
+      } else {
+        setSourceIdx(plano.sourceIdx);
       }
     }
-  }, [playbackRate, sourceIdx, sourceList.length]);
+  }, [playbackRate, sourceIdx, sourceList.length, applyFreshSrc]);
 
   /**
    * "Tentar de novo" depois que todas as fontes falharam. Não inventa mecanismo novo:

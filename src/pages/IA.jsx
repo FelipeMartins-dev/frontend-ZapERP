@@ -10,6 +10,7 @@ import { getClientes, getUsuarios } from "../api/configService";
 import Breadcrumb from "../components/layout/Breadcrumb";
 import { SkeletonGrid } from "../components/feedback/Skeleton";
 import Switch from "../components/ui/Switch";
+import { normalizeFinalizationMessage } from "./iaConfigPayload";
 import "../components/layout/breadcrumb.css";
 import "../components/feedback/skeleton.css";
 import "../components/ui/switch.css";
@@ -972,14 +973,18 @@ function SecaoChatbotTriagem({
       const dt = new Date(d);
       return !isNaN(dt.getTime());
     });
+    const finalizationMessage = normalizeFinalizationMessage(
+      vals.enviarMensagemFinalizacao,
+      vals.mensagemFinalizacao
+    );
+
     return {
       ...vals,
       enabled: !!vals.enabled,
       welcomeMessage: (vals.welcomeMessage || "").trim(),
       invalidOptionMessage: (vals.invalidOptionMessage || "").trim(),
       confirmSelectionMessage: (vals.confirmSelectionMessage || "").trim(),
-      enviarMensagemFinalizacao: !!vals.enviarMensagemFinalizacao,
-      mensagemFinalizacao: (vals.mensagemFinalizacao || "").trim(),
+      ...finalizationMessage,
       foraHorarioEnabled: !!vals.foraHorarioEnabled,
       horarioInicio: formatTime(vals.horarioInicio) || "09:00",
       horarioFim: formatTime(vals.horarioFim) || "18:00",
@@ -1019,10 +1024,6 @@ function SecaoChatbotTriagem({
       const activeOpts = opts.filter((o) => o.active !== false);
       const validOpts = activeOpts.filter((o) => (o.label || "").trim() && o.departamento_id);
       if (validOpts.length === 0) return "Adicione pelo menos uma opção válida (label e departamento) quando o chatbot está ativo.";
-    }
-    if (vals.enviarMensagemFinalizacao) {
-      const msg = (vals.mensagemFinalizacao || "").trim();
-      if (!msg) return "Mensagem de finalização é obrigatória quando está ativo o envio ao finalizar.";
     }
     if (vals.foraHorarioEnabled) {
       const msgFora = (vals.mensagemForaHorario || "").trim();
