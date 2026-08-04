@@ -79,21 +79,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 4px 12px 8px;
+  gap: 12px;
+  padding: 6px 12px 10px;
   min-width: 0;
 }
 
 .suporte-zaperp-ornament {
+  --orn-accent: var(--cl-green, #00a884);
   flex: 1 1 0;
   display: flex;
   align-items: center;
-  min-width: 28px;
-  max-width: 140px;
-  height: 20px;
-  opacity: 0.72;
+  min-width: 40px;
+  max-width: 168px;
+  height: 28px;
+  color: var(--orn-accent);
+  opacity: 0.9;
   pointer-events: none;
   user-select: none;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--orn-accent) 22%, transparent));
 }
 
 .suporte-zaperp-ornament svg {
@@ -104,19 +107,49 @@
 
 .suporte-zaperp-ornament path {
   fill: none;
-  stroke: color-mix(in srgb, var(--cl-green, #00a884) 42%, transparent);
-  stroke-width: 1.15;
+  stroke: color-mix(in srgb, var(--orn-accent) 58%, transparent);
+  stroke-width: 1.25;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
+.suporte-zaperp-ornament path.is-soft {
+  stroke: color-mix(in srgb, var(--orn-accent) 34%, transparent);
+  stroke-width: 1.05;
+}
+
 .suporte-zaperp-ornament circle {
-  fill: color-mix(in srgb, var(--cl-green, #00a884) 70%, #fff 8%);
+  fill: color-mix(in srgb, var(--orn-accent) 82%, #fff 12%);
+  stroke: none;
+}
+
+.suporte-zaperp-ornament circle.is-core {
+  fill: color-mix(in srgb, var(--orn-accent) 92%, #fff 18%);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--orn-accent) 55%, transparent));
+}
+
+.suporte-zaperp-ornament circle.is-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--orn-accent) 55%, transparent);
+  stroke-width: 1;
+  opacity: 0.85;
+}
+
+.suporte-zaperp-ornament .is-chip {
+  fill: color-mix(in srgb, var(--orn-accent) 18%, transparent);
+  stroke: color-mix(in srgb, var(--orn-accent) 78%, #fff 8%);
+  stroke-width: 1.1;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--orn-accent) 35%, transparent));
 }
 
 .suporte-zaperp-ornament circle.is-pulse {
+  transform-box: fill-box;
   transform-origin: center;
-  animation: suporte-zaperp-node-pulse 2.4s ease-in-out infinite;
+  animation: suporte-zaperp-node-pulse 2.6s ease-in-out infinite;
+}
+
+.suporte-zaperp-ornament circle.is-pulse-delay {
+  animation-delay: 0.9s;
 }
 
 .suporte-zaperp-ornament--left {
@@ -127,31 +160,39 @@
   justify-content: flex-start;
 }
 
-.suporte-zaperp-ornament--right svg {
-  transform: scaleX(-1);
-}
-
 @keyframes suporte-zaperp-node-pulse {
   0%,
   100% {
-    opacity: 0.45;
+    opacity: 0.35;
+    transform: scale(0.92);
   }
   50% {
     opacity: 1;
+    transform: scale(1.12);
   }
 }
 
 [data-theme="dark"] .suporte-zaperp-ornament {
-  opacity: 0.85;
+  opacity: 1;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--orn-accent) 28%, transparent));
 }
 
 [data-theme="dark"] .suporte-zaperp-ornament path {
-  stroke: color-mix(in srgb, var(--cl-green, #00a884) 48%, transparent);
+  stroke: color-mix(in srgb, var(--orn-accent) 68%, transparent);
+}
+
+[data-theme="dark"] .suporte-zaperp-ornament path.is-soft {
+  stroke: color-mix(in srgb, var(--orn-accent) 40%, transparent);
 }
 
 [data-theme="dark"] .suporte-zaperp-ornament circle {
-  fill: color-mix(in srgb, var(--cl-green, #00a884) 78%, #fff 10%);
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cl-green, #00a884) 35%, transparent));
+  fill: color-mix(in srgb, var(--orn-accent) 88%, #fff 14%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suporte-zaperp-ornament circle.is-pulse {
+    animation: none;
+  }
 }
 
 .suporte-zaperp-btn {
@@ -421,13 +462,14 @@
 
   .chat-list-toolbar-suporte-row {
     gap: 8px;
-    padding-inline: 10px;
+    padding: 4px 10px 8px;
   }
 
   .suporte-zaperp-ornament {
-    min-width: 20px;
-    max-width: 72px;
-    opacity: 0.58;
+    min-width: 28px;
+    max-width: 88px;
+    height: 24px;
+    opacity: 0.72;
   }
 
   .suporte-zaperp-btn {

@@ -225,14 +225,25 @@ function ChatListToolbar({
       {typeof onSuporteClick === "function" ? (
         <div className="chat-list-toolbar-suporte-row">
           <span className="suporte-zaperp-ornament suporte-zaperp-ornament--left" aria-hidden="true">
-            <svg viewBox="0 0 120 20" preserveAspectRatio="none" focusable="false">
-              <path d="M0 10 H48 M48 10 V4 H62 M62 4 H78 M78 4 V10 H120" />
-              <path d="M20 10 V16 H36 M36 16 H52" />
-              <circle cx="48" cy="10" r="1.6" />
-              <circle cx="62" cy="4" r="1.35" />
-              <circle cx="78" cy="4" r="1.35" />
-              <circle cx="36" cy="16" r="1.35" />
-              <circle cx="100" cy="10" r="1.1" className="is-pulse" />
+            <svg viewBox="0 0 148 28" preserveAspectRatio="xMaxYMid meet" focusable="false">
+              <defs>
+                <linearGradient id="suporteOrnGradL" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0" />
+                  <stop offset="28%" stopColor="currentColor" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0.95" />
+                </linearGradient>
+              </defs>
+              <path className="is-soft" d="M4 14 H58" stroke="url(#suporteOrnGradL)" />
+              <path d="M58 14 H86 M86 14 V7 H104 M104 7 H122 M122 7 V14 H144" />
+              <path className="is-soft" d="M34 14 V21 H52 M52 21 H72 M72 21 V14" />
+              <path className="is-soft" d="M96 14 V20 H112" />
+              <rect className="is-chip" x="82.2" y="10.4" width="7.6" height="7.6" rx="1.4" transform="rotate(45 86 14)" />
+              <circle className="is-core" cx="104" cy="7" r="2" />
+              <circle className="is-ring" cx="104" cy="7" r="3.4" />
+              <circle cx="122" cy="7" r="1.55" />
+              <circle cx="52" cy="21" r="1.45" />
+              <circle className="is-pulse" cx="72" cy="21" r="1.35" />
+              <circle className="is-pulse is-pulse-delay" cx="136" cy="14" r="1.5" />
             </svg>
           </span>
           <button
@@ -249,14 +260,25 @@ function ChatListToolbar({
             </span>
           </button>
           <span className="suporte-zaperp-ornament suporte-zaperp-ornament--right" aria-hidden="true">
-            <svg viewBox="0 0 120 20" preserveAspectRatio="none" focusable="false">
-              <path d="M0 10 H42 M42 10 V4 H58 M58 4 H74 M74 4 V10 H120" />
-              <path d="M68 10 V16 H84 M84 16 H100" />
-              <circle cx="42" cy="10" r="1.6" />
-              <circle cx="58" cy="4" r="1.35" />
-              <circle cx="74" cy="4" r="1.35" />
-              <circle cx="84" cy="16" r="1.35" />
-              <circle cx="20" cy="10" r="1.1" className="is-pulse" />
+            <svg viewBox="0 0 148 28" preserveAspectRatio="xMinYMid meet" focusable="false">
+              <defs>
+                <linearGradient id="suporteOrnGradR" x1="1" y1="0" x2="0" y2="0">
+                  <stop offset="0%" stopColor="currentColor" stopOpacity="0" />
+                  <stop offset="28%" stopColor="currentColor" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="currentColor" stopOpacity="0.95" />
+                </linearGradient>
+              </defs>
+              <path className="is-soft" d="M144 14 H90" stroke="url(#suporteOrnGradR)" />
+              <path d="M90 14 H62 M62 14 V7 H44 M44 7 H26 M26 7 V14 H4" />
+              <path className="is-soft" d="M114 14 V21 H96 M96 21 H76 M76 21 V14" />
+              <path className="is-soft" d="M52 14 V20 H36" />
+              <rect className="is-chip" x="57.8" y="10.4" width="7.6" height="7.6" rx="1.4" transform="rotate(45 61.6 14)" />
+              <circle className="is-core" cx="44" cy="7" r="2" />
+              <circle className="is-ring" cx="44" cy="7" r="3.4" />
+              <circle cx="26" cy="7" r="1.55" />
+              <circle cx="96" cy="21" r="1.45" />
+              <circle className="is-pulse" cx="76" cy="21" r="1.35" />
+              <circle className="is-pulse is-pulse-delay" cx="12" cy="14" r="1.5" />
             </svg>
           </span>
         </div>
