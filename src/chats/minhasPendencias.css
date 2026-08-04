@@ -74,15 +74,90 @@
   gap: 0;
 }
 
-/* Botão Suporte ZapERP — linha própria abaixo dos chips */
+/* Botão Suporte ZapERP — centralizado com enfeites tecnológicos */
 .chat-list-toolbar-suporte-row {
   display: flex;
   align-items: center;
-  padding: 2px 12px 6px;
+  justify-content: center;
+  gap: 10px;
+  padding: 4px 12px 8px;
   min-width: 0;
 }
 
+.suporte-zaperp-ornament {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  min-width: 28px;
+  max-width: 140px;
+  height: 20px;
+  opacity: 0.72;
+  pointer-events: none;
+  user-select: none;
+}
+
+.suporte-zaperp-ornament svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.suporte-zaperp-ornament path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cl-green, #00a884) 42%, transparent);
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.suporte-zaperp-ornament circle {
+  fill: color-mix(in srgb, var(--cl-green, #00a884) 70%, #fff 8%);
+}
+
+.suporte-zaperp-ornament circle.is-pulse {
+  transform-origin: center;
+  animation: suporte-zaperp-node-pulse 2.4s ease-in-out infinite;
+}
+
+.suporte-zaperp-ornament--left {
+  justify-content: flex-end;
+}
+
+.suporte-zaperp-ornament--right {
+  justify-content: flex-start;
+}
+
+.suporte-zaperp-ornament--right svg {
+  transform: scaleX(-1);
+}
+
+@keyframes suporte-zaperp-node-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+[data-theme="dark"] .suporte-zaperp-ornament {
+  opacity: 0.85;
+}
+
+[data-theme="dark"] .suporte-zaperp-ornament path {
+  stroke: color-mix(in srgb, var(--cl-green, #00a884) 48%, transparent);
+}
+
+[data-theme="dark"] .suporte-zaperp-ornament circle {
+  fill: color-mix(in srgb, var(--cl-green, #00a884) 78%, #fff 10%);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cl-green, #00a884) 35%, transparent));
+}
+
 .suporte-zaperp-btn {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -345,7 +420,14 @@
   }
 
   .chat-list-toolbar-suporte-row {
+    gap: 8px;
     padding-inline: 10px;
+  }
+
+  .suporte-zaperp-ornament {
+    min-width: 20px;
+    max-width: 72px;
+    opacity: 0.58;
   }
 
   .suporte-zaperp-btn {

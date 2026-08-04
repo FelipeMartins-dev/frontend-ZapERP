@@ -224,6 +224,17 @@ function ChatListToolbar({
 
       {typeof onSuporteClick === "function" ? (
         <div className="chat-list-toolbar-suporte-row">
+          <span className="suporte-zaperp-ornament suporte-zaperp-ornament--left" aria-hidden="true">
+            <svg viewBox="0 0 120 20" preserveAspectRatio="none" focusable="false">
+              <path d="M0 10 H48 M48 10 V4 H62 M62 4 H78 M78 4 V10 H120" />
+              <path d="M20 10 V16 H36 M36 16 H52" />
+              <circle cx="48" cy="10" r="1.6" />
+              <circle cx="62" cy="4" r="1.35" />
+              <circle cx="78" cy="4" r="1.35" />
+              <circle cx="36" cy="16" r="1.35" />
+              <circle cx="100" cy="10" r="1.1" className="is-pulse" />
+            </svg>
+          </span>
           <button
             type="button"
             className="suporte-zaperp-btn"
@@ -237,6 +248,17 @@ function ChatListToolbar({
               {suporteBusy ? "Abrindo…" : "Suporte ZapERP"}
             </span>
           </button>
+          <span className="suporte-zaperp-ornament suporte-zaperp-ornament--right" aria-hidden="true">
+            <svg viewBox="0 0 120 20" preserveAspectRatio="none" focusable="false">
+              <path d="M0 10 H42 M42 10 V4 H58 M58 4 H74 M74 4 V10 H120" />
+              <path d="M68 10 V16 H84 M84 16 H100" />
+              <circle cx="42" cy="10" r="1.6" />
+              <circle cx="58" cy="4" r="1.35" />
+              <circle cx="74" cy="4" r="1.35" />
+              <circle cx="84" cy="16" r="1.35" />
+              <circle cx="20" cy="10" r="1.1" className="is-pulse" />
+            </svg>
+          </span>
         </div>
       ) : null}
 
