@@ -783,8 +783,58 @@ function stripTempIdWhenPersisted(msg) {
 }
 
 /** Merge in-place preservando tempId da bolha otimista (chave React + lastMsgKey estáveis). */
+/**
+ * Flags locais de espera (offline/incerto) nao vem do backend. No merge
+ * `{...prev, ...api}` elas sobrevivem e o relogio fica preso mesmo apos sent/delivered.
+ */
+function clearStaleOutboundWaitFlags(merged) {
+  if (!merged || typeof merged !== "object") return merged
+  const status = String(merged.status_mensagem ?? merged.status ?? "").toLowerCase().trim()
+  const hasPersist =
+    (merged.id != null && String(merged.id).trim() !== "") ||
+    (merged.whatsapp_id != null && String(merged.whatsapp_id).trim() !== "")
+  const serverProgress = [
+    "pending",
+    "sending",
+    "enviando",
+    "sent",
+    "enviada",
+    "enviado",
+    "delivered",
+    "entregue",
+    "read",
+    "lida",
+    "played",
+    "erro",
+    "error",
+    "failed",
+    "falhou",
+  ].includes(status)
+  const stillWaitingLocal =
+    merged.aguardando_conexao === true ||
+    status === "aguardando_conexao" ||
+    merged.envio_incerto === true ||
+    merged.envio_demorado === true
+  if (!stillWaitingLocal) return merged
+  if (!hasPersist && !serverProgress) return merged
+
+  const next = { ...merged }
+  next.aguardando_conexao = false
+  next.envio_incerto = false
+  next.envio_demorado = false
+  if (status === "aguardando_conexao") {
+    next.status = hasPersist ? "pending" : next.status
+    next.status_mensagem = hasPersist ? "pending" : next.status_mensagem
+  }
+  if (next.erro_mensagem && /aguardando conex|sem conex|internet voltar/i.test(String(next.erro_mensagem))) {
+    delete next.erro_mensagem
+  }
+  return next
+}
+
 function finalizeMergedMessageRow(prev, merged) {
   let row = cleanupOptimisticBlobFields(mergeMsgPreferringTombstone(prev, merged))
+  row = clearStaleOutboundWaitFlags(row)
   if (prev?.tempId) return { ...row, tempId: prev.tempId }
   return stripTempIdWhenPersisted(row)
 }
@@ -1776,6 +1826,7 @@ function mergeDedupeRows(prev, incoming, ord) {
     merged.criado_em = pickOutgoingMergedCriadoEmIso(prev, incoming)
   }
   merged._stableInsertSeq = mergeStableSeq(prev || null, incoming, ord)
+  merged = clearStaleOutboundWaitFlags(merged)
   return prev ? finalizeMergedMessageRow(prev, merged) : stripTempIdWhenPersisted(merged)
 }
 
@@ -1819,6 +1870,7 @@ export {
   mapDedupeKey,
   getMessageListReactKey,
   isPendingOutgoingTemp,
+  clearStaleOutboundWaitFlags,
   normalizeMsgForStore,
   applyAnexarOneToList,
   finalizeMensagensList,

@@ -33,6 +33,7 @@ import {
   mergeMsgPreferringTombstone,
   mergeStableSeq,
   finalizeMergedMessageRow,
+  clearStaleOutboundWaitFlags,
   hasRenderableUrl,
   isOutgoingLike,
   toMillis,
@@ -1113,7 +1114,8 @@ export const useConversaStore = create((set, get) => {
           }
           let tomb = mergeMsgPreferringTombstone(prevRow, flat)
           tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)
-          next[idx] = finalizeMergedMessageRow(prevRow, tomb)
+          // Resposta do backend encerra a espera offline: limpa flag local do relogio.
+          next[idx] = clearStaleOutboundWaitFlags(finalizeMergedMessageRow(prevRow, tomb))
           debugConversationMessageBoundary("reconcile_message_store", {
             conversa_id: targetConversaId,
             atendimento_id: realMsg?.atendimento_id,
@@ -1220,6 +1222,7 @@ export const useConversaStore = create((set, get) => {
               merged = { ...merged, status: higher, status_mensagem: higher }
             }
           }
+          merged = clearStaleOutboundWaitFlags(merged)
           if (!mensagemStatusPatchChanges(cur, merged, partial)) return
           next[i] = merged
           changed = true

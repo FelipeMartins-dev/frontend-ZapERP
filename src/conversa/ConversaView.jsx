@@ -1227,25 +1227,45 @@ function ConversaViewBody() {
           onConfirmado: (item, res) => {
             const store = useConversaStore.getState();
             const realMsg = normalizeTextSendApiToMessage(res, item.conversaId);
-            if (realMsg) {
-              store.reconciliarMensagem?.(item.tempId, realMsg);
-              return;
-            }
-            const resId = res?.mensagem?.id ?? res?.id;
-            if (resId != null) {
-              store.reconciliarMensagem?.(item.tempId, {
-                id: resId,
-                conversa_id: item.conversaId,
-                texto: item.texto,
-                tipo: "texto",
-                direcao: "out",
-                status: res?.status || res?.mensagem?.status || "pending",
-                status_mensagem:
-                  res?.status_mensagem || res?.mensagem?.status_mensagem || res?.status || "pending",
-                client_temp_id: item.tempId,
-                ...(item.replyMeta ? { reply_meta: item.replyMeta } : {}),
-              });
-            }
+            const resId = res?.mensagem?.id ?? res?.id ?? realMsg?.id;
+            const status =
+              realMsg?.status_mensagem ||
+              realMsg?.status ||
+              res?.status_mensagem ||
+              res?.mensagem?.status_mensagem ||
+              res?.status ||
+              res?.mensagem?.status ||
+              "pending";
+            const payload = {
+              ...(realMsg || {}),
+              id: resId ?? realMsg?.id,
+              conversa_id: realMsg?.conversa_id ?? item.conversaId,
+              texto: realMsg?.texto ?? item.texto,
+              tipo: realMsg?.tipo || "texto",
+              direcao: "out",
+              status,
+              status_mensagem: status,
+              client_temp_id: item.tempId,
+              whatsapp_id: realMsg?.whatsapp_id ?? res?.whatsapp_id ?? res?.mensagem?.whatsapp_id,
+              // Encerra a espera offline na hora — sem isso o relogio fica preso ate o F5.
+              aguardando_conexao: false,
+              envio_incerto: false,
+              envio_demorado: false,
+              envio_erro: false,
+              ...(item.replyMeta ? { reply_meta: item.replyMeta } : {}),
+            };
+            if (payload.id == null && !payload.whatsapp_id) return;
+            store.reconciliarMensagem?.(item.tempId, payload);
+            // Garante ticks em tempo real mesmo se o merge anterior preservou flags locais.
+            store.patchMensagem?.(payload.id, {
+              status,
+              status_mensagem: status,
+              tempId: item.tempId,
+              aguardando_conexao: false,
+              envio_incerto: false,
+              envio_demorado: false,
+              ...(payload.whatsapp_id ? { whatsapp_id: payload.whatsapp_id } : {}),
+            }, { conversa_id: payload.conversa_id });
           },
           onFalhaDefinitiva: (item, classified) => {
             useConversaStore.getState().marcarMensagemTempErro?.(item.tempId, {

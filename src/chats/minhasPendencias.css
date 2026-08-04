@@ -63,6 +63,15 @@
   }
 }
 
+.minhas-pendencias-card__body {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .minhas-pendencias-card__list {
   list-style: none;
   margin: 0;
@@ -72,6 +81,89 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.minhas-pendencias-card__divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 18px;
+  background: color-mix(in srgb, var(--cl-text-muted, #64748b) 35%, transparent);
+}
+
+.suporte-zaperp-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--cl-green, #00a884) 78%, #fff 8%);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cl-text, #111827);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.suporte-zaperp-btn__icon {
+  flex-shrink: 0;
+  color: var(--cl-green, #00a884);
+  transition: color 0.16s ease, transform 0.16s ease;
+}
+
+.suporte-zaperp-btn__label {
+  color: inherit;
+}
+
+.suporte-zaperp-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--cl-green, #00a884) 12%, transparent);
+  border-color: var(--cl-green, #00a884);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cl-green, #00a884) 18%, transparent);
+}
+
+.suporte-zaperp-btn:hover:not(:disabled) .suporte-zaperp-btn__icon {
+  transform: scale(1.04);
+}
+
+.suporte-zaperp-btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.suporte-zaperp-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--cl-green, #00a884) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.suporte-zaperp-btn:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+
+[data-theme="dark"] .suporte-zaperp-btn {
+  color: #f3f4f6;
+  border-color: color-mix(in srgb, var(--cl-green, #00a884) 72%, transparent);
+  background: color-mix(in srgb, var(--cl-green, #00a884) 6%, transparent);
+}
+
+[data-theme="dark"] .suporte-zaperp-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--cl-green, #00a884) 16%, transparent);
+  border-color: color-mix(in srgb, var(--cl-green, #00a884) 92%, #fff 8%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cl-green, #00a884) 22%, transparent),
+    0 4px 14px color-mix(in srgb, var(--cl-green, #00a884) 12%, transparent);
 }
 
 .minhas-pendencias-card__item {
@@ -261,5 +353,21 @@
 
   .minhas-pendencias-card__item:not(:last-child)::after {
     margin-inline: 2px;
+  }
+
+  .minhas-pendencias-card__body {
+    gap: 6px;
+  }
+
+  .suporte-zaperp-btn {
+    padding: 4px 9px;
+    font-size: 10px;
+    gap: 5px;
+  }
+
+  .suporte-zaperp-btn__label {
+    max-width: 4.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

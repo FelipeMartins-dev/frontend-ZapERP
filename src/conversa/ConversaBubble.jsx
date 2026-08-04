@@ -142,8 +142,21 @@ function MessageTicks({ msg, isGroup }) {
   const hasReadKeyword = /lida|read|seen|visualiz|played/.test(s);
   const hasDeliveredKeyword = /entregue|deliver|receiv/.test(s);
   const isErr = s === "erro" || s === "error" || s === "failed" || s === "falhou";
+  // Se o status ja avançou (sent/delivered/read), ignora flag local stale de offline.
+  const statusJaConfirmado = [
+    "sent",
+    "enviada",
+    "enviado",
+    "delivered",
+    "entregue",
+    "read",
+    "lida",
+    "played",
+  ].includes(s);
   const isAguardandoConexao =
-    !isErr && (s === "aguardando_conexao" || !!msg?.aguardando_conexao);
+    !isErr &&
+    !statusJaConfirmado &&
+    (s === "aguardando_conexao" || !!msg?.aguardando_conexao);
   const isIndefinido = !isErr && !isAguardandoConexao && (s === "status_indefinido" || !!msg?.envio_incerto);
   const isDemorado = !isErr && !isAguardandoConexao && !!(msg?.envio_demorado || isIndefinido);
   const isRetry = !isErr && !isIndefinido && !isAguardandoConexao && !!(msg?.em_retry);

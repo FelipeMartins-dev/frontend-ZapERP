@@ -191,7 +191,7 @@
 .chat-list-toolbar-meta-left {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chat-list-toolbar-meta-count.chat-list-search-hint {
@@ -210,13 +210,19 @@
   display: block;
 }
 
-/* Pendências inline na meta bar */
+/* Pendências + Suporte inline na meta bar */
 .chat-list-toolbar-meta-left .minhas-pendencias-card {
   margin: 0;
-  padding: 0;
-  border: none;
+  padding: 4px 6px 4px 4px;
+  border: 1px solid var(--cl-border-subtle, rgba(0, 0, 0, 0.06));
+  border-radius: 12px;
   box-shadow: none;
-  background: transparent;
+  background: color-mix(in srgb, var(--cl-panel, transparent) 88%, transparent);
+}
+
+[data-theme="dark"] .chat-list-toolbar-meta-left .minhas-pendencias-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .chat-list-toolbar-meta-left .minhas-pendencias-card__header {
@@ -225,6 +231,10 @@
 
 .chat-list-toolbar-meta-left .minhas-pendencias-card__list {
   flex-wrap: nowrap;
+}
+
+.chat-list-toolbar-meta-left .minhas-pendencias-card__body {
+  width: 100%;
 }
 
 @media (max-width: 640px) {

@@ -221,4 +221,20 @@ assert(hidratada2.filter((m) => m.tempId === "tmp-f5").length === 1, "nao deveri
 // Conversa errada nao recebe o item
 assert(hydrateOutboxBubblesForConversa(99, []).length === 0, "nao deveria hidratar em outra conversa");
 
-console.log("OK: fila offline persistente (15 cenarios)");
+// 16) Apos confirmacao do backend, flag aguardando_conexao nao pode segurar o relogio
+const { clearStaleOutboundWaitFlags } = await import("../src/conversa/conversaOutboundMediaMerge.js");
+const stale = clearStaleOutboundWaitFlags({
+  id: 99,
+  tempId: "tmp-f5",
+  status: "sent",
+  status_mensagem: "sent",
+  aguardando_conexao: true,
+  envio_incerto: true,
+  erro_mensagem: "Aguardando conexão. Será enviada automaticamente quando a internet voltar.",
+});
+assert(stale.aguardando_conexao === false, "flag offline deveria cair apos sent");
+assert(stale.envio_incerto === false, "envio_incerto deveria cair apos sent");
+assert(!stale.erro_mensagem, "mensagem de espera offline deveria ser removida");
+assert(stale.status === "sent", "status sent deveria permanecer");
+
+console.log("OK: fila offline persistente (16 cenarios)");

@@ -7,6 +7,8 @@ import {
   fetchChatCounts,
   getChatsPageMeta,
   abrirConversaCliente,
+  abrirConversaPorTelefone,
+  conversaFromContatoResponse,
   getZapiStatus,
   postFinalizacaoAusenciaLote,
 } from "./chatService";
@@ -98,6 +100,9 @@ function countDistinctConversas(list) {
 const CONFIRM_LOTE_AUSENCIA = "FINALIZAR_LOTE_AUSENCIA_CLIENTE";
 const CHAT_LIST_DESKTOP_PAGE_LIMIT = 80;
 const CHAT_LIST_MOBILE_PAGE_LIMIT = 40;
+/** Contato oficial do Suporte ZapERP (DDD 34). */
+const SUPORTE_ZAPERP_TELEFONE = "34999911246";
+const SUPORTE_ZAPERP_NOME = "Suporte ZapERP";
 function getChatListPageLimit(isMobileLayout) {
   return isMobileLayout ? CHAT_LIST_MOBILE_PAGE_LIMIT : CHAT_LIST_DESKTOP_PAGE_LIMIT;
 }
@@ -457,6 +462,8 @@ export default function ChatList() {
   const [showProdutosPanel, setShowProdutosPanel] = useState(false);
   const [confirmClear, setConfirmClear] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [suporteBusy, setSuporteBusy] = useState(false);
+  const suporteOpeningRef = useRef(false);
 
   // menu "Novo" (botão +)
   const [showNovoMenu, setShowNovoMenu] = useState(false);
@@ -683,6 +690,46 @@ export default function ChatList() {
   const [zapiStatusLoaded, setZapiStatusLoaded] = useState(false);
 
   const showToast = useNotificationStore((s) => s.showToast);
+
+  const handleSuporteZapERPClick = useCallback(async () => {
+    if (suporteOpeningRef.current) return;
+    suporteOpeningRef.current = true;
+    setSuporteBusy(true);
+    try {
+      const data = await abrirConversaPorTelefone(SUPORTE_ZAPERP_NOME, SUPORTE_ZAPERP_TELEFONE);
+      const conv = data?.conversa ?? conversaFromContatoResponse(data) ?? null;
+      if (!conv?.id) throw new Error("Não foi possível abrir a conversa com o Suporte ZapERP.");
+      try {
+        addChat(conv);
+      } catch {
+        /* ignore */
+      }
+      await carregarConversa(conv.id);
+      const openedState = useConversaStore.getState();
+      if (String(openedState.selectedId ?? "") !== String(conv.id)) {
+        navigate("/atendimento", { state: { openConversaId: conv.id } });
+      }
+      showToast({
+        type: "success",
+        title: "Suporte ZapERP",
+        message: "Conversa com o suporte aberta.",
+      });
+    } catch (e) {
+      console.error("Erro ao abrir Suporte ZapERP:", e);
+      showToast({
+        type: "error",
+        title: "Falha ao abrir suporte",
+        message:
+          e?.response?.data?.error ||
+          e?.message ||
+          "Não foi possível abrir a conversa com o Suporte ZapERP.",
+      });
+    } finally {
+      suporteOpeningRef.current = false;
+      setSuporteBusy(false);
+    }
+  }, [addChat, carregarConversa, navigate, showToast]);
+
   useEffect(() => {
     if (location.state?.openNovoContatoModal) {
       setNovoContatoModalOpen(true);
@@ -2249,6 +2296,8 @@ export default function ChatList() {
         loadingPendencias={loadingPendencias}
         loadingPendenciaCategoria={loadingPendenciaCategoria}
         onPendenciaClick={handlePendenciaClick}
+        onSuporteClick={handleSuporteZapERPClick}
+        suporteBusy={suporteBusy}
       />
     ),
     [
@@ -2257,6 +2306,8 @@ export default function ChatList() {
       loadingPendencias,
       loadingPendenciaCategoria,
       handlePendenciaClick,
+      handleSuporteZapERPClick,
+      suporteBusy,
     ]
   );
 
