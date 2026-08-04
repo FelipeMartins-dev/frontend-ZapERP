@@ -103,9 +103,45 @@ async function installApi(page, estadoMidia, { proxySempreFalha = false } = {}) 
       if (proxySempreFalha || estadoMidia() === "falha") {
         return route.fulfill({ status: 502, contentType: "text/plain", body: "falha simulada" });
       }
+      // Espelha o backend: Accept-Ranges honesto com 206 quando o browser pede Range (seek/resume).
+      const range = request.headers()["range"] || request.headers()["Range"];
+      const m = typeof range === "string" ? /^bytes=(\d*)-(\d*)$/i.exec(range.trim()) : null;
+      if (m && !range.includes(",")) {
+        const total = OGG.length;
+        let start;
+        let end;
+        if (m[1] === "" && m[2] !== "") {
+          const suffix = Number(m[2]);
+          start = Math.max(0, total - suffix);
+          end = total - 1;
+        } else {
+          start = Number(m[1] || 0);
+          end = m[2] !== "" ? Number(m[2]) : total - 1;
+          end = Math.min(end, total - 1);
+        }
+        if (Number.isFinite(start) && start < total && Number.isFinite(end) && end >= start) {
+          const chunk = OGG.subarray(start, end + 1);
+          return route.fulfill({
+            status: 206,
+            headers: {
+              "content-type": "audio/ogg",
+              "accept-ranges": "bytes",
+              "content-range": `bytes ${start}-${end}/${total}`,
+              "content-length": String(chunk.length),
+              "cache-control": "no-store",
+            },
+            body: chunk,
+          });
+        }
+      }
       return route.fulfill({
         status: 200,
-        headers: { "content-type": "audio/ogg", "accept-ranges": "bytes", "cache-control": "no-store" },
+        headers: {
+          "content-type": "audio/ogg",
+          "accept-ranges": "bytes",
+          "content-length": String(OGG.length),
+          "cache-control": "no-store",
+        },
         body: OGG,
       });
     }
@@ -241,6 +277,50 @@ test.describe("reprodução de áudio", () => {
     await expect
       .poll(async () => (await estadoAudio(page))?.currentTime ?? 0, { timeout: 25_000 })
       .toBeGreaterThan(0.15);
+    await expect(page.getByTestId("audio-indisponivel")).toHaveCount(0);
+  });
+
+  test("pause e play retomam a partir da posição (não recomeçam do zero)", async ({ page }, testInfo) => {
+    // Regressão do bug mobile: após pausar, o play seguinte não retomava (buffer liberado /
+    // play() antes de canplay / seek concorrente). Cobre desktop e chromium-mobile (Pixel 5).
+    await installSession(page);
+    await installApi(page, () => "ok");
+    await abrirConversaComAudio(page, testInfo);
+
+    const playBtn = page.getByRole("button", { name: /tocar áudio|pausar áudio/i }).first();
+    await playBtn.click();
+
+    await expect
+      .poll(async () => (await estadoAudio(page))?.currentTime ?? 0, { timeout: 15_000 })
+      .toBeGreaterThan(0.35);
+
+    await page.getByRole("button", { name: /pausar áudio/i }).first().click();
+
+    await expect
+      .poll(async () => (await estadoAudio(page))?.paused === true, { timeout: 5_000 })
+      .toBe(true);
+
+    const pausedAt = (await estadoAudio(page))?.currentTime ?? 0;
+    expect(pausedAt).toBeGreaterThan(0.3);
+
+    await page.getByRole("button", { name: /tocar áudio/i }).first().click();
+
+    await expect
+      .poll(async () => (await estadoAudio(page))?.paused === false, { timeout: 15_000 })
+      .toBe(true);
+
+    // Retomou perto de onde parou (tolerância para seek/reload), sem voltar ao início.
+    await expect
+      .poll(async () => (await estadoAudio(page))?.currentTime ?? 0, { timeout: 10_000 })
+      .toBeGreaterThan(pausedAt - 0.35);
+
+    const depois = await estadoAudio(page);
+    expect(depois.currentTime).toBeGreaterThan(0.25);
+    // Avançou de verdade após o resume (não ficou congelado mudo).
+    await expect
+      .poll(async () => (await estadoAudio(page))?.currentTime ?? 0, { timeout: 10_000 })
+      .toBeGreaterThan(pausedAt + 0.1);
+
     await expect(page.getByTestId("audio-indisponivel")).toHaveCount(0);
   });
 });

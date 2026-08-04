@@ -2926,11 +2926,23 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
   animation: none;
 }
 
+/* Modo claro: pill âmbar suave, legível e alinhada ao card pastel */
 html:not([data-theme="dark"]) .chat-list-status-tech--await-client {
-  color: var(--light-warning);
-  background: var(--light-warning-bg);
-  border: 1px solid var(--light-warning-border);
-  box-shadow: none;
+  color: #9a3412;
+  background: linear-gradient(180deg, #fffbf2 0%, #fef3c7 100%);
+  border: 1px solid rgba(217, 119, 6, 0.34);
+  box-shadow:
+    0 1px 2px rgba(180, 83, 9, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+html:not([data-theme="dark"]) .chat-list-status-tech-await-client-label {
+  color: #9a3412;
+}
+
+html:not([data-theme="dark"]) .chat-list-status-tech-await-client-badge-icon {
+  color: #d97706;
+  text-shadow: none;
 }
 
 .chat-list-status-tech-await-client-badge-icon,
@@ -3074,11 +3086,36 @@ html:not([data-theme="dark"]) .chat-list-status-tech--await-client {
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+/* Modo claro: pill azul premium (contraste real — o label não herda o branco do dark) */
 html:not([data-theme="dark"]) .chat-list-status-tech-staff-main {
-  color: var(--light-info);
-  background: var(--light-info-bg);
-  border: 1px solid var(--light-info-border);
-  box-shadow: none;
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #f4f8ff 0%, #e0edff 100%);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  box-shadow:
+    0 1px 2px rgba(29, 78, 216, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: none !important;
+}
+
+html:not([data-theme="dark"]) .chat-list-status-tech-staff-label {
+  color: #1d4ed8;
+}
+
+html:not([data-theme="dark"]) .chat-list-status-tech-staff-badge-icon {
+  color: #2563eb;
+  text-shadow: none;
+}
+
+/* Overlay cyber (scan/grid) é do dark — no claro deixa a pill suja e o texto ilegível */
+html:not([data-theme="dark"]) .chat-list-status-tech-staff-main::before,
+html:not([data-theme="dark"]) .chat-list-status-tech-staff-main::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+}
+
+html:not([data-theme="dark"]) .chat-list-status-tech-staff-main.zap-badge-aguardando-funcionario {
+  animation: none !important;
 }
 
 .chat-list-status-tech-staff-main::before {
@@ -4342,6 +4379,10 @@ html:not([data-theme="dark"]) .chat-list-status-tech-staff-main {
     color: #7dd3fc;
   }
 
+  html:not([data-theme="dark"]) .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-badge-icon {
+    color: #2563eb;
+  }
+
   .chat-list-row-top:has(.chat-list-status-tech--staff) .chat-list-status-tech-staff-label {
     font-size: inherit;
     color: inherit;
@@ -4742,6 +4783,9 @@ html:not([data-theme="dark"]) .chat-list-status-tech-staff-main {
   }
   .chat-list-status-tech-staff-main {
     transition: none !important;
+  }
+  /* Sombra “dark” só no tema escuro — no claro preserva a pill premium */
+  [data-theme="dark"] .chat-list-status-tech-staff-main {
     border-color: rgba(3, 105, 161, 0.65) !important;
     box-shadow:
       0 0 0 1px rgba(15, 23, 42, 0.8),
