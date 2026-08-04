@@ -2926,23 +2926,36 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
   animation: none;
 }
 
-/* Modo claro: pill âmbar suave, legível e alinhada ao card pastel */
-html:not([data-theme="dark"]) .chat-list-status-tech--await-client {
-  color: #9a3412;
-  background: linear-gradient(180deg, #fffbf2 0%, #fef3c7 100%);
-  border: 1px solid rgba(217, 119, 6, 0.34);
+/* Modo claro: fundo creme claro + texto âmbar escuro (alto contraste).
+   Inclui .zap-badge-aguardando-cliente e [data-theme="light"] para ganhar de
+   qualquer regra base (#78350f) que deixava o rótulo quase invisível. */
+html:not([data-theme="dark"]) .chat-list-status-tech--await-client,
+html:not([data-theme="dark"]) .chat-list-status-tech--await-client.zap-badge-aguardando-cliente,
+[data-theme="light"] .chat-list-status-tech--await-client,
+[data-theme="light"] .chat-list-status-tech--await-client.zap-badge-aguardando-cliente {
+  color: #7c2d12 !important;
+  background: #fff8eb !important;
+  background-image: none !important;
+  border: 1px solid #f0b429 !important;
   box-shadow:
-    0 1px 2px rgba(180, 83, 9, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    0 1px 2px rgba(124, 45, 18, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
 }
 
-html:not([data-theme="dark"]) .chat-list-status-tech-await-client-label {
-  color: #9a3412;
+html:not([data-theme="dark"]) .chat-list-status-tech-await-client-label,
+[data-theme="light"] .chat-list-status-tech-await-client-label {
+  color: #7c2d12 !important;
+  font-weight: 700;
+  -webkit-text-fill-color: #7c2d12;
 }
 
-html:not([data-theme="dark"]) .chat-list-status-tech-await-client-badge-icon {
-  color: #d97706;
-  text-shadow: none;
+html:not([data-theme="dark"]) .chat-list-status-tech-await-client-badge-icon,
+html:not([data-theme="dark"]) .chat-list-status-tech-await-client-badge-icon.zap-dot,
+[data-theme="light"] .chat-list-status-tech-await-client-badge-icon,
+[data-theme="light"] .chat-list-status-tech-await-client-badge-icon.zap-dot {
+  color: #ea580c !important;
+  text-shadow: none !important;
+  -webkit-text-fill-color: #ea580c;
 }
 
 .chat-list-status-tech-await-client-badge-icon,
