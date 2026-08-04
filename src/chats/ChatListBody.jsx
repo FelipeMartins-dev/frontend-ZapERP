@@ -90,6 +90,8 @@ function ChatListBody({
   filtersPanelSlot = null,
   conversaIdsPendenciaAtiva = null,
   hasActivePendencia = false,
+  onSuporteClick = null,
+  suporteBusy = false,
 }) {
   const chats = useChatStore((s) => s.chats || [], chatListsStoreEquivalent);
   const chatsLength = chats?.length ?? 0;
@@ -414,6 +416,8 @@ function ChatListBody({
         middleSlot={middleSlot}
         filtersPanelSlot={filtersPanelSlot}
         hasActivePendencia={hasActivePendencia}
+        onSuporteClick={onSuporteClick}
+        suporteBusy={suporteBusy}
       />
 
       <ChatListRowsPane

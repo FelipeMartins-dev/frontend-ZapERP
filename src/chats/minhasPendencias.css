@@ -63,15 +63,6 @@
   }
 }
 
-.minhas-pendencias-card__body {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
 .minhas-pendencias-card__list {
   list-style: none;
   margin: 0;
@@ -81,31 +72,29 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0;
-  min-width: 0;
-  flex: 1 1 auto;
 }
 
-.minhas-pendencias-card__divider {
-  flex-shrink: 0;
-  width: 1px;
-  height: 18px;
-  background: color-mix(in srgb, var(--cl-text-muted, #64748b) 35%, transparent);
+/* Botão Suporte ZapERP — linha própria abaixo dos chips */
+.chat-list-toolbar-suporte-row {
+  display: flex;
+  align-items: center;
+  padding: 2px 12px 6px;
+  min-width: 0;
 }
 
 .suporte-zaperp-btn {
-  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   margin: 0;
-  padding: 5px 12px;
+  padding: 6px 14px;
   border: 1px solid color-mix(in srgb, var(--cl-green, #00a884) 78%, #fff 8%);
   border-radius: 999px;
   background: transparent;
   color: var(--cl-text, #111827);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.01em;
   line-height: 1.2;
@@ -355,19 +344,13 @@
     margin-inline: 2px;
   }
 
-  .minhas-pendencias-card__body {
-    gap: 6px;
+  .chat-list-toolbar-suporte-row {
+    padding-inline: 10px;
   }
 
   .suporte-zaperp-btn {
-    padding: 4px 9px;
-    font-size: 10px;
-    gap: 5px;
-  }
-
-  .suporte-zaperp-btn__label {
-    max-width: 4.8rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 5px 12px;
+    font-size: 11px;
+    gap: 6px;
   }
 }

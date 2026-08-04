@@ -2296,8 +2296,6 @@ export default function ChatList() {
         loadingPendencias={loadingPendencias}
         loadingPendenciaCategoria={loadingPendenciaCategoria}
         onPendenciaClick={handlePendenciaClick}
-        onSuporteClick={handleSuporteZapERPClick}
-        suporteBusy={suporteBusy}
       />
     ),
     [
@@ -2306,8 +2304,6 @@ export default function ChatList() {
       loadingPendencias,
       loadingPendenciaCategoria,
       handlePendenciaClick,
-      handleSuporteZapERPClick,
-      suporteBusy,
     ]
   );
 
@@ -2407,6 +2403,8 @@ export default function ChatList() {
         filtersPanelSlot={advancedFiltersSlot}
         conversaIdsPendenciaAtiva={conversaIdsPendenciaAtiva}
         hasActivePendencia={!!pendenciaAtiva}
+        onSuporteClick={handleSuporteZapERPClick}
+        suporteBusy={suporteBusy}
       />
 
       <ConfirmDialog

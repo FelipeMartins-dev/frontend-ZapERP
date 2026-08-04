@@ -1,8 +1,10 @@
 import { memo } from "react";
+import { IconHeadset } from "@tabler/icons-react";
 import { isSupervisorOrAdmin } from "../auth/permissions";
 import AdminAtendenteFilter from "./AdminAtendenteFilter";
 import { ChatListSearchBox } from "./ChatListSearchBox";
 import { Icon, Chip } from "./chatListUiPrimitives";
+import "./minhasPendencias.css";
 
 function isAppAdmin(user) {
   return isSupervisorOrAdmin(user);
@@ -62,6 +64,8 @@ function ChatListToolbar({
   middleSlot = null,
   filtersPanelSlot = null,
   hasActivePendencia = false,
+  onSuporteClick = null,
+  suporteBusy = false,
 }) {
   const isMainChipActive = (targetTab) => !hasActivePendencia && tab === targetTab;
   const hintLoading = loading && !hasStoreChats;
@@ -218,6 +222,24 @@ function ChatListToolbar({
         </div>
       </div>
 
+      {typeof onSuporteClick === "function" ? (
+        <div className="chat-list-toolbar-suporte-row">
+          <button
+            type="button"
+            className="suporte-zaperp-btn"
+            onClick={onSuporteClick}
+            disabled={suporteBusy}
+            aria-busy={suporteBusy || undefined}
+            title="Abrir conversa com o Suporte ZapERP"
+          >
+            <IconHeadset size={16} stroke={1.75} className="suporte-zaperp-btn__icon" aria-hidden="true" />
+            <span className="suporte-zaperp-btn__label">
+              {suporteBusy ? "Abrindo…" : "Suporte ZapERP"}
+            </span>
+          </button>
+        </div>
+      ) : null}
+
       <div className="chat-list-toolbar-row--meta">
         {middleSlot ? <div className="chat-list-toolbar-meta-left">{middleSlot}</div> : null}
         <div className="chat-list-search-hint chat-list-toolbar-meta-count" aria-live="polite">
@@ -265,6 +287,8 @@ function toolbarPropsAreEqual(prev, next) {
   if (prev.middleSlot !== next.middleSlot) return false;
   if (prev.filtersPanelSlot !== next.filtersPanelSlot) return false;
   if (prev.hasActivePendencia !== next.hasActivePendencia) return false;
+  if (prev.onSuporteClick !== next.onSuporteClick) return false;
+  if (prev.suporteBusy !== next.suporteBusy) return false;
   if (prev.searchRef !== next.searchRef) return false;
   if (prev.onSearchDebounced !== next.onSearchDebounced) return false;
   if (prev.onTabMinhaFila !== next.onTabMinhaFila) return false;
