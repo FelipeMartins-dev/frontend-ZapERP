@@ -103,45 +103,10 @@ async function installApi(page, estadoMidia, { proxySempreFalha = false } = {}) 
       if (proxySempreFalha || estadoMidia() === "falha") {
         return route.fulfill({ status: 502, contentType: "text/plain", body: "falha simulada" });
       }
-      // Espelha o backend: Accept-Ranges honesto com 206 quando o browser pede Range (seek/resume).
-      const range = request.headers()["range"] || request.headers()["Range"];
-      const m = typeof range === "string" ? /^bytes=(\d*)-(\d*)$/i.exec(range.trim()) : null;
-      if (m && !range.includes(",")) {
-        const total = OGG.length;
-        let start;
-        let end;
-        if (m[1] === "" && m[2] !== "") {
-          const suffix = Number(m[2]);
-          start = Math.max(0, total - suffix);
-          end = total - 1;
-        } else {
-          start = Number(m[1] || 0);
-          end = m[2] !== "" ? Number(m[2]) : total - 1;
-          end = Math.min(end, total - 1);
-        }
-        if (Number.isFinite(start) && start < total && Number.isFinite(end) && end >= start) {
-          const chunk = OGG.subarray(start, end + 1);
-          return route.fulfill({
-            status: 206,
-            headers: {
-              "content-type": "audio/ogg",
-              "accept-ranges": "bytes",
-              "content-range": `bytes ${start}-${end}/${total}`,
-              "content-length": String(chunk.length),
-              "cache-control": "no-store",
-            },
-            body: chunk,
-          });
-        }
-      }
+      // Espelha o backend estável: sempre 200 com o arquivo completo (sem 206/Range).
       return route.fulfill({
         status: 200,
-        headers: {
-          "content-type": "audio/ogg",
-          "accept-ranges": "bytes",
-          "content-length": String(OGG.length),
-          "cache-control": "no-store",
-        },
+        headers: { "content-type": "audio/ogg", "accept-ranges": "bytes", "cache-control": "no-store" },
         body: OGG,
       });
     }

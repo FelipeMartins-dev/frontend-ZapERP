@@ -72,20 +72,17 @@ export function planReloadOnStall({ sourceIdx, sourceCount }) {
  * Decide se, ao despausar (`toggle` com `el.paused`), é preciso um `load()` antes do `play()`.
  * O mobile libera o buffer decodificado de um `<audio>` pausado/em segundo plano: o elemento
  * mantém `readyState >= 1` (metadados) mas não tem dado tocável na posição atual, e o `play()`
- * então trava mudo em vez de errar. `readyState === 0` já era coberto; aqui o buffer liberado
- * NO MEIO da faixa (posição > 0 sem range que a cubra) força reload mesmo com readyState alto —
- * o Chrome mobile às vezes reporta HAVE_FUTURE_DATA+ com `buffered` vazio na posição atual.
+ * então trava mudo em vez de errar. `readyState === 0` já era coberto; aqui acrescentamos o caso
+ * do buffer liberado NO MEIO da faixa (posição > 0 sem range que a cubra), preservando a posição.
  * readyState (HTML): 0 NOTHING, 1 METADATA, 2 CURRENT_DATA, 3 FUTURE_DATA, 4 ENOUGH_DATA.
  * Não força reload no início (posição 0): ali o `play()` já dispara o fetch como sempre — evita
- * recarregar à toa o primeiro play. Com buffer cobrindo a posição e readyState >= 3, caminho
- * rápido intacto (não regride o resume feliz).
+ * recarregar à toa o primeiro play.
  */
 export function needsReloadBeforeResume({ hasError, readyState, positionCovered, currentTime }) {
   if (hasError) return true;
   const rs = Number(readyState) || 0;
   if (rs === 0) return true; // HAVE_NOTHING
-  // Buffer liberado no meio: prioridade sobre readyState alto (relato mentiroso no mobile).
-  if ((Number(currentTime) || 0) > 0 && !positionCovered) return true;
-  if (rs >= 3) return false; // HAVE_FUTURE_DATA+ com posição coberta (ou início): caminho rápido
+  if (rs >= 3) return false; // HAVE_FUTURE_DATA+: pode tocar à frente, não mexe
+  if ((Number(currentTime) || 0) > 0 && !positionCovered) return true; // buffer liberado no meio
   return false;
 }

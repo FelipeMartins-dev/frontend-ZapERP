@@ -541,67 +541,6 @@ function logAudioPlayFailure(el, err) {
   }
 }
 
-/**
- * Após `load()`, espera dados tocáveis e restaura a posição ANTES do `play()`.
- * Evita a corrida mobile: play() imediato + seek em loadedmetadata abortava/travava o resume.
- */
-function waitUntilAudioReadyToResume(el, resumeAt, timeoutMs = 12_000) {
-  return new Promise((resolve, reject) => {
-    if (!el) {
-      reject(new Error("audio_missing"));
-      return;
-    }
-    let settled = false;
-    let waitingSeek = false;
-    const finish = (fn) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      el.removeEventListener("canplay", onReady);
-      el.removeEventListener("loadeddata", onReady);
-      el.removeEventListener("loadedmetadata", onMeta);
-      el.removeEventListener("error", onError);
-      el.removeEventListener("seeked", onSeeked);
-      fn();
-    };
-    const applyResume = () => {
-      if ((Number(resumeAt) || 0) <= 0.25) return;
-      try {
-        el.currentTime = resumeAt;
-      } catch {
-        /* ignore */
-      }
-    };
-    const onSeeked = () => finish(() => resolve());
-    const onReady = () => {
-      if (settled || waitingSeek) return;
-      applyResume();
-      if (el.seeking) {
-        waitingSeek = true;
-        el.addEventListener("seeked", onSeeked);
-        return;
-      }
-      finish(() => resolve());
-    };
-    const onMeta = () => {
-      if (settled) return;
-      applyResume();
-    };
-    const onError = () =>
-      finish(() => reject(el.error || new Error("audio_load_failed")));
-    const timer = setTimeout(
-      () => finish(() => reject(new Error("audio_canplay_timeout"))),
-      timeoutMs
-    );
-    el.addEventListener("loadedmetadata", onMeta);
-    el.addEventListener("canplay", onReady);
-    el.addEventListener("loadeddata", onReady);
-    el.addEventListener("error", onError);
-    // Cache quente: load() pode já ter dados (readyState >= HAVE_CURRENT_DATA).
-    if (el.readyState >= 2) onReady();
-  });
-}
-
 function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, initialDuration, sentAtLabel }) {
   const sourceList = useMemo(() => {
     const list = Array.isArray(candidates) && candidates.length ? candidates : src ? [src] : [];
@@ -658,9 +597,6 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
   // contador) de propósito: efeitos são invocados duas vezes em StrictMode e um contador seria
   // consumido indevidamente. `tentativas` é incrementado só no handler de erro, que não duplica.
   const autoPlayRef = useRef({ ate: 0, tentativas: 0 });
-  // Posição a restaurar quando o efeito de activeSrc/reloadNonce retoma sozinho após falha
-  // (catch do play / stall). Sem isto, load() no efeito zerava o cursor e o áudio recomeçava.
-  const resumeAtRef = useRef(0);
   const durationProbeRef = useRef(false);
   const waveMeasureRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -695,7 +631,6 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
     setIndisponivel(false);
     durationProbeRef.current = false;
     autoPlayRef.current = { ate: 0, tentativas: 0 };
-    resumeAtRef.current = 0;
   }, [sourceList.join("\u0001"), msgKey, initialDuration]);
 
   useLayoutEffect(() => {
@@ -797,7 +732,6 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
     const onEnded = () => {
       setPlaying(false);
       setCur(0);
-      resumeAtRef.current = 0;
     };
     const onPlay = () => {
       setPlaying(true);
@@ -868,32 +802,16 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
     // o áudio começa sozinho assim que a nova fonte fica pronta. Antes, cada falha consumia um
     // clique — o atendente clicava, nada acontecia, e só o clique seguinte tocava.
     // Só entra aqui dentro da janela aberta por um clique: nunca toca sozinho sem o usuário pedir.
-    // Se havia posição no meio da faixa (resumeAtRef), restaura ANTES do play — load() zera o cursor.
     if (autoPlayRef.current.ate <= Date.now()) return;
-    const resumeAt = Number(resumeAtRef.current) || 0;
-    resumeAtRef.current = 0;
-    let cancelled = false;
     const tocarQuandoPronto = () => {
       el.removeEventListener("canplay", tocarQuandoPronto);
-      if (cancelled) return;
       autoPlayRef.current.ate = 0;
-      void (async () => {
-        try {
-          if (resumeAt > 0.25) {
-            await waitUntilAudioReadyToResume(el, resumeAt);
-          }
-          if (cancelled) return;
-          await el.play();
-        } catch {
-          /* o handler de erro decide o próximo candidato */
-        }
-      })();
+      void Promise.resolve(el.play()).catch(() => {
+        /* o handler de erro decide o próximo candidato */
+      });
     };
     el.addEventListener("canplay", tocarQuandoPronto);
-    return () => {
-      cancelled = true;
-      el.removeEventListener("canplay", tocarQuandoPronto);
-    };
+    return () => el.removeEventListener("canplay", tocarQuandoPronto);
   }, [activeSrc, reloadNonce, applyFreshSrc]);
 
   // Progresso mais fluido (rAF com throttle leve) enquanto toca
@@ -960,9 +878,6 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
       recovered = true;
       // Mesma retomada que um play() falho usa: abre a janela do clique e recarrega/avança a fonte,
       // deixando o efeito de `activeSrc/reloadNonce` fazer load() e tocar quando ficar pronto.
-      // Preserva a posição do stall — sem isto o reload recomeçava do zero.
-      const stalledAt = Number(el.currentTime) || 0;
-      if (stalledAt > 0.25) resumeAtRef.current = stalledAt;
       autoPlayRef.current = { ate: Date.now() + 10_000, tentativas: autoPlayRef.current.tentativas || 0 };
       const plano = planReloadOnStall({ sourceIdx, sourceCount: sourceList.length });
       if (plano.type === "advance") setSourceIdx(plano.sourceIdx);
@@ -1011,11 +926,7 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
         // do provedor que expirou, ou proxy intermitente. Antes, clicar em tocar chamava play() num
         // elemento com erro (rejeita) e o áudio só voltava ao sair/entrar da conversa. Agora, se o
         // elemento errou, não carregou, OU teve o buffer liberado no meio da faixa (resume no mobile),
-        // recarrega na hora — preservando a posição — e SÓ chama play() depois de canplay + seek,
-        // evitando a corrida play()/seek que no Chrome mobile abortava o resume.
-        const resumeAt = Number(el.currentTime) || 0;
-        // Guarda para o catch → efeito de reloadNonce restaurar a posição se play() falhar depois do load.
-        if (resumeAt > 0.25) resumeAtRef.current = resumeAt;
+        // recarrega na hora — preservando a posição — antes de tocar.
         if (
           needsReloadBeforeResume({
             hasError: !!el.error,
@@ -1024,13 +935,20 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
             currentTime: el.currentTime,
           })
         ) {
+          const resumeAt = Number(el.currentTime) || 0;
           applyFreshSrc(el);
           try { el.load(); } catch { /* ignore */ }
-          await waitUntilAudioReadyToResume(el, resumeAt);
+          // load() zera o currentTime; se estávamos no meio da faixa, restaura a posição assim que
+          // os metadados voltam, para o resume continuar de onde parou em vez de recomeçar do zero.
+          if (resumeAt > 0.25) {
+            const restaurarPosicao = () => {
+              el.removeEventListener("loadedmetadata", restaurarPosicao);
+              try { el.currentTime = resumeAt; } catch { /* ignore */ }
+            };
+            el.addEventListener("loadedmetadata", restaurarPosicao);
+          }
         }
         await el.play();
-        // Play ok: não precisa mais da posição guardada para o efeito de recovery.
-        resumeAtRef.current = 0;
       } else {
         el.pause();
       }
@@ -1039,10 +957,6 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
       // Falhou tocar: percorre os candidatos restantes sozinho, dentro deste mesmo clique.
       // A janela (10s) e o teto de tentativas garantem que o ciclo termina; o atendente não
       // precisa mais clicar duas vezes para um áudio cuja primeira fonte falhou.
-      // Mantém resumeAtRef se já havia posição — o efeito de nonce/fonte restaura antes do play.
-      // Só atualiza se o elemento ainda reporta posição (load falho pode zerar currentTime).
-      const stillAt = Number(el?.currentTime) || 0;
-      if (stillAt > 0.25) resumeAtRef.current = stillAt;
       autoPlayRef.current = { ate: Date.now() + 10_000, tentativas: 0 };
       const plano = planReloadOnPlayFailure({ sourceIdx, sourceCount: sourceList.length });
       if (plano.type === "nonce") {

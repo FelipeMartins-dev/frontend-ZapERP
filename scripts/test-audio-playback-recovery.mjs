@@ -81,17 +81,12 @@ checar("resume: erro força reload",
 // HAVE_NOTHING (0) → recarrega.
 checar("resume: readyState 0 força reload",
   needsReloadBeforeResume({ hasError: false, readyState: 0, positionCovered: false, currentTime: 0 }) === true);
-// Buffer suficiente à frente (>=3) E posição coberta → NÃO recarrega (caminho rápido comum).
+// Buffer suficiente à frente (>=3) → NÃO recarrega (caminho rápido comum, não regride).
 checar("resume: readyState 4 com buffer não recarrega",
   needsReloadBeforeResume({ hasError: false, readyState: 4, positionCovered: true, currentTime: 3 }) === false);
-checar("resume: readyState 3 com buffer não recarrega",
-  needsReloadBeforeResume({ hasError: false, readyState: 3, positionCovered: true, currentTime: 3 }) === false);
-// readyState alto mentiroso + buffer vazio no meio → reload (Chrome mobile após pause).
-checar("resume: readyState 3 sem buffer no meio força reload",
-  needsReloadBeforeResume({ hasError: false, readyState: 3, positionCovered: false, currentTime: 3 }) === true);
-checar("resume: readyState 4 sem buffer no meio força reload",
-  needsReloadBeforeResume({ hasError: false, readyState: 4, positionCovered: false, currentTime: 3 }) === true);
-// O bug clássico: pausado no meio, metadados apenas (readyState 1), posição sem buffer → reload.
+checar("resume: readyState 3 não recarrega",
+  needsReloadBeforeResume({ hasError: false, readyState: 3, positionCovered: false, currentTime: 3 }) === false);
+// O bug: pausado no meio (posição > 0), metadados apenas (readyState 1), posição sem buffer → reload.
 checar("resume: buffer liberado no meio da faixa força reload",
   needsReloadBeforeResume({ hasError: false, readyState: 1, positionCovered: false, currentTime: 5 }) === true);
 // Primeiro play (posição 0) com metadados: NÃO recarrega — play() já dispara o fetch como antes.
@@ -132,4 +127,4 @@ if (falhas > 0) {
   console.error(`\n${falhas} teste(s) falharam.`);
   process.exit(1);
 }
-console.log("OK — regressão de recuperação/token do player passou (36 asserts).");
+console.log("OK — regressão de recuperação/token do player passou (34 asserts).");
