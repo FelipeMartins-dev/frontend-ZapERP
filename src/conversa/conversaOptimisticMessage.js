@@ -1,5 +1,6 @@
 import { useChatStore } from "../chats/chatsStore";
 import { useConversaStore } from "./conversaStore";
+import { useAuthStore } from "../auth/authStore";
 import { isGroupConversation } from "../utils/conversaUtils";
 import {
   fileToPreviewURL,
@@ -24,6 +25,21 @@ function nextOptimisticInsertTiming() {
     criado_em: new Date(Date.now() + ord).toISOString(),
     _stableInsertSeq: OPTIMISTIC_INSERT_SEQ_BASE + ord,
   };
+}
+
+/**
+ * Autoria do atendente logado para a bolha otimista.
+ * Sem isto, `enviado_por_usuario`/`usuario_nome` só chegavam na reconciliação do servidor,
+ * fazendo o nome "saltar" para cima da mensagem depois de entregue (layout shift). Nascendo
+ * já com a autoria, o nome aparece de imediato e a reconciliação não muda o layout.
+ * O merge da store é `{...otimista, ...realMsg}`, então estes campos sobrevivem mesmo quando
+ * a resposta HTTP não os repete.
+ */
+function currentUserAuthorFields() {
+  const user = useAuthStore.getState?.().user;
+  const nome = String(user?.nome ?? user?.name ?? "").trim();
+  if (!nome) return {};
+  return { enviado_por_usuario: true, usuario_nome: nome };
 }
 
 function normalizeOptimisticConversaId(conversaId) {
@@ -76,6 +92,7 @@ export function buildOptimisticOutgoingMessage(params) {
     criado_em: timing.criado_em,
     _stableInsertSeq: timing._stableInsertSeq,
     reply_meta: params?.replyMeta || undefined,
+    ...currentUserAuthorFields(),
   };
 
   const file = params?.file;
@@ -324,6 +341,7 @@ export function buildOptimisticForwardMessages(destConversaId, sourceMsgs) {
       tipo: isText ? "texto" : tipo,
       texto: body,
       conteudo: body,
+      ...currentUserAuthorFields(),
     };
     const url = src?.url_absoluta || src?.url;
     if (url && !String(url).startsWith("blob:")) {

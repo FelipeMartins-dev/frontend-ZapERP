@@ -142,6 +142,12 @@ export function useAutoScroll({
   const prevSnapConversaKeyRef = useRef(null);
   const openSnapInProgressRef = useRef(false);
   const openSnapUserCancelledRef = useRef(false);
+  /*
+   * Boolean (há mensagens?) em vez do count bruto: o merge cache→API muda o número de
+   * itens e, com deps em mensagensCount, o cleanup cancelava o settle a meio sem
+   * reiniciar o snap (pending já limpo) — conversa abria no sítio errado.
+   */
+  const hasMessages = mensagensCount > 0;
 
   function isUserScrollLocked() {
     return userScrollLockRef?.current === true;
@@ -261,10 +267,10 @@ export function useAutoScroll({
     const shouldSnapLatest =
       pendingJumpToBottomRef.current ||
       anchorLatestUntilMsgsRef.current ||
-      (becameReady && mensagensCount > 0);
+      (becameReady && hasMessages);
 
     if (!shouldSnapLatest) return;
-    if (mensagensCount === 0) return;
+    if (!hasMessages) return;
 
     const userReadingHistory = isUserScrollLocked();
 
@@ -375,7 +381,7 @@ export function useAutoScroll({
   }, [
     conversaId,
     loading,
-    mensagensCount,
+    hasMessages,
     messagesContainerRef,
     shouldStickToBottomRef,
     virtualListRef,

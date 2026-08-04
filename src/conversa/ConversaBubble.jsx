@@ -81,7 +81,11 @@ function BubbleImage({ msg, alt, className }) {
     // `img.complete`; para uma fonte de fato nova, `complete` é falso e o onLoad assume.
     const el = imgRef.current;
     const nextSrc = candidates[0] || "";
-    setLoaded(!!(el && el.complete && el.naturalWidth > 0 && el.getAttribute("src") === nextSrc));
+    const complete = !!(el && el.complete && el.naturalWidth > 0 && el.getAttribute("src") === nextSrc);
+    setLoaded(complete);
+    if (complete && el.naturalWidth > 0 && el.naturalHeight > 0) {
+      el.style.setProperty("--wa-img-ar", `${el.naturalWidth} / ${el.naturalHeight}`);
+    }
   }, [candidates.join("\u0001")]);
 
   const src = candidates[idx] || "";
@@ -96,7 +100,14 @@ function BubbleImage({ msg, alt, className }) {
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      onLoad={() => setLoaded(true)}
+      onLoad={(e) => {
+        setLoaded(true);
+        const el = e.currentTarget;
+        if (el?.naturalWidth > 0 && el?.naturalHeight > 0) {
+          /* Fixa a proporção real para reloads/cache da mesma bolha (menos CLS). */
+          el.style.setProperty("--wa-img-ar", `${el.naturalWidth} / ${el.naturalHeight}`);
+        }
+      }}
       onError={() => {
         setLoaded(false);
         setIdx((cur) => {

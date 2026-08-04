@@ -128,21 +128,21 @@
 }
 
 html:not([data-theme="dark"]) .atendimento-empty__btn--secondary {
-  background: #ffffff;
-  color: #334155;
-  border-color: rgba(15, 23, 42, 0.16);
+  background: var(--light-surface);
+  color: var(--light-text-action);
+  border-color: var(--light-border-input);
 }
 
 html:not([data-theme="dark"]) .atendimento-empty__btn--secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.22);
-  color: #0f172a;
+  background: var(--light-surface-hover);
+  border-color: var(--light-border-hover);
+  color: var(--light-text-primary);
 }
 
 html:not([data-theme="dark"]) .atendimento-empty__btn--primary {
-  background: #059669;
+  background: var(--light-primary);
 }
 
 html:not([data-theme="dark"]) .atendimento-empty__btn--primary:hover:not(:disabled) {
-  background: #047857;
+  background: var(--light-primary-hover);
 }

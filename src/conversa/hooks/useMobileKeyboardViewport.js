@@ -24,6 +24,7 @@ export function useMobileKeyboardViewport({
 }) {
   const mobileFullViewportHeightRef = useRef(0);
   const mobileKeyboardWasVisibleRef = useRef(false);
+  const mobileKeyboardInsetRef = useRef(0);
 
   useLayoutEffect(() => {
     const shell = waShellRef.current;
@@ -32,6 +33,7 @@ export function useMobileKeyboardViewport({
 
     mobileFullViewportHeightRef.current = 0;
     mobileKeyboardWasVisibleRef.current = false;
+    mobileKeyboardInsetRef.current = 0;
 
     const mq = window.matchMedia("(max-width: 640px)");
     const root = document.documentElement;
@@ -113,19 +115,29 @@ export function useMobileKeyboardViewport({
         });
 
         const wasKeyboard = mobileKeyboardWasVisibleRef.current;
+        const prevInset = mobileKeyboardInsetRef.current;
         shell.classList.toggle("wa-keyboard-visible", keyboardOpen);
         mobileKeyboardWasVisibleRef.current = keyboardOpen;
+        mobileKeyboardInsetRef.current = kbInset;
         if (!keyboardOpen && wasKeyboard && !recordingActiveRef.current) {
           // Se o teclado fechou porque a gravação começou, NÃO solta a âncora ao fim —
           // o handleRecordingStateChange mantém a tela fixa nas últimas mensagens.
           shouldStickToBottomRef.current = false;
         }
-        if (keyboardOpen && shouldStickToBottomRef.current && !userScrollLockRef.current) {
-          // Teclado aberto (ou a mudar de altura): a área de mensagens encolheu. Se o utilizador
-          // já estava colado ao fim, reancora à última mensagem para ela ficar visível ACIMA do
-          // composer — sem ficar escondida atrás da barra de envio/teclado. Corremos isto a cada
-          // tick da animação do teclado (visualViewport), mantendo a última mensagem fixada.
-          // Guardado por shouldStickToBottomRef: quem está a ler histórico não é puxado para baixo.
+        /*
+         * Só reancora quando o teclado ABRE ou a inset muda de forma relevante.
+         * Antes: cada syncHeaderLayout (incl. troca de conversaId → sync + rAF + 3 timers)
+         * disparava snap enquanto o teclado estivesse aberto, competindo com o useAutoScroll
+         * na abertura e produzindo “pulos” em cascata.
+         */
+        const keyboardJustOpened = keyboardOpen && !wasKeyboard;
+        const insetChangedWhileOpen =
+          keyboardOpen && wasKeyboard && Math.abs(kbInset - prevInset) > 8;
+        if (
+          (keyboardJustOpened || insetChangedWhileOpen) &&
+          shouldStickToBottomRef.current &&
+          !userScrollLockRef.current
+        ) {
           const mc = messagesContainerRef.current;
           if (mc) {
             snapThreadToBottom(mc, virtualThreadRef, {

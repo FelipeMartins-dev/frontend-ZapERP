@@ -33,14 +33,14 @@
   --wa-glass-strong: color-mix(in srgb, var(--wa-panel) 92%, #ffffff 8%);
   --wa-header-shadow: 0 12px 30px -28px rgba(15, 23, 42, 0.36);
   --wa-composer-shadow: 0 -14px 32px -30px rgba(15, 23, 42, 0.46);
-  --wa-bubble-border-in: rgba(15, 23, 42, 0.14);
-  --wa-bubble-border-out: rgba(5, 150, 105, 0.22);
-  --wa-action-blue: #2563eb;
-  --wa-action-blue-soft: rgba(37, 99, 235, 0.12);
-  --wa-action-amber: #b45309;
-  --wa-action-amber-soft: rgba(217, 119, 6, 0.13);
-  --wa-action-red: #dc2626;
-  --wa-action-red-soft: rgba(220, 38, 38, 0.1);
+  --wa-bubble-border-in: var(--light-border);
+  --wa-bubble-border-out: var(--light-bubble-out-border);
+  --wa-action-blue: var(--light-info);
+  --wa-action-blue-soft: var(--light-info-bg);
+  --wa-action-amber: var(--light-warning);
+  --wa-action-amber-soft: var(--light-warning-bg);
+  --wa-action-red: var(--light-danger);
+  --wa-action-red-soft: var(--light-danger-bg);
 
   --wa-audio-accent: rgba(0,168,132,.92);
   --wa-audio-surface-in: rgba(255,255,255,.58);
@@ -220,9 +220,9 @@
 }
 
 html:not([data-theme="dark"]) .wa-header {
-  background: #e8eef5;
-  border-bottom-color: rgba(15, 23, 42, 0.14);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  background: var(--light-header-bg);
+  border-bottom-color: var(--light-border);
+  box-shadow: none;
   backdrop-filter: none;
 }
 
@@ -732,10 +732,10 @@ html:not([data-theme="dark"]) .wa-header {
 }
 
 html:not([data-theme="dark"]) .wa-header-setorBtn {
-  background: #ffffff;
-  border-color: rgba(5, 150, 105, 0.34);
-  color: #047857;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: var(--light-surface);
+  border-color: var(--light-primary-border);
+  color: var(--light-primary-hover);
+  box-shadow: none;
 }
 
 .wa-header-setorBtn:hover {
@@ -864,7 +864,7 @@ html:not([data-theme="dark"]) .wa-header-setorBtn {
   white-space: nowrap;
 }
 
-/* Aberta — verde escuro, pill compacta */
+/* Aberta — pill compacta (light via --light-success*) */
 .wa-status-pill--aberta,
 .wa-header-metaStrip .wa-status-pill--meta.wa-status-pill--aberta {
   min-height: 20px;
@@ -873,10 +873,10 @@ html:not([data-theme="dark"]) .wa-header-setorBtn {
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: 0.02em;
-  background: rgba(6, 95, 70, 0.22);
-  color: #047857;
-  border: 1px solid rgba(6, 95, 70, 0.38);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: var(--light-success-bg);
+  color: var(--light-success);
+  border: 1px solid var(--light-success-border);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .wa-status-pill--aberta,
@@ -1147,16 +1147,16 @@ html:not([data-theme="dark"]) .wa-header-setorBtn {
 }
 
 html:not([data-theme="dark"]) .wa-header-btn {
-  background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.16);
-  color: #475569;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  color: var(--light-text-secondary);
+  box-shadow: none;
 }
 
 html:not([data-theme="dark"]) .wa-header-btn:hover {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.22);
-  color: #0f172a;
+  background: var(--light-surface-hover);
+  border-color: var(--light-border-hover);
+  color: var(--light-text-primary);
 }
 
 .wa-header-btn:hover {
@@ -1446,43 +1446,49 @@ html:not([data-theme="dark"]) .wa-header-btn:hover {
 }
 
 html:not([data-theme="dark"]) .wa-actions button {
-  background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.16);
-  color: #334155;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  background: var(--light-surface);
+  border-color: var(--light-border-input);
+  color: var(--light-text-action);
+  box-shadow: none;
 }
 
 html:not([data-theme="dark"]) .wa-actions button:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.22);
-  color: #0f172a;
+  background: var(--light-surface-hover);
+  border-color: var(--light-border-hover);
+  color: var(--light-text-primary);
 }
 
 html:not([data-theme="dark"]) .wa-actions .wa-btn-primary,
 html:not([data-theme="dark"]) .wa-actions .wa-btn-assumir-destaque {
-  background: #059669;
+  background: var(--light-primary);
   color: #ffffff;
-  border-color: #047857;
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.22);
+  border-color: var(--light-primary);
+  box-shadow: none;
 }
 
 html:not([data-theme="dark"]) .wa-actions .wa-btn-primary:hover:not(:disabled),
 html:not([data-theme="dark"]) .wa-actions .wa-btn-assumir-destaque:hover:not(:disabled) {
-  background: #047857;
-  border-color: #047857;
+  background: var(--light-primary-hover);
+  border-color: var(--light-primary-hover);
   color: #ffffff;
 }
 
 html:not([data-theme="dark"]) .wa-actions .wa-btn-secondary {
-  background: rgba(5, 150, 105, 0.08);
-  color: #047857;
-  border-color: rgba(5, 150, 105, 0.34);
+  background: var(--light-surface);
+  color: var(--light-text-action);
+  border-color: var(--light-border-input);
 }
 
 html:not([data-theme="dark"]) .wa-actions .wa-btn-transferir {
-  background: rgba(37, 99, 235, 0.08);
-  color: #1d4ed8;
-  border-color: rgba(37, 99, 235, 0.28);
+  background: var(--light-info-bg);
+  color: var(--light-info);
+  border-color: var(--light-info-border);
+}
+
+html:not([data-theme="dark"]) .wa-actions .wa-btn-danger {
+  background: var(--light-danger-bg);
+  color: var(--light-danger);
+  border-color: var(--light-danger-border);
 }
 
 /* micro animação tecnológica */
@@ -2385,15 +2391,15 @@ html:not([data-theme="dark"]) .wa-actions .wa-btn-transferir {
 }
 
 html:not([data-theme="dark"]) .wa-closedAttendance-panel {
-  background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.16);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  background: var(--light-surface);
+  border-color: var(--light-border);
+  box-shadow: none;
 }
 
 html:not([data-theme="dark"]) .wa-closedAttendance-reopenBtn {
-  background: rgba(5, 150, 105, 0.1);
-  border-color: rgba(5, 150, 105, 0.36);
-  color: #047857;
+  background: var(--light-primary-soft);
+  border-color: var(--light-primary-border);
+  color: var(--light-primary-hover);
 }
 
 .wa-closedAttendance-text {
@@ -2769,15 +2775,17 @@ html:not([data-theme="dark"]) .wa-closedAttendance-reopenBtn {
 }
 
 html:not([data-theme="dark"]) .wa-bubble-in {
-  background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.14);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  background: var(--light-surface);
+  color: var(--light-text-primary);
+  border-color: var(--light-border);
+  box-shadow: none;
 }
 
 html:not([data-theme="dark"]) .wa-bubble-out {
-  background: #d9f5e5;
-  border-color: rgba(5, 150, 105, 0.24);
-  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.08);
+  background: var(--light-bubble-out);
+  color: var(--light-text-bubble-out);
+  border-color: var(--light-bubble-out-border);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .wa-bubble-in {
@@ -5157,14 +5165,14 @@ html:not([data-theme="dark"]) .wa-bubble-out {
 }
 
 html:not([data-theme="dark"]) .wa-audioPlayer {
-  background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(15, 23, 42, 0.12);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: color-mix(in srgb, var(--light-surface) 86%, transparent);
+  border-color: var(--light-border-soft);
+  box-shadow: none;
 }
 
 html:not([data-theme="dark"]) .wa-bubble-out .wa-audioPlayer {
-  background: rgba(255, 255, 255, 0.45);
-  border-color: rgba(5, 150, 105, 0.18);
+  background: color-mix(in srgb, var(--light-surface) 55%, transparent);
+  border-color: var(--light-bubble-out-border);
 }
 
 .wa-audioPlayer:hover{
@@ -8051,10 +8059,10 @@ html:not([data-theme="dark"]) .wa-bubble-out .wa-audioPlayer {
 }
 
 html:not([data-theme="dark"]) .wa-daySep-pill {
-  background: #ffffff;
-  color: #475569;
-  border-color: rgba(15, 23, 42, 0.14);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  background: var(--light-surface);
+  color: var(--light-text-secondary);
+  border-color: var(--light-border);
+  box-shadow: none;
 }
 
 /* =========================================================
@@ -9191,24 +9199,24 @@ main.main-content--crm .wa-mediaPreview--imageUnified .wa-mediaPreview-composer 
 }
 
 html:not([data-theme="dark"]) .wa-footer {
-  background: #e8eef5;
-  border-top-color: rgba(15, 23, 42, 0.14);
+  background: var(--light-header-bg);
+  border-top-color: var(--light-border);
   box-shadow: none;
   backdrop-filter: none;
 }
 
 html:not([data-theme="dark"]) .wa-footer .wa-iconBtn {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  color: #475569;
+  background: var(--light-surface);
+  border: 1px solid var(--light-border-input);
+  color: var(--light-text-secondary);
   border-radius: 12px;
   box-shadow: none;
 }
 
 html:not([data-theme="dark"]) .wa-footer .wa-iconBtn:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.2);
-  color: #0f172a;
+  background: var(--light-surface-hover);
+  border-color: var(--light-border-hover);
+  color: var(--light-text-primary);
 }
 
 [data-theme="dark"] .wa-footer {
@@ -9681,17 +9689,20 @@ html:not([data-theme="dark"]) .wa-footer .wa-iconBtn:hover:not(:disabled) {
 }
 
 html:not([data-theme="dark"]) .wa-input {
-  background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.18);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: var(--light-surface);
+  border-color: var(--light-border-input);
+  color: var(--light-text-primary);
+  box-shadow: none;
+}
+
+html:not([data-theme="dark"]) .wa-input::placeholder {
+  color: var(--light-text-muted);
 }
 
 html:not([data-theme="dark"]) .wa-input:focus {
-  background: #ffffff;
-  border-color: rgba(5, 150, 105, 0.45);
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+  background: var(--light-surface);
+  border-color: var(--light-primary-border);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--light-primary) 16%, transparent);
 }
 
 .wa-input::-webkit-scrollbar {
@@ -9761,6 +9772,16 @@ html:not([data-theme="dark"]) .wa-input:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     0 8px 18px -13px color-mix(in srgb, var(--wa-green-send) 72%, transparent);
   transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+html:not([data-theme="dark"]) .wa-sendBtn {
+  background: var(--light-primary);
+  box-shadow: none;
+}
+
+html:not([data-theme="dark"]) .wa-sendBtn:hover:not(:disabled) {
+  background: var(--light-primary-hover);
+  filter: none;
 }
 
 .wa-sendBtn:hover:not(:disabled) {

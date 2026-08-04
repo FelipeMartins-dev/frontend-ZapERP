@@ -101,8 +101,8 @@
 }
 
 html:not([data-theme="dark"]) .atendimento-sidebar {
-  background: #e4eaf1;
-  border-right-color: rgba(15, 23, 42, 0.16);
+  background: var(--light-surface-secondary);
+  border-right-color: var(--light-border);
 }
 
 [data-theme="dark"] .atendimento-layout {
@@ -519,15 +519,15 @@ body {
 ============================== */
 
 .sidebar--v2 {
-  --sidebar-v2-bg: #e8eef5;
-  --sidebar-v2-border: rgba(15, 23, 42, 0.14);
-  --sidebar-v2-icon: #475569;
-  --sidebar-v2-icon-hover-bg: #f1f5f9;
-  --sidebar-v2-icon-hover: #0f172a;
-  --sidebar-v2-active-bg: rgba(5, 150, 105, 0.14);
-  --sidebar-v2-active-color: #047857;
-  --sidebar-v2-divider-color: rgba(15, 23, 42, 0.14);
-  --sidebar-v2-unread-ring: #e8eef5;
+  --sidebar-v2-bg: var(--light-sidebar-bg);
+  --sidebar-v2-border: var(--light-border);
+  --sidebar-v2-icon: var(--light-text-secondary);
+  --sidebar-v2-icon-hover-bg: var(--light-surface-hover);
+  --sidebar-v2-icon-hover: var(--light-text-primary);
+  --sidebar-v2-active-bg: var(--light-primary-soft);
+  --sidebar-v2-active-color: var(--light-primary-hover);
+  --sidebar-v2-divider-color: var(--light-border);
+  --sidebar-v2-unread-ring: var(--light-sidebar-bg);
 
   width: 52px;
   min-width: 52px;

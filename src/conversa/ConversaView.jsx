@@ -397,6 +397,8 @@ function ConversaViewBody() {
   const [messageSearchOpen, setMessageSearchOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [threadOpening, setThreadOpening] = useState(false);
+  /** Garante máscara no 1º frame da troca (setState no render), não só no useLayoutEffect pós-paint. */
+  const threadOpeningForIdRef = useRef(null);
   const sendingCountRef = useRef(0);
   const setSendingTracked = useCallback((active) => {
     if (active) {
@@ -581,6 +583,27 @@ function ConversaViewBody() {
   /** Enquanto `carregarConversa` limpa `conversa`, `selectedId` mantém o chat — necessário para scroll até à última mensagem não falhar a meio do load. */
   const scrollThreadId =
     selectedId != null && selectedId !== "" ? selectedId : conversaId;
+
+  /*
+   * Máscara de abertura no mesmo render da troca de conversa (padrão React: ajustar state
+   * durante o render quando a identidade muda). O antigo useLayoutEffect só marcava
+   * threadOpening=true DEPOIS do primeiro commit — com cache hit o utilizador via 1 frame
+   * no topo (lista remontada em scrollTop=0) antes do snap, ou um blink da máscara.
+   */
+  const openingThreadKey =
+    scrollThreadId != null && scrollThreadId !== ""
+      ? String(scrollThreadId)
+      : conversaId != null && conversaId !== ""
+        ? String(conversaId)
+        : null;
+  if (openingThreadKey !== threadOpeningForIdRef.current) {
+    threadOpeningForIdRef.current = openingThreadKey;
+    if (openingThreadKey) {
+      if (!threadOpening) setThreadOpening(true);
+    } else if (threadOpening) {
+      setThreadOpening(false);
+    }
+  }
 
   useEffect(() => {
     setMessageSearchOpen(false);
@@ -1440,7 +1463,7 @@ function ConversaViewBody() {
     );
   }, [tryLoadOlderMessages, headerCompact, lockUserScroll, scheduleUserScrollUnlock]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     messagesLastScrollTopRef.current = 0;
     userScrollLockRef.current = false;
     userInterruptedOpenSnapRef.current = false;
@@ -3261,30 +3284,25 @@ function ConversaViewBody() {
   }, [mensagensComSeparadores]);
 
   useLayoutEffect(() => {
-    if (!conversaId) {
-      setThreadOpening(false);
-      return undefined;
-    }
-    setThreadOpening(true);
+    if (!threadOpening || !openingThreadKey) return undefined;
+    /*
+     * Fallback: se o snap/layout falhar, não deixar a lista invisível para sempre.
+     * A identidade da conversa já liga a máscara no render; aqui só o timeout de segurança.
+     */
     const fallback = window.setTimeout(() => setThreadOpening(false), 1000);
     return () => window.clearTimeout(fallback);
-  }, [conversaId]);
-
-  useEffect(() => {
-    if (!threadOpening || loading || hasThreadMessageRows) return;
-    setThreadOpening(false);
-  }, [threadOpening, loading, hasThreadMessageRows]);
+  }, [threadOpening, openingThreadKey]);
 
   useLayoutEffect(() => {
-    if (!threadOpening || loading || !conversaId) return undefined;
-    if (!hasThreadMessageRows) return undefined;
+    if (!threadOpening || loading || !openingThreadKey) return undefined;
     /*
-     * useAutoScroll é o único responsável por posicionar a abertura. Este efeito apenas
-     * libera a máscara no mesmo ciclo de layout, depois que o snap inicial foi aplicado.
+     * useAutoScroll (declarado acima) já aplicou o snap neste ciclo de layout.
+     * Com loading=false a conversa está pronta (com mensagens ou vazia): liberamos a
+     * máscara no mesmo frame, antes do paint — sem blink nem frame no topo.
      */
     setThreadOpening(false);
     return undefined;
-  }, [threadOpening, loading, conversaId, hasThreadMessageRows]);
+  }, [threadOpening, loading, openingThreadKey]);
 
   useEffect(() => {
     if (!import.meta?.env?.DEV) return;

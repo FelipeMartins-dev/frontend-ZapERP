@@ -102,10 +102,19 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
       if (scrollEl && !isScrollingRef.current) {
         const delta = next - prev;
         if (delta !== 0) {
-          try {
-            scrollEl.scrollTop = Math.max(0, scrollEl.scrollTop + delta);
-          } catch {
-            /* ignore */
+          /*
+           * Perto do fim, o ConversaView/useAutoScroll é dono da âncora inferior.
+           * Compensar scrollTop aqui + snapIfStickBottom somava dois ajustes e
+           * gerava “pulo” na abertura (banner/load-older mudam o offsetTop).
+           */
+          const distanceToBottom =
+            scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+          if (distanceToBottom > 120) {
+            try {
+              scrollEl.scrollTop = Math.max(0, scrollEl.scrollTop + delta);
+            } catch {
+              /* ignore */
+            }
           }
         }
       }

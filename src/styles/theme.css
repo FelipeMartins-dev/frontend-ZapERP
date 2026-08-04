@@ -10,6 +10,56 @@
 
 :root,
 [data-theme="light"] {
+  /* ---- Paleta light premium (fonte única) ---- */
+  --light-app-bg: #F3F6FA;
+  --light-sidebar-bg: #EDF2F7;
+  --light-header-bg: #F8FAFC;
+  --light-chat-bg: #F1F5F9;
+  --light-surface: #FFFFFF;
+  --light-surface-secondary: #F7F9FC;
+  --light-surface-hover: #EEF5F7;
+  --light-surface-selected: #E7F7F1;
+  --light-border: #D8E2EC;
+  --light-border-soft: #E6EDF3;
+  --light-border-selected: #67CDB0;
+  --light-border-input: #CBD8E3;
+  --light-border-hover: #BFCEDB;
+  --light-text-primary: #102235;
+  --light-text-secondary: #526A7E;
+  --light-text-muted: #8799AA;
+  --light-text-disabled: #A9B7C4;
+  --light-text-action: #3E586D;
+  --light-text-bubble-out: #173A31;
+  --light-primary: #0B9F76;
+  --light-primary-hover: #087E60;
+  --light-primary-soft: #E3F7F0;
+  --light-primary-border: #76D3B7;
+  --light-bubble-out: #DDF5EB;
+  --light-bubble-out-border: #A9DFC9;
+  --light-success: #11875D;
+  --light-success-bg: #E5F7EF;
+  --light-success-border: #79CFAE;
+  --light-warning: #A96F00;
+  --light-warning-bg: #FFF4D6;
+  --light-warning-border: #E7C25E;
+  --light-info: #2563B8;
+  --light-info-bg: #E9F2FF;
+  --light-info-border: #8EB7EC;
+  --light-danger: #C43D47;
+  --light-danger-bg: #FDECEE;
+  --light-danger-border: #E9A0A6;
+  --light-messages-bg:
+    radial-gradient(
+      circle at bottom right,
+      rgba(11, 159, 118, 0.05),
+      transparent 34%
+    ),
+    linear-gradient(
+      135deg,
+      #F7FAFC 0%,
+      #EEF3F7 100%
+    );
+
   /* ---- Atendimento premium (tokens compartilhados; aplicados no dark) ---- */
   --zaperp-chat-bg: #07111D;
   --zaperp-sidebar-bg: #08131F;
@@ -36,42 +86,42 @@
     var(--zaperp-messages-glow-tl),
     var(--zaperp-chat-bg);
 
-  /* ---- Superfícies (níveis de profundidade) — slate premium com contraste ---- */
-  --ds-bg-base: #e4eaf1;
-  --ds-bg-raised: #f4f7fb;
-  --ds-bg-overlay: #ffffff;
-  --ds-bg-sunken: #d8e0ea;
-  --ds-surface-1: #ffffff;
-  --ds-surface-2: #f1f5f9;
-  --ds-surface-3: #e8eef5;
+  /* ---- Superfícies (mapeadas da paleta light) ---- */
+  --ds-bg-base: var(--light-app-bg);
+  --ds-bg-raised: var(--light-surface-secondary);
+  --ds-bg-overlay: var(--light-surface);
+  --ds-bg-sunken: var(--light-sidebar-bg);
+  --ds-surface-1: var(--light-surface);
+  --ds-surface-2: var(--light-surface-secondary);
+  --ds-surface-3: var(--light-sidebar-bg);
 
   /* ---- Texto (hierarquia) ---- */
-  --ds-text-primary: #0f172a;
-  --ds-text-secondary: #334155;
-  --ds-text-tertiary: #475569;
-  --ds-text-muted: #64748b;
+  --ds-text-primary: var(--light-text-primary);
+  --ds-text-secondary: var(--light-text-secondary);
+  --ds-text-tertiary: var(--light-text-secondary);
+  --ds-text-muted: var(--light-text-muted);
 
-  /* ---- Bordas — mais visíveis no modo claro ---- */
-  --ds-border: rgba(15, 23, 42, 0.14);
-  --ds-border-strong: rgba(15, 23, 42, 0.22);
+  /* ---- Bordas ---- */
+  --ds-border: var(--light-border);
+  --ds-border-strong: var(--light-border-hover);
 
   /* ---- Acentos ---- */
-  --ds-accent: #059669;
-  --ds-accent-soft: rgba(5, 150, 105, 0.12);
-  --ds-accent-hover: #047857;
-  --ds-accent-muted: rgba(5, 150, 105, 0.08);
+  --ds-accent: var(--light-primary);
+  --ds-accent-soft: var(--light-primary-soft);
+  --ds-accent-hover: var(--light-primary-hover);
+  --ds-accent-muted: var(--light-primary-soft);
 
   /* ---- Estados interativos ---- */
-  --ds-hover: rgba(15, 23, 42, 0.05);
-  --ds-hover-strong: rgba(15, 23, 42, 0.09);
-  --ds-active: rgba(15, 23, 42, 0.07);
-  --ds-focus-ring: rgba(5, 150, 105, 0.4);
+  --ds-hover: var(--light-surface-hover);
+  --ds-hover-strong: color-mix(in srgb, var(--light-surface-hover) 88%, var(--light-border) 12%);
+  --ds-active: var(--light-surface-selected);
+  --ds-focus-ring: color-mix(in srgb, var(--light-primary) 40%, transparent);
 
-  /* ---- Sombras ---- */
-  --ds-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --ds-shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.08);
-  --ds-shadow-md: 0 4px 14px rgba(15, 23, 42, 0.1);
-  --ds-shadow-lg: 0 8px 28px rgba(15, 23, 42, 0.12);
+  /* ---- Sombras (sutis; sem neon) ---- */
+  --ds-shadow-xs: 0 1px 2px rgba(16, 34, 53, 0.05);
+  --ds-shadow-sm: 0 2px 6px rgba(16, 34, 53, 0.06);
+  --ds-shadow-md: 0 4px 14px rgba(16, 34, 53, 0.08);
+  --ds-shadow-lg: 0 8px 28px rgba(16, 34, 53, 0.1);
 
   /* ---- Espaçamento ---- */
   --ds-space-1: 4px;
@@ -95,7 +145,7 @@
   --ds-radius-full: 9999px;
 
   /* ---- Sombras extras ---- */
-  --ds-shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --ds-shadow-toast: 0 8px 24px rgba(16, 34, 53, 0.1);
 
   /* ---- Transições — WhatsApp: rápidas, leves, responsivas ---- */
   --ds-transition: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
@@ -103,34 +153,36 @@
   --ds-transition-smooth: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 
   /* ---- Estados semânticos ---- */
-  --ds-success: #059669;
-  --ds-success-soft: rgba(5, 150, 105, 0.12);
-  --ds-error: #dc2626;
-  --ds-error-soft: rgba(220, 38, 38, 0.1);
-  --ds-warning: #d97706;
-  --ds-warning-soft: rgba(217, 119, 6, 0.12);
-  --ds-info: #2563eb;
-  --ds-info-soft: rgba(37, 99, 235, 0.12);
+  --ds-success: var(--light-success);
+  --ds-success-soft: var(--light-success-bg);
+  --ds-error: var(--light-danger);
+  --ds-error-soft: var(--light-danger-bg);
+  --ds-warning: var(--light-warning);
+  --ds-warning-soft: var(--light-warning-bg);
+  --ds-info: var(--light-info);
+  --ds-info-soft: var(--light-info-bg);
 
   /* ---- Componentes específicos (chat light premium) ---- */
-  --ds-chat-header: #e8eef5;
-
-  /* ---- Chat background premium (LIGHT) — slate suave + acentos discretos ---- */
-  --ds-chat-bg:
-    radial-gradient(circle at 18% 8%, rgba(5, 150, 105, 0.07) 0%, transparent 32%),
-    radial-gradient(circle at 86% 18%, rgba(37, 99, 235, 0.055) 0%, transparent 36%),
-    linear-gradient(145deg, #f4f7fb 0%, #eef3f8 42%, #e8eef5 72%, #f1f5f9 100%);
-  --ds-bg-base: #e4eaf1;
-  --wa-pattern-opacity: 0.04;
+  --ds-chat-header: var(--light-header-bg);
+  --ds-chat-bg: var(--light-messages-bg);
+  --wa-pattern-opacity: 0.035;
   --wa-pattern-size: 420px 420px;
-  --wa-glow-opacity: 0.55;
-  --wa-glow-1: radial-gradient(circle at 16% 12%, rgba(5, 150, 105, 0.08) 0%, rgba(5, 150, 105, 0.03) 25%, transparent 52%);
-  --wa-glow-2: radial-gradient(circle at 88% 18%, rgba(37, 99, 235, 0.07) 0%, rgba(37, 99, 235, 0.02) 28%, transparent 56%);
-  --wa-glow-3: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, transparent 40%, rgba(15, 23, 42, 0.04) 100%);
+  --wa-glow-opacity: 0.4;
+  --wa-glow-1: radial-gradient(circle at bottom right, rgba(11, 159, 118, 0.05) 0%, transparent 34%);
+  --wa-glow-2: none;
+  --wa-glow-3: none;
   --wa-pattern-blend: soft-light;
-  --ds-bubble-in: #ffffff;
-  --ds-bubble-out: #d9f5e5;
-  --ds-input-bg: #f1f5f9;
+  --ds-bubble-in: var(--light-surface);
+  --ds-bubble-out: var(--light-bubble-out);
+  --ds-input-bg: var(--light-surface);
+  --wa-bubble-border-in: var(--light-border);
+  --wa-bubble-border-out: var(--light-bubble-out-border);
+  --wa-action-blue: var(--light-info);
+  --wa-action-blue-soft: var(--light-info-bg);
+  --wa-action-amber: var(--light-warning);
+  --wa-action-amber-soft: var(--light-warning-bg);
+  --wa-action-red: var(--light-danger);
+  --wa-action-red-soft: var(--light-danger-bg);
 }
 
 /* ==============================
