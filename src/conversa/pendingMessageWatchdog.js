@@ -37,6 +37,10 @@ export function decidePendingWatchdogAction(msg, now = Date.now()) {
   if (!out) return "none";
 
   const status = msg.status_mensagem ?? msg.status;
+  // Fila offline: espera internet; nao transformar em status_indefinido por tempo.
+  if (msg?.aguardando_conexao === true || String(status || "").toLowerCase() === "aguardando_conexao") {
+    return "none";
+  }
   if (!isPendingishStatus(status)) return "none";
   // Já confirmado pelo provedor — nunca regressar.
   if (msg.whatsapp_id && ["sent", "delivered", "read", "played"].includes(String(status).toLowerCase())) {

@@ -142,12 +142,18 @@ function MessageTicks({ msg, isGroup }) {
   const hasReadKeyword = /lida|read|seen|visualiz|played/.test(s);
   const hasDeliveredKeyword = /entregue|deliver|receiv/.test(s);
   const isErr = s === "erro" || s === "error" || s === "failed" || s === "falhou";
-  const isIndefinido = !isErr && (s === "status_indefinido" || !!msg?.envio_incerto);
-  const isDemorado = !isErr && !!(msg?.envio_demorado || isIndefinido);
-  const isRetry = !isErr && !isIndefinido && !!(msg?.em_retry);
+  const isAguardandoConexao =
+    !isErr && (s === "aguardando_conexao" || !!msg?.aguardando_conexao);
+  const isIndefinido = !isErr && !isAguardandoConexao && (s === "status_indefinido" || !!msg?.envio_incerto);
+  const isDemorado = !isErr && !isAguardandoConexao && !!(msg?.envio_demorado || isIndefinido);
+  const isRetry = !isErr && !isIndefinido && !isAguardandoConexao && !!(msg?.em_retry);
   const isPending =
     !isRetry &&
-    (isIndefinido || s === "pending" || s === "enviando" || s === "sending");
+    (isAguardandoConexao ||
+      isIndefinido ||
+      s === "pending" ||
+      s === "enviando" ||
+      s === "sending");
   let isRead =
     s === "lida" || s === "read" || s === "seen" ||
     s === "visualizada" || s === "played" ||
@@ -163,13 +169,15 @@ function MessageTicks({ msg, isGroup }) {
   const isSent = !isErr && !isPending && !isDelivered && !isRead &&
     (!s || s === "sent" || s === "enviada" || s === "enviado");
 
-  const tickTitle = isRetry
-    ? "Aguardando reenvio automático"
-    : isIndefinido
-      ? "Verificando se a mensagem foi enviada…"
-      : isDemorado
-        ? "Envio demorado — ainda verificando…"
-        : undefined;
+  const tickTitle = isAguardandoConexao
+    ? "Aguardando conexão"
+    : isRetry
+      ? "Aguardando reenvio automático"
+      : isIndefinido
+        ? "Verificando se a mensagem foi enviada…"
+        : isDemorado
+          ? "Envio demorado — ainda verificando…"
+          : undefined;
 
   return (
     <span
@@ -1371,7 +1379,8 @@ const Bubble = memo(function Bubble({
     "lida",
     "played",
     "status_indefinido",
-  ].includes(retryStatus);
+    "aguardando_conexao",
+  ].includes(retryStatus) || !!msg?.aguardando_conexao;
   const tipoNorm = String(msg?.tipo || "").toLowerCase();
   const isRetryableText =
     !isAudioOrVoice &&

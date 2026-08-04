@@ -34,6 +34,13 @@ import {
   shouldShowOutboundToast,
   OUTBOUND_ERROR_KIND,
 } from "./outboundSendError";
+import {
+  enqueueOutboxText,
+  flushOutbox,
+  outboxHasItems,
+  isBrowserOffline,
+  removeFromOutbox,
+} from "./offlineOutbox";
 import { WATCHDOG_TICK_MS } from "./pendingMessageWatchdog";
 import { useAuthStore } from "../auth/authStore";
 import { canAssumir, canReabrir, canTag, canTransferirSetorConversa } from "../auth/permissions";
@@ -236,6 +243,7 @@ function ConversaViewBody() {
     removerMensagemTemp,
     marcarMensagemTempErro,
     marcarMensagemEnvioIncerto,
+    marcarMensagemAguardandoConexao,
     applyPendingOutgoingWatchdog,
     carregarAtendimentos,
     clearTyping,
@@ -255,6 +263,7 @@ function ConversaViewBody() {
       removerMensagemTemp: s.removerMensagemTemp,
       marcarMensagemTempErro: s.marcarMensagemTempErro,
       marcarMensagemEnvioIncerto: s.marcarMensagemEnvioIncerto,
+      marcarMensagemAguardandoConexao: s.marcarMensagemAguardandoConexao,
       applyPendingOutgoingWatchdog: s.applyPendingOutgoingWatchdog,
       carregarAtendimentos: s.carregarAtendimentos,
       clearTyping: s.clearTyping,
@@ -1191,16 +1200,97 @@ function ConversaViewBody() {
     };
     tick();
     const id = window.setInterval(tick, WATCHDOG_TICK_MS);
-    const onOnline = () => {
-      tick();
-      void refresh({ silent: true });
-    };
-    window.addEventListener("online", onOnline);
     return () => {
       window.clearInterval(id);
+    };
+  }, [conversaId, applyPendingOutgoingWatchdog]);
+
+  /**
+   * Fila offline persistente: ao voltar a internet, reenvia em ordem com o mesmo
+   * client_temp_id. Remove do storage somente apos confirmacao do backend.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    const flushPendingOutbox = async () => {
+      if (cancelled || isBrowserOffline() || !outboxHasItems()) return;
+      try {
+        await flushOutbox({
+          estaOffline: isBrowserOffline,
+          sendText: async (item) =>
+            enviarMensagem(
+              item.conversaId,
+              item.texto,
+              item.replyMeta || undefined,
+              item.tempId
+            ),
+          onConfirmado: (item, res) => {
+            const store = useConversaStore.getState();
+            const realMsg = normalizeTextSendApiToMessage(res, item.conversaId);
+            if (realMsg) {
+              store.reconciliarMensagem?.(item.tempId, realMsg);
+              return;
+            }
+            const resId = res?.mensagem?.id ?? res?.id;
+            if (resId != null) {
+              store.reconciliarMensagem?.(item.tempId, {
+                id: resId,
+                conversa_id: item.conversaId,
+                texto: item.texto,
+                tipo: "texto",
+                direcao: "out",
+                status: res?.status || res?.mensagem?.status || "pending",
+                status_mensagem:
+                  res?.status_mensagem || res?.mensagem?.status_mensagem || res?.status || "pending",
+                client_temp_id: item.tempId,
+                ...(item.replyMeta ? { reply_meta: item.replyMeta } : {}),
+              });
+            }
+          },
+          onFalhaDefinitiva: (item, classified) => {
+            useConversaStore.getState().marcarMensagemTempErro?.(item.tempId, {
+              erro_mensagem: classified?.message || "Não foi possível enviar a mensagem.",
+            });
+            const toastKey = `outbox-fail-${item.tempId}`;
+            if (shouldShowOutboundToast(toastKey)) {
+              showToast({
+                type: "error",
+                title: "Falha ao enviar",
+                message: classified?.message || "Não foi possível enviar a mensagem salva offline.",
+              });
+            }
+          },
+        });
+      } catch (e) {
+        console.warn("[outbox] flush falhou:", e?.message || e);
+      }
+      if (!cancelled && conversaId) {
+        try {
+          void refresh({ silent: true });
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    };
+
+    const onOnline = () => {
+      try {
+        applyPendingOutgoingWatchdog?.();
+      } catch (_) {
+        /* ignore */
+      }
+      void flushPendingOutbox();
+    };
+
+    window.addEventListener("online", onOnline);
+    if (!isBrowserOffline() && outboxHasItems()) {
+      void flushPendingOutbox();
+    }
+    return () => {
+      cancelled = true;
       window.removeEventListener("online", onOnline);
     };
-  }, [conversaId, applyPendingOutgoingWatchdog, refresh]);
+  }, [conversaId, refresh, showToast, applyPendingOutgoingWatchdog]);
 
   const {
     mediaViewer,
@@ -2441,11 +2531,39 @@ function ConversaViewBody() {
     const revertModoSimples = appendOutgoingOptimisticMessage(optimisticMsg);
     setReplyTo(null);
 
+    const enfileirarOffline = () => {
+      enqueueOutboxText({
+        conversaId,
+        texto: t,
+        tempId,
+        replyMeta: replyMeta || null,
+        criadoEm: optimisticMsg.criado_em,
+      });
+      marcarMensagemAguardandoConexao(tempId);
+      const toastKey = `out-${tempId}-offline`;
+      if (shouldShowOutboundToast(toastKey)) {
+        showToast({
+          type: "warning",
+          title: "Aguardando conexão",
+          message: "A mensagem ficará visível e será enviada automaticamente quando a internet voltar.",
+        });
+      }
+      // Preserva o tempId para retry manual do mesmo texto, se o usuario insistir.
+      manualTextRetryRef.current = { conversaId, texto: t, tempId };
+    };
+
     const runSend = async () => {
       let envioFalhou = false;
       enviarTextoEmAndamentoRef.current = true;
       setSendingTracked(true);
       try {
+        // Sem internet: bolha ja esta na tela; persiste e espera reconexao.
+        // Nao chama a API (evitaria timeout longo) e nao marca erro.
+        if (isBrowserOffline()) {
+          enfileirarOffline();
+          return;
+        }
+
         const res = await enviarMensagem(
           conversaId,
           t,
@@ -2453,6 +2571,8 @@ function ConversaViewBody() {
           tempId,
           { retryManual: !!isManualRetry }
         );
+        // Se chegou resposta, nao ha pendencia offline deste tempId.
+        removeFromOutbox(tempId);
         const resMsgId = res?.mensagem?.id ?? res?.id;
         const realMsg = normalizeTextSendApiToMessage(res, conversaId);
         if (realMsg) {
@@ -2467,9 +2587,18 @@ function ConversaViewBody() {
         manualTextRetryRef.current = null;
       } catch (err) {
         envioFalhou = true;
+        console.error("Erro ao enviar mensagem:", err);
+        const classifiedEarly = classifyOutboundAxiosError(err);
+        // Offline puro: a mensagem nunca chegou ao backend. Persistir e manter relogio.
+        // Nao reverter status otimista da conversa nem tratar como "incerto".
+        if (classifiedEarly.kind === OUTBOUND_ERROR_KIND.OFFLINE || isBrowserOffline()) {
+          enfileirarOffline();
+          focusMessageInput();
+          return;
+        }
+
         revertModoSimples?.();
         revertOutgoingStatus?.();
-        console.error("Erro ao enviar mensagem:", err);
         const is403 = err?.response?.status === 403;
         const failureData = err?.response?.data;
         const persistedFailure = normalizeTextSendApiToMessage(failureData, conversaId);
@@ -2523,6 +2652,7 @@ function ConversaViewBody() {
     applyOutgoingStatusOptimistic,
     reconciliarMensagem,
     marcarMensagemTempErro,
+    marcarMensagemAguardandoConexao,
     applyOutboundSendFailure,
     nome,
     conversa,

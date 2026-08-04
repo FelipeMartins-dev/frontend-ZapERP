@@ -64,7 +64,7 @@ export function classifyOutboundAxiosError(err) {
       kind: OUTBOUND_ERROR_KIND.OFFLINE,
       uncertain: true,
       httpStatus: null,
-      message: "Sem conexão. A mensagem ficará visível até confirmarmos o envio.",
+      message: "Aguardando conexão. A mensagem será enviada automaticamente quando a internet voltar.",
     };
   }
 

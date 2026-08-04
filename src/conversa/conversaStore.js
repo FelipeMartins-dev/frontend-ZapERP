@@ -39,6 +39,7 @@ import {
   stripTempIdWhenPersisted,
   stripPersistedIdIfConflictsWithList,
 } from "./conversaOutboundMediaMerge.js"
+import { hydrateOutboxBubblesForConversa } from "./offlineOutbox.js"
 
 export { stableSyntheticMessageKey, mapDedupeKey, getMessageListReactKey, isPendingOutgoingTemp }
 
@@ -692,6 +693,9 @@ export const useConversaStore = create((set, get) => {
         const clientSnapshot = filterMensagensForConversa(clientSnapshotBase, normalizedId)
         const blockedViewer = !!conversa?.mensagens_bloqueadas
         let mensagens = blockedViewer ? [] : get()._mergeMensagensFromApi(clientSnapshot, apiMensagens, normalizedId)
+        // Mensagens enviadas offline vivem no localStorage ate o backend confirmar.
+        // Sem isto, F5/troca de conversa apaga a bolha porque nao ha linha no banco.
+        if (!blockedViewer) mensagens = hydrateOutboxBubblesForConversa(normalizedId, mensagens)
         mensagens = filterMensagensForConversa(attachReplyMeta(normalizedId, mensagens), normalizedId)
 
         if (generation !== carregarConversaGeneration) return
@@ -850,6 +854,8 @@ export const useConversaStore = create((set, get) => {
         set((state) => {
           const existing = state.mensagens || []
           let mensagens = mensagens_bloqueadas ? [] : get()._mergeMensagensFromApi(existing, apiMensagens, id)
+          // Fila offline sobrevive ao F5/refresh: reinstala bolhas que ainda nao tem linha no banco.
+          if (!mensagens_bloqueadas) mensagens = hydrateOutboxBubblesForConversa(id, mensagens)
           mensagens = attachReplyMeta(id, mensagens)
           return {
             conversa: merged,
@@ -1339,6 +1345,42 @@ export const useConversaStore = create((set, get) => {
                 erro_mensagem:
                   "Não foi possível confirmar o envio a tempo. Verificando com o servidor…",
               }),
+        }
+        return { mensagens: next }
+      })
+    },
+
+    /**
+     * Sem conexão: a requisição nunca chegou ao backend. Mantém a bolha com relógio
+     * e marca a espera explícita — a fila persistente (offlineOutbox) reenvia depois.
+     * Não é erro nem status indefinido: não há nada a reconciliar com o servidor.
+     */
+    marcarMensagemAguardandoConexao: (tempId, opts = {}) => {
+      if (!tempId) return
+      takeAndApplyAnexarBatch()
+      set((state) => {
+        const list = state.mensagens || []
+        const idx = list.findIndex((m) => String(m.tempId) === String(tempId))
+        if (idx < 0) return state
+        const prev = list[idx]
+        const curStatus = String(prev.status_mensagem ?? prev.status ?? "").toLowerCase()
+        // Nunca regressar um envio já confirmado.
+        if (["sent", "enviada", "enviado", "delivered", "entregue", "read", "lida", "played"].includes(curStatus)) {
+          return state
+        }
+        const next = [...list]
+        next[idx] = {
+          ...prev,
+          status: "aguardando_conexao",
+          status_mensagem: "aguardando_conexao",
+          aguardando_conexao: true,
+          envio_erro: false,
+          envio_incerto: false,
+          envio_demorado: false,
+          client_temp_id: prev.client_temp_id || prev.tempId || tempId,
+          erro_mensagem:
+            opts?.erro_mensagem ||
+            "Aguardando conexão. Será enviada automaticamente quando a internet voltar.",
         }
         return { mensagens: next }
       })
