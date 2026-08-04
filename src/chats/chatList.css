@@ -147,13 +147,10 @@
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.open.chat-list-status--hud-open {
-  background: linear-gradient(135deg, #064e3b 0%, #022c22 55%, #052e16 100%);
-  color: #fff !important;
-  border-color: rgba(52, 211, 153, 0.85);
-  box-shadow:
-    0 0 0 1px rgba(16, 185, 129, 0.35),
-    0 0 12px rgba(16, 185, 129, 0.35),
-    inset 0 0 12px rgba(52, 211, 153, 0.12);
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.32);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .chat-list-row.is-active .chat-list-status.in.chat-list-status--hud-in {
@@ -2585,7 +2582,7 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
 
 /* Prefixo “Aberta” — só anima em desktop (hover:none = estático) */
 .chat-list-status-hud-prefix--aberta {
-  color: #00ff88;
+  color: #059669;
   font-size: 6px;
   line-height: 1;
   margin-right: 3px;
@@ -2690,10 +2687,10 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: -0.04em;
-  color: #fff;
-  background: #052e16;
-  border: 1px solid rgba(22, 163, 74, 0.35);
-  box-shadow: inset 0 0 0 1px rgba(0, 255, 136, 0.06);
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.32);
+  box-shadow: none;
   padding: 5px 15px;
   min-height: 22px;
 }
@@ -2702,75 +2699,29 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
   content: none;
 }
 
-/* Tag Aberta (dark) — efeitos tecnológicos no badge, sem glow no card */
-@keyframes chatListAbertaTechPulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(16, 185, 129, 0.35),
-      0 0 10px rgba(16, 185, 129, 0.28),
-      inset 0 0 10px rgba(52, 211, 153, 0.1);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(52, 211, 153, 0.55),
-      0 0 16px rgba(16, 185, 129, 0.45),
-      inset 0 0 14px rgba(52, 211, 153, 0.18);
-  }
-}
-
-@keyframes chatListAbertaGridPulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
 [data-theme="dark"] .chat-list-status.open.chat-list-status--hud-open {
-  background: linear-gradient(135deg, #065f46 0%, #064e3b 40%, #022c22 100%);
-  border: 1px solid rgba(52, 211, 153, 0.72);
-  color: #ecfdf5;
-  box-shadow:
-    0 0 0 1px rgba(16, 185, 129, 0.35),
-    0 0 12px rgba(16, 185, 129, 0.32),
-    inset 0 0 12px rgba(52, 211, 153, 0.12);
-  animation: chatListAbertaTechPulse 2.4s ease-in-out infinite;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.32);
+  color: #6ee7b7;
+  box-shadow: none;
+  animation: none;
 }
 
 [data-theme="dark"] .chat-list-status.open.chat-list-status--hud-open::before {
-  content: "";
-  display: block;
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
-      -22deg,
-      transparent 0 7px,
-      rgba(52, 211, 153, 0.14) 7px,
-      rgba(52, 211, 153, 0.14) 8px,
-      transparent 8px 15px
-    ),
-    linear-gradient(180deg, rgba(167, 243, 208, 0.12) 0%, transparent 55%);
-  animation: chatListAbertaGridPulse 2.8s ease-in-out infinite;
+  content: none;
+  display: none;
+  animation: none;
 }
 
 [data-theme="dark"] .chat-list-status-hud-prefix--aberta {
-  color: #6ee7b7;
-  text-shadow:
-    0 0 6px rgba(52, 211, 153, 0.85),
-    0 0 12px rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  text-shadow: none;
   font-size: 7px;
 }
 
 [data-theme="dark"] .chat-list-status.open.chat-list-status--hud-open .chat-list-status-hud-text {
-  color: #ecfdf5;
-  text-shadow: 0 0 8px rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+  text-shadow: none;
   letter-spacing: 0.02em;
   font-weight: 700;
 }
@@ -2783,46 +2734,16 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
 
 @media (hover: hover) {
   .chat-list-status-hud-prefix--aberta {
-    animation: chatListAbertaPrefixSoftBlink 2s ease-in-out infinite;
-    will-change: opacity;
+    animation: none;
+    will-change: auto;
   }
 
   .chat-list-status.open.chat-list-status--hud-open::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: linear-gradient(
-      92deg,
-      transparent 0%,
-      transparent 36%,
-      rgba(255, 255, 255, 0.04) 44%,
-      rgba(255, 255, 255, 0.15) 50%,
-      rgba(255, 255, 255, 0.04) 56%,
-      transparent 64%,
-      transparent 100%
-    );
-    background-size: 220% 100%;
-    background-position: 50% 50%;
-    animation: chatListHudAbertaTechSweep 3s ease-in-out infinite;
-    will-change: background-position;
+    content: none;
   }
 
   [data-theme="dark"] .chat-list-status.open.chat-list-status--hud-open::after {
-    background: linear-gradient(
-      100deg,
-      transparent 0%,
-      transparent 30%,
-      rgba(52, 211, 153, 0.08) 42%,
-      rgba(167, 243, 208, 0.42) 50%,
-      rgba(52, 211, 153, 0.08) 58%,
-      transparent 70%,
-      transparent 100%
-    );
-    background-size: 240% 100%;
-    mix-blend-mode: screen;
+    content: none;
   }
 }
 
@@ -2832,8 +2753,8 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
   }
 
   [data-theme="dark"] .chat-list-status.open.chat-list-status--hud-open::before {
+    content: none;
     animation: none;
-    opacity: 0.45;
   }
 }
 

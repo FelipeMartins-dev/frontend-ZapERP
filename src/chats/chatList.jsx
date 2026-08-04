@@ -33,6 +33,7 @@ import "./chatList.css";
 import "./chatList.chips-premium.css";
 import "../styles/zap-animations.css";
 import NovoContatoModal from "./NovoContatoModal";
+import { ZAPERP_FOCUS_CHAT_SEARCH_EVENT } from "../atendimento/atendimentoUiEvents";
 const ProdutoConsultaPanel = lazy(() => import("../conversa/ProdutoConsultaPanel"));
 export { getDisplayName } from "./chatListDisplay";
 import {
@@ -688,6 +689,15 @@ export default function ChatList() {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, location.pathname, navigate]);
+
+  useEffect(() => {
+    const onFocusSearch = () => {
+      searchRef.current?.focus?.();
+      searchRef.current?.select?.();
+    };
+    window.addEventListener(ZAPERP_FOCUS_CHAT_SEARCH_EVENT, onFocusSearch);
+    return () => window.removeEventListener(ZAPERP_FOCUS_CHAT_SEARCH_EVENT, onFocusSearch);
+  }, []);
 
   useEffect(() => {
     setAdminAtendentePanelOpen(false);
@@ -1815,6 +1825,12 @@ export default function ChatList() {
           setAdminAtendentePanelOpen(false);
           return;
         }
+        if (showNovoMenu) {
+          setShowNovoMenu(false);
+          return;
+        }
+        /* Com conversa aberta, ESC sai da conversa (ConversaView) — não reseta filtros da lista. */
+        if (useConversaStore.getState().selectedId != null) return;
         // ESC: fecha filtros e limpa busca
         clearAdminAtendenteFilter();
         setShowFilters(false);
@@ -1840,6 +1856,7 @@ export default function ChatList() {
     adminAtendentePanelOpen,
     setAdminAtendentePanelOpen,
     clearAdminAtendenteFilter,
+    showNovoMenu,
     user?.atendimento_modo_simples,
   ]);
 

@@ -1,0 +1,148 @@
+/* Empty state — área central do atendimento (sem conversa selecionada) */
+
+.atendimento-empty {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(24px, 4vw, 48px) clamp(16px, 3vw, 32px);
+  box-sizing: border-box;
+  background: var(--wa-bg, var(--ds-chat-bg, var(--zaperp-chat-bg, #07111d)));
+  color: var(--wa-text, var(--ds-text-primary));
+}
+
+.atendimento-empty__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+  gap: 0;
+}
+
+.atendimento-empty__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  opacity: 0.72;
+  color: var(--ds-text-muted, #8696a0);
+}
+
+.atendimento-empty__logo .zpl {
+  pointer-events: none;
+}
+
+.atendimento-empty__title {
+  margin: 0 0 10px;
+  font-size: clamp(1.125rem, 1.6vw, 1.35rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ds-text-primary, #e9edef);
+  line-height: 1.25;
+}
+
+.atendimento-empty__desc {
+  margin: 0 0 28px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--ds-text-tertiary, #8696a0);
+  max-width: 34ch;
+}
+
+.atendimento-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.atendimento-empty__btn {
+  min-width: 168px;
+  gap: 8px;
+}
+
+.atendimento-empty__btn--primary {
+  background: var(--ds-accent, #00a884);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+.atendimento-empty__btn--primary:hover:not(:disabled) {
+  background: var(--ds-accent-hover, #06cf9c);
+}
+
+.atendimento-empty__btn--secondary {
+  background: var(--zaperp-card-bg, var(--ds-surface-2, #101d2a));
+  color: var(--ds-text-secondary, #b4b9be);
+  border: 1px solid var(--zaperp-border, var(--ds-border, rgba(148, 163, 184, 0.16)));
+  box-shadow: none;
+}
+
+.atendimento-empty__btn--secondary:hover:not(:disabled) {
+  background: var(--zaperp-card-hover, var(--ds-surface-3, #142433));
+  border-color: var(--ds-border-strong, rgba(148, 163, 184, 0.24));
+  color: var(--ds-text-primary, #e9edef);
+}
+
+.atendimento-empty__hint {
+  margin: 28px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ds-text-muted, #667781);
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 640px) {
+  .atendimento-empty {
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .atendimento-empty__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .atendimento-empty__btn {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .atendimento-empty__logo {
+    margin-bottom: 22px;
+  }
+
+  .atendimento-empty__desc {
+    margin-bottom: 22px;
+  }
+
+  .atendimento-empty__hint {
+    margin-top: 22px;
+  }
+}
+
+html:not([data-theme="dark"]) .atendimento-empty__btn--secondary {
+  background: #ffffff;
+  color: #334155;
+  border-color: rgba(15, 23, 42, 0.16);
+}
+
+html:not([data-theme="dark"]) .atendimento-empty__btn--secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.22);
+  color: #0f172a;
+}
+
+html:not([data-theme="dark"]) .atendimento-empty__btn--primary {
+  background: #059669;
+}
+
+html:not([data-theme="dark"]) .atendimento-empty__btn--primary:hover:not(:disabled) {
+  background: #047857;
+}

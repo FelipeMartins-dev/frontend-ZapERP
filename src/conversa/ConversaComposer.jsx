@@ -35,8 +35,14 @@ import {
   IconSettings2,
   IconUser,
 } from "@tabler/icons-react";
+import {
+  clearComposerDraft,
+  loadComposerDraft,
+  saveComposerDraft,
+} from "./composerDraftStore";
 
 const WA_INPUT_MAX_HEIGHT_PX = 160;
+const COMPOSER_DRAFT_SAVE_MS = 220;
 const STICKER_RECENTS_LIMIT = 36;
 const AUTO_CORRECT_CONTEXT_WINDOW = 12;
 const AUTO_CORRECT_CONTEXT_MATCH = 6;
@@ -263,7 +269,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   },
   ref
 ) {
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(() => loadComposerDraft(conversaId));
   const [autoCorrectEnabled, setAutoCorrectEnabled] = useState(true);
   const [autoCorrectFlash, setAutoCorrectFlash] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -319,12 +325,18 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   // props __zap*), não em refs compartilhadas — evita que gravações sequenciais se sobreponham.
   const recordingTimerRef = useRef(null);
   const lastConversaIdRef = useRef(conversaId);
+  const textoRef = useRef("");
+  const draftSaveTimerRef = useRef(0);
   const prevTextLenRef = useRef(0);
   const prevTextConversaRef = useRef(null);
   // Trava síncrona contra double-submit (Enter duplo ou clique duplo antes do re-render do React).
   // Guarda o texto submetido para liberar assim que o utilizador começar o próximo rascunho,
   // sem precisar aguardar a resposta HTTP da mensagem anterior.
   const sendLockedRef = useRef(null);
+
+  useEffect(() => {
+    textoRef.current = texto;
+  }, [texto]);
 
   const normalizeAutoWord = useCallback((value) => String(value || "").toLowerCase(), []);
 
@@ -441,29 +453,6 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     focusInput();
   }, [conversaId, focusInput, isRecording, podeEnviar]);
 
-  const closePanels = useCallback(() => {
-    let closed = false;
-    if (savedRepliesOpen) {
-      closeSavedReplies();
-      closed = true;
-    }
-    if (emojiOpen) {
-      setEmojiOpen(false);
-      setEmojiQuery("");
-      closed = true;
-    }
-    if (stickerOpen) {
-      setStickerOpen(false);
-      setStickerQuery("");
-      closed = true;
-    }
-    if (attachMenuOpen) {
-      setAttachMenuOpen(false);
-      closed = true;
-    }
-    return closed;
-  }, [attachMenuOpen, closeSavedReplies, emojiOpen, savedRepliesOpen, stickerOpen]);
-
   const stopCameraStream = useCallback(() => {
     const stream = cameraStreamRef.current;
     cameraStreamRef.current = null;
@@ -492,6 +481,41 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     setCameraCaptureError("");
   }, [stopCameraStream]);
 
+  const closePanels = useCallback(() => {
+    /* Um painel por ESC (cascata). */
+    if (cameraCaptureOpen) {
+      closeCameraCapture();
+      return true;
+    }
+    if (savedRepliesOpen) {
+      closeSavedReplies();
+      return true;
+    }
+    if (emojiOpen) {
+      setEmojiOpen(false);
+      setEmojiQuery("");
+      return true;
+    }
+    if (stickerOpen) {
+      setStickerOpen(false);
+      setStickerQuery("");
+      return true;
+    }
+    if (attachMenuOpen) {
+      setAttachMenuOpen(false);
+      return true;
+    }
+    return false;
+  }, [
+    attachMenuOpen,
+    cameraCaptureOpen,
+    closeCameraCapture,
+    closeSavedReplies,
+    emojiOpen,
+    savedRepliesOpen,
+    stickerOpen,
+  ]);
+
   const handleCancelRecording = useCallback(() => {
     const rec = mediaRecorderRef.current;
     if (rec && isRecording) {
@@ -516,13 +540,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   }, [isRecording]);
 
   useEffect(() => {
+    /* Não atualiza lastConversaIdRef aqui — o efeito de rascunho é dono do ponteiro. */
     if (String(lastConversaIdRef.current ?? "") !== String(conversaId ?? "") && mediaRecorderRef.current) {
       handleCancelRecording();
     }
     if (String(lastConversaIdRef.current ?? "") !== String(conversaId ?? "")) {
       closeSavedReplies();
     }
-    lastConversaIdRef.current = conversaId;
   }, [conversaId, closeSavedReplies, handleCancelRecording]);
 
   // Libera a trava quando o envio termina ou quando já existe um novo rascunho. Assim,
@@ -598,14 +622,48 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   }, [texto, conversaId, scrollThreadId, loading, onTextMetrics]);
 
   useEffect(() => {
+    const prevId = lastConversaIdRef.current;
+    if (prevId != null && prevId !== "" && String(prevId) !== String(conversaId ?? "")) {
+      saveComposerDraft(prevId, textoRef.current);
+    }
+    lastConversaIdRef.current = conversaId;
     resetAutocorrectTracking();
-    setTexto("");
+    const restored = loadComposerDraft(conversaId);
+    textoRef.current = restored;
+    setTexto(restored);
     setEmojiOpen(false);
     setEmojiQuery("");
     setStickerOpen(false);
     setStickerQuery("");
     setAttachMenuOpen(false);
   }, [conversaId, resetAutocorrectTracking]);
+
+  useEffect(() => {
+    if (!conversaId) return undefined;
+    if (draftSaveTimerRef.current) {
+      window.clearTimeout(draftSaveTimerRef.current);
+      draftSaveTimerRef.current = 0;
+    }
+    draftSaveTimerRef.current = window.setTimeout(() => {
+      draftSaveTimerRef.current = 0;
+      saveComposerDraft(conversaId, textoRef.current);
+    }, COMPOSER_DRAFT_SAVE_MS);
+    return () => {
+      if (draftSaveTimerRef.current) {
+        window.clearTimeout(draftSaveTimerRef.current);
+        draftSaveTimerRef.current = 0;
+      }
+    };
+  }, [texto, conversaId]);
+
+  useEffect(() => {
+    return () => {
+      const id = lastConversaIdRef.current;
+      if (id != null && id !== "") {
+        saveComposerDraft(id, textoRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setRecentStickers(readRecentStickers(user));
@@ -946,6 +1004,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       if (sendLockedRef.current === t) return;
       sendLockedRef.current = t;
       resetAutocorrectTracking();
+      clearComposerDraft(conversaId);
       setTexto("");
       onSendMessage?.(t);
     },

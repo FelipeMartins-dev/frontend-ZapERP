@@ -146,6 +146,7 @@ import {
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import EmptyState from "../components/feedback/EmptyState";
 import ConversaLoadingScreen from "./ConversaLoadingScreen";
+import { closeSelectedConversation } from "../atendimento/closeSelectedConversation";
 import "../components/feedback/empty-state.css";
 import "../components/feedback/skeleton.css";
 import "../components/feedback/toast.css";
@@ -1277,8 +1278,9 @@ function ConversaViewBody() {
   }, [showAvatarImg, avatarUrl, nome, openMediaViewer]);
 
   const handleBackToList = useCallback(() => {
-    setSelectedId(null);
-  }, [setSelectedId]);
+    /* Mesmo comportamento do ESC: só fecha a seleção, sem alterar status/atendimento. */
+    closeSelectedConversation({ preferHistoryBack: headerCompact });
+  }, [headerCompact]);
 
   const handleHeaderAvatarError = useCallback(() => {
     setAvatarImgError(true);
@@ -2925,36 +2927,92 @@ function ConversaViewBody() {
   }, [closeForward, exitSelectMode]);
 
   const onEscape = useCallback(() => {
+    /* Cascata: 1 overlay/menu por ESC; sem overlay, sai só da conversa (sem alterar status). */
     if (composerRef.current?.isRecording?.()) {
       composerRef.current?.cancelRecording?.();
-    } else {
-      composerRef.current?.closePanels?.();
+      return;
     }
-    if (showTimeline) setShowTimeline(false);
-    if (tagsOpen) setTagsOpen(false);
-    if (pendingFile) clearPending();
-    if (showClienteSide) setShowClienteSide(false);
-    if (showTransferirSetor) setShowTransferirSetor(false);
-    if (forwardOpen || selectMode) dismissSelectionOverlay();
+    if (composerRef.current?.closePanels?.()) return;
+    if (mediaViewer) {
+      closeMediaViewer();
+      return;
+    }
+    if (pendingFile) {
+      clearPending();
+      return;
+    }
+    if (shareContactOpen) {
+      handleShareContactClose();
+      return;
+    }
+    if (shareLocationOpen) {
+      handleShareLocationClose();
+      return;
+    }
+    if (pixModalOpen) {
+      setPixModalOpen(false);
+      return;
+    }
     if (msgInfoOpen) {
       setMsgInfoOpen(false);
       setMsgInfo(null);
+      return;
     }
-    if (pixModalOpen) setPixModalOpen(false);
-    if (replyTo) setReplyTo(null);
+    if (showTransferirSetor) {
+      setShowTransferirSetor(false);
+      return;
+    }
+    if (showProdutosPanel) {
+      setShowProdutosPanel(false);
+      return;
+    }
+    if (showClienteSide) {
+      setShowClienteSide(false);
+      return;
+    }
+    if (showTimeline) {
+      setShowTimeline(false);
+      return;
+    }
+    if (tagsOpen) {
+      setTagsOpen(false);
+      return;
+    }
+    if (forwardOpen || selectMode) {
+      dismissSelectionOverlay();
+      return;
+    }
+    if (replyTo) {
+      setReplyTo(null);
+      return;
+    }
+    if (messageSearchOpen) {
+      setMessageSearchOpen(false);
+      return;
+    }
+    closeSelectedConversation({ preferHistoryBack: headerCompact });
   }, [
-    showTimeline,
-    tagsOpen,
+    mediaViewer,
+    closeMediaViewer,
     pendingFile,
     clearPending,
-    showClienteSide,
+    shareContactOpen,
+    handleShareContactClose,
+    shareLocationOpen,
+    handleShareLocationClose,
+    pixModalOpen,
+    msgInfoOpen,
     showTransferirSetor,
-    dismissSelectionOverlay,
+    showProdutosPanel,
+    showClienteSide,
+    showTimeline,
+    tagsOpen,
     forwardOpen,
     selectMode,
-    msgInfoOpen,
-    pixModalOpen,
+    dismissSelectionOverlay,
     replyTo,
+    messageSearchOpen,
+    headerCompact,
   ]);
 
   useGlobalHotkeys({

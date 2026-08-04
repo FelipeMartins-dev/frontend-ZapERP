@@ -72,7 +72,11 @@ function ConversaHeader({
       setMoreMenuOpen(false);
     };
     const onKey = (e) => {
-      if (e.key === "Escape") setMoreMenuOpen(false);
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setMoreMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", onDocDown);
     document.addEventListener("keydown", onKey);

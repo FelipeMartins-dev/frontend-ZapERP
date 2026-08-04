@@ -75,6 +75,7 @@ function ConversaMessageSearchPanel({ open, conversaId, onClose, onSelectResult 
     const onKeyDown = (event) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
+      event.stopPropagation();
       onClose?.();
     };
     window.addEventListener("keydown", onKeyDown);

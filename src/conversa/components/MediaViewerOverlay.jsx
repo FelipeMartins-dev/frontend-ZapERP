@@ -23,6 +23,7 @@ export default function MediaViewerOverlay({
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         onClose?.();
       }
     };

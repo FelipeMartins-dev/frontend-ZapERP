@@ -1,16 +1,14 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SkeletonChatList } from "../components/feedback/Skeleton";
-import EmptyState from "../components/feedback/EmptyState";
-import "../components/feedback/empty-state.css";
 import "../components/feedback/skeleton.css";
 import { useConversaStore } from "../conversa/conversaStore";
 import { useChatStore } from "../chats/chatsStore";
 import { useWhatsappInstancesStore } from "../chats/whatsappInstancesStore";
-import { useEmpresaStore } from "../auth/empresaStore";
 import { applyDocumentTitle } from "../socket/socket";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import { WA_ATENDIMENTO_CHAT_HISTORY_KEY } from "../atendimento/atendimentoMobileHistory";
+import AtendimentoEmptyState from "../atendimento/AtendimentoEmptyState";
 
 const ChatList = lazy(() => import("../chats/chatList"));
 const ConversaView = lazy(() => import("../conversa/ConversaView"));
@@ -51,33 +49,6 @@ function ConversaPanelFallback() {
       aria-live="polite"
     >
       Carregando…
-    </div>
-  );
-}
-
-/** Desktop sem conversa selecionada — evita baixar o chunk ConversaView no login. */
-function AtendimentoChatPlaceholder() {
-  const logoUrl = useEmpresaStore((s) => s.empresa?.logo_url);
-  const nome = useEmpresaStore((s) => s.empresa?.nome);
-
-  return (
-    <div
-      style={{
-        flex: 1,
-        minHeight: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--wa-bg, var(--ds-chat-bg))",
-      }}
-      role="status"
-    >
-      <EmptyState
-        title="Selecione uma conversa"
-        description="Abra uma conversa na lista à esquerda para visualizar e responder às mensagens."
-        brandLogoUrl={logoUrl}
-        brandName={nome}
-      />
     </div>
   );
 }
@@ -178,7 +149,21 @@ export default function Atendimento() {
 
       mobileHistoryArmedRef.current = false;
       prevSelectedRef.current = null;
+      /* Só limpa seleção — não altera status/atendimento/responsável. */
       useConversaStore.getState().setSelectedId(null);
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("conversa")) {
+          url.searchParams.delete("conversa");
+          window.history.replaceState(
+            window.history.state,
+            "",
+            `${url.pathname}${url.search}${url.hash}`
+          );
+        }
+      } catch {
+        /* ignore */
+      }
     };
 
     window.addEventListener("popstate", onPopState);
@@ -219,7 +204,7 @@ export default function Atendimento() {
               <ConversaView />
             </Suspense>
           ) : isAtendimentoMobileNav ? null : (
-            <AtendimentoChatPlaceholder />
+            <AtendimentoEmptyState />
           )
         ) : (
           <Outlet />

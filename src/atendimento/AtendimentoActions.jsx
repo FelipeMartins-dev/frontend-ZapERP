@@ -236,7 +236,11 @@ export default function AtendimentoActions({
   useEffect(() => {
     if (!menuOpen) return;
     const onKey = (e) => {
-      if (e.key === "Escape") closeMenu();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMenu();
+      }
     };
     const onPointer = (e) => {
       const t = e.target;
