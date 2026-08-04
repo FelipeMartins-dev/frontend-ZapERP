@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPin, Mic, Paperclip, SendHorizontal, Square, Trash2, User } from "lucide-react";
 import { acquireMicStream, invalidateMicStream, isMicSupported, shouldShowMicPersistenceHint } from "../media/micStreamService";
+import { cleanupAudioRecording } from "../media/audioRecordingLifecycle";
 import InternalChatContactModal from "./InternalChatContactModal.jsx";
 
 /**
@@ -46,6 +47,7 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
   const [micPermissionHint, setMicPermissionHint] = useState("");
 
   const recRef = useRef(/** @type {MediaRecorder | null} */ (null));
+  const streamRef = useRef(/** @type {MediaStream | null} */ (null));
   const chunksRef = useRef(/** @type {BlobPart[]} */ ([]));
   const recordStartedAtRef = useRef(0);
   const tickRef = useRef(/** @type {ReturnType<typeof setInterval> | null} */ (null));
@@ -58,6 +60,23 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
     }
   }
 
+  function cleanupRecording({ markCanceled = false, preserveOnStop = false } = {}) {
+    return cleanupAudioRecording({
+      mediaRecorderRef: recRef,
+      streamRef,
+      timerRef: tickRef,
+      markCanceled,
+      requestDataBeforeStop: !markCanceled && preserveOnStop,
+      preserveOnStop,
+      releaseMic: true,
+      setNotRecording: () => {
+        setAudioPhase((phase) => (phase === "recording" ? "idle" : phase));
+        if (markCanceled) setElapsedSec(0);
+      },
+      objectUrls: markCanceled && audioPreviewUrl ? [audioPreviewUrl] : null,
+    });
+  }
+
   useEffect(() => {
     const url = pendingMedia?.previewUrl;
     return () => {
@@ -65,12 +84,24 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
     };
   }, [pendingMedia?.previewUrl]);
 
-  useEffect(
-    () => () => {
-      clearAudioTick();
-    },
-    []
-  );
+  useEffect(() => {
+    const onPageLeave = () => cleanupRecording({ markCanceled: true });
+    window.addEventListener("pagehide", onPageLeave);
+    window.addEventListener("beforeunload", onPageLeave);
+    return () => {
+      window.removeEventListener("pagehide", onPageLeave);
+      window.removeEventListener("beforeunload", onPageLeave);
+      cleanupRecording({ markCanceled: true });
+      if (audioPreviewUrl) {
+        try {
+          URL.revokeObjectURL(audioPreviewUrl);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só no unmount / pagehide
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -136,20 +167,30 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
   }
 
   function resetAudioUi({ invalidateMic = false } = {}) {
-    clearAudioTick();
-    recRef.current = null;
+    cleanupRecording({ markCanceled: true });
     chunksRef.current = [];
     if (invalidateMic) invalidateMicStream();
     setAudioPhase("idle");
     setElapsedSec(0);
     setAudioPreviewFile(null);
-    setAudioPreviewUrl(null);
+    setAudioPreviewUrl((prev) => {
+      if (prev) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {
+          /* ignore */
+        }
+      }
+      return null;
+    });
   }
 
   async function startAudioRecording() {
     if (disabled || audioPhase !== "idle" || !isMicSupported() || typeof MediaRecorder === "undefined") return;
+    cleanupRecording({ markCanceled: true });
     try {
       const stream = await acquireMicStream();
+      streamRef.current = stream;
       if (await shouldShowMicPersistenceHint()) {
         setMicPermissionHint(
           "O navegador liberou o microfone, mas não confirmou permissão permanente. Para não pedir de novo ao sair e entrar, abra o cadeado/permissões do site e marque Microfone como Permitir."
@@ -157,6 +198,7 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
       }
       chunksRef.current = [];
       const mr = new MediaRecorder(stream);
+      mr.__zapStream = stream;
       recRef.current = mr;
       mr.ondataavailable = (ev) => {
         if (ev.data.size) chunksRef.current.push(ev.data);
@@ -178,17 +220,29 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
   async function stopAudioRecording() {
     const mr = recRef.current;
     if (!mr || mr.state === "inactive") {
-      resetAudioUi();
+      cleanupRecording({ markCanceled: true });
       return;
     }
     clearAudioTick();
     await new Promise((resolve) => {
       mr.onstop = resolve;
-      mr.stop();
+      try {
+        mr.requestData?.();
+        mr.stop();
+      } catch {
+        resolve();
+      }
     });
     lastMimeRef.current = mr.mimeType || "audio/webm";
     const blob = new Blob(chunksRef.current, { type: lastMimeRef.current });
     chunksRef.current = [];
+    // Libera mic imediatamente após parar (preview não precisa do stream).
+    cleanupAudioRecording({
+      mediaRecorder: mr,
+      stream: streamRef.current || mr.__zapStream || null,
+      streamRef,
+      releaseMic: true,
+    });
     recRef.current = null;
     const ext = blob.type.includes("webm") ? "webm" : blob.type.includes("ogg") ? "ogg" : "webm";
     const file = new File([blob], `audio.${ext}`, { type: blob.type || "audio/webm" });
@@ -207,7 +261,8 @@ export default function InternalChatComposer({ onSend, disabled = false, sendErr
       await onSend({ kind: "media", file: audioPreviewFile, fieldName: "audio", caption: undefined });
       resetAudioUi();
     } catch {
-      /* mantém preview para tentar de novo */
+      /* mantém preview para tentar de novo — mic já estava liberado no stop */
+      cleanupRecording({ markCanceled: false });
     }
   }
 

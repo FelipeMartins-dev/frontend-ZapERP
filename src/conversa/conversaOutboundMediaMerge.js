@@ -219,8 +219,6 @@ function persistedIdentityMarksSameBubble(prev, incoming) {
   if (!prev || !incoming) return false
   if (!sameExplicitConversation(prev, incoming)) return false
   if (matchesClientTempCorrelation(prev, incoming)) return true
-  if (hasConflictingClientTempCorrelation(prev, incoming)) return false
-  if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
 
   const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
   const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
@@ -232,6 +230,12 @@ function persistedIdentityMarksSameBubble(prev, incoming) {
     incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== ""
       ? String(incoming.whatsapp_id)
       : null
+  /* tempIds distintos não separam bolhas que já compartilham id/whatsapp_id persistido:
+     seria a mesma linha do banco renderizada duas vezes. Nesse caso decide o conteúdo abaixo. */
+  const sharesPersistedIdentity = !!((pid && iid && pid === iid) || (pwa && iwa && pwa === iwa))
+  if (!sharesPersistedIdentity && hasConflictingClientTempCorrelation(prev, incoming)) return false
+  if (prev.tempId && incoming.tempId && String(prev.tempId) === String(incoming.tempId)) return true
+
   const inboundPair = !isOutgoingLike(prev) && !isOutgoingLike(incoming)
   if (inboundPair && pid && iid && pid === iid) return true
   if (inboundPair && pwa && iwa && pwa === iwa) return true
@@ -265,17 +269,28 @@ function shouldMergeExistingMessages(existing, msg) {
   if (!existing || !msg) return false
   if (!sameExplicitConversation(existing, msg)) return false
   if (matchesClientTempCorrelation(existing, msg)) return true
-  if (hasConflictingClientTempCorrelation(existing, msg)) return false
+  const samePersistedId =
+    msg.id != null &&
+    String(msg.id).trim() !== "" &&
+    existing.id != null &&
+    String(existing.id) === String(msg.id)
+  const waId = msg.whatsapp_id || null
+  const samePersistedWaId =
+    !!waId && existing.whatsapp_id != null && String(existing.whatsapp_id) === String(waId)
+  if (!samePersistedId && !samePersistedWaId && hasConflictingClientTempCorrelation(existing, msg)) {
+    return false
+  }
   if (existing.tempId && msg.tempId && String(existing.tempId) === String(msg.tempId)) return true
   if (isLikelyDuplicateAutomatedTextEcho(existing, msg)) return true
   const clientTempId = resolveClientTempId(msg)
   if (clientTempId && existing.tempId && String(existing.tempId) === clientTempId) return true
-  if (msg.id != null && String(msg.id).trim() !== "" && existing.id != null && String(existing.id) === String(msg.id)) {
-    if (existing.tempId && msg.tempId && String(existing.tempId) !== String(msg.tempId)) return false
+  if (samePersistedId) {
+    if (existing.tempId && msg.tempId && String(existing.tempId) !== String(msg.tempId)) {
+      return persistedIdentityMarksSameBubble(existing, msg)
+    }
     return true
   }
-  const waId = msg.whatsapp_id || null
-  if (waId && existing.whatsapp_id != null && String(existing.whatsapp_id) === String(waId)) {
+  if (samePersistedWaId) {
     return persistedIdentityMarksSameBubble(existing, msg)
   }
   if (!isOutgoingLike(existing) && !isOutgoingLike(msg)) {
@@ -631,24 +646,10 @@ function dedupeListByPersistedIdentity(list) {
         ? String(m.whatsapp_id)
         : null
     if (id && bestById.has(id) && bestById.get(id).idx !== idx) {
-      const kept = bestById.get(id).m
-      const distinctTempIds =
-        m?.tempId &&
-        kept?.tempId &&
-        String(m.tempId) !== String(kept.tempId)
-      if (distinctTempIds) return
-      const sameBubble = areLikelySameMessageBubble(kept, m)
-      if (sameBubble) drop.add(idx)
+      if (areLikelySameMessageBubble(bestById.get(id).m, m)) drop.add(idx)
     }
     if (wa && bestByWa.has(wa) && bestByWa.get(wa).idx !== idx) {
-      const kept = bestByWa.get(wa).m
-      const distinctTempIds =
-        m?.tempId &&
-        kept?.tempId &&
-        String(m.tempId) !== String(kept.tempId)
-      if (distinctTempIds) return
-      const sameBubble = areLikelySameMessageBubble(kept, m)
-      if (sameBubble) drop.add(idx)
+      if (areLikelySameMessageBubble(bestByWa.get(wa).m, m)) drop.add(idx)
     }
   })
   if (!drop.size) return list

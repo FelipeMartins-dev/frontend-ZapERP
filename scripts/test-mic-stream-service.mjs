@@ -1,11 +1,9 @@
 /**
- * Regressão do microfone compartilhado (src/media/micStreamService.js).
+ * Regressão do ciclo de vida do microfone (src/media/micStreamService.js).
  *
- * O stream fica em cache entre gravações. Um track pode continuar `readyState === "live"`
- * e ainda assim estar `muted` — dispositivo trocado (fone bluetooth), silenciado pelo
- * sistema ou tomado por outro app. Reaproveitar esse track produz uma gravação só com
- * silêncio, que chegava ao contato como áudio mudo. Aqui garantimos que o cache só é
- * reaproveitado enquanto o track está realmente capturando.
+ * O mic NÃO fica em cache entre gravações: no iPhone/Safari o indicador do sistema
+ * permanece no topo enquanto houver track `live`. Cada acquire abre um stream novo
+ * e release/invalidate encerram todas as faixas.
  *
  * Uso: node --import ./scripts/vite-env-shim.mjs scripts/test-mic-stream-service.mjs
  */
@@ -41,7 +39,6 @@ const cenarios = [];
 let aberturas = 0;
 let proximoTrack = () => fakeTrack();
 
-// `navigator` no node moderno é getter-only: substitui via defineProperty.
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   writable: true,
@@ -57,7 +54,14 @@ Object.defineProperty(globalThis, "navigator", {
 });
 globalThis.sessionStorage = globalThis.localStorage;
 
-const { acquireMicStream, invalidateMicStream } = await import("../src/media/micStreamService.js");
+const {
+  acquireMicStream,
+  releaseMicStream,
+  invalidateMicStream,
+  areMicAudioTracksEnded,
+  warmMicStreamSilently,
+  getActiveMicStream,
+} = await import("../src/media/micStreamService.js");
 
 async function cenario(nome, fn) {
   invalidateMicStream();
@@ -66,53 +70,56 @@ async function cenario(nome, fn) {
   cenarios.push(nome);
 }
 
-await cenario("track saudável é reaproveitado entre gravações", async () => {
+await cenario("cada acquire abre um MediaStream novo (não reutiliza)", async () => {
   proximoTrack = () => fakeTrack();
   const a = await acquireMicStream();
+  const trackA = a.getAudioTracks()[0];
+  releaseMicStream();
+  assert.equal(trackA.readyState, "ended", "release deve encerrar a track");
+  assert.equal(areMicAudioTracksEnded(a), true);
+
   const b = await acquireMicStream();
-  assert.equal(a, b, "deveria devolver o mesmo stream em cache");
-  assert.equal(aberturas, 1, "não deveria reabrir o microfone com o track saudável");
+  assert.notEqual(a, b, "não deve reutilizar stream encerrado");
+  assert.equal(aberturas, 2, "deve chamar getUserMedia de novo");
 });
 
-await cenario("track MUDO em cache não é reaproveitado — reabre o microfone", async () => {
-  const mudo = fakeTrack({ muted: true });
-  proximoTrack = () => mudo;
+await cenario("acquire com stream anterior vivo finaliza a faixa antiga primeiro", async () => {
+  proximoTrack = () => fakeTrack();
   const a = await acquireMicStream();
-  assert.equal(aberturas, 1);
-  proximoTrack = () => fakeTrack({ muted: false });
-  const b = await acquireMicStream();
-  assert.notEqual(a, b, "stream mudo não pode ser reaproveitado");
-  assert.equal(aberturas, 2, "deveria ter reaberto o microfone");
-  assert.equal(mudo.readyState, "ended", "o stream mudo deve ser liberado");
-});
-
-await cenario("track que ficou mudo DEPOIS também força reabertura", async () => {
-  const t = fakeTrack();
-  proximoTrack = () => t;
-  const a = await acquireMicStream();
-  assert.equal(aberturas, 1);
-  t.muted = true; // dispositivo trocado enquanto o stream estava ocioso
+  const trackA = a.getAudioTracks()[0];
+  assert.equal(trackA.readyState, "live");
   proximoTrack = () => fakeTrack();
   const b = await acquireMicStream();
+  assert.equal(trackA.readyState, "ended", "faixa anterior deve ser stopped");
   assert.notEqual(a, b);
   assert.equal(aberturas, 2);
+  assert.equal(b.getAudioTracks()[0].readyState, "live");
 });
 
-await cenario("track encerrado continua forçando reabertura (comportamento antigo)", async () => {
-  const t = fakeTrack();
-  proximoTrack = () => t;
-  await acquireMicStream();
-  t.readyState = "ended";
+await cenario("releaseMicStream é idempotente", async () => {
   proximoTrack = () => fakeTrack();
-  await acquireMicStream();
-  assert.equal(aberturas, 2);
+  const a = await acquireMicStream();
+  releaseMicStream();
+  releaseMicStream();
+  invalidateMicStream();
+  assert.equal(areMicAudioTracksEnded(a), true);
+  assert.equal(getActiveMicStream(), null);
 });
 
-await cenario("chamadas simultâneas compartilham uma única abertura", async () => {
+await cenario("warmMicStreamSilently não abre o microfone", async () => {
+  const ok = await warmMicStreamSilently();
+  assert.equal(ok, false);
+  assert.equal(aberturas, 0);
+  assert.equal(getActiveMicStream(), null);
+});
+
+await cenario("chamadas simultâneas compartilham uma única abertura em voo", async () => {
   proximoTrack = () => fakeTrack();
   const [a, b] = await Promise.all([acquireMicStream(), acquireMicStream()]);
   assert.equal(a, b);
   assert.equal(aberturas, 1, "duas chamadas concorrentes não podem abrir o mic duas vezes");
+  releaseMicStream();
+  assert.equal(areMicAudioTracksEnded(a), true);
 });
 
-console.log(`OK — regressão do microfone compartilhado passou (${cenarios.length} cenários).`);
+console.log(`OK — regressão do ciclo de vida do microfone passou (${cenarios.length} cenários).`);

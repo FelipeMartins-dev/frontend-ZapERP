@@ -1,40 +1,67 @@
-/** Stream de microfone compartilhado — reutiliza o acesso entre gravações e sessões quando o navegador já concedeu permissão. */
+/**
+ * Ciclo de vida do microfone no ZapERP.
+ *
+ * Abre o MediaStream somente ao iniciar uma gravação e libera as tracks ao
+ * terminar (enviar / cancelar / parar / falha / unmount). Não mantém o mic
+ * aberto entre gravações — no iPhone/Safari o indicador do sistema permanece
+ * no topo enquanto houver track `live`.
+ */
 
 const STORAGE_MIC_GRANTED = "zaperp_mic_perm_granted_v1";
 const SESSION_MIC_PERSISTENCE_HINT_SHOWN = "zaperp_mic_persistence_hint_shown_v1";
 
 /** @type {MediaStream | null} */
-let cachedStream = null;
+let activeStream = null;
 /** @type {Promise<MediaStream> | null} */
 let acquirePromise = null;
 
-function isLiveStream(stream) {
-  if (!stream) return false;
-  const tracks = stream.getAudioTracks?.() || [];
-  return tracks.some((t) => t.readyState === "live");
-}
-
-/**
- * O stream fica em cache entre gravações. Um track pode continuar "live" e ainda
- * assim estar `muted` — o dispositivo foi trocado (fone bluetooth), silenciado pelo
- * sistema ou tomado por outro app. Gravar por cima dele produz um arquivo só com
- * silêncio, então nesse caso vale reabrir o microfone em vez de reaproveitar.
- */
-function isUsableStream(stream) {
-  if (!stream) return false;
-  const tracks = stream.getAudioTracks?.() || [];
-  return tracks.some((t) => t.readyState === "live" && t.muted !== true);
-}
-
-function stopCachedStream() {
-  if (!cachedStream) return;
+function stopStreamTracks(stream) {
+  if (!stream) return;
   try {
-    cachedStream.getTracks().forEach((t) => t.stop());
+    const tracks = typeof stream.getTracks === "function" ? stream.getTracks() : [];
+    for (const track of tracks) {
+      try {
+        track.stop();
+      } catch {
+        /* ignore */
+      }
+    }
   } catch {
     /* ignore */
   }
-  cachedStream = null;
+}
+
+/**
+ * True quando não há faixas de áudio vivas (ou não há stream).
+ * Usado em testes/assert pós-cleanup.
+ */
+export function areMicAudioTracksEnded(stream) {
+  if (!stream) return true;
+  try {
+    const tracks = stream.getAudioTracks?.() || [];
+    if (!tracks.length) return true;
+    return tracks.every((t) => t.readyState === "ended");
+  } catch {
+    return true;
+  }
+}
+
+/** Libera o MediaStream ativo (idempotente). Não apaga a marca de permissão. */
+export function releaseMicStream() {
+  const stream = activeStream;
+  activeStream = null;
   acquirePromise = null;
+  stopStreamTracks(stream);
+  return stream;
+}
+
+/**
+ * Libera o stream e limpa a marca local de permissão (ex.: NotAllowedError).
+ * Preferir `releaseMicStream()` no fim normal da gravação.
+ */
+export function invalidateMicStream() {
+  releaseMicStream();
+  clearMicPermissionGrant();
 }
 
 export function isMicSupported() {
@@ -89,80 +116,52 @@ export async function shouldShowMicPersistenceHint() {
   return true;
 }
 
-/** Libera o stream (ex.: permissão negada). Não chamar após cada gravação. */
-export function invalidateMicStream() {
-  stopCachedStream();
-  clearMicPermissionGrant();
-}
-
-function attachTrackEndedHandler(stream) {
-  const track = stream.getAudioTracks?.()[0];
-  if (!track) return;
-  const onEnded = () => {
-    track.removeEventListener("ended", onEnded);
-    if (cachedStream === stream) {
-      cachedStream = null;
-    }
-  };
-  track.addEventListener("ended", onEnded);
-}
-
 /**
- * Retorna um MediaStream de áudio reutilizável.
- * Se o navegador já concedeu permissão permanentemente, não exibe popup.
+ * Abre um MediaStream novo para gravação.
+ * Sempre finaliza qualquer stream anterior antes de chamar getUserMedia —
+ * nunca reutiliza track encerrada nem mantém o mic aberto “por performance”.
  */
 export async function acquireMicStream() {
-  if (isUsableStream(cachedStream)) {
-    return cachedStream;
-  }
-
-  stopCachedStream();
-
+  // Chamadas concorrentes compartilham a mesma abertura em voo.
   if (acquirePromise) {
     return acquirePromise;
+  }
+
+  // Finaliza stream anterior vivo antes de pedir outro (nunca reutiliza track encerrada).
+  if (activeStream) {
+    const prev = activeStream;
+    activeStream = null;
+    stopStreamTracks(prev);
   }
 
   acquirePromise = navigator.mediaDevices
     .getUserMedia({ audio: true })
     .then((stream) => {
-      cachedStream = stream;
+      activeStream = stream;
       acquirePromise = null;
       markMicPermissionGranted();
-      attachTrackEndedHandler(stream);
       return stream;
     })
     .catch((err) => {
       acquirePromise = null;
+      activeStream = null;
       throw err;
     });
 
   return acquirePromise;
 }
 
+/** Stream atualmente aberto (se houver). */
+export function getActiveMicStream() {
+  return activeStream;
+}
+
 /**
- * Reabre o microfone somente quando o navegador confirma permissão persistente.
- * Não confia em localStorage para evitar popup repetido após login/logout.
+ * Não aquece o microfone em background — isso deixava o indicador do iOS ligado.
+ * Mantido como no-op compatível com chamadas antigas.
  */
 export async function warmMicStreamSilently() {
-  if (!isMicSupported()) return false;
-  if (isLiveStream(cachedStream)) return true;
-
-  const perm = await queryMicPermissionState();
-  if (perm === "denied") {
-    clearMicPermissionGrant();
-    return false;
-  }
-
-  if (perm !== "granted") {
-    return false;
-  }
-
-  try {
-    await acquireMicStream();
-    return true;
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 /** Compatibilidade: não abre microfone automaticamente no arranque do app. */

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { acquireMicStream, invalidateMicStream, isMicSupported, queryMicPermissionState, shouldShowMicPersistenceHint } from "../media/micStreamService";
+import { cleanupAudioRecording } from "../media/audioRecordingLifecycle";
 import { getRespostasSalvas } from "../api/configService";
 import { getSocket } from "../socket/socket";
 import { capitalizeMessageStart, getAutocorrectEdit } from "../utils/autocorrectText";
@@ -321,6 +322,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const autoCorrectTrackedRef = useRef([]);
   const autoCorrectIgnoredRef = useRef([]);
   const mediaRecorderRef = useRef(null);
+  /** MediaStream da gravação atual — liberado no cleanup (não fica em cache). */
+  const recordingStreamRef = useRef(null);
   // Buffer/tempo/cancelamento de gravação vivem POR gravação (na instância do MediaRecorder,
   // props __zap*), não em refs compartilhadas — evita que gravações sequenciais se sobreponham.
   const recordingTimerRef = useRef(null);
@@ -516,38 +519,54 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     stickerOpen,
   ]);
 
+  const finishRecordingUi = useCallback(() => {
+    setIsRecording(false);
+    setRecordingSeconds(0);
+  }, []);
+
+  /**
+   * Única porta de saída do ciclo de vida da gravação (idempotente).
+   * Libera MediaRecorder, tracks do MediaStream, timers e estado visual.
+   */
+  const cleanupAudioRecordingSession = useCallback(
+    (opts = {}) => {
+      const {
+        markCanceled = false,
+        requestDataBeforeStop = false,
+        preserveOnStop = false,
+        releaseMic = true,
+      } = opts;
+      return cleanupAudioRecording({
+        mediaRecorderRef,
+        streamRef: recordingStreamRef,
+        timerRef: recordingTimerRef,
+        markCanceled,
+        requestDataBeforeStop,
+        preserveOnStop,
+        releaseMic,
+        setNotRecording: finishRecordingUi,
+      });
+    },
+    [finishRecordingUi]
+  );
+
   const handleCancelRecording = useCallback(() => {
-    const rec = mediaRecorderRef.current;
-    if (rec && isRecording) {
-      rec.__zapCanceled = true;
-      rec.__zapStopAt = Date.now();
-      rec.__zapDetachMicWatch?.();
-      try {
-        if (rec.state !== "inactive") {
-          rec.stop();
-        }
-      } catch {
-        /* ignore */
-      }
-      mediaRecorderRef.current = null;
-      setIsRecording(false);
-      setRecordingSeconds(0);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
+    if (!mediaRecorderRef.current && !recordingStreamRef.current && !isRecording) {
+      cleanupAudioRecordingSession({ markCanceled: true });
+      return;
     }
-  }, [isRecording]);
+    cleanupAudioRecordingSession({ markCanceled: true });
+  }, [cleanupAudioRecordingSession, isRecording]);
 
   useEffect(() => {
     /* Não atualiza lastConversaIdRef aqui — o efeito de rascunho é dono do ponteiro. */
-    if (String(lastConversaIdRef.current ?? "") !== String(conversaId ?? "") && mediaRecorderRef.current) {
-      handleCancelRecording();
-    }
     if (String(lastConversaIdRef.current ?? "") !== String(conversaId ?? "")) {
+      if (mediaRecorderRef.current || recordingStreamRef.current || isRecording) {
+        cleanupAudioRecordingSession({ markCanceled: true });
+      }
       closeSavedReplies();
     }
-  }, [conversaId, closeSavedReplies, handleCancelRecording]);
+  }, [conversaId, closeSavedReplies, cleanupAudioRecordingSession, isRecording]);
 
   // Libera a trava quando o envio termina ou quando já existe um novo rascunho. Assim,
   // dois eventos do mesmo clique/Enter continuam idempotentes, mas mensagens consecutivas
@@ -556,26 +575,19 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     if (!sending || String(texto || "").trim()) sendLockedRef.current = null;
   }, [sending, texto]);
 
+  // Desmontagem + fechar/atualizar página: libera o mic (indicador do iOS).
   useEffect(() => {
-    return () => {
-      const rec = mediaRecorderRef.current;
-      if (!rec) return;
-      rec.__zapCanceled = true;
-      rec.__zapDetachMicWatch?.();
-      try {
-        if (rec.state !== "inactive") {
-          rec.stop();
-        }
-      } catch {
-        /* ignore */
-      }
-      mediaRecorderRef.current = null;
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
+    const onPageLeave = () => {
+      cleanupAudioRecordingSession({ markCanceled: true });
     };
-  }, []);
+    window.addEventListener("pagehide", onPageLeave);
+    window.addEventListener("beforeunload", onPageLeave);
+    return () => {
+      window.removeEventListener("pagehide", onPageLeave);
+      window.removeEventListener("beforeunload", onPageLeave);
+      cleanupAudioRecordingSession({ markCanceled: true });
+    };
+  }, [cleanupAudioRecordingSession]);
 
   useEffect(() => {
     return () => stopCameraStream();
@@ -1326,6 +1338,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     // a linha de digitação), e os botões usam preventDefault em pointerdown/mousedown para não
     // roubarem o foco. Por isso removemos o blur() antigo daqui.
     setRecordingSeconds(0);
+    // Garante que não há faixa anterior viva antes de pedir getUserMedia de novo.
+    cleanupAudioRecordingSession({ markCanceled: true });
     try {
       if (!window.isSecureContext) {
         showToast?.({
@@ -1355,6 +1369,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       }
 
       const stream = await acquireMicStream();
+      recordingStreamRef.current = stream;
       if (await shouldShowMicPersistenceHint()) {
         showToast?.({
           type: "info",
@@ -1379,14 +1394,15 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       recorder.__zapStopAt = 0;
       recorder.__zapCanceled = false;
       recorder.__zapInterrupted = null;
+      recorder.__zapStream = stream;
 
       // Microfone perdido no meio da gravação (dispositivo removido/trocado, outro app
       // tomou o mic, chamada telefônica, aba suspensa no celular): o MediaRecorder para
       // de receber amostras, mas o cronômetro da tela continua correndo. Sem isto o
       // usuário falava 30s e enviava um arquivo com só os primeiros segundos — o contato
       // recebia um áudio curto, começando mudo e com a voz cortada. Agora a gravação é
-      // encerrada na hora, o pedaço parcial é descartado e o microfone é reaberto na
-      // próxima tentativa (o stream é compartilhado e ficaria morto/mudo).
+      // encerrada na hora e o pedaço parcial é descartado; a próxima gravação abre um
+      // MediaStream novo (não reutilizamos track morta/muda).
       const micTrack = stream.getAudioTracks?.()[0] || null;
       let muteTimer = null;
       const desarmarVigiaMic = () => {
@@ -1403,22 +1419,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         if (recorder.__zapCanceled || recorder.__zapInterrupted) return;
         recorder.__zapInterrupted = motivo;
         recorder.__zapStopAt = Date.now();
-        desarmarVigiaMic();
-        invalidateMicStream();
-        try {
-          if (recorder.state !== "inactive") recorder.stop();
-        } catch {
-          /* ignore */
-        }
-        if (mediaRecorderRef.current === recorder) {
-          mediaRecorderRef.current = null;
-          setIsRecording(false);
-          setRecordingSeconds(0);
-          if (recordingTimerRef.current) {
-            clearInterval(recordingTimerRef.current);
-            recordingTimerRef.current = null;
-          }
-        }
+        cleanupAudioRecordingSession({ markCanceled: true });
       };
       function onTrackEnded() {
         interromperGravacao("track_ended");
@@ -1444,8 +1445,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         micTrack.addEventListener("unmute", onTrackUnmuted);
       }
       recorder.onerror = () => interromperGravacao("recorder_error");
-      // Permite soltar os listeners do track compartilhado mesmo quando o `onstop`
-      // não chega a rodar (cancelar/desmontar com o recorder já inativo).
+      // Permite soltar os listeners do track mesmo quando o `onstop` não chega a rodar
+      // (cancelar/desmontar com o recorder já inativo).
       recorder.__zapDetachMicWatch = desarmarVigiaMic;
 
       recorder.ondataavailable = (e) => {
@@ -1459,13 +1460,18 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         const startedAt = recorder.__zapStartedAt || localStartedAt;
         const stoppedAt = recorder.__zapStopAt || Date.now();
         const elapsedMs = Math.max(0, stoppedAt - startedAt);
+        // Reforço idempotente: se o stop/cancel ainda não liberou o mic, libera agora.
+        cleanupAudioRecording({
+          stream: recorder.__zapStream || recordingStreamRef.current || null,
+          streamRef: recordingStreamRef,
+          releaseMic: true,
+        });
         if (wasCanceled) return;
         // `__zapStopAt` só fica em 0 quando ninguém pediu para parar: o próprio
         // navegador encerrou a gravação (microfone perdido, erro interno). O que foi
         // capturado até aqui está incompleto — descarta em vez de enviar cortado.
         const interrompida = Boolean(recorder.__zapInterrupted) || recorder.__zapStopAt === 0;
         if (interrompida) {
-          interromperGravacao(recorder.__zapInterrupted || "recorder_autostop");
           showToast?.({
             type: "error",
             title: "Gravação interrompida",
@@ -1494,47 +1500,58 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           });
           return;
         }
-        const meta = await inspectRecordedAudioBlob(blob);
-        // NÃO bloquear por "decode_error": o elemento <audio> falha em decodificar o webm/opus (e o
-        // mp4 do iOS) do MediaRecorder em muitos navegadores MESMO com áudio válido — isso causava
-        // rejeição falsa ("Audio invalido"). A decodificação aqui é só para medir a duração (fallback
-        // para o tempo medido). Os testes de tamanho/duração acima já barram gravação vazia/curta, e o
-        // backend transcodifica e recusa com erro claro se o áudio estiver realmente quebrado.
-        if (meta.error === "decode_error") {
-          console.warn("[audio] <audio> não decodificou a gravação; usando duração medida e enviando mesmo assim.");
-        }
-        const durationMs = Number.isFinite(meta.durationSec)
-          ? Math.round(meta.durationSec * 1000)
-          : elapsedMs;
-        if (Number.isFinite(durationMs) && durationMs < RECORDED_AUDIO_MIN_MS) {
-          showToast?.({
-            type: "warning",
-            title: "Audio muito curto",
-            message: "Grave por pelo menos 1 segundo antes de enviar.",
-          });
-          return;
-        }
-        if (Number.isFinite(durationMs) && durationMs > RECORDED_AUDIO_MAX_MS + 5000) {
-          showToast?.({
-            type: "warning",
-            title: "Audio muito longo",
-            message: "Envie audios de ate 10 minutos.",
-          });
-          return;
-        }
-        const file = attachRecordedAudioMetadata(
-          new File([blob], `audio-${Date.now()}.${ext}`, {
-            type: finalType,
-            lastModified: Date.now(),
-          }),
-          {
-            durationMs,
-            elapsedMs,
-            mimeType: finalType,
-            bytes: blob.size,
+        try {
+          const meta = await inspectRecordedAudioBlob(blob);
+          // NÃO bloquear por "decode_error": o elemento <audio> falha em decodificar o webm/opus (e o
+          // mp4 do iOS) do MediaRecorder em muitos navegadores MESMO com áudio válido — isso causava
+          // rejeição falsa ("Audio invalido"). A decodificação aqui é só para medir a duração (fallback
+          // para o tempo medido). Os testes de tamanho/duração acima já barram gravação vazia/curta, e o
+          // backend transcodifica e recusa com erro claro se o áudio estiver realmente quebrado.
+          if (meta.error === "decode_error") {
+            console.warn("[audio] <audio> não decodificou a gravação; usando duração medida e enviando mesmo assim.");
           }
-        );
-        await onSendAudioFile?.(file);
+          const durationMs = Number.isFinite(meta.durationSec)
+            ? Math.round(meta.durationSec * 1000)
+            : elapsedMs;
+          if (Number.isFinite(durationMs) && durationMs < RECORDED_AUDIO_MIN_MS) {
+            showToast?.({
+              type: "warning",
+              title: "Audio muito curto",
+              message: "Grave por pelo menos 1 segundo antes de enviar.",
+            });
+            return;
+          }
+          if (Number.isFinite(durationMs) && durationMs > RECORDED_AUDIO_MAX_MS + 5000) {
+            showToast?.({
+              type: "warning",
+              title: "Audio muito longo",
+              message: "Envie audios de ate 10 minutos.",
+            });
+            return;
+          }
+          const file = attachRecordedAudioMetadata(
+            new File([blob], `audio-${Date.now()}.${ext}`, {
+              type: finalType,
+              lastModified: Date.now(),
+            }),
+            {
+              durationMs,
+              elapsedMs,
+              mimeType: finalType,
+              bytes: blob.size,
+            }
+          );
+          await onSendAudioFile?.(file);
+        } catch (sendErr) {
+          console.error("Erro ao enviar áudio gravado:", sendErr);
+          // Mic já liberado; só reforça limpeza visual/refs.
+          cleanupAudioRecordingSession({ markCanceled: false, releaseMic: true });
+          showToast?.({
+            type: "error",
+            title: "Áudio",
+            message: "Não foi possível enviar o áudio. Tente gravar novamente.",
+          });
+        }
       };
 
       recorder.start(400);
@@ -1543,6 +1560,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     } catch (err) {
       console.error("Erro ao iniciar gravação:", err);
       const name = String(err?.name || "");
+      cleanupAudioRecordingSession({ markCanceled: true });
       if (name === "NotAllowedError" || name === "NotFoundError") {
         invalidateMicStream();
       }
@@ -1558,29 +1576,27 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         message: msg,
       });
     }
-  }, [conversaId, isRecording, onSendAudioFile, showToast, podeEnviar]);
+  }, [
+    cleanupAudioRecordingSession,
+    conversaId,
+    isRecording,
+    onSendAudioFile,
+    showToast,
+    podeEnviar,
+  ]);
 
   const handleStopRecording = useCallback(() => {
-    const rec = mediaRecorderRef.current;
-    if (rec && isRecording) {
-      rec.__zapStopAt = Date.now();
-      try {
-        if (rec.state !== "inactive") {
-          rec.requestData?.();
-          rec.stop();
-        }
-      } catch {
-        /* ignore */
-      }
-      mediaRecorderRef.current = null;
-      setIsRecording(false);
-      setRecordingSeconds(0);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
+    if (!mediaRecorderRef.current && !isRecording) {
+      cleanupAudioRecordingSession({ releaseMic: true });
+      return;
     }
-  }, [isRecording]);
+    // Para e libera o mic na hora; preserva onstop para montar/enviar o arquivo.
+    cleanupAudioRecordingSession({
+      requestDataBeforeStop: true,
+      preserveOnStop: true,
+      releaseMic: true,
+    });
+  }, [cleanupAudioRecordingSession, isRecording]);
 
   const filteredRecentStickers = useMemo(
     () =>
