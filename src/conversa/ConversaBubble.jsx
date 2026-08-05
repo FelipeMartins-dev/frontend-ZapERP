@@ -1726,6 +1726,8 @@ const Bubble = memo(function Bubble({
   const openMediaFromEvent = useCallback(
     (e, url, kind) => {
       if (selectMode) return;
+      // Garante cancelamento mesmo quando stopPropagation impede o listener de window.
+      clearLongPressTracking();
       e?.stopPropagation?.();
       if (skipNextMediaTapRef.current) {
         clearSkipNextMediaTap();
@@ -1733,7 +1735,7 @@ const Bubble = memo(function Bubble({
       }
       onOpenMedia?.(url, kind);
     },
-    [clearSkipNextMediaTap, onOpenMedia, selectMode]
+    [clearLongPressTracking, clearSkipNextMediaTap, onOpenMedia, selectMode]
   );
 
   const handleMediaPointerUp = useCallback(
@@ -1746,6 +1748,9 @@ const Bubble = memo(function Bubble({
       const moved =
         Math.abs(e.clientX - start.x) > 12 ||
         Math.abs(e.clientY - start.y) > 12;
+      // openMediaFromEvent chama stopPropagation; sem cancelar aqui o timer de long-press
+      // da bolha continua e abre o menu ~480ms após um toque simples na foto/vídeo.
+      clearLongPressTracking();
       if (moved) return;
       e.preventDefault();
       mediaPointerOpenedRef.current = true;
@@ -1758,7 +1763,7 @@ const Bubble = memo(function Bubble({
       }, 500);
       openMediaFromEvent(e, url, kind);
     },
-    [openMediaFromEvent, selectMode]
+    [clearLongPressTracking, openMediaFromEvent, selectMode]
   );
 
   const handleMediaClick = useCallback(
