@@ -106,15 +106,28 @@ export function buildOptimisticOutgoingMessage(params) {
     }
     const nome = isAudioFile(file) ? getAudioFilename(file) : file?.name || "arquivo";
     const preview = previewLabelForTipo(tipo, file, params?.caption);
+    const durationMs = Number(file?.__zaperpAudioDurationMs);
+    const elapsedMs = Number(file?.__zaperpAudioElapsedMs);
+    const audioDuracaoSec =
+      Number.isFinite(durationMs) && durationMs > 0
+        ? Math.max(1, Math.round(durationMs / 1000))
+        : Number.isFinite(elapsedMs) && elapsedMs > 0
+          ? Math.max(1, Math.round(elapsedMs / 1000))
+          : null;
+    const forceVoice =
+      params?.forceVoiceType === true ||
+      params?.tipo === "voice" ||
+      params?.tipo === "ptt";
     return {
       ...base,
-      tipo,
+      tipo: forceVoice ? "voice" : tipo,
       texto: preview,
       conteudo: preview,
       nome_arquivo: nome,
       tamanho: file.size,
       ...(file?.size != null ? { tamanho_bytes: file.size } : {}),
       ...(file?.lastModified != null ? { file_last_modified: file.lastModified } : {}),
+      ...(audioDuracaoSec != null ? { audio_duracao_sec: audioDuracaoSec } : {}),
       ...(blobUrl
         ? { url: blobUrl, url_absoluta: blobUrl, _optimisticBlobUrl: blobUrl }
         : {}),

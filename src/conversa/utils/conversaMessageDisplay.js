@@ -23,7 +23,7 @@ export function snippetFromMsg(msg) {
   const skipTextoPorArquivoMidia =
     (tipo === "imagem" || tipo === "sticker" || tipo === "video") && t && isFilenameOnlyText(t);
   if (t && !skipTextoPorArquivoMidia) return t.length > 80 ? `${t.slice(0, 80)}…` : t;
-  if (tipo === "audio") {
+  if (tipo === "audio" || tipo === "voice" || tipo === "ptt") {
     const rawDur =
       msg?.audio_duracao_sec ??
       msg?.audioDuracaoSec ??

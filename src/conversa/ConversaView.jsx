@@ -1863,6 +1863,8 @@ function ConversaViewBody() {
         file,
         caption: legenda,
         forceStickerType: opts.forceStickerType,
+        forceVoiceType: opts.tipo === "voice" || opts.tipo === "ptt",
+        tipo: opts.tipo,
         tempId: opts.reuseTempId || undefined,
       });
       const tempId = optimisticMsg.tempId;
