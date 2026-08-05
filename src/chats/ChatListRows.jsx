@@ -20,7 +20,7 @@ function renderChatListRow(c, selectedId, props) {
     selectedId != null &&
     String(selectedId) === String(id);
 
-  const rowKey = chatRowStableKey(c) || (clienteSemConv ? `sem-${c.cliente_id}` : String(id));
+  const rowKey = chatRowStableKey(c);
 
   return (
     <MemoChatRow
@@ -186,12 +186,11 @@ const ChatListRows = memo(function ChatListRows({
           {virtualItems.map((virtualRow) => {
             const c = chatsFiltrados[virtualRow.index];
             if (!c) return null;
-            const id = c?.id;
-            const clienteSemConv = Boolean(c?.sem_conversa && c?.cliente_id);
-            const rowKey = clienteSemConv ? `sem-${c.cliente_id}` : String(id ?? virtualRow.index);
+            // key === getItemKey — evita reuso do DOM do avatar no bump ao enviar.
+            const slotKey = virtualRow.key;
             return (
               <div
-                key={rowKey}
+                key={slotKey}
                 data-index={virtualRow.index}
                 className="chat-list-row-virtual-slot"
                 style={{

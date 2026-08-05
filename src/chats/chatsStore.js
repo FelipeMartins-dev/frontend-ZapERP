@@ -250,11 +250,20 @@ export const useChatStore = create((set, get) => ({
       merged.nome_contato_cache = partial.nome_contato_cache ?? partial.contato_nome
     }
     if (partial.foto_perfil != null && String(partial.foto_perfil).trim() !== "") {
-      merged.foto_perfil = partial.foto_perfil
-      merged.foto_perfil_contato_cache = partial.foto_perfil_contato_cache ?? partial.foto_perfil
+      // Sticky no card: se já há foto http, não trocar (envio/socket traz CDN/cache diferente → pulo).
+      const curFotoOk = cur.foto_perfil != null && String(cur.foto_perfil).trim().startsWith("http")
+      if (!curFotoOk) {
+        merged.foto_perfil = partial.foto_perfil
+        merged.foto_perfil_contato_cache = partial.foto_perfil_contato_cache ?? partial.foto_perfil
+      }
     } else if (partial.foto_perfil_contato_cache != null && String(partial.foto_perfil_contato_cache).trim() !== "") {
-      merged.foto_perfil_contato_cache = partial.foto_perfil_contato_cache
-      merged.foto_perfil = merged.foto_perfil || partial.foto_perfil_contato_cache
+      const curCacheOk =
+        (cur.foto_perfil != null && String(cur.foto_perfil).trim().startsWith("http")) ||
+        (cur.foto_perfil_contato_cache != null && String(cur.foto_perfil_contato_cache).trim().startsWith("http"))
+      if (!curCacheOk) {
+        merged.foto_perfil_contato_cache = partial.foto_perfil_contato_cache
+        merged.foto_perfil = merged.foto_perfil || partial.foto_perfil_contato_cache
+      }
     }
     // Grupos: nunca sobrescrever nome_grupo/foto_grupo com vazio
     if (partial.nome_grupo != null && String(partial.nome_grupo).trim() !== "" && !String(partial.nome_grupo).toLowerCase().startsWith("lid:")) {

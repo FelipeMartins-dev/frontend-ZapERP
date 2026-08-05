@@ -18,7 +18,7 @@ import {
   formatPrazoPagamentoTooltip,
 } from "../utils/pagamentoPrazoFormat";
 import ConversationActionMenuTrigger from "./ConversationActionMenuTrigger";
-import { getContactDisplay } from "./chatListDisplay";
+import { getContactDisplay, lockCardAvatarUrl } from "./chatListDisplay";
 import {
   rowPrefs,
   EMPTY_PENDENTES_SET,
@@ -1104,6 +1104,7 @@ function ChatRow({
   showWhatsappInstanceUi = false,
 }) {
   const exibirAtendentesNoCard = useEmpresaStore((s) => s.empresa?.exibir_atendentes_no_card === true);
+  const avatarLockRef = useRef({ identity: null, url: null });
   const id = chat?.id;
   const clienteId = chat?.cliente_id;
   const semConversa = Boolean(chat?.sem_conversa && chat?.cliente_id);
@@ -1166,7 +1167,16 @@ function ChatRow({
       ? " chat-list-row--await-client-card"
       : "";
   const contact = getContactDisplay(chat);
-  const { displayName, avatarUrl, phone, isGroup } = contact;
+  const { displayName, phone, isGroup } = contact;
+  // Trava URL do avatar por conversa: envio/entrega não pode trocar CDN antiga ↔ atual (pulo visual).
+  const avatarIdentity =
+    id != null && String(id).trim() !== ""
+      ? `conv:${String(id)}`
+      : clienteId != null
+        ? `cli:${String(clienteId)}`
+        : "row:unknown";
+  avatarLockRef.current = lockCardAvatarUrl(avatarLockRef.current, avatarIdentity, contact.avatarUrl);
+  const avatarUrl = avatarLockRef.current.url;
   const empresa = String(chat?.cliente?.empresa ?? chat?.cliente_empresa ?? chat?.empresa ?? "").trim();
   const hasName = displayName !== phone;
   const last = pickListaUltimaMensagem(chat) || getLastMessage(chat);

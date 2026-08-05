@@ -65,3 +65,32 @@ export function getContactDisplay(chat) {
   const avatarUrl = rawFoto != null && String(rawFoto).trim().startsWith("http") ? String(rawFoto).trim() : null;
   return { displayName, avatarUrl, phone, isGroup };
 }
+
+/** True se a string é URL http(s) utilizável no <img> do card. */
+export function isHttpAvatarUrl(url) {
+  const s = url != null ? String(url).trim() : "";
+  return s.length > 0 && /^https?:\/\//i.test(s) && s.toLowerCase() !== "null";
+}
+
+/**
+ * Trava a foto do card por identidade da conversa.
+ * No envio/entrega o store pode alternar entre foto_perfil e cache (URLs CDN diferentes)
+ * — isso faz o <img> “pular”. Uma vez que o card tem URL válida para o mesmo id, mantém.
+ *
+ * @param {{ identity: string|null, url: string|null }} locked
+ * @param {string} identity - ex.: conv:123
+ * @param {string|null} incomingUrl
+ * @returns {{ identity: string, url: string|null }}
+ */
+export function lockCardAvatarUrl(locked, identity, incomingUrl) {
+  const id = identity != null ? String(identity) : "";
+  const next = isHttpAvatarUrl(incomingUrl) ? String(incomingUrl).trim() : null;
+  if (!id) return { identity: "", url: next };
+  if (!locked || locked.identity !== id) {
+    return { identity: id, url: next };
+  }
+  if (isHttpAvatarUrl(locked.url)) {
+    return locked;
+  }
+  return { identity: id, url: next };
+}
