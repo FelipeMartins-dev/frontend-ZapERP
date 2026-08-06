@@ -159,6 +159,209 @@ function isLikelyDuplicateAutomatedTextEcho(prev, incoming) {
   return false
 }
 
+/** Contato/vCard: CRM grava nome; webhook ecoa vCard completo — ids diferentes, mesma bolha lógica. */
+function isVCardTextLocal(text) {
+  return Boolean(text && typeof text === "string" && text.includes("BEGIN:VCARD"))
+}
+
+function parseVCardTelefoneLocal(text) {
+  if (!text || typeof text !== "string") return null
+  const re = /^[^\S\r\n]*(?:item\d+\.|ITEM\d+\.)?TEL[^:]*:(.+)$/gim
+  let best = null
+  let bestLen = 0
+  let m
+  while ((m = re.exec(text)) !== null) {
+    let v = String(m[1] || "").trim()
+    v = v.replace(/^tel:/i, "").replace(/^waid\//i, "").trim()
+    const digits = v.replace(/\D/g, "")
+    if (digits.length >= 8 && digits.length >= bestLen) {
+      best = digits
+      bestLen = digits.length
+    }
+  }
+  return best
+}
+
+function parseVCardDisplayNameLocal(text) {
+  if (!text || typeof text !== "string") return null
+  const fnMatch = text.match(/^FN:(.+)$/im)
+  if (fnMatch) {
+    const fn = fnMatch[1].trim().replace(/\\,/g, ",").replace(/\\n/g, " ").replace(/\\/g, "")
+    if (fn && !fn.includes("BEGIN:VCARD")) return fn
+  }
+  return null
+}
+
+function resolveContactMetaLocal(msg) {
+  if (!msg) return null
+  const text = String(msg.texto ?? msg.conteudo ?? msg.body ?? "")
+  const tipo = String(msg.tipo || "").toLowerCase()
+  const rawMeta = msg.contact_meta && typeof msg.contact_meta === "object" ? msg.contact_meta : null
+  const isVCardBody = isVCardTextLocal(text)
+  const nomeVc = isVCardBody ? parseVCardDisplayNameLocal(text) : null
+  const telVc = isVCardBody ? parseVCardTelefoneLocal(text) : null
+
+  if (tipo === "contact" || tipo === "vcard" || tipo === "contato" || tipo === "contact_message" || isVCardBody || rawMeta) {
+    const nomeMeta = rawMeta?.nome != null ? String(rawMeta.nome).trim() : ""
+    const nome = nomeMeta || nomeVc || (!isVCardBody ? String(text).trim() : "") || "Contato"
+    const telefone =
+      (rawMeta?.telefone != null ? String(rawMeta.telefone).replace(/\D/g, "") : "") ||
+      (rawMeta?.phone != null ? String(rawMeta.phone).replace(/\D/g, "") : "") ||
+      telVc ||
+      null
+    return { nome, telefone: telefone || null }
+  }
+  return null
+}
+
+function isContactMessage(msg) {
+  if (!msg) return false
+  const tipo = String(msg?.tipo || "").toLowerCase().trim()
+  if (
+    tipo === "contact" ||
+    tipo === "vcard" ||
+    tipo === "contato" ||
+    tipo === "contact_message"
+  ) {
+    return true
+  }
+  const text = String(msg?.texto ?? msg?.conteudo ?? msg?.body ?? "")
+  if (isVCardTextLocal(text)) return true
+  if (msg.contact_meta && typeof msg.contact_meta === "object") return true
+  return false
+}
+
+function messageHasVCardBody(msg) {
+  return isVCardTextLocal(String(msg?.texto ?? msg?.conteudo ?? msg?.body ?? ""))
+}
+
+function normalizeContactNameKey(name) {
+  return String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function contactFingerprintParts(msg) {
+  const meta = resolveContactMetaLocal(msg)
+  const phoneRaw = meta?.telefone != null ? String(meta.telefone).replace(/\D/g, "") : ""
+  const phone = phoneRaw.length >= 8 ? phoneRaw : ""
+  let name = normalizeContactNameKey(meta?.nome || "")
+  if (!name || name === "contato") {
+    const text = String(msg?.texto ?? msg?.conteudo ?? "").trim()
+    if (text && !isVCardTextLocal(text)) name = normalizeContactNameKey(text)
+  }
+  if (name === "contato") name = ""
+  return { phone, name }
+}
+
+function contactPhonesMatch(a, b) {
+  if (!a || !b) return false
+  if (a === b) return true
+  const strip55 = (p) => (p.startsWith("55") && p.length >= 12 ? p.slice(2) : p)
+  const sa = strip55(a)
+  const sb = strip55(b)
+  if (sa === sb) return true
+  if (sa.length >= 8 && sb.length >= 8 && sa.slice(-8) === sb.slice(-8)) return true
+  return false
+}
+
+function contactFingerprintsCompatible(a, b) {
+  const pa = contactFingerprintParts(a)
+  const pb = contactFingerprintParts(b)
+  if (pa.phone && pb.phone) return contactPhonesMatch(pa.phone, pb.phone)
+  if (pa.name && pb.name && pa.name.length >= 2 && pa.name === pb.name) return true
+  return false
+}
+
+function isLikelyDuplicateContactEcho(prev, incoming) {
+  if (!prev || !incoming) return false
+  if (!sameExplicitConversation(prev, incoming)) return false
+  if (!isContactMessage(prev) || !isContactMessage(incoming)) return false
+  if (isOutgoingLike(prev) !== isOutgoingLike(incoming)) return false
+  if (matchesClientTempCorrelation(prev, incoming)) return true
+  if (hasConflictingClientTempCorrelation(prev, incoming)) return false
+
+  const tsP = toMillis(prev?.criado_em)
+  const tsI = toMillis(incoming?.criado_em)
+  if (!Number.isFinite(tsP) || !Number.isFinite(tsI)) return false
+  const diffMs = Math.abs(tsP - tsI)
+  if (diffMs > 90_000) return false
+  if (!contactFingerprintsCompatible(prev, incoming)) return false
+
+  const vcardP = messageHasVCardBody(prev)
+  const vcardI = messageHasVCardBody(incoming)
+  // Padrão CRM: uma linha só com nome + eco webhook com vCard completo.
+  if (vcardP !== vcardI) return true
+
+  const waP =
+    prev.whatsapp_id != null && String(prev.whatsapp_id).trim() !== ""
+      ? String(prev.whatsapp_id).trim()
+      : ""
+  const waI =
+    incoming.whatsapp_id != null && String(incoming.whatsapp_id).trim() !== ""
+      ? String(incoming.whatsapp_id).trim()
+      : ""
+  if (!!waP !== !!waI) return true
+
+  const partsP = contactFingerprintParts(prev)
+  const partsI = contactFingerprintParts(incoming)
+  const strongPhone = !!(partsP.phone && partsI.phone && contactPhonesMatch(partsP.phone, partsI.phone))
+
+  // Dois whatsapp_id distintos: só colapsa com telefone forte em janela curta (eco duplicado).
+  if (waP && waI && waP !== waI) {
+    if (strongPhone && diffMs <= 45_000) return true
+    if (vcardP && vcardI) return false
+  }
+
+  const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id).trim() : ""
+  const iid =
+    incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id).trim() : ""
+  if (pid && iid && pid !== iid && vcardP && vcardI) {
+    return strongPhone && diffMs <= 45_000
+  }
+
+  return true
+}
+
+function contactEchoDedupeScore(m) {
+  let score = 0
+  if (messageHasVCardBody(m)) score += 10
+  if (m?.whatsapp_id != null && String(m.whatsapp_id).trim() !== "") score += 6
+  if (m?.id != null && String(m.id).trim() !== "") score += 3
+  const meta = resolveContactMetaLocal(m)
+  if (meta?.telefone) score += 4
+  if (meta?.nome && normalizeContactNameKey(meta.nome) !== "contato") score += 1
+  const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
+  score += order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
+  const seq = Number(m?._stableInsertSeq)
+  if (Number.isFinite(seq)) score -= seq / 1e15
+  return score
+}
+
+function pruneRedundantContactEchoes(list) {
+  if (!Array.isArray(list) || list.length < 2) return list
+  const remove = new Set()
+  for (let i = 0; i < list.length; i++) {
+    if (remove.has(i)) continue
+    for (let j = i + 1; j < list.length; j++) {
+      if (remove.has(j)) continue
+      const a = list[i]
+      const b = list[j]
+      if (!isLikelyDuplicateContactEcho(a, b)) continue
+      const scoreA = contactEchoDedupeScore(a)
+      const scoreB = contactEchoDedupeScore(b)
+      if (scoreA > scoreB) remove.add(j)
+      else if (scoreB > scoreA) remove.add(i)
+      else remove.add(j)
+    }
+  }
+  if (!remove.size) return list
+  return list.filter((_, idx) => !remove.has(idx))
+}
+
 function isOutgoingLike(msg) {
   const dir = String(msg?.direcao || "").toLowerCase().trim()
   if (dir === "out") return true
@@ -328,6 +531,9 @@ function areLikelySameMessageBubble(prev, incoming) {
   const pid = prev.id != null && String(prev.id).trim() !== "" ? String(prev.id) : null
   const iid = incoming.id != null && String(incoming.id).trim() !== "" ? String(incoming.id) : null
   if (pid && iid && pid === iid) return persistedIdentityMarksSameBubble(prev, incoming)
+  if (isContactMessage(prev) && isContactMessage(incoming)) {
+    return isLikelyDuplicateContactEcho(prev, incoming)
+  }
   if (!isOutgoingLike(prev) && !isOutgoingLike(incoming)) {
     return isIncomingClientMediaReconcilePair(prev, incoming)
   }
@@ -692,7 +898,8 @@ function finalizeMensagensList(list) {
   const afterOutgoingEchoes = pruneRedundantOutgoingMediaEchoes(afterStickerEchoes)
   const afterIncomingEchoes = pruneRedundantIncomingClientMediaEchoes(afterOutgoingEchoes)
   const afterAutomatedTextEchoes = pruneRedundantAutomatedTextEchoes(afterIncomingEchoes)
-  const afterIdentityDedupe = dedupeListByPersistedIdentity(afterAutomatedTextEchoes)
+  const afterContactEchoes = pruneRedundantContactEchoes(afterAutomatedTextEchoes)
+  const afterIdentityDedupe = dedupeListByPersistedIdentity(afterContactEchoes)
   const final = sortMensagensChronological(afterIdentityDedupe)
   
   // Debug para detectar remoções inesperadas de áudios
@@ -835,8 +1042,40 @@ function clearStaleOutboundWaitFlags(merged) {
 function finalizeMergedMessageRow(prev, merged) {
   let row = cleanupOptimisticBlobFields(mergeMsgPreferringTombstone(prev, merged))
   row = clearStaleOutboundWaitFlags(row)
+  row = preferRicherContactFields(prev, row)
   if (prev?.tempId) return { ...row, tempId: prev.tempId }
   return stripTempIdWhenPersisted(row)
+}
+
+/** Ao fundir eco CRM (só nome) + webhook (vCard), mantém o corpo/meta mais rico. */
+function preferRicherContactFields(prev, merged) {
+  if (!merged || !prev) return merged
+  if (!isContactMessage(prev) && !isContactMessage(merged)) return merged
+  const next = { ...merged }
+  const prevVcard = messageHasVCardBody(prev)
+  const mergedVcard = messageHasVCardBody(merged)
+  if (prevVcard && !mergedVcard) {
+    next.texto = prev.texto ?? prev.conteudo
+    if (prev.conteudo != null) next.conteudo = prev.conteudo
+  }
+  const prevMeta = prev.contact_meta && typeof prev.contact_meta === "object" ? prev.contact_meta : null
+  const mergedMeta =
+    next.contact_meta && typeof next.contact_meta === "object" ? next.contact_meta : null
+  if (prevMeta || mergedMeta) {
+    const prevPhone = String(prevMeta?.telefone ?? prevMeta?.phone ?? "").replace(/\D/g, "")
+    const mergedPhone = String(mergedMeta?.telefone ?? mergedMeta?.phone ?? "").replace(/\D/g, "")
+    const richerMeta = {
+      ...(prevMeta || {}),
+      ...(mergedMeta || {}),
+    }
+    if (prevPhone.length >= 8 && mergedPhone.length < 8) {
+      richerMeta.telefone = prevMeta.telefone ?? prevMeta.phone
+    }
+    if (!richerMeta.nome && prevMeta?.nome) richerMeta.nome = prevMeta.nome
+    next.contact_meta = richerMeta
+  }
+  if (!next.tipo || String(next.tipo).trim() === "") next.tipo = prev.tipo || "contact"
+  return next
 }
 
 /** Otimista ainda sem id/whatsapp — candidato a reconciliação por texto. */
