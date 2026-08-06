@@ -1228,6 +1228,13 @@ export const useConversaStore = create((set, get) => {
           changed = true
         })
         if (!changed) return state
+        // Status/ticks (sent→delivered→read): atualiza in-place sem reordenar — o sort
+        // em mensagens com o mesmo criado_em pode trocar índices e gerar “pulo” na lista.
+        const statusOnlyKeys = ["status", "status_mensagem", "whatsapp_id", "em_retry"]
+        const isStatusOnlyPatch = Object.keys(partial).every((k) => statusOnlyKeys.includes(k))
+        if (isStatusOnlyPatch) {
+          return { mensagens: next }
+        }
         // Reordena após o patch: se a mensagem reconciliada (ex.: tempId -> id/criado_em real do
         // servidor) tiver entrado na lista antes de outra mensagem mais antiga ainda não chegada
         // nesta aba, o índice antigo ficaria fora de ordem sem isto (mesma função já usada no

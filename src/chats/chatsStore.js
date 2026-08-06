@@ -8,6 +8,16 @@ import {
 } from "./chatListStoreCompare"
 import { chatRowStableKey } from "./chatRowStableKey"
 import { getChatListSortTimestampMs, sortChatListByRecent, pickNewerMessage } from "./chatListRowAtendimento"
+import { parseToDate } from "../conversa/utils/conversaViewHelpers"
+
+function toStoreMsgTs(raw) {
+  if (raw == null || raw === "") return 0
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0
+  const d = parseToDate(raw)
+  if (!d) return 0
+  const t = d.getTime()
+  return Number.isFinite(t) ? t : 0
+}
 
 /** Chave canônica para dedupe: conv id ou escopo instância + contato */
 function canonicalKey(c) {
@@ -462,11 +472,12 @@ export const useChatStore = create((set, get) => ({
     const chats = get().chats || []
     const idx = chats.findIndex(c => String(c.id) === String(conversa_id))
     if (idx < 0) return
-    if (idx === 0) return
 
-    const item = chats[idx]
-    const next = [item, ...chats.filter((_, i) => i !== idx)]
-    set({ chats: next })
+    // Reordena por última mensagem (WhatsApp), em vez de forçar índice 0 —
+    // evita conversa mais antiga no topo quando o bump não atualizou o timestamp.
+    const sorted = sortConversasByRecent(chats)
+    if (chatListsStoreEquivalent(chats, sorted)) return
+    set({ chats: sorted })
   },
 
   /** Atualiza ultima_mensagem E move para o topo em uma única operação — evita contato "sumir" */
@@ -481,8 +492,8 @@ export const useChatStore = create((set, get) => ({
         msg?.tempId != null ||
         msg?.temp_id != null
       const candidate = msg ? { ...(cur.ultima_mensagem || {}), ...msg } : cur.ultima_mensagem
-      const curTs = new Date(cur?.ultima_mensagem?.criado_em || 0).getTime()
-      const nextTs = new Date(candidate?.criado_em || 0).getTime()
+      const curTs = toStoreMsgTs(cur?.ultima_mensagem?.criado_em)
+      const nextTs = toStoreMsgTs(candidate?.criado_em)
       const useCandidate =
         !cur?.ultima_mensagem ||
         isOptimistic ||
@@ -492,7 +503,7 @@ export const useChatStore = create((set, get) => ({
       const mergedUm = useCandidate ? candidate : cur.ultima_mensagem
       const atividadeMs = Math.max(
         getChatListSortTimestampMs({ ...cur, ultima_mensagem: mergedUm, ultima_mensagem_preview: mergedUm }),
-        new Date(msg?.criado_em || 0).getTime() || 0
+        toStoreMsgTs(msg?.criado_em)
       )
       const atividade = atividadeMs > 0 ? new Date(atividadeMs).toISOString() : cur.ultima_atividade
       const dirOut =

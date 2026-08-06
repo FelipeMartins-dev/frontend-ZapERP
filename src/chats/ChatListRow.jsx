@@ -1134,16 +1134,23 @@ function ChatRow({
       cobrancaFinanceiraRow) &&
     !aguardandoClienteAutomaticoRow;
   const aguardandoClienteCobrancaRow = isConversaAguardandoClienteEmCobranca(chat);
+  const modoSimplesAg = chat?.atendimento_modo_simples
+    ? resolveModoSimplesAguardandoEffective(chat)
+    : "";
   /** Minutos ao lado do relógio só quando não estão na badge “Aguardando atendente”. */
   const modoSimplesTimerNaBadge =
-    chat?.atendimento_modo_simples &&
+    Boolean(chat?.atendimento_modo_simples) &&
     !isGroupConversation(chat) &&
-    resolveModoSimplesAguardandoEffective(chat) === "atendente";
+    modoSimplesAg === "atendente";
   const mostrarEsperaMinutosAoLadoDoRelogio =
     Boolean(esperaMinutosAnchor) &&
     !aguardandoFuncionarioVisivelRow &&
     !modoSimplesTimerNaBadge;
-  const staffPremiumRowClass = aguardandoFuncionarioVisivelRow ? " chat-list-row--await-staff-premium" : "";
+  // Borda esquerda acompanha a badge (modo simples inclusive — antes só cliente ganhava cor).
+  const staffPremiumRowClass =
+    aguardandoFuncionarioVisivelRow || modoSimplesAg === "atendente"
+      ? " chat-list-row--await-staff-premium"
+      : "";
   const reabertaFaltaRowClass = isReabertaPorFaltaInteracao(chat) ? " chat-list-row--reaberta-falta-card" : "";
   const somenteAbertaRowClass =
     !chat?.atendimento_modo_simples &&
@@ -1152,7 +1159,9 @@ function ChatRow({
     chat?.exibir_badge_aberta === true &&
     !isReabertaPorFaltaInteracao(chat) &&
     !aguardandoFuncionarioVisivelRow &&
+    modoSimplesAg !== "atendente" &&
     !aguardandoClienteAutomaticoRow &&
+    modoSimplesAg !== "cliente" &&
     statusEff !== "aguardando_cliente" &&
     !cobrancaFinanceiraRow &&
     statusEff !== "fechada" &&
@@ -1161,9 +1170,11 @@ function ChatRow({
       : "";
   const awaitClientCardClass =
     !aguardandoFuncionarioVisivelRow &&
+    modoSimplesAg !== "atendente" &&
     (aguardandoClienteAutomaticoRow ||
       statusEff === "aguardando_cliente" ||
-      aguardandoClienteCobrancaRow)
+      aguardandoClienteCobrancaRow ||
+      modoSimplesAg === "cliente")
       ? " chat-list-row--await-client-card"
       : "";
   const contact = getContactDisplay(chat);

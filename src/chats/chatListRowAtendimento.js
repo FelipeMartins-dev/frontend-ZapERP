@@ -7,7 +7,18 @@ import {
   isModoSimplesAguardandoCliente,
   resolveModoSimplesAguardandoEffective,
 } from "../utils/conversaUtils";
+import { parseToDate } from "../conversa/utils/conversaViewHelpers";
 import { getContactDisplay } from "./chatListDisplay";
+
+/** Timestamp em ms alinhado ao horário exibido no card (ISO sem TZ = UTC, como no Supabase). */
+function toChatListTimestampMs(raw) {
+  if (raw == null || raw === "") return 0;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  const d = parseToDate(raw);
+  if (!d) return 0;
+  const t = d.getTime();
+  return Number.isFinite(t) ? t : 0;
+}
 
 /** Preferências por item (API pode enviar `silenciada` ou `silenciado`). */
 export function rowPrefs(c) {
@@ -114,9 +125,7 @@ function normalizeDirection(v) {
 }
 
 function directionCandidateTs(iso) {
-  if (!iso) return 0;
-  const t = new Date(iso).getTime();
-  return Number.isFinite(t) ? t : 0;
+  return toChatListTimestampMs(iso);
 }
 
 /** Última direção pela mensagem mais recente (preview, ultima_mensagem, mensagens[0], fallback). */
@@ -149,8 +158,7 @@ export function getLastDirection(chat) {
 
 function messageTs(msg) {
   if (!msg) return 0;
-  const t = new Date(msg.criado_em || 0).getTime();
-  return Number.isFinite(t) ? t : 0;
+  return toChatListTimestampMs(msg.criado_em);
 }
 
 /** Escolhe a mensagem com `criado_em` mais recente entre candidatos. */
@@ -186,20 +194,17 @@ export function getListaUltimaMensagemCriadoEm(c) {
 /** Timestamp efetivo para ordenação estilo WhatsApp (mais recente no topo). */
 export function getChatListSortTimestampMs(c) {
   if (!c) return 0;
-  const toMs = (raw) => {
-    const t = new Date(raw || 0).getTime();
-    return Number.isFinite(t) ? t : 0;
-  };
   // Prioriza o tempo da ÚLTIMA MENSAGEM real (estilo WhatsApp). `ultima_atividade` pode ser
   // inflado por eventos sem mensagem visível (placeholder de mídia, sync de histórico/contatos),
   // o que embaralharia a ordem — por isso entra só como fallback quando não há mensagem.
+  // Usa o mesmo parseToDate da hora do card: ISO sem timezone = UTC (evita inverter 20:29 vs 20:46).
   const msgMs = Math.max(
-    toMs(pickListaUltimaMensagem(c)?.criado_em),
-    toMs(c?.ultima_mensagem?.criado_em),
-    toMs(c?.ultima_mensagem_preview?.criado_em)
+    toChatListTimestampMs(pickListaUltimaMensagem(c)?.criado_em),
+    toChatListTimestampMs(c?.ultima_mensagem?.criado_em),
+    toChatListTimestampMs(c?.ultima_mensagem_preview?.criado_em)
   );
   if (msgMs > 0) return msgMs;
-  return Math.max(toMs(c?.ultima_atividade), toMs(c?.criado_em));
+  return Math.max(toChatListTimestampMs(c?.ultima_atividade), toChatListTimestampMs(c?.criado_em));
 }
 
 /** Mescla campos de preview/atividade preservando sempre o timestamp mais recente (socket > API stale). */

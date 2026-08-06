@@ -144,6 +144,7 @@ import ConversaHeader from "./components/ConversaHeader";
 import ConversaMessageSearchPanel from "./components/ConversaMessageSearchPanel";
 
 import { useChatStore } from "../chats/chatsStore";
+import { chatRowListStoreKey } from "../chats/chatListStoreCompare";
 import { useWhatsappInstancesStore } from "../chats/whatsappInstancesStore";
 import {
   listarTags,
@@ -466,6 +467,8 @@ function ConversaViewBody() {
   const [callSending, setCallSending] = useState(false);
   const messagesContainerRef = useRef(null);
   const shouldStickToBottomRef = useRef(true);
+  /** Meta do último snap via ResizeObserver — evita reancorar em ticks de status. */
+  const lastResizeSnapMetaRef = useRef({ contentKey: null, scrollHeight: 0 });
   const messagesLastScrollTopRef = useRef(0);
   /** Botão "ir para recentes": visível quando o utilizador está lendo histórico (longe do fim). */
   const [showScrollToRecent, setShowScrollToRecent] = useState(false);
@@ -648,8 +651,10 @@ function ConversaViewBody() {
   // Nunca exibir LID (lid:xxx) como nome ou número — identificador interno do WhatsApp
   const isLidValue = (v) => v != null && String(v).trim().toLowerCase().startsWith("lid:");
 
+  // Status ticks da ultima_mensagem não devem re-renderizar a conversa aberta (evita pulo).
   const fromChat = useChatStore(
-    (s) => (Array.isArray(s.chats) ? (s.chats.find((c) => String(c?.id) === String(conversaId)) ?? null) : null)
+    (s) => (Array.isArray(s.chats) ? (s.chats.find((c) => String(c?.id) === String(conversaId)) ?? null) : null),
+    (a, b) => chatRowListStoreKey(a) === chatRowListStoreKey(b)
   );
 
   const showWhatsappInstanceUi = useWhatsappInstancesStore((s) => s.hasMultiple);
@@ -843,6 +848,7 @@ function ConversaViewBody() {
     selectionOrderRef.current = [];
     setSelectionOrder([]);
     setForwardSelectIntent(false);
+    lastResizeSnapMetaRef.current = { contentKey: null, scrollHeight: 0 };
 
     if (!conversaId) {
       setPinnedIds([]);
@@ -885,6 +891,28 @@ function ConversaViewBody() {
     if (!shouldStickToBottomRef.current) return;
     const list = useConversaStore.getState().mensagens || [];
     const last = list.length ? list[list.length - 1] : null;
+    const contentKey = last
+      ? `${list.length}:${String(last.tempId ?? last.id ?? last.whatsapp_id ?? "")}`
+      : "0:";
+    const scrollHeight = c.scrollHeight || 0;
+    const prev = lastResizeSnapMetaRef.current;
+    const keyChanged = prev.contentKey !== contentKey;
+    const heightDelta = scrollHeight - (prev.scrollHeight || 0);
+    /*
+     * ResizeObserver dispara em qualquer remedião (ticks sent→delivered→read).
+     * Sem mudança de mensagem nem crescimento real de altura, reancorar causa o “pulo”.
+     * Mídia que carrega (altura sobe) e mensagem nova (contentKey) continuam a snapar.
+     */
+    if (!keyChanged && Math.abs(heightDelta) < 4) {
+      lastResizeSnapMetaRef.current = { contentKey, scrollHeight };
+      return;
+    }
+    const distanceToBottom = scrollHeight - (c.scrollTop || 0) - (c.clientHeight || 0);
+    if (!keyChanged && distanceToBottom < 2 && heightDelta <= 0) {
+      lastResizeSnapMetaRef.current = { contentKey, scrollHeight };
+      return;
+    }
+    lastResizeSnapMetaRef.current = { contentKey, scrollHeight };
     const guard = {
       canSnap: () => !userScrollLockRef.current && shouldStickToBottomRef.current,
       followUpFrame: false,

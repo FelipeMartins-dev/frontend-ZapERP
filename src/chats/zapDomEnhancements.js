@@ -8,6 +8,10 @@ const COUNTER_SELECTOR = ".zap-counter-target";
 function parseWaitMinutes(text) {
   const t = String(text || "").trim();
   if (!t) return null;
+  const hudH = t.match(/•\s*(\d+)\s*h/i);
+  if (hudH) return Number(hudH[1]) * 60;
+  const plainH = t.match(/(\d+)\s*h(?:oras?)?/i);
+  if (plainH && !/\d+\s*m/i.test(t)) return Number(plainH[1]) * 60;
   const hud = t.match(/•\s*(\d+)\s*m/i);
   if (hud) return Number(hud[1]);
   const plain = t.match(/(\d+)\s*m(?:in)?/i);
