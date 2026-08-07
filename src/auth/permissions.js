@@ -103,3 +103,12 @@ export function canAcessarDashboard(user) {
 export function canAcessarChatbot(user) {
   return can("chatbot_acessar", user);
 }
+
+/** Admin, supervisor e atendente podem criar notas internas (invisíveis ao cliente) */
+export function canNotaInterna(user) {
+  const permissoes = usePermissoesStore.getState().permissoes;
+  if (permissoes != null && Object.prototype.hasOwnProperty.call(permissoes, "atendimentos.nota_interna")) {
+    return !!permissoes["atendimentos.nota_interna"];
+  }
+  return ["admin", "supervisor", "atendente"].includes(role(user));
+}

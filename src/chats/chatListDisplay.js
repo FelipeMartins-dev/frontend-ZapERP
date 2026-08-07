@@ -74,8 +74,8 @@ export function isHttpAvatarUrl(url) {
 
 /**
  * Trava a foto do card por identidade da conversa.
- * No envio/entrega o store pode alternar entre foto_perfil e cache (URLs CDN diferentes)
- * — isso faz o <img> “pular”. Uma vez que o card tem URL válida para o mesmo id, mantém.
+ * Anti-flicker: não descartar URL válida quando o payload vem sem foto (null).
+ * B03: aceita URL http nova (foto atualizada via sync/contato_atualizado).
  *
  * @param {{ identity: string|null, url: string|null }} locked
  * @param {string} identity - ex.: conv:123
@@ -89,7 +89,8 @@ export function lockCardAvatarUrl(locked, identity, incomingUrl) {
   if (!locked || locked.identity !== id) {
     return { identity: id, url: next };
   }
-  if (isHttpAvatarUrl(locked.url)) {
+  // Mantém a foto atual se o store veio sem URL (evita pulo null ↔ CDN).
+  if (!next && isHttpAvatarUrl(locked.url)) {
     return locked;
   }
   return { identity: id, url: next };

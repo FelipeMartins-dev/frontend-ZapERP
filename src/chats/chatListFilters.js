@@ -246,19 +246,22 @@ export function computeChatsFiltrados({
    */
   const adminPorFuncionario =
     adminAtendenteFilterId != null && String(adminAtendenteFilterId).trim() !== "";
+  // B01: termo ativo → lista vem da busca global; não reaplicar aba/chip nem usar minhaFilaList.
+  const searchBypassesTabFilters = Boolean(String(debouncedSearch || "").trim());
 
-  let list = adminPorFuncionario
-    ? [...(Array.isArray(chats) ? chats : [])]
-    : tab === "minha_fila"
-      ? minhaFilaList == null
-        ? []
-        : mergeMinhaFilaPrefsFromChats([...minhaFilaList], chats)
-      : Array.isArray(chats)
-        ? [...chats]
-        : [];
+  let list =
+    adminPorFuncionario || searchBypassesTabFilters
+      ? [...(Array.isArray(chats) ? chats : [])]
+      : tab === "minha_fila"
+        ? minhaFilaList == null
+          ? []
+          : mergeMinhaFilaPrefsFromChats([...minhaFilaList], chats)
+        : Array.isArray(chats)
+          ? [...chats]
+          : [];
 
   // tabs rápidas — quando o backend já filtrou (GET com params), não re-filtrar client-side
-  if (!adminPorFuncionario) {
+  if (!adminPorFuncionario && !searchBypassesTabFilters) {
     const backendFilteredTabs = new Set([
       "abertas",
       "em_atendimento",
@@ -281,7 +284,7 @@ export function computeChatsFiltrados({
     }
   }
 
-  if (adminPorFuncionario) {
+  if (adminPorFuncionario && !searchBypassesTabFilters) {
     if (tab === "abertas") {
       list = list.filter((c) => conversaContaComoAbertaNoChip(c));
     }
@@ -295,6 +298,7 @@ export function computeChatsFiltrados({
   }
 
   const skipStatusFilterRow =
+    searchBypassesTabFilters ||
     tab === "hoje" ||
     tab === "abertas" ||
     tab === "em_atendimento" ||
@@ -317,21 +321,21 @@ export function computeChatsFiltrados({
     list = list.filter((c) => getStatusAtendimentoEffective(c) === statusFilter);
   }
 
-  if (!adminPorFuncionario && onlyFinalizadasAusencia && tab !== "finalizadas_auto") {
+  if (!adminPorFuncionario && !searchBypassesTabFilters && onlyFinalizadasAusencia && tab !== "finalizadas_auto") {
     list = list.filter(
       (c) =>
         getStatusAtendimentoEffective(c) === "fechada" &&
         (String(c?.finalizacao_motivo) === "ausencia_cliente" || c?.finalizada_automaticamente === true)
     );
   }
-  if (!adminPorFuncionario && tab === "aguardando_atendente") {
+  if (!adminPorFuncionario && !searchBypassesTabFilters && tab === "aguardando_atendente") {
     list = list.filter((c) => isModoSimplesAguardandoAtendente(c, user));
   }
-  if (!adminPorFuncionario && tab === "aguardando_cliente" && isModoSimplesListaAtivo(user)) {
+  if (!adminPorFuncionario && !searchBypassesTabFilters && tab === "aguardando_cliente" && isModoSimplesListaAtivo(user)) {
     list = list.filter((c) => isModoSimplesAguardandoCliente(c, user));
   }
 
-  if (!adminPorFuncionario && aguardandoClienteOnly && tab !== "aguardando_cliente") {
+  if (!adminPorFuncionario && !searchBypassesTabFilters && aguardandoClienteOnly && tab !== "aguardando_cliente") {
     list = list.filter((c) => {
       if (isModoSimplesAguardandoCliente(c, user)) return true;
       if (isAguardandoClienteManual(c) && c?.atendente_id != null) return true;
@@ -342,12 +346,12 @@ export function computeChatsFiltrados({
       );
     });
   }
-  if (!adminPorFuncionario && pagamentosPendentesOnly && tab !== "pagamentos_pendentes") {
+  if (!adminPorFuncionario && !searchBypassesTabFilters && pagamentosPendentesOnly && tab !== "pagamentos_pendentes") {
     list = list.filter(
       (c) => getStatusAtendimentoEffective(c) === "pagamento_pendente" && c?.atendente_id != null
     );
   }
-  if (!adminPorFuncionario && emAtrasoOnly && tab !== "em_atraso") {
+  if (!adminPorFuncionario && !searchBypassesTabFilters && emAtrasoOnly && tab !== "em_atraso") {
     list = list.filter(
       (c) => getStatusAtendimentoEffective(c) === "em_atraso" && c?.atendente_id != null
     );
@@ -364,7 +368,12 @@ export function computeChatsFiltrados({
   if (isAppAdmin(user) && departamentoFilter !== "todos") {
     list = list.filter((c) => String(c?.departamento_id ?? "") === String(departamentoFilter));
   }
-  if (!adminPorFuncionario && atendenteFilter !== "todos" && !aguardandoClienteOnly && tab !== "aguardando_cliente") {
+  if (
+    !adminPorFuncionario &&
+    atendenteFilter !== "todos" &&
+    !aguardandoClienteOnly &&
+    tab !== "aguardando_cliente"
+  ) {
     list = list.filter((c) => String(c?.atendente_id ?? "") === String(atendenteFilter));
   }
 
@@ -388,11 +397,11 @@ export function computeChatsFiltrados({
   }
 
   // Camada adicional: filtro de pendência (backend) — intersecta com filtros já aplicados
-  if (conversaIdsPendenciaAtiva != null) {
+  if (!searchBypassesTabFilters && conversaIdsPendenciaAtiva != null) {
     list = list.filter((c) => conversaIdsPendenciaAtiva.has(String(c?.id)));
   }
 
-  if (!adminPorFuncionario && tab === "minha_fila") {
+  if (!adminPorFuncionario && !searchBypassesTabFilters && tab === "minha_fila") {
     list = clearGrupoSetorAutoPinNaMinhaFila(list);
     list = applyCotacaoFixadaNaMinhaFila(list, user);
   }

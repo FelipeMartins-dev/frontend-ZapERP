@@ -748,8 +748,19 @@ export const useConversaStore = create((set, get) => {
         if (isAbortError(err)) return
         if (generation !== carregarConversaGeneration) return
         if (String(get().selectedId) !== String(normalizedId)) return
-        const msg = err?.response?.data?.error || err?.message || "Erro ao carregar conversa"
+        const status = Number(err?.response?.status)
+        const apiMsg = err?.response?.data?.error || err?.message || "Erro ao carregar conversa"
+        const msg =
+          status === 404
+            ? "Conversa não encontrada. Ela pode ter sido unificada com outro contato — volte à lista e abra novamente."
+            : apiMsg
         console.error("Erro ao carregar conversa:", err)
+        if (status === 404) {
+          try {
+            useChatStore.getState().removeChat?.(normalizedId)
+            useChatStore.getState().requestChatListResync?.({ force: true })
+          } catch (_) {}
+        }
         set({ loading: false, loadError: msg, conversa: conversaShellWithId })
       } finally {
         if (carregarConversaAbortController === abortController) {

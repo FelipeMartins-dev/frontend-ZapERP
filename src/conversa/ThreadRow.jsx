@@ -1,8 +1,9 @@
 import { memo } from "react";
-import { ArrowLeftRight, ShieldCheck, UserCheck } from "lucide-react";
+import { ArrowLeftRight, EyeOff, ShieldCheck, StickyNote, UserCheck } from "lucide-react";
 import DaySeparator from "./DaySeparator";
 import { threadRowPropsAreEqual } from "./threadRowCompare";
 import { formatHora } from "./utils/conversaViewHelpers";
+import { isInternalNote } from "./internalNote";
 
 function textLooksInternalMovement(text) {
   const raw = String(text || "").trim();
@@ -56,6 +57,36 @@ function InternalMovementCard({ item, zapAnimateIn }) {
             <span>{footer}</span>
             <span className="wa-internalMovement-time">{formatHora(item?.criado_em)}</span>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InternalNoteCard({ item, zapAnimateIn }) {
+  const nome = item?.usuario_nome || item?.remetente_nome || null;
+  const texto = String(item?.texto || "");
+
+  return (
+    <div
+      className={`wa-row wa-row-internalNote${zapAnimateIn ? " zap-message-enter" : ""}`}
+      data-msg-id={item?.id}
+      role="note"
+      aria-label="Nota interna"
+    >
+      <div className="wa-internalNote-card">
+        <div className="wa-internalNote-head">
+          <span className="wa-internalNote-icon" aria-hidden="true">
+            <StickyNote size={13} strokeWidth={2.2} />
+          </span>
+          <span className="wa-internalNote-kicker">NOTA INTERNA</span>
+          {nome ? <span className="wa-internalNote-autor">· {nome}</span> : null}
+          <span className="wa-internalNote-time">{formatHora(item?.criado_em)}</span>
+        </div>
+        <div className="wa-internalNote-body">{texto}</div>
+        <div className="wa-internalNote-footer">
+          <EyeOff size={11} strokeWidth={2} />
+          <span>O cliente não recebeu esta mensagem</span>
         </div>
       </div>
     </div>
@@ -133,6 +164,10 @@ function ThreadRow({
   }
   if (seenMsgKeys && messageKey != null) {
     seenMsgKeys.add(messageKey);
+  }
+
+  if (isInternalNote(item)) {
+    return <InternalNoteCard item={item} zapAnimateIn={zapAnimateIn} />;
   }
 
   if (isInternalMovementMessage(item)) {

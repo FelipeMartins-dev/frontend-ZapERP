@@ -69,6 +69,50 @@ function updateDocumentTitleFromChats() {
 }
 
 /**
+ * Conversa apagada ou unificada (merge LID→telefone / duplicatas).
+ * Com `merged_into`, redireciona a thread aberta para o ID canônico (evita 404 / histórico “sumido”).
+ */
+function handleConversaRemovidaOuMesclada(payload = {}) {
+  const cid = payload?.id ?? payload?.conversa_id
+  if (cid == null || cid === "") return
+  const mergedIntoRaw = payload?.merged_into ?? payload?.mergedInto ?? null
+  const mergedInto =
+    mergedIntoRaw != null && String(mergedIntoRaw).trim() !== ""
+      ? Number(mergedIntoRaw)
+      : null
+  const hasCanonical =
+    Number.isFinite(mergedInto) && mergedInto > 0 && String(mergedInto) !== String(cid)
+
+  useChatStore.getState().removeChat(cid)
+  const convStore = useConversaStore.getState()
+  if (String(convStore.selectedId || "") !== String(cid)) {
+    if (hasCanonical) {
+      useChatStore.getState().requestChatListResync?.({ force: true })
+    }
+    return
+  }
+
+  if (hasCanonical) {
+    convStore.setSelectedId(mergedInto)
+    void convStore.carregarConversa?.(mergedInto)
+    useNotificationStore.getState().showToast?.({
+      type: "info",
+      title: "Conversa unificada",
+      message: "Este contato foi unificado. Abrindo o histórico completo.",
+    })
+    useChatStore.getState().requestChatListResync?.({ force: true })
+    return
+  }
+
+  convStore.setSelectedId(null)
+  useConversaStore.setState({
+    conversa: null,
+    mensagens: [],
+    tags: [],
+  })
+}
+
+/**
  * Inbound: o backend retoma de `aguardando_cliente` → `em_atendimento` (manual) sem exigir refetch.
  * Aplica otimista na lista e no detalhe; alinha com `conversa_atualizada` se o backend emitir em seguida.
  * @param {string|number} conversaId
@@ -882,11 +926,15 @@ export function initSocket(token) {
   })
 
   socket.on(SOCKET_EVENTS.MENSAGEM_INTERNA_ATENDIMENTO, (rawMsg) => {
-    if (!canViewInternalAttendanceMessage()) return
     const msg = normalizeNovaMensagemPayload(rawMsg)
     const conversaId = msg?.conversa_id
     if (!conversaId) return
     if (shouldIgnoreByCompany(msg)) return
+
+    // Nota interna: qualquer membro da equipe pode ver
+    // Movimentação interna: só admin e supervisor
+    const isNote = String(msg?.tipo || "").toLowerCase() === "internal_note"
+    if (!isNote && !canViewInternalAttendanceMessage()) return
 
     const convStore = useConversaStore.getState()
     if (!convStore.selectedId || String(convStore.selectedId) !== String(conversaId)) return
@@ -1253,15 +1301,34 @@ export function initSocket(token) {
       if (payload.ultima_atividade != null) next.ultima_atividade = payload.ultima_atividade
       if (payload.contato_nome != null && payload.contato_nome !== "") next.contato_nome = payload.contato_nome
       if (payload.nome_contato_cache != null && payload.nome_contato_cache !== "") next.nome_contato_cache = payload.nome_contato_cache
-      // Não trocar foto já válida no card (CDN/cache no envio causa pulo visual).
-      const curFotoOk =
-        (cur.foto_perfil != null && String(cur.foto_perfil).trim().startsWith("http")) ||
-        (cur.foto_perfil_contato_cache != null && String(cur.foto_perfil_contato_cache).trim().startsWith("http"))
-      if (!curFotoOk) {
+      // Foto: anti-flicker só contra limpar URL válida.
+      // B03: se o payload trouxer URL http diferente, atualiza (foto sincronizada).
+      const nextFotoPerfil =
+        payload.foto_perfil != null && String(payload.foto_perfil).trim().startsWith("http")
+          ? String(payload.foto_perfil).trim()
+          : null
+      const nextFotoCache =
+        payload.foto_perfil_contato_cache != null &&
+        String(payload.foto_perfil_contato_cache).trim().startsWith("http")
+          ? String(payload.foto_perfil_contato_cache).trim()
+          : null
+      const curFotoPerfil =
+        cur.foto_perfil != null && String(cur.foto_perfil).trim().startsWith("http")
+          ? String(cur.foto_perfil).trim()
+          : null
+      const curFotoCache =
+        cur.foto_perfil_contato_cache != null &&
+        String(cur.foto_perfil_contato_cache).trim().startsWith("http")
+          ? String(cur.foto_perfil_contato_cache).trim()
+          : null
+      if (nextFotoPerfil && nextFotoPerfil !== curFotoPerfil) next.foto_perfil = nextFotoPerfil
+      else if (!curFotoPerfil && !curFotoCache) {
         if (payload.foto_perfil != null && payload.foto_perfil !== "") next.foto_perfil = payload.foto_perfil
         if (payload.foto_perfil_contato_cache != null && payload.foto_perfil_contato_cache !== "") {
           next.foto_perfil_contato_cache = payload.foto_perfil_contato_cache
         }
+      } else if (nextFotoCache && nextFotoCache !== curFotoCache && !curFotoPerfil) {
+        next.foto_perfil_contato_cache = nextFotoCache
       }
       if (payload.status_atendimento != null) next.status_atendimento = payload.status_atendimento
       if ("status_atendimento_real" in payload) next.status_atendimento_real = payload.status_atendimento_real
@@ -1372,19 +1439,8 @@ export function initSocket(token) {
       ...(payload?.fixada_em !== undefined ? { fixada_em: payload.fixada_em } : {}),
     })
   })
-  socket.on("conversa_apagada", ({ id, conversa_id } = {}) => {
-    const cid = id ?? conversa_id
-    if (!cid) return
-    useChatStore.getState().removeChat(cid)
-    const convStore = useConversaStore.getState()
-    if (String(convStore.selectedId || "") === String(cid)) {
-      convStore.setSelectedId(null)
-      useConversaStore.setState({
-        conversa: null,
-        mensagens: [],
-        tags: [],
-      })
-    }
+  socket.on("conversa_apagada", (payload = {}) => {
+    handleConversaRemovidaOuMesclada(payload)
   })
   socket.on("conversa_encerrada", (payload) => {
     logSocketConversaDebug("conversa_encerrada", payload)
@@ -1486,12 +1542,7 @@ export function initSocket(token) {
     const { id, removida } = rawPayload
     if (!id) return
     if (removida === true) {
-      useChatStore.getState().removeChat(id)
-      const convStore = useConversaStore.getState()
-      if (String(convStore.selectedId || "") === String(id)) {
-        convStore.setSelectedId(null)
-        useConversaStore.setState({ conversa: null, mensagens: [], tags: [] })
-      }
+      handleConversaRemovidaOuMesclada(rawPayload)
       return
     }
     logSocketConversaDebug("atualizar_conversa", { id })

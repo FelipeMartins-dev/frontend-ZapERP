@@ -1,0 +1,278 @@
+/* =========================================================
+   Modal de Atendentes — ZapERP
+   ========================================================= */
+
+.wa-btn-atendentes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--wa-border, #e5e7eb);
+  background: var(--wa-surface, #fff);
+  color: var(--wa-text, #111827);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.wa-btn-atendentes:hover {
+  background: var(--wa-surface-hover, #f3f4f6);
+}
+
+/* ── Modal overlay ─────────────────────────────────────── */
+.wa-atendentesModal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.wa-atendentesModal {
+  background: var(--wa-surface, #fff);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.wa-atendentesModal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--wa-border, #e5e7eb);
+  flex-shrink: 0;
+}
+.wa-atendentesModal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--wa-text, #111827);
+  margin: 0;
+}
+.wa-atendentesModal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--wa-text-muted, #6b7280);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.wa-atendentesModal-close:hover {
+  background: var(--wa-surface-hover, #f3f4f6);
+}
+
+/* ── Body ─────────────────────────────────────────────── */
+.wa-atendentesModal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 12px 20px;
+}
+
+/* ── Sections ─────────────────────────────────────────── */
+.wa-atendentesSection {
+  margin-bottom: 16px;
+}
+.wa-atendentesSection-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--wa-text-muted, #6b7280);
+  margin-bottom: 8px;
+}
+
+/* ── Participante row ─────────────────────────────────── */
+.wa-participante {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+.wa-participante:hover {
+  background: var(--wa-surface-hover, #f9fafb);
+}
+.wa-participante--principal {
+  background: rgba(245, 158, 11, 0.07);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+.wa-participante-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--wa-primary, #7c3aed);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.wa-participante--principal .wa-participante-avatar {
+  background: #d97706;
+}
+.wa-participante-info {
+  flex: 1;
+  min-width: 0;
+}
+.wa-participante-nome {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--wa-text, #111827);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.wa-participante-role {
+  font-size: 11.5px;
+  color: var(--wa-text-muted, #6b7280);
+}
+.wa-participante-crown {
+  color: #d97706;
+}
+.wa-participante-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--wa-text-muted, #9ca3af);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.12s;
+}
+.wa-participante-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.07);
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+.wa-atendentes-empty {
+  font-size: 13px;
+  color: var(--wa-text-muted, #6b7280);
+  padding: 6px 10px;
+  font-style: italic;
+}
+
+/* ── Hint block ──────────────────────────────────────── */
+.wa-atendentes-hint {
+  font-size: 12px;
+  color: var(--wa-text-muted, #6b7280);
+  background: var(--wa-surface-alt, #f9fafb);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 4px;
+}
+
+/* ── Add section ─────────────────────────────────────── */
+.wa-atendentes-addSection {
+  border-top: 1px solid var(--wa-border, #e5e7eb);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+.wa-atendentes-searchWrap {
+  position: relative;
+  margin-bottom: 10px;
+}
+.wa-atendentes-searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--wa-border, #e5e7eb);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--wa-surface, #fff);
+  color: var(--wa-text, #111827);
+  outline: none;
+}
+.wa-atendentes-searchInput:focus {
+  border-color: var(--wa-primary, #7c3aed);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12);
+}
+.wa-atendentes-disponivel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.wa-atendentes-disponivel:hover {
+  background: var(--wa-surface-hover, #f3f4f6);
+}
+.wa-atendentes-disponivel-nome {
+  font-size: 13px;
+  color: var(--wa-text, #111827);
+}
+.wa-atendentes-adicionarBtn {
+  margin-left: auto;
+  background: var(--wa-primary, #7c3aed);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+.wa-atendentes-adicionarBtn:hover:not(:disabled) {
+  background: #6d28d9;
+}
+.wa-atendentes-adicionarBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.wa-atendentes-noResults {
+  font-size: 13px;
+  color: var(--wa-text-muted, #6b7280);
+  padding: 6px 8px;
+  font-style: italic;
+}
+.wa-atendentes-loadingList {
+  font-size: 13px;
+  color: var(--wa-text-muted, #6b7280);
+  padding: 6px 8px;
+}
+
+/* ── Dark mode ─────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .wa-atendentesModal {
+    background: var(--wa-surface, #1f2937);
+  }
+  .wa-atendentesModal-header {
+    border-color: var(--wa-border, #374151);
+  }
+  .wa-atendentes-addSection {
+    border-color: var(--wa-border, #374151);
+  }
+  .wa-atendentes-searchInput {
+    background: var(--wa-surface-alt, #111827);
+  }
+  .wa-participante--principal {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+}
+:root[data-theme="dark"] .wa-atendentesModal {
+  background: var(--wa-surface, #1f2937);
+}
+:root[data-theme="dark"] .wa-atendentes-searchInput {
+  background: var(--wa-surface-alt, #111827);
+}

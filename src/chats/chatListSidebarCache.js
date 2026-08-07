@@ -14,7 +14,8 @@ const FILTER_ROWS_TTL_MS = 45 * 1000;
 const STORAGE_PREFIX = "zap_erp_chat_sidebar_v1";
 const FILTER_ROWS_STORAGE_PREFIX = "zap_erp_chat_rows_by_filter_v1";
 
-const MAX_CHATS = 120;
+/** Cabe várias páginas após "Carregar mais" (antes 120 truncava o snapshot). */
+const MAX_CHATS = 400;
 
 
 

@@ -42,8 +42,9 @@ function ConversaHeader({
   setorAtual,
   podeTransferirSetor,
   onOpenTransferirSetor,
-  podeAdicionarAtendente,
-  onOpenAdicionarAtendente,
+  podeVerAtendentes,
+  totalAtendentes,
+  onOpenAtendentes,
   isSomeoneTyping,
   podeGerenciarTags,
   tagsOpen,
@@ -99,12 +100,12 @@ function ConversaHeader({
             close();
           }}
         />
-        {!isGroup && conversaId && podeAdicionarAtendente ? (
+        {!isGroup && conversaId && podeVerAtendentes ? (
           <HeaderOverflowSheetBtn
             icon={<IconContact />}
-            label="Adicionar atendente"
+            label={totalAtendentes > 0 ? `Atendentes · ${totalAtendentes}` : "Atendentes"}
             onClick={() => {
-              onOpenAdicionarAtendente();
+              onOpenAtendentes();
               close();
             }}
           />
@@ -136,11 +137,12 @@ function ConversaHeader({
       canConsultarProdutos,
       conversaId,
       isGroup,
-      onOpenAdicionarAtendente,
+      onOpenAtendentes,
       onOpenProdutosPanel,
       onToggleTagPanel,
       onToggleTimeline,
-      podeAdicionarAtendente,
+      podeVerAtendentes,
+      totalAtendentes,
       podeGerenciarTags,
     ]
   );

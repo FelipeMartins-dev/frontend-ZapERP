@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import EmptyState from "../components/feedback/EmptyState";
 import { SkeletonChatList } from "../components/feedback/Skeleton";
 import ConversationActionMenu from "./ConversationActionMenu";
@@ -40,6 +40,60 @@ function ChatListRowsPane({
   onLoadMoreChats,
 }) {
   const filteredLen = chatsFiltrados.length;
+  const loadMoreSentinelRef = useRef(null);
+  const showPaginationFooter =
+    tab !== "minha_fila" &&
+    !loading &&
+    (canLoadMoreChats || loadingMoreChats || loadMoreChatsError);
+
+  // Infinite scroll: ao aproximar do fim da lista, pede a próxima página.
+  useEffect(() => {
+    if (!showPaginationFooter || !canLoadMoreChats || loadingMoreChats) return undefined;
+    if (typeof onLoadMoreChats !== "function") return undefined;
+    const root = scrollRef?.current;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!root || !sentinel || typeof IntersectionObserver === "undefined") return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          onLoadMoreChats();
+        }
+      },
+      { root, rootMargin: "160px 0px", threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    showPaginationFooter,
+    canLoadMoreChats,
+    loadingMoreChats,
+    onLoadMoreChats,
+    scrollRef,
+    filteredLen,
+  ]);
+
+  const paginationFooter = showPaginationFooter ? (
+    <div className="chat-list-pagination-footer">
+      {loadMoreChatsError ? (
+        <p className="chat-list-pagination-error" role="alert">
+          {loadMoreChatsError}
+        </p>
+      ) : null}
+      {canLoadMoreChats || loadingMoreChats ? (
+        <button
+          type="button"
+          className="chat-list-load-more-btn"
+          onClick={onLoadMoreChats}
+          disabled={loadingMoreChats}
+          aria-busy={loadingMoreChats}
+        >
+          {loadingMoreChats ? "Carregando..." : "Carregar mais conversas"}
+        </button>
+      ) : null}
+      <div ref={loadMoreSentinelRef} className="chat-list-load-more-sentinel" aria-hidden="true" />
+    </div>
+  ) : null;
 
   return (
     <>
@@ -56,12 +110,24 @@ function ChatListRowsPane({
           </div>
         ) : filteredLen === 0 ? (
           <div className="chat-list-empty-wrap">
-            <EmptyState
-              title="Nenhuma conversa encontrada"
-              description="Suas conversas aparecerão aqui quando você receber mensagens ou iniciar um atendimento."
-              actionLabel="Criar novo contato"
-              action={onNovoContato}
-            />
+            {showPaginationFooter ? (
+              <>
+                <EmptyState
+                  title="Carregando conversas…"
+                  description="Há mais conversas além desta página. Continue para ver o histórico antigo."
+                  actionLabel={loadingMoreChats ? "Carregando…" : "Carregar mais conversas"}
+                  action={onLoadMoreChats}
+                />
+                {paginationFooter}
+              </>
+            ) : (
+              <EmptyState
+                title="Nenhuma conversa encontrada"
+                description="Suas conversas aparecerão aqui quando você receber mensagens ou iniciar um atendimento."
+                actionLabel="Criar novo contato"
+                action={onNovoContato}
+              />
+            )}
           </div>
         ) : (
           <ChatListRows
@@ -81,29 +147,7 @@ function ChatListRowsPane({
             pendentesFuncionarioSet={pendentesFuncionarioSet}
           />
         )}
-        {tab !== "minha_fila" &&
-        !loading &&
-        filteredLen > 0 &&
-        (canLoadMoreChats || loadingMoreChats || loadMoreChatsError) ? (
-          <div className="chat-list-pagination-footer">
-            {loadMoreChatsError ? (
-              <p className="chat-list-pagination-error" role="alert">
-                {loadMoreChatsError}
-              </p>
-            ) : null}
-            {canLoadMoreChats || loadingMoreChats ? (
-              <button
-                type="button"
-                className="chat-list-load-more-btn"
-                onClick={onLoadMoreChats}
-                disabled={loadingMoreChats}
-                aria-busy={loadingMoreChats}
-              >
-                {loadingMoreChats ? "Carregando..." : "Carregar mais conversas"}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        {filteredLen > 0 ? paginationFooter : null}
       </div>
 
       <ConversationActionMenu

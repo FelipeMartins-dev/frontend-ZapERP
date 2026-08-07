@@ -50,8 +50,9 @@ export function getChatsPageMeta(list) {
         nextCursor: null,
         nextCursorId: null,
         totalCount: null,
+        pagesLoaded: 1,
       }
-    : { hasMore: false, nextCursor: null, nextCursorId: null, totalCount: null };
+    : { hasMore: false, nextCursor: null, nextCursorId: null, totalCount: null, pagesLoaded: 1 };
 }
 
 function parseHeaderInt(value) {
@@ -158,15 +159,38 @@ export async function fetchChats(params = {}, options = {}) {
 
 /** Limite máximo por página no backend (CHAT_LIST_MAX_LIMIT). */
 const CHAT_LIST_MINHA_FILA_PAGE_LIMIT = 250;
+/** Teto absoluto de páginas em qualquer fetch multi-página (evita loop infinito). */
+const CHAT_LIST_PAGES_HARD_MAX = 50;
 /** Teto de páginas automáticas — evita loop infinito (até ~12,5k conversas). */
 const MINHA_FILA_MAX_AUTO_PAGES = 50;
+/** Teto ao rehidratar páginas já carregadas após resync (até ~5k conversas). */
+export const CHAT_LIST_PRESERVE_MAX_PAGES = 20;
 
 /**
- * GET /chats?minha_fila=1 — busca todas as páginas até esgotar has_more.
- * Usado na aba "Minha fila" para não exigir "Carregar mais conversas".
+ * Busca páginas sucessivas de GET /chats até esgotar has_more, atingir maxPages
+ * ou cobrir minCount. Usado para preservar "Carregar mais" após resync/background.
+ *
+ * @param {Record<string, unknown>} params
+ * @param {{
+ *   signal?: AbortSignal,
+ *   silent?: boolean,
+ *   pageLimit?: number,
+ *   maxPages?: number,
+ *   minCount?: number,
+ * }} [options]
  */
-export async function fetchMinhaFilaChatsCompleto(params = {}, options = {}) {
-  const base = { ...params, minha_fila: "1" };
+export async function fetchChatsPages(params = {}, options = {}) {
+  const pageLimit = Math.min(
+    250,
+    Math.max(1, Number(options.pageLimit) || Number(params.limit) || 80)
+  );
+  const maxPages = Math.min(
+    CHAT_LIST_PAGES_HARD_MAX,
+    Math.max(1, Number(options.maxPages) || 1)
+  );
+  const minCount = Math.max(0, Math.floor(Number(options.minCount) || 0));
+
+  const base = { ...params, limit: pageLimit };
   delete base.cursor;
   delete base.cursorId;
   delete base.cursor_id;
@@ -175,18 +199,23 @@ export async function fetchMinhaFilaChatsCompleto(params = {}, options = {}) {
   let cursor = null;
   let cursorId = null;
   let totalCount = null;
+  let lastMeta = { hasMore: false, nextCursor: null, nextCursorId: null };
+  let pagesLoaded = 0;
 
-  for (let page = 0; page < MINHA_FILA_MAX_AUTO_PAGES; page += 1) {
-    const pageParams = {
-      ...base,
-      limit: CHAT_LIST_MINHA_FILA_PAGE_LIMIT,
-      ...(cursor ? { cursor, cursorId } : {}),
-    };
-    const data = await fetchChats(pageParams, options);
+  for (let page = 0; page < maxPages; page += 1) {
+    const data = await fetchChats(
+      {
+        ...base,
+        ...(cursor ? { cursor, cursorId } : {}),
+      },
+      options
+    );
     const list = Array.isArray(data) ? data : [];
     const meta = getChatsPageMeta(data);
     merged = merged.concat(list);
     totalCount = meta.totalCount ?? totalCount;
+    pagesLoaded += 1;
+    lastMeta = meta;
 
     if (!meta.hasMore || !meta.nextCursor) {
       return attachChatsPageMeta(merged, {
@@ -194,17 +223,48 @@ export async function fetchMinhaFilaChatsCompleto(params = {}, options = {}) {
         nextCursor: null,
         nextCursorId: null,
         totalCount: totalCount ?? merged.length,
+        pagesLoaded,
       });
     }
+
     cursor = meta.nextCursor;
     cursorId = meta.nextCursorId;
+
+    if (minCount > 0 && merged.length >= minCount) {
+      break;
+    }
   }
 
   return attachChatsPageMeta(merged, {
+    hasMore: Boolean(lastMeta.hasMore && lastMeta.nextCursor),
+    nextCursor: lastMeta.nextCursor || null,
+    nextCursorId: lastMeta.nextCursorId ?? null,
+    totalCount: totalCount ?? merged.length,
+    pagesLoaded,
+  });
+}
+
+/**
+ * GET /chats?minha_fila=1 — busca todas as páginas até esgotar has_more.
+ * Usado na aba "Minha fila" para não exigir "Carregar mais conversas".
+ */
+export async function fetchMinhaFilaChatsCompleto(params = {}, options = {}) {
+  const result = await fetchChatsPages(
+    { ...params, minha_fila: "1" },
+    {
+      ...options,
+      pageLimit: CHAT_LIST_MINHA_FILA_PAGE_LIMIT,
+      maxPages: MINHA_FILA_MAX_AUTO_PAGES,
+    }
+  );
+  const meta = getChatsPageMeta(result);
+  // Contrato da aba: lista completa no cliente (sem botão "Carregar mais").
+  return attachChatsPageMeta(Array.isArray(result) ? result : [], {
     hasMore: false,
     nextCursor: null,
     nextCursorId: null,
-    totalCount: totalCount ?? merged.length,
+    totalCount: meta.totalCount ?? (Array.isArray(result) ? result.length : 0),
+    pagesLoaded: meta.pagesLoaded || 1,
   });
 }
 

@@ -43,7 +43,11 @@ import {
 } from "./offlineOutbox";
 import { WATCHDOG_TICK_MS } from "./pendingMessageWatchdog";
 import { useAuthStore } from "../auth/authStore";
-import { canAssumir, canReabrir, canTag, canTransferirSetorConversa } from "../auth/permissions";
+import { canAssumir, canNotaInterna, canReabrir, canTag, canTransferirSetorConversa } from "../auth/permissions";
+import AtendentesModal from "../atendimento/AtendentesModal";
+import { useConversaParticipantes } from "../atendimento/useConversaParticipantes";
+import "../atendimento/atendentes.css";
+import { criarNotaInterna } from "./conversaService";
 const ProdutoConsultaPanel = lazy(() => import("./ProdutoConsultaPanel"));
 const SidebarCliente = lazy(() => import("./SidebarCliente"));
 const ForwardModal = lazy(() => import("./components/ForwardModal"));
@@ -497,6 +501,7 @@ function ConversaViewBody() {
   const [atendenteSearch, setAtendenteSearch] = useState("");
   const [atendentesLoading, setAtendentesLoading] = useState(false);
   const [adicionarAtendenteLoadingId, setAdicionarAtendenteLoadingId] = useState(null);
+  const [atendentesModalOpen, setAtendentesModalOpen] = useState(false);
   const [showProdutosPanel, setShowProdutosPanel] = useState(false);
 
   const userRole = String(user?.role || user?.perfil || "").toLowerCase();
@@ -647,6 +652,13 @@ function ConversaViewBody() {
     !!conversaId &&
     !isGroup &&
     !isClosedAttendance(conversa);
+
+  const podeVerAtendentes = podeAdicionarAtendente;
+  const podeAnotar = !isGroup && !!conversaId && canNotaInterna(user);
+
+  // Hook de participantes — re-carrega quando o responsável muda (cobre "Assumir")
+  const { participantes: atendentesParticipantes, total: totalAtendentes, reload: reloadAtendentes } =
+    useConversaParticipantes(isGroup ? null : conversaId, conversa?.atendente_id ?? null);
 
   // Nunca exibir LID (lid:xxx) como nome ou número — identificador interno do WhatsApp
   const isLidValue = (v) => v != null && String(v).trim().toLowerCase().startsWith("lid:");
@@ -3575,12 +3587,33 @@ function ConversaViewBody() {
     return isClosedAttendance(conversa);
   }, [modoSimplesAtivo, conversa, user, isGroup]);
 
+  const contactDisplayPhone = useMemo(() => {
+    const candidates = [
+      conversa?.telefone_exibivel,
+      conversa?.cliente_telefone,
+      conversa?.cliente?.telefone,
+      conversa?.clientes?.telefone,
+      isLidValue(conversa?.telefone) ? "" : conversa?.telefone,
+    ];
+    for (const raw of candidates) {
+      const phone = String(raw || "").trim();
+      if (phone && !isLidValue(phone)) return phone;
+    }
+    return "";
+  }, [conversa]);
+
   const showContactOldSyncCta = useMemo(() => {
     if (isGroup) return false;
     if (!conversa?.id || conversa?.mensagens_bloqueadas) return false;
-    const phone = conversa?.telefone_exibivel || conversa?.cliente_telefone || conversa?.telefone || "";
-    return !!String(phone || "").trim() && !String(phone || "").trim().toLowerCase().startsWith("lid:");
-  }, [conversa, isGroup]);
+    return Boolean(contactDisplayPhone);
+  }, [conversa, isGroup, contactDisplayPhone]);
+
+  /** Conversa ainda só com LID e sem telefone real — histórico do WhatsApp fica indisponível. */
+  const showLidPhoneMissingHint = useMemo(() => {
+    if (isGroup || !conversa?.id || conversa?.mensagens_bloqueadas) return false;
+    if (contactDisplayPhone) return false;
+    return isLidValue(conversa?.telefone);
+  }, [conversa, isGroup, contactDisplayPhone]);
 
   const handleAssumeEmpty = useCallback(async () => {
     if (!conversaId || assumeEmptyBusy) return;
@@ -3727,26 +3760,11 @@ function ConversaViewBody() {
     [conversaId, refresh, showToast, transferirSetorLoading]
   );
 
-  const handleOpenAdicionarAtendente = useCallback(async () => {
-    if (!conversaId || atendentesLoading) return;
-    setShowAdicionarAtendente(true);
-    setAtendenteSearch("");
-    setAtendentesLoading(true);
-    try {
-      const data = await listarAtendentesDisponiveisConversa(conversaId);
-      setAtendentesDisponiveis(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Erro ao listar atendentes disponiveis:", e);
-      setAtendentesDisponiveis([]);
-      showToast({
-        type: "error",
-        title: "Falha ao carregar atendentes",
-        message: e?.response?.data?.error || "Tente novamente.",
-      });
-    } finally {
-      setAtendentesLoading(false);
-    }
-  }, [atendentesLoading, conversaId, showToast]);
+  const handleOpenAdicionarAtendente = useCallback(() => {
+    if (!conversaId) return;
+    reloadAtendentes();
+    setAtendentesModalOpen(true);
+  }, [conversaId, reloadAtendentes]);
 
   const atendentesDisponiveisFiltrados = useMemo(() => {
     const term = safeString(atendenteSearch).toLowerCase();
@@ -3884,6 +3902,22 @@ function ConversaViewBody() {
   const handleComposerSendAudio = useCallback(
     (file) => handleEnviarArquivo(file, { tipo: "voice", enqueueAudio: true }),
     [handleEnviarArquivo]
+  );
+
+  const handleAdicionarNotaInterna = useCallback(
+    async (texto) => {
+      if (!conversaId) return;
+      try {
+        await criarNotaInterna(conversaId, texto);
+      } catch (e) {
+        showToast({
+          type: "error",
+          title: "Erro ao salvar nota",
+          message: e?.response?.data?.error || "Tente novamente.",
+        });
+      }
+    },
+    [conversaId, showToast]
   );
 
   /**
@@ -4152,8 +4186,9 @@ function ConversaViewBody() {
           setorAtual={setorAtual}
           podeTransferirSetor={podeTransferirSetor}
           onOpenTransferirSetor={handleOpenTransferirSetor}
-          podeAdicionarAtendente={podeAdicionarAtendente}
-          onOpenAdicionarAtendente={handleOpenAdicionarAtendente}
+          podeVerAtendentes={podeVerAtendentes}
+          totalAtendentes={totalAtendentes}
+          onOpenAtendentes={handleOpenAdicionarAtendente}
           isSomeoneTyping={isSomeoneTyping}
           podeGerenciarTags={podeGerenciarTags}
           tagsOpen={tagsOpen}
@@ -4238,67 +4273,13 @@ function ConversaViewBody() {
           </>
         )}
 
-        {!isGroup && podeAdicionarAtendente && showAdicionarAtendente && (
-          <>
-            <button
-              type="button"
-              className="wa-floatingSheet-backdrop"
-              aria-label="Fechar painel de atendentes"
-              onClick={() => setShowAdicionarAtendente(false)}
-            />
-          <div
-            className="wa-tagsPanel wa-tagsPanel--setor"
-            role="dialog"
-            aria-label="Adicionar atendente"
-          >
-            <div className="wa-tagsPanel-head">
-              <span className="wa-tagsPanel-title">Adicionar atendente</span>
-              <button
-                type="button"
-                className="wa-iconBtn"
-                onClick={() => setShowAdicionarAtendente(false)}
-                title="Fechar"
-              >
-                <IconClose />
-              </button>
-            </div>
-            <div className="wa-tagsPanel-body">
-              <input
-                className="wa-transferSearch"
-                value={atendenteSearch}
-                onChange={(e) => setAtendenteSearch(e.target.value)}
-                placeholder="Buscar por nome ou email"
-                autoFocus
-              />
-              {atendentesLoading ? (
-                <div className="wa-muted">Carregando atendentes...</div>
-              ) : atendentesDisponiveisFiltrados.length === 0 ? (
-                <div className="wa-muted">Nenhum atendente disponivel.</div>
-              ) : (
-                <div className="wa-tagsList">
-                  {atendentesDisponiveisFiltrados.map((u) => {
-                    const uid = Number(u.usuario_id ?? u.id);
-                    const busy = adicionarAtendenteLoadingId === uid;
-                    return (
-                      <button
-                        key={uid}
-                        type="button"
-                        className="wa-tagItem"
-                        onClick={() => handleAdicionarAtendente(uid)}
-                        disabled={adicionarAtendenteLoadingId != null}
-                        title={u.email || u.nome || "Atendente"}
-                      >
-                        <span>{u.nome || u.email || "Atendente"}</span>
-                        {u.perfil ? <span className="wa-muted"> {u.perfil}</span> : null}
-                        {busy ? " adicionando..." : ""}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-          </>
+        {atendentesModalOpen && !isGroup && (
+          <AtendentesModal
+            conversaId={conversaId}
+            participantes={atendentesParticipantes}
+            onClose={() => setAtendentesModalOpen(false)}
+            onParticipanteChange={reloadAtendentes}
+          />
         )}
 
         {!isGroup && podeGerenciarTags && tagsOpen && (
@@ -4473,6 +4454,7 @@ function ConversaViewBody() {
             reopenClosedBusy={reopenClosedBusy}
             onReopenClosed={handleReopenClosed}
             showContactOldSyncCta={showContactOldSyncCta}
+            showLidPhoneMissingHint={showLidPhoneMissingHint}
             contactOldSyncBusy={oldContactSyncBusy || loadingMore}
             onContactOldSync={handleCarregarMensagensAntigasContato}
             onLoadOlderMessagesClick={handleLoadOlderMessagesClick}
@@ -4720,6 +4702,8 @@ function ConversaViewBody() {
           onRecordingStateChange={handleRecordingStateChange}
           clearTyping={clearTyping}
           showToast={showToast}
+          podeAnotar={podeAnotar}
+          onSendInternalNote={handleAdicionarNotaInterna}
         />
 
         {/* ESC handler central */}

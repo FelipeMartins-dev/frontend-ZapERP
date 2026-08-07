@@ -3,7 +3,9 @@ import { shallow } from "zustand/shallow";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import {
   fetchChats,
+  fetchChatsPages,
   fetchMinhaFilaChatsCompleto,
+  CHAT_LIST_PRESERVE_MAX_PAGES,
   fetchChatCounts,
   getChatsPageMeta,
   abrirConversaCliente,
@@ -237,13 +239,18 @@ function mergeEmAtendimentoBackgroundRows(current, incoming, order, opts) {
   return mergeChatRowsPreservingCurrent(preserved, incoming, order);
 }
 
-function buildChatListPageState(data) {
+function buildChatListPageState(data, pagesLoaded = 1) {
   const meta = getChatsPageMeta(data);
+  const fromMeta = Number(meta?.pagesLoaded);
+  const safePages = Number.isFinite(fromMeta) && fromMeta > 0
+    ? Math.floor(fromMeta)
+    : Math.max(1, Math.floor(Number(pagesLoaded) || 1));
   return {
     hasMore: Boolean(meta?.hasMore && meta?.nextCursor),
     nextCursor: meta?.nextCursor || null,
     nextCursorId: meta?.nextCursorId ?? null,
     totalCount: meta?.totalCount ?? null,
+    pagesLoaded: safePages,
     loading: false,
     error: "",
   };
@@ -390,6 +397,8 @@ export default function ChatList() {
   const lastLoadFinishedAtRef = useRef(0);
   const loadSecondaryScheduleCancelRef = useRef(null);
   const lastListParamsRef = useRef(null);
+  /** Evita loop se várias páginas consecutivas vierem vazias após filtro in-memory. */
+  const emptyPageAdvanceRef = useRef(0);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -407,6 +416,7 @@ export default function ChatList() {
     nextCursor: null,
     nextCursorId: null,
     totalCount: null,
+    pagesLoaded: 1,
     loading: false,
     error: "",
   });
@@ -626,6 +636,7 @@ export default function ChatList() {
       nextCursor: null,
       nextCursorId: null,
       totalCount: null,
+      pagesLoaded: 1,
       loading: false,
       error: "",
     });
@@ -1132,9 +1143,28 @@ export default function ChatList() {
       const searchTerm = String(debouncedSearch || "").trim();
       const pageLimit = getChatListPageLimit(isMobileLayout);
       const includeAllForSearch = searchTerm ? "1" : undefined;
+      // B01: com termo, busca em toda a base visível (não prende à aba/chip de estado).
+      const searchBypassesTabFilters = Boolean(searchTerm);
 
       let params;
-      if (adminPorFuncionario) {
+      if (searchBypassesTabFilters) {
+        params = {
+          tag_id: tagFilter !== "todas" ? tagFilter : undefined,
+          departamento_id: departamentoFilter !== "todos" ? departamentoFilter : undefined,
+          data_inicio: dataInicio || undefined,
+          data_fim: dataFim || undefined,
+          palavra: searchTerm,
+          incluir_todos_clientes: includeAllForSearch,
+          limit: pageLimit,
+        };
+        if (adminPorFuncionario) {
+          const aid = Number(adminAtendenteFilterId);
+          params.atendente_id =
+            Number.isFinite(aid) && aid > 0 ? aid : adminAtendenteFilterId;
+        } else if (atendenteFilter !== "todos") {
+          params.atendente_id = atendenteFilter;
+        }
+      } else if (adminPorFuncionario) {
         /** Contrato API: `atendente_id` numérico (usuarios.id); omitir status_atendimento / minha_fila. */
         const aid = Number(adminAtendenteFilterId);
         const atendenteIdQuery =
@@ -1215,8 +1245,8 @@ export default function ChatList() {
         }
       }
 
-      if (tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
-      if (conversaIdsPendenciaQuery != null) {
+      if (!searchBypassesTabFilters && tempoParadoFilter) params.tempo_parado = tempoParadoFilter;
+      if (!searchBypassesTabFilters && conversaIdsPendenciaQuery != null) {
         params.conversa_ids = conversaIdsPendenciaQuery;
       }
       lastListParamsRef.current = { ...params };
@@ -1239,15 +1269,30 @@ export default function ChatList() {
           }
         }
       }
+      // Após "Carregar mais", resync/background não pode voltar só a 1ª página
+      // (isso fazia conversas antigas "sumirem" da lista).
+      const pagesLoadedTarget = Math.min(
+        CHAT_LIST_PRESERVE_MAX_PAGES,
+        Math.max(1, Number(chatListPageRef.current?.pagesLoaded) || 1)
+      );
       const data = minhaFilaTab
         ? await fetchMinhaFilaChatsCompleto(params, { signal: abortController.signal })
-        : await fetchChats(params, { signal: abortController.signal });
+        : pagesLoadedTarget > 1
+          ? await fetchChatsPages(params, {
+              signal: abortController.signal,
+              pageLimit,
+              maxPages: pagesLoadedTarget,
+            })
+          : await fetchChats(params, { signal: abortController.signal });
       if (requestId !== loadRequestIdRef.current) return;
       let list = Array.isArray(data) ? data : [];
       if (minhaFilaTab || TABS_HIDE_OPTIMISTIC_CLOSED.has(String(tabRef.current || ""))) {
         list = filterOptimisticRemovedMinhaFila(list);
       }
-      const pageState = buildChatListPageState(data);
+      const pageState = buildChatListPageState(
+        data,
+        minhaFilaTab ? 1 : pagesLoadedTarget
+      );
       setChatListPage(pageState);
       if (pageState.totalCount != null) {
         setActiveListTotalCount(pageState.totalCount);
@@ -1257,7 +1302,7 @@ export default function ChatList() {
       }
       // Desduplicar por id (conversas) ou por cliente_id (clientes sem conversa) — NÃO descartar itens com id null
       list = sortChatRowsByOrder(dedupeChatRowsByStableKey(list), order);
-      if (!adminPorFuncionario && tabRef.current === "minha_fila") {
+      if (!adminPorFuncionario && tabRef.current === "minha_fila" && !searchTerm) {
         setMinhaFilaList(list);
       }
       // Merge defensivo: nunca sobrescrever contato_nome/foto_perfil com undefined ou string vazia. Preserva chats locais não retornados pela API.
@@ -1447,7 +1492,11 @@ export default function ChatList() {
         list = list.filter((c) => String(c.atendente_id) === String(user.id));
       }
       list = sortChatRowsByOrder(dedupeChatRowsByStableKey(list), order);
-      setChatListPage(buildChatListPageState(data));
+      const nextPagesLoaded = Math.min(
+        CHAT_LIST_PRESERVE_MAX_PAGES,
+        Math.max(1, Number(page.pagesLoaded || 1) + 1)
+      );
+      setChatListPage(buildChatListPageState(data, nextPagesLoaded));
 
       if (!adminPorFuncionario && tabRef.current === "minha_fila") {
         setMinhaFilaList((prev) => {
@@ -1487,6 +1536,34 @@ export default function ChatList() {
     mensagensDisparadasCount,
     filterOptimisticRemovedMinhaFila,
     isMobileLayout,
+  ]);
+
+  // Página SQL filtrada ficou vazia mas ainda há has_more: avança sozinho (senão a lista parece “sumida”).
+  useEffect(() => {
+    if (tab === "minha_fila") {
+      emptyPageAdvanceRef.current = 0;
+      return;
+    }
+    if (listLoading || chatListPage.loading) return;
+    if (!chatListPage.hasMore || !chatListPage.nextCursor) {
+      emptyPageAdvanceRef.current = 0;
+      return;
+    }
+    if (hasListRows) {
+      emptyPageAdvanceRef.current = 0;
+      return;
+    }
+    if (emptyPageAdvanceRef.current >= 5) return;
+    emptyPageAdvanceRef.current += 1;
+    void handleLoadMoreChats();
+  }, [
+    tab,
+    listLoading,
+    hasListRows,
+    chatListPage.hasMore,
+    chatListPage.nextCursor,
+    chatListPage.loading,
+    handleLoadMoreChats,
   ]);
 
   useEffect(() => {

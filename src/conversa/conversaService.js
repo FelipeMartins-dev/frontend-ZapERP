@@ -311,6 +311,24 @@ export async function adicionarAtendenteConversa(conversaId, usuarioId) {
   return data;
 }
 
+export async function removerAtendenteConversa(conversaId, usuarioId) {
+  const uid = Number(usuarioId);
+  if (!Number.isFinite(uid) || uid <= 0) throw new Error("usuarioId inválido");
+  const { data } = await api.delete(`/chats/${conversaId}/atendentes/${uid}`);
+  return data;
+}
+
+export async function criarNotaInterna(conversaId, texto) {
+  const id = conversaId != null ? String(conversaId) : "";
+  if (!id) throw new Error("conversaId inválido");
+  const { data } = await api.post(`/chats/${id}/notas-internas`, { texto: String(texto || "").trim() }, {
+    timeout: 10_000,
+    skipGlobalNetworkToast: true,
+    skipGlobal500Toast: true,
+  });
+  return data;
+}
+
 /** Modo simples: remove da fila Aguardando atendente sem enviar mensagem. */
 export async function marcarLidaModoSimplesChat(conversaId) {
   const id = conversaId != null ? String(conversaId) : "";

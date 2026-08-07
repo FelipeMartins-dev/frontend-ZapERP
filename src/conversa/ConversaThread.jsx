@@ -62,6 +62,7 @@ function ConversaThread({
   reopenClosedBusy,
   onReopenClosed,
   showContactOldSyncCta,
+  showLidPhoneMissingHint = false,
   contactOldSyncBusy,
   onContactOldSync,
   onLoadOlderMessagesClick,
@@ -301,6 +302,9 @@ function ConversaThread({
             <Archive size={20} strokeWidth={2.25} />
           </span>
           <strong>{`Este atendimento foi assumido por ${atendenteNome}.`}</strong>
+          <p className="wa-messages-emptyHint" role="status">
+            O histórico fica oculto enquanto outro atendente conduz a conversa. Administradores e supervisores podem visualizar o conteúdo.
+          </p>
         </div>
       </div>
     );
@@ -321,7 +325,7 @@ function ConversaThread({
         {closedBanner}
         <div className="wa-messages-empty">
           <div className="wa-messages-emptyCard">
-            <p className="wa-messages-emptyText">Sem mensagens ainda.</p>
+            <p className="wa-messages-emptyText">Sem mensagens salvas ainda.</p>
             {showAssumeEmptyCta ? (
               <button
                 type="button"
@@ -338,9 +342,15 @@ function ConversaThread({
                 className="wa-btn wa-btn-secondary"
                 onClick={onContactOldSync}
                 disabled={contactOldSyncBusy}
+                title="Busca no WhatsApp conectado o histórico antigo deste contato e salva no sistema"
               >
-                {contactOldSyncBusy ? "Carregando..." : "Carregar mensagens antigas deste contato"}
+                {contactOldSyncBusy ? "Carregando..." : "Buscar histórico no WhatsApp"}
               </button>
+            ) : null}
+            {showLidPhoneMissingHint ? (
+              <p className="wa-messages-emptyHint" role="status">
+                Número ainda indisponível. Quando o telefone for identificado (mensagem do contato ou cliente vinculado), você poderá buscar o histórico no WhatsApp.
+              </p>
             ) : null}
           </div>
         </div>
@@ -360,10 +370,15 @@ function ConversaThread({
               onClick={onContactOldSync}
               disabled={contactOldSyncBusy}
               aria-busy={contactOldSyncBusy}
-              title="Busca no WhatsApp apenas mensagens antigas deste contato"
+              title="Busca no WhatsApp conectado o histórico antigo deste contato e salva no sistema"
             >
-              {contactOldSyncBusy ? "Carregando..." : "Carregar mensagens antigas deste contato"}
+              {contactOldSyncBusy ? "Carregando..." : "Buscar histórico no WhatsApp"}
             </button>
+          ) : null}
+          {showLidPhoneMissingHint ? (
+            <p className="wa-loadOlderEnd" role="status">
+              Número ainda indisponível para buscar histórico no WhatsApp.
+            </p>
           ) : null}
           {hasMore && cursor ? (
             <button
@@ -372,14 +387,16 @@ function ConversaThread({
               onClick={onLoadOlderMessagesClick}
               disabled={loadingMore}
               aria-busy={loadingMore}
-              title="Carrega o lote anterior de mensagens. Também pode rolar até ao topo da conversa."
-              aria-label={loadingMore ? "Carregando mensagens antigas" : "Carregar mensagens antigas"}
+              title="Carrega o lote anterior já salvo no sistema. Também pode rolar até o topo da conversa."
+              aria-label={loadingMore ? "Carregando mensagens salvas" : "Carregar mensagens salvas"}
             >
-              Carregar mensagens antigas
+              Carregar mensagens salvas
             </button>
           ) : !hasMore ? (
             <p className="wa-loadOlderEnd" role="status">
-              Todas as mensagens salvas foram carregadas
+              {showContactOldSyncCta
+                ? "Todas as mensagens salvas foram carregadas. Use “Buscar histórico no WhatsApp” para importar mensagens anteriores à conexão."
+                : "Todas as mensagens salvas foram carregadas."}
             </p>
           ) : null}
         </div>

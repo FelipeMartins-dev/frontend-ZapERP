@@ -1,5 +1,5 @@
 /**
- * Trava de avatar no card — não alternar URLs no mesmo conversa_id.
+ * Trava de avatar no card — anti-flicker contra null; aceita URL nova (foto atualizada).
  * Run: node --import ./scripts/vite-env-shim.mjs scripts/test-lock-card-avatar.mjs
  */
 
@@ -16,13 +16,13 @@ let locked = { identity: null, url: null }
 locked = lockCardAvatarUrl(locked, "conv:1", "https://cdn/atual.jpg")
 assert(locked.url === "https://cdn/atual.jpg", "primeira url")
 
-locked = lockCardAvatarUrl(locked, "conv:1", "https://cdn/antiga.jpg")
-assert(locked.url === "https://cdn/atual.jpg", "mantém atual — ignora antiga")
-
 locked = lockCardAvatarUrl(locked, "conv:1", null)
 assert(locked.url === "https://cdn/atual.jpg", "mantém se incoming null")
 
-locked = lockCardAvatarUrl(locked, "conv:2", "https://cdn/outro.jpg")
-assert(locked.url === "https://cdn/outro.jpg", "troca só se mudar conversa")
+locked = lockCardAvatarUrl(locked, "conv:1", "https://cdn/nova.jpg")
+assert(locked.url === "https://cdn/nova.jpg", "aceita URL nova (foto atualizada)")
 
-console.log("ok: lockCardAvatarUrl (anti-pulo no card)")
+locked = lockCardAvatarUrl(locked, "conv:2", "https://cdn/outro.jpg")
+assert(locked.url === "https://cdn/outro.jpg", "troca se mudar conversa")
+
+console.log("ok: lockCardAvatarUrl (anti-null + refresh)")

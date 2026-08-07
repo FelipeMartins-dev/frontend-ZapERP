@@ -41,6 +41,8 @@ import {
   loadComposerDraft,
   saveComposerDraft,
 } from "./composerDraftStore";
+import { INTERNAL_NOTE_MAX_LEN } from "./internalNote";
+import { IconNote as TablerNote, IconEyeOff as TablerEyeOff } from "@tabler/icons-react";
 
 const WA_INPUT_MAX_HEIGHT_PX = 160;
 const COMPOSER_DRAFT_SAVE_MS = 220;
@@ -211,6 +213,8 @@ function composerPropsAreEqual(prev, next) {
   if (prev.mensagensBloqueadasHint !== next.mensagensBloqueadasHint) return false;
   if (prev.atendimentoEncerradoHint !== next.atendimentoEncerradoHint) return false;
   if (prev.atendenteNomeHint !== next.atendenteNomeHint) return false;
+  if (prev.podeAnotar !== next.podeAnotar) return false;
+  if (prev.onSendInternalNote !== next.onSendInternalNote) return false;
   const pr = prev.replyBarPreview;
   const nr = next.replyBarPreview;
   if (pr !== nr) {
@@ -267,6 +271,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     showScrollToRecent = false,
     onScrollToRecent,
     onRecordingStateChange,
+    podeAnotar = false,
+    onSendInternalNote,
   },
   ref
 ) {
@@ -293,6 +299,8 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [cameraCaptureOpen, setCameraCaptureOpen] = useState(false);
+  const [notaInternaAtiva, setNotaInternaAtiva] = useState(false);
+  const draftDoOutroModoRef = useRef("");
   const [cameraCaptureStarting, setCameraCaptureStarting] = useState(false);
   const [cameraCaptureError, setCameraCaptureError] = useState("");
 
@@ -340,6 +348,29 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   useEffect(() => {
     textoRef.current = texto;
   }, [texto]);
+
+  // Reset modo nota quando troca de conversa
+  useEffect(() => {
+    setNotaInternaAtiva(false);
+    draftDoOutroModoRef.current = "";
+  }, [conversaId]);
+
+  // Se permissão for removida enquanto no modo nota, volta para modo normal
+  useEffect(() => {
+    if (!podeAnotar && notaInternaAtiva) {
+      setNotaInternaAtiva(false);
+      draftDoOutroModoRef.current = "";
+    }
+  }, [podeAnotar, notaInternaAtiva]);
+
+  const toggleNotaInterna = useCallback(() => {
+    // Troca de gaveta: salva rascunho atual, restaura o do outro modo
+    const currentTexto = String(textoRef.current || "");
+    const savedOther = draftDoOutroModoRef.current;
+    draftDoOutroModoRef.current = currentTexto;
+    setTexto(savedOther);
+    setNotaInternaAtiva((prev) => !prev);
+  }, []);
 
   const normalizeAutoWord = useCallback((value) => String(value || "").toLowerCase(), []);
 
@@ -426,9 +457,10 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const emitTypingStart = useCallback(() => {
     if (!conversaId) return;
+    if (notaInternaAtiva) return;
     const socket = getSocket();
     if (socket?.connected) socket.emit("typing_start", { conversa_id: conversaId });
-  }, [conversaId]);
+  }, [conversaId, notaInternaAtiva]);
 
   const closeSavedReplies = useCallback(() => {
     slashCtxRef.current = null;
@@ -1008,9 +1040,21 @@ const ConversaComposer = forwardRef(function ConversaComposer(
 
   const handleSendFromComposer = useCallback(
     (textToSend) => {
-      if (!conversaId || !podeEnviar) return;
+      if (!conversaId) return;
       const t = safeString(textToSend).trim();
       if (!t) return;
+
+      if (notaInternaAtiva) {
+        if (!onSendInternalNote) return;
+        if (sendLockedRef.current === t) return;
+        sendLockedRef.current = t;
+        setTexto("");
+        draftDoOutroModoRef.current = "";
+        onSendInternalNote(t);
+        return;
+      }
+
+      if (!podeEnviar) return;
       // O mesmo texto ainda travado é o mesmo gesto duplicado. Um novo rascunho libera
       // a trava no efeito acima, mesmo que o POST anterior continue em andamento.
       if (sendLockedRef.current === t) return;
@@ -1020,7 +1064,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       setTexto("");
       onSendMessage?.(t);
     },
-    [conversaId, onSendMessage, podeEnviar, resetAutocorrectTracking]
+    [conversaId, notaInternaAtiva, onSendInternalNote, onSendMessage, podeEnviar, resetAutocorrectTracking]
   );
 
   const insertSavedReply = useCallback(
@@ -1170,6 +1214,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
   const handlePaste = useCallback(
     (e) => {
       if (!conversaId) return;
+      if (notaInternaAtiva) return;
       const dt = e.clipboardData;
       if (!dt) return;
 
@@ -1190,7 +1235,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         onPasteImageFile?.(pickedFile);
       }
     },
-    [conversaId, onPasteImageFile]
+    [conversaId, notaInternaAtiva, onPasteImageFile]
   );
 
   const openNativeCameraFallback = useCallback(() => {
@@ -1619,7 +1664,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     : atendimentoEncerradoHint
       ? "Reabra o atendimento para enviar mensagens"
       : mensagensBloqueadasHint
-        ? "Este atendimento foi assumido por outro usuário."
+        ? "Histórico oculto: atendimento assumido por outro usuário."
         : "Assuma esta conversa para responder";
 
   const inputAriaLabel = autoAssumirHint
@@ -1631,7 +1676,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     : atendimentoEncerradoHint
       ? "Reabra o atendimento para enviar mensagens."
       : mensagensBloqueadasHint
-        ? "Este atendimento foi assumido por outro usuário. Você não pode enviar mensagens."
+        ? "Histórico oculto: este atendimento foi assumido por outro usuário. Você não pode ver nem enviar mensagens."
         : "Assuma esta conversa para responder.";
 
   const footerHint = autoAssumirHint
@@ -1640,7 +1685,7 @@ const ConversaComposer = forwardRef(function ConversaComposer(
       ? atendimentoEncerradoHint
       ? "Reabra o atendimento para enviar mensagens"
       : mensagensBloqueadasHint
-        ? `Este atendimento foi assumido por ${atendenteNomeHint?.trim() ? atendenteNomeHint : "outro usuário"}.`
+        ? `Histórico oculto — atendimento com ${atendenteNomeHint?.trim() ? atendenteNomeHint : "outro usuário"}. Admin/supervisor podem visualizar.`
         : "Assuma esta conversa para enviar mensagens"
     : null;
 
@@ -1933,12 +1978,36 @@ const ConversaComposer = forwardRef(function ConversaComposer(
         </div>
       ) : null}
 
+      {/* Barra de alternância de modo (mensagem / nota interna) */}
+      {podeAnotar && !isRecording ? (
+        <div className="wa-composerModeBar">
+          <button
+            type="button"
+            className={`wa-composerMode wa-composerMode--mensagem${!notaInternaAtiva ? " isActive" : ""}`}
+            onClick={() => notaInternaAtiva && toggleNotaInterna()}
+            aria-pressed={!notaInternaAtiva}
+          >
+            Mensagem
+          </button>
+          <button
+            type="button"
+            className={`wa-composerMode wa-composerMode--nota${notaInternaAtiva ? " isActive" : ""}`}
+            onClick={() => !notaInternaAtiva && toggleNotaInterna()}
+            aria-pressed={notaInternaAtiva}
+            title="Nota visível apenas para a equipe — não chega ao cliente"
+          >
+            <TablerNote size={13} strokeWidth={2.2} />
+            Nota interna
+          </button>
+        </div>
+      ) : null}
+
       {/*
         Linha de digitação SEMPRE montada: durante a gravação a barra de áudio apenas SOBREPÕE
         (overlay absoluto) esta linha, sem desmontar o textarea. Assim o textarea mantém o foco e
         o teclado permanece aberto no mobile — a altura da viewport não muda e não há "pulo" visual.
       */}
-      <div className={`wa-footer ${isRecording ? "wa-footer--recording" : ""}`}>
+      <div className={`wa-footer ${isRecording ? "wa-footer--recording" : ""} ${notaInternaAtiva ? "wa-footer--nota" : ""}`}>
             {composerFooterHint && !isRecording ? (
               <div className="wa-footer-hint" role="status">
                 {composerFooterHint}
@@ -2084,16 +2153,17 @@ const ConversaComposer = forwardRef(function ConversaComposer(
               onChange={handleInputChange}
               onBlur={emitTypingStop}
               onPaste={handlePaste}
-              placeholder={composerPlaceholderText}
-              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""} ${atendimentoEncerradoHint && !podeEnviar ? "wa-input--closedAttendance" : ""}`}
+              placeholder={notaInternaAtiva ? "Escreva uma nota interna (visível apenas para a equipe)…" : composerPlaceholderText}
+              className={`wa-input ${autoCorrectFlash ? "wa-input--autocorrect-flash" : ""} ${atendimentoEncerradoHint && !podeEnviar ? "wa-input--closedAttendance" : ""} ${notaInternaAtiva ? "wa-input--nota" : ""}`}
               onKeyDown={handleKeyDownInput}
-              disabled={!conversaId || !podeEnviar}
-              aria-label={composerInputAriaLabel}
+              disabled={notaInternaAtiva ? !conversaId : (!conversaId || !podeEnviar)}
+              aria-label={notaInternaAtiva ? "Escrever nota interna" : composerInputAriaLabel}
               rows={1}
               enterKeyHint={composerEnterInsertsNewline ? "enter" : "send"}
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
+              maxLength={notaInternaAtiva ? INTERNAL_NOTE_MAX_LEN : undefined}
             />
 
             {!headerCompact ? (
@@ -2130,7 +2200,19 @@ const ConversaComposer = forwardRef(function ConversaComposer(
             ) : null}
 
             <div className="wa-footer-right">
-              {headerCompact ? (
+              {notaInternaAtiva ? (
+                <button
+                  type="button"
+                  onMouseDown={(e) => { if (e.button !== 0) return; e.preventDefault(); }}
+                  onClick={() => handleSendFromComposer(texto)}
+                  disabled={!hasDraft || !conversaId}
+                  className="wa-sendBtn wa-sendBtn--nota"
+                  title="Adicionar nota interna"
+                  aria-label="Adicionar nota interna"
+                >
+                  <TablerNote size={18} strokeWidth={2} />
+                </button>
+              ) : headerCompact ? (
                 hasDraft ? (
                   <button
                     type="button"

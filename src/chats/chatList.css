@@ -1160,6 +1160,12 @@ html:not([data-theme="dark"]) .chat-list-chips--secondary .admin-atendente-filte
   text-align: center;
 }
 
+.chat-list-load-more-sentinel {
+  width: 100%;
+  height: 1px;
+  pointer-events: none;
+}
+
 .chat-list-rows--virtual {
   display: block;
   width: 100%;
