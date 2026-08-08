@@ -3910,10 +3910,12 @@ function ConversaViewBody() {
       try {
         await criarNotaInterna(conversaId, texto);
       } catch (e) {
+        const dbg = e?.response?.data;
+        console.error("[notaInterna] 500 debug:", dbg);
         showToast({
           type: "error",
           title: "Erro ao salvar nota",
-          message: e?.response?.data?.error || "Tente novamente.",
+          message: dbg?._debug || dbg?.error || "Tente novamente.",
         });
       }
     },
