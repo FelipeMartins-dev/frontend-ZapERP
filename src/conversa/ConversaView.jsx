@@ -653,7 +653,11 @@ function ConversaViewBody() {
     !isGroup &&
     !isClosedAttendance(conversa);
 
-  const podeVerAtendentes = podeAdicionarAtendente;
+  // Ver atendentes: visível mesmo quando conversa encerrada (para consultar participantes)
+  const podeVerAtendentes =
+    ["admin", "supervisor", "atendente"].includes(userRole) &&
+    !!conversaId &&
+    !isGroup;
   const podeAnotar = !isGroup && !!conversaId && canNotaInterna(user);
 
   // Hook de participantes — re-carrega quando o responsável muda (cobre "Assumir")
@@ -4279,6 +4283,7 @@ function ConversaViewBody() {
           <AtendentesModal
             conversaId={conversaId}
             participantes={atendentesParticipantes}
+            podeAdicionar={podeAdicionarAtendente}
             onClose={() => setAtendentesModalOpen(false)}
             onParticipanteChange={reloadAtendentes}
           />

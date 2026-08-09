@@ -13986,50 +13986,15 @@ html:not([data-theme="dark"]) .wa-sendBtn:hover:not(:disabled) {
 :root[data-theme="dark"] .wa-internalNote-body { color: #fef3c7; }
 
 /* ==========================================================================
-   COMPOSER MODO NOTA INTERNA — barra de alternância + textarea âmbar
+   COMPOSER MODO NOTA INTERNA — footer âmbar + split-send-button
    ========================================================================== */
 
-.wa-composerModeBar {
-  display: flex;
-  gap: 6px;
-  padding: 6px 12px 0;
-  border-top: 1px solid var(--wa-border, #e5e7eb);
-}
-
-.wa-composerMode {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--wa-border, #e5e7eb);
-  background: transparent;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--wa-text-muted, #6b7280);
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.wa-composerMode:hover {
-  background: var(--wa-surface-hover, #f3f4f6);
-}
-.wa-composerMode--mensagem.isActive {
-  background: var(--wa-primary-light, #ede9fe);
-  border-color: var(--wa-primary, #7c3aed);
-  color: var(--wa-primary, #7c3aed);
-  font-weight: 600;
-}
-.wa-composerMode--nota.isActive {
-  background: rgba(251, 191, 36, 0.15);
-  border-color: #f59e0b;
-  color: #b45309;
-  font-weight: 600;
-}
-
+/* Footer âmbar quando nota ativa */
 .wa-footer--nota {
   background: rgba(254, 243, 199, 0.4);
 }
 
+/* Textarea âmbar */
 .wa-input--nota {
   background: rgba(254, 243, 199, 0.35) !important;
   border-color: rgba(245, 158, 11, 0.4) !important;
@@ -14040,33 +14005,209 @@ html:not([data-theme="dark"]) .wa-sendBtn:hover:not(:disabled) {
   opacity: 0.7;
 }
 
+/* Botão de envio nota — âmbar */
 .wa-sendBtn--nota {
   background: #f59e0b !important;
   color: #fff !important;
+  box-shadow: 0 4px 14px -4px rgba(245,158,11,0.55) !important;
 }
 .wa-sendBtn--nota:hover:not(:disabled) {
   background: #d97706 !important;
+  transform: scale(1.04) !important;
 }
 
+/* ---- Split send group ---- */
+.wa-sendGroup {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+/* Chevron para abrir o mode picker — botão pequeno abaixo/ao lado do send */
+.wa-sendGroup-chevron {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ds-border);
+  background: var(--ds-surface-2, var(--ds-surface-1));
+  color: var(--wa-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
+  margin-bottom: 12px;
+}
+.wa-sendGroup-chevron:hover {
+  background: var(--ds-hover);
+  border-color: var(--ds-accent-muted, var(--ds-border));
+  color: var(--wa-text);
+  transform: translateY(-1px);
+}
+.wa-sendGroup-chevron.isOpen {
+  background: var(--ds-accent-soft);
+  border-color: var(--ds-accent);
+  color: var(--wa-green);
+  transform: none;
+}
+.wa-sendGroup-chevron svg {
+  transition: transform 0.2s cubic-bezier(0.16,1,0.3,1);
+}
+.wa-sendGroup-chevron.isOpen svg {
+  transform: rotate(180deg);
+}
+
+/* Chevron âmbar quando nota ativa */
+.wa-sendGroup-chevron--nota {
+  border-color: rgba(245,158,11,0.45);
+  color: #b45309;
+}
+.wa-sendGroup-chevron--nota:hover {
+  background: rgba(254,243,199,0.55);
+  border-color: #f59e0b;
+  color: #92400e;
+}
+.wa-sendGroup-chevron--nota.isOpen {
+  background: rgba(251,191,36,0.18);
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+/* ---- Mode picker dropdown ---- */
+.wa-modePicker {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 210px;
+  background: var(--ds-surface-1);
+  border: 1px solid var(--ds-border);
+  border-radius: 14px;
+  box-shadow:
+    0 8px 30px -6px rgba(0,0,0,0.20),
+    0 2px 8px -3px rgba(0,0,0,0.10);
+  overflow: hidden;
+  z-index: 60;
+  animation: waModePicker-in 0.16s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+@keyframes waModePicker-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.wa-modePicker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--wa-text);
+  text-align: left;
+  transition: background 0.1s;
+  user-select: none;
+}
+.wa-modePicker-item:hover {
+  background: var(--ds-hover);
+}
+.wa-modePicker-item.isActive {
+  background: var(--ds-accent-soft);
+  color: var(--wa-green);
+  font-weight: 600;
+}
+.wa-modePicker-item + .wa-modePicker-item {
+  border-top: 1px solid var(--ds-border);
+}
+
+/* Nota option */
+.wa-modePicker-item--nota.isActive {
+  background: rgba(254,243,199,0.55);
+  color: #92400e;
+  font-weight: 600;
+}
+
+/* Label secundário dentro do item */
+.wa-modePicker-itemSub {
+  font-size: 11px;
+  color: var(--wa-text-muted);
+  font-weight: 400;
+  margin-top: 1px;
+  display: block;
+}
+
+/* Badge "NOTA" no footer quando modo ativo (entre mic e sendGroup) */
+.wa-notaBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: rgba(251,191,36,0.18);
+  border: 1px solid rgba(245,158,11,0.4);
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  align-self: center;
+}
+
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
   .wa-footer--nota {
-    background: rgba(120, 53, 15, 0.15);
+    background: rgba(120,53,15,0.15);
   }
   .wa-input--nota {
-    background: rgba(120, 53, 15, 0.25) !important;
+    background: rgba(120,53,15,0.25) !important;
     color: #fef3c7 !important;
-    border-color: rgba(245, 158, 11, 0.35) !important;
-  }
-  .wa-composerMode--nota.isActive {
-    background: rgba(120, 53, 15, 0.25);
-    border-color: #d97706;
-    color: #fbbf24;
+    border-color: rgba(245,158,11,0.35) !important;
   }
 }
 :root[data-theme="dark"] .wa-input--nota {
-  background: rgba(120, 53, 15, 0.25) !important;
+  background: rgba(120,53,15,0.25) !important;
   color: #fef3c7 !important;
 }
 :root[data-theme="dark"] .wa-footer--nota {
-  background: rgba(120, 53, 15, 0.15);
+  background: rgba(120,53,15,0.15);
+}
+:root[data-theme="dark"] .wa-modePicker {
+  background: var(--zaperp-card-bg, #1e293b);
+  border-color: var(--zaperp-border, rgba(255,255,255,0.08));
+  box-shadow: 0 12px 40px -8px rgba(0,0,0,0.5);
+}
+:root[data-theme="dark"] .wa-modePicker-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+:root[data-theme="dark"] .wa-modePicker-item.isActive {
+  background: rgba(0,168,132,0.12);
+}
+:root[data-theme="dark"] .wa-modePicker-item--nota.isActive {
+  background: rgba(120,53,15,0.28);
+  color: #fbbf24;
+}
+:root[data-theme="dark"] .wa-notaBadge {
+  background: rgba(120,53,15,0.25);
+  border-color: rgba(245,158,11,0.35);
+  color: #fbbf24;
+}
+:root[data-theme="dark"] .wa-sendGroup-chevron {
+  background: var(--zaperp-card-bg, #1e293b);
+  border-color: var(--zaperp-border, rgba(255,255,255,0.1));
+  color: var(--wa-text-muted);
+}
+:root[data-theme="dark"] .wa-sendGroup-chevron:hover {
+  background: rgba(255,255,255,0.08);
+}
+:root[data-theme="dark"] .wa-sendGroup-chevron--nota {
+  border-color: rgba(245,158,11,0.4);
+  color: #fbbf24;
 }

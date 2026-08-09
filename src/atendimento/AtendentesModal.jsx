@@ -49,7 +49,7 @@ function ParticipanteRow({ p, onRemove, removendo }) {
   );
 }
 
-export default function AtendentesModal({ conversaId, participantes, onClose, onParticipanteChange }) {
+export default function AtendentesModal({ conversaId, participantes, podeAdicionar = true, onClose, onParticipanteChange }) {
   const [disponiveis, setDisponiveis] = useState([]);
   const [loadingDisponiveis, setLoadingDisponiveis] = useState(false);
   const [busca, setBusca] = useState("");
@@ -180,44 +180,54 @@ export default function AtendentesModal({ conversaId, participantes, onClose, on
             <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 8 }}>{erro}</div>
           ) : null}
 
-          {/* Adicionar co-atendente — só disponível quando há responsável */}
-          {principal ? (
+          {/* Adicionar co-atendente — só disponível quando há responsável e permissão */}
+          {podeAdicionar && principal ? (
             <div className="wa-atendentes-addSection">
               <div className="wa-atendentesSection-label">Adicionar co-atendente</div>
               <div className="wa-atendentes-searchWrap">
                 <input
                   type="search"
                   className="wa-atendentes-searchInput"
-                  placeholder="Buscar atendente…"
+                  placeholder="Buscar pelo nome do atendente…"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   autoComplete="off"
+                  autoFocus
                 />
               </div>
               {loadingDisponiveis ? (
                 <div className="wa-atendentes-loadingList">Carregando…</div>
               ) : disponiveisFiltrados.length === 0 ? (
                 <div className="wa-atendentes-noResults">
-                  {busca ? "Nenhum resultado" : "Todos os atendentes já participam"}
+                  {busca ? "Nenhum resultado para a busca" : "Todos os atendentes já participam"}
                 </div>
               ) : (
                 disponiveisFiltrados.map((u) => (
                   <div key={u.id} className="wa-atendentes-disponivel">
-                    <div className="wa-participante-avatar" style={{ width: 30, height: 30, fontSize: 12 }}>
+                    <div className="wa-participante-avatar" style={{ width: 32, height: 32, fontSize: 12 }}>
                       {initials(u.nome)}
                     </div>
-                    <div className="wa-atendentes-disponivel-nome">{u.nome || u.email}</div>
+                    <div className="wa-atendentes-disponivel-info">
+                      <span className="wa-atendentes-disponivel-nome">{u.nome || u.email}</span>
+                      {u.perfil && <span className="wa-atendentes-disponivel-perfil">{u.perfil}</span>}
+                    </div>
                     <button
                       type="button"
                       className="wa-atendentes-adicionarBtn"
                       onClick={() => handleAdicionar(u.id)}
                       disabled={adicionando === u.id}
                     >
-                      {adicionando === u.id ? "…" : "+ Adicionar"}
+                      {adicionando === u.id ? "Adicionando…" : "Adicionar"}
                     </button>
                   </div>
                 ))
               )}
+            </div>
+          ) : podeAdicionar && !principal ? (
+            <div className="wa-atendentes-addSection">
+              <div className="wa-atendentes-hint">
+                Assuma a conversa antes de adicionar co-atendentes.
+              </div>
             </div>
           ) : null}
         </div>
