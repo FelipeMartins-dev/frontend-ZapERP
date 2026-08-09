@@ -1570,9 +1570,13 @@ const ConversaComposer = forwardRef(function ConversaComposer(
           if (meta.error === "decode_error") {
             console.warn("[audio] <audio> não decodificou a gravação; usando duração medida e enviando mesmo assim.");
           }
-          const durationMs = Number.isFinite(meta.durationSec)
-            ? Math.round(meta.durationSec * 1000)
-            : elapsedMs;
+          // Se o browser reportar duração muito maior que o tempo real de gravação
+          // (WebM sem Duration → estimativa errada do container), usa o relógio de parede.
+          const rawDurationMs = Number.isFinite(meta.durationSec) ? Math.round(meta.durationSec * 1000) : null;
+          const durationMs =
+            rawDurationMs !== null && rawDurationMs <= elapsedMs * 2 + 5000
+              ? rawDurationMs
+              : elapsedMs;
           if (Number.isFinite(durationMs) && durationMs < RECORDED_AUDIO_MIN_MS) {
             showToast?.({
               type: "warning",
@@ -2204,197 +2208,135 @@ const ConversaComposer = forwardRef(function ConversaComposer(
             ) : null}
 
             <div className="wa-footer-right">
-              {notaInternaAtiva ? (
-                /* ── MODO NOTA: botão nota + chevron ── */
-                <div className="wa-sendGroup" ref={modePickerRef}>
-                  {podeAnotar && modePickerOpen && (
-                    <div className="wa-modePicker" role="menu">
-                      <button
-                        type="button"
-                        className="wa-modePicker-item isActive"
-                        onClick={() => { setModePickerOpen(false); }}
-                      >
-                        <TablerNote size={16} strokeWidth={2} style={{ color: "#f59e0b", flexShrink: 0 }} />
-                        <span>
-                          Nota interna
-                          <span className="wa-modePicker-itemSub">Visível só para a equipe</span>
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="wa-modePicker-item"
-                        onClick={() => { toggleNotaInterna(); setModePickerOpen(false); }}
-                      >
-                        <IconSend size={16} style={{ color: "var(--wa-green)", flexShrink: 0 }} />
-                        <span>
-                          Mensagem para cliente
-                          <span className="wa-modePicker-itemSub">Enviada pelo WhatsApp</span>
-                        </span>
-                      </button>
-                    </div>
-                  )}
+              {/* Microfone — quando não há texto (compact) ou sempre (non-compact sem nota) */}
+              {!notaInternaAtiva && (headerCompact ? !hasDraft : true) ? (
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={handleStartRecording}
+                  disabled={!conversaId || !podeEnviar}
+                  className="wa-micBtn"
+                  title="Gravar áudio"
+                  type="button"
+                  aria-label="Gravar áudio"
+                >
+                  <IconMic />
+                </button>
+              ) : null}
+
+              {/* Botão de envio — pill split quando podeAnotar, circular quando não */}
+              {(notaInternaAtiva || (headerCompact ? hasDraft : true)) ? (
+                podeAnotar ? (
+                  /* ── SPLIT PILL ── */
+                  <div
+                    className={`wa-sendSplit${notaInternaAtiva ? " wa-sendSplit--nota" : ""}`}
+                    ref={modePickerRef}
+                  >
+                    {/* Dropdown de modo */}
+                    {modePickerOpen && (
+                      <div className="wa-modePicker" role="menu">
+                        {notaInternaAtiva ? (
+                          <>
+                            <button
+                              type="button"
+                              className="wa-modePicker-item wa-modePicker-item--nota isActive"
+                              onClick={() => setModePickerOpen(false)}
+                            >
+                              <TablerNote size={16} strokeWidth={2} style={{ color: "#f59e0b", flexShrink: 0 }} />
+                              <span>
+                                Nota interna
+                                <span className="wa-modePicker-itemSub">Visível só para a equipe</span>
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className="wa-modePicker-item"
+                              onClick={() => { toggleNotaInterna(); setModePickerOpen(false); }}
+                            >
+                              <IconSend size={16} style={{ color: "var(--wa-green)", flexShrink: 0 }} />
+                              <span>
+                                Mensagem para cliente
+                                <span className="wa-modePicker-itemSub">Enviada pelo WhatsApp</span>
+                              </span>
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="wa-modePicker-item isActive"
+                              onClick={() => setModePickerOpen(false)}
+                            >
+                              <IconSend size={16} style={{ color: "var(--wa-green)", flexShrink: 0 }} />
+                              <span>
+                                Mensagem para cliente
+                                <span className="wa-modePicker-itemSub">Enviada pelo WhatsApp</span>
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className="wa-modePicker-item wa-modePicker-item--nota"
+                              onClick={() => { toggleNotaInterna(); setModePickerOpen(false); }}
+                            >
+                              <TablerNote size={16} strokeWidth={2} style={{ color: "#f59e0b", flexShrink: 0 }} />
+                              <span>
+                                Nota interna
+                                <span className="wa-modePicker-itemSub">Visível só para a equipe</span>
+                              </span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Ação principal */}
+                    <button
+                      type="button"
+                      className="wa-sendSplit-main"
+                      onMouseDown={(e) => { if (e.button !== 0) return; e.preventDefault(); }}
+                      onClick={() => handleSendFromComposer(texto)}
+                      disabled={!hasDraft || !conversaId || (!notaInternaAtiva && !podeEnviar)}
+                      title={notaInternaAtiva ? "Salvar nota interna" : "Enviar mensagem"}
+                      aria-label={notaInternaAtiva ? "Salvar nota interna" : "Enviar mensagem"}
+                    >
+                      {notaInternaAtiva
+                        ? <TablerNote size={18} strokeWidth={2} />
+                        : <IconSend />
+                      }
+                    </button>
+
+                    {/* Divisor */}
+                    <span className="wa-sendSplit-divider" aria-hidden="true" />
+
+                    {/* Seta / chevron */}
+                    <button
+                      type="button"
+                      className={`wa-sendSplit-arrow${modePickerOpen ? " isOpen" : ""}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setModePickerOpen((v) => !v)}
+                      title="Mudar modo de envio"
+                      aria-label="Selecionar modo de envio"
+                      aria-expanded={modePickerOpen}
+                      aria-haspopup="true"
+                    >
+                      <IconChevronUp size={12} strokeWidth={2.8} />
+                    </button>
+                  </div>
+                ) : (
+                  /* ── BOTÃO CIRCULAR SIMPLES (sem permissão de nota) ── */
                   <button
                     type="button"
                     onMouseDown={(e) => { if (e.button !== 0) return; e.preventDefault(); }}
                     onClick={() => handleSendFromComposer(texto)}
-                    disabled={!hasDraft || !conversaId}
-                    className="wa-sendBtn wa-sendBtn--nota"
-                    title="Salvar nota interna"
-                    aria-label="Salvar nota interna"
+                    disabled={!hasDraft || !conversaId || !podeEnviar}
+                    className="wa-sendBtn"
+                    title="Enviar"
+                    aria-label="Enviar mensagem"
                   >
-                    <TablerNote size={18} strokeWidth={2} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`wa-sendGroup-chevron wa-sendGroup-chevron--nota${modePickerOpen ? " isOpen" : ""}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setModePickerOpen((v) => !v)}
-                    title="Mudar modo de envio"
-                    aria-label="Selecionar modo de envio"
-                    aria-expanded={modePickerOpen}
-                  >
-                    <IconChevronUp size={11} strokeWidth={2.8} />
-                  </button>
-                </div>
-              ) : headerCompact ? (
-                hasDraft ? (
-                  /* ── COMPACT COM TEXTO: botão envio + chevron ── */
-                  <div className="wa-sendGroup" ref={modePickerRef}>
-                    {podeAnotar && modePickerOpen && (
-                      <div className="wa-modePicker" role="menu">
-                        <button
-                          type="button"
-                          className="wa-modePicker-item isActive"
-                          onClick={() => { setModePickerOpen(false); }}
-                        >
-                          <IconSend size={16} style={{ color: "var(--wa-green)", flexShrink: 0 }} />
-                          <span>
-                            Mensagem para cliente
-                            <span className="wa-modePicker-itemSub">Enviada pelo WhatsApp</span>
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="wa-modePicker-item wa-modePicker-item--nota"
-                          onClick={() => { toggleNotaInterna(); setModePickerOpen(false); }}
-                        >
-                          <TablerNote size={16} strokeWidth={2} style={{ color: "#f59e0b", flexShrink: 0 }} />
-                          <span>
-                            Nota interna
-                            <span className="wa-modePicker-itemSub">Visível só para a equipe</span>
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onMouseDown={(e) => { if (e.button !== 0) return; e.preventDefault(); }}
-                      onClick={() => handleSendFromComposer(texto)}
-                      disabled={!hasDraft || !conversaId || !podeEnviar}
-                      className="wa-sendBtn"
-                      title="Enviar"
-                      aria-label="Enviar mensagem"
-                    >
-                      <IconSend />
-                    </button>
-                    {podeAnotar && (
-                      <button
-                        type="button"
-                        className={`wa-sendGroup-chevron${modePickerOpen ? " isOpen" : ""}`}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setModePickerOpen((v) => !v)}
-                        title="Mudar modo de envio"
-                        aria-label="Selecionar modo de envio"
-                        aria-expanded={modePickerOpen}
-                      >
-                        <IconChevronUp size={11} strokeWidth={2.8} />
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  /* ── COMPACT SEM TEXTO: só microfone ── */
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onPointerDown={(e) => e.preventDefault()}
-                    onClick={handleStartRecording}
-                    disabled={!conversaId || !podeEnviar}
-                    className="wa-micBtn"
-                    title="Gravar áudio"
-                    type="button"
-                    aria-label="Gravar áudio"
-                  >
-                    <IconMic />
+                    <IconSend />
                   </button>
                 )
-              ) : (
-                /* ── FULL (mic + send group) ── */
-                <>
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onPointerDown={(e) => e.preventDefault()}
-                    onClick={handleStartRecording}
-                    disabled={!conversaId || !podeEnviar}
-                    className="wa-micBtn"
-                    title="Gravar áudio"
-                    type="button"
-                    aria-label="Gravar áudio"
-                  >
-                    <IconMic />
-                  </button>
-                  <div className="wa-sendGroup" ref={modePickerRef}>
-                    {podeAnotar && modePickerOpen && (
-                      <div className="wa-modePicker" role="menu">
-                        <button
-                          type="button"
-                          className="wa-modePicker-item isActive"
-                          onClick={() => { setModePickerOpen(false); }}
-                        >
-                          <IconSend size={16} style={{ color: "var(--wa-green)", flexShrink: 0 }} />
-                          <span>
-                            Mensagem para cliente
-                            <span className="wa-modePicker-itemSub">Enviada pelo WhatsApp</span>
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="wa-modePicker-item wa-modePicker-item--nota"
-                          onClick={() => { toggleNotaInterna(); setModePickerOpen(false); }}
-                        >
-                          <TablerNote size={16} strokeWidth={2} style={{ color: "#f59e0b", flexShrink: 0 }} />
-                          <span>
-                            Nota interna
-                            <span className="wa-modePicker-itemSub">Visível só para a equipe</span>
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onMouseDown={(e) => { if (e.button !== 0) return; e.preventDefault(); }}
-                      onClick={() => handleSendFromComposer(texto)}
-                      disabled={!hasDraft || !conversaId || !podeEnviar}
-                      className="wa-sendBtn"
-                      title="Enviar"
-                      aria-label="Enviar mensagem"
-                    >
-                      <IconSend />
-                    </button>
-                    {podeAnotar && (
-                      <button
-                        type="button"
-                        className={`wa-sendGroup-chevron${modePickerOpen ? " isOpen" : ""}`}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setModePickerOpen((v) => !v)}
-                        title="Mudar modo de envio"
-                        aria-label="Selecionar modo de envio"
-                        aria-expanded={modePickerOpen}
-                      >
-                        <IconChevronUp size={11} strokeWidth={2.8} />
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
+              ) : null}
             </div>
 
             {isRecording ? (

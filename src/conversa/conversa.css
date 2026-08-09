@@ -14016,65 +14016,182 @@ html:not([data-theme="dark"]) .wa-sendBtn:hover:not(:disabled) {
   transform: scale(1.04) !important;
 }
 
-/* ---- Split send group ---- */
-.wa-sendGroup {
+/* ====================================================
+   SPLIT PILL SEND BUTTON
+   ==================================================== */
+
+/* Pill container */
+.wa-sendSplit {
   position: relative;
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
+  align-items: center;
+  height: 44px;
+  border-radius: 100px;
+  flex-shrink: 0;
+  /* Light: solid green pill */
+  background: var(--ds-accent, #00a884);
+  border: 1.5px solid transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    0 6px 18px -10px rgba(0,168,132,0.55);
+  transition: box-shadow 0.18s, opacity 0.15s;
+  overflow: visible;
+}
+.wa-sendSplit:focus-within {
+  outline: none;
 }
 
-/* Chevron para abrir o mode picker — botão pequeno abaixo/ao lado do send */
-.wa-sendGroup-chevron {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  border-radius: 50%;
-  border: 1.5px solid var(--ds-border);
-  background: var(--ds-surface-2, var(--ds-surface-1));
-  color: var(--wa-text-muted);
+/* Dark: dark bg + glowing border */
+:root[data-theme="dark"] .wa-sendSplit,
+@media (prefers-color-scheme: dark) {
+  .wa-sendSplit { placeholder: true; }
+}
+:root[data-theme="dark"] .wa-sendSplit {
+  background: linear-gradient(145deg, #0c2720, #091e18);
+  border-color: rgba(32, 210, 145, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(32,210,145,0.12),
+    0 0 22px rgba(32,210,145,0.14),
+    0 4px 18px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .wa-sendSplit {
+    background: linear-gradient(145deg, #0c2720, #091e18);
+    border-color: rgba(32, 210, 145, 0.65);
+    box-shadow:
+      0 0 0 1px rgba(32,210,145,0.12),
+      0 0 22px rgba(32,210,145,0.14),
+      0 4px 18px rgba(0,0,0,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+}
+
+/* ---- Main send section ---- */
+.wa-sendSplit-main {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 52px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.95);
   cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
   flex-shrink: 0;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
-  margin-bottom: 12px;
+  border-radius: 100px 0 0 100px;
+  padding: 0;
 }
-.wa-sendGroup-chevron:hover {
-  background: var(--ds-hover);
-  border-color: var(--ds-accent-muted, var(--ds-border));
-  color: var(--wa-text);
-  transform: translateY(-1px);
+:root[data-theme="dark"] .wa-sendSplit-main,
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .wa-sendSplit-main {
+    color: rgba(64, 230, 160, 0.95);
+  }
 }
-.wa-sendGroup-chevron.isOpen {
-  background: var(--ds-accent-soft);
-  border-color: var(--ds-accent);
-  color: var(--wa-green);
-  transform: none;
+:root[data-theme="dark"] .wa-sendSplit-main {
+  color: rgba(64, 230, 160, 0.95);
 }
-.wa-sendGroup-chevron svg {
+.wa-sendSplit-main:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1);
+}
+.wa-sendSplit-main:active:not(:disabled) {
+  background: rgba(255,255,255,0.18);
+}
+.wa-sendSplit-main:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* ---- Divider ---- */
+.wa-sendSplit-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.22);
+  flex-shrink: 0;
+}
+:root[data-theme="dark"] .wa-sendSplit-divider {
+  background: rgba(32,210,145,0.32);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .wa-sendSplit-divider {
+    background: rgba(32,210,145,0.32);
+  }
+}
+
+/* ---- Arrow / chevron ---- */
+.wa-sendSplit-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  transition: background 0.12s;
+  border-radius: 0 100px 100px 0;
+  flex-shrink: 0;
+  padding: 0;
+}
+:root[data-theme="dark"] .wa-sendSplit-arrow {
+  color: rgba(64, 230, 160, 0.75);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .wa-sendSplit-arrow {
+    color: rgba(64, 230, 160, 0.75);
+  }
+}
+.wa-sendSplit-arrow:hover {
+  background: rgba(255,255,255,0.1);
+}
+.wa-sendSplit-arrow svg {
   transition: transform 0.2s cubic-bezier(0.16,1,0.3,1);
 }
-.wa-sendGroup-chevron.isOpen svg {
+.wa-sendSplit-arrow.isOpen {
+  background: rgba(255,255,255,0.08);
+}
+.wa-sendSplit-arrow.isOpen svg {
   transform: rotate(180deg);
 }
 
-/* Chevron âmbar quando nota ativa */
-.wa-sendGroup-chevron--nota {
-  border-color: rgba(245,158,11,0.45);
-  color: #b45309;
+/* ---- Nota mode — amber pill ---- */
+.wa-sendSplit--nota {
+  background: #f59e0b;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 6px 18px -8px rgba(245,158,11,0.55);
 }
-.wa-sendGroup-chevron--nota:hover {
-  background: rgba(254,243,199,0.55);
-  border-color: #f59e0b;
-  color: #92400e;
+:root[data-theme="dark"] .wa-sendSplit--nota {
+  background: linear-gradient(145deg, #2c1c00, #1f1400);
+  border-color: rgba(245, 158, 11, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(245,158,11,0.12),
+    0 0 20px rgba(245,158,11,0.12),
+    0 4px 18px rgba(0,0,0,0.35);
 }
-.wa-sendGroup-chevron--nota.isOpen {
-  background: rgba(251,191,36,0.18);
-  border-color: #f59e0b;
-  color: #92400e;
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .wa-sendSplit--nota {
+    background: linear-gradient(145deg, #2c1c00, #1f1400);
+    border-color: rgba(245, 158, 11, 0.65);
+  }
+}
+.wa-sendSplit--nota .wa-sendSplit-divider {
+  background: rgba(255,255,255,0.3);
+}
+:root[data-theme="dark"] .wa-sendSplit--nota .wa-sendSplit-divider {
+  background: rgba(245,158,11,0.35);
+}
+:root[data-theme="dark"] .wa-sendSplit--nota .wa-sendSplit-main,
+:root[data-theme="dark"] .wa-sendSplit--nota .wa-sendSplit-arrow {
+  color: rgba(251,191,36,0.95);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .wa-sendSplit--nota .wa-sendSplit-main,
+  html:not([data-theme="light"]) .wa-sendSplit--nota .wa-sendSplit-arrow {
+    color: rgba(251,191,36,0.95);
+  }
 }
 
 /* ---- Mode picker dropdown ---- */
