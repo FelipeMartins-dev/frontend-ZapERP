@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { FORWARD_DEST_MAX } from "../conversaConstants";
 import { safeString } from "../utils/conversaViewHelpers";
 import { IconClose } from "../conversaViewIcons";
+import { isGroupConversation } from "../../utils/conversaUtils";
 import {
   IconArrowForwardUp,
   IconMessage2,
@@ -30,15 +32,37 @@ function getAvatar(name) {
   return { initials, ...palette };
 }
 
-function Avatar({ name, size = 36 }) {
+function isValidAvatarUrl(url) {
+  const s = url != null ? String(url).trim() : "";
+  return s.length > 0 && /^https?:\/\//i.test(s) && s.toLowerCase() !== "null";
+}
+
+function Avatar({ name, foto, size = 36 }) {
+  const [imgError, setImgError] = useState(false);
   const { initials, bg, color } = getAvatar(name);
+  const showImg = !imgError && isValidAvatarUrl(foto);
   return (
     <span
       className="wa-forwardAvatar"
-      style={{ width: size, height: size, minWidth: size, background: bg, color }}
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        background: showImg ? "transparent" : bg,
+        color,
+      }}
       aria-hidden="true"
     >
-      {initials}
+      {showImg ? (
+        <img
+          src={foto}
+          alt=""
+          className="wa-forwardAvatar-img"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        initials
+      )}
     </span>
   );
 }
@@ -193,13 +217,18 @@ export default function ForwardModal({
             ) : (
               <div className="wa-forwardList">
                 {forwardCandidates.map((c) => {
-                  const n =
-                    safeString(
-                      c?.contato_nome || c?.nome || c?.cliente?.nome || c?.telefone
-                    ) || "Conversa";
-                  const telLinha = safeString(
-                    c?.telefone_exibivel ?? c?.telefoneExibivel ?? c?.telefone
-                  );
+                  const isGroup = isGroupConversation(c);
+                  const n = safeString(
+                    isGroup
+                      ? (c?.nome_grupo || c?.contato_nome || c?.nome_contato_cache || c?.nome || c?.telefone)
+                      : (c?.contato_nome || c?.nome_contato_cache || c?.cliente_nome || c?.nome || c?.cliente?.nome || c?.telefone)
+                  ) || "Conversa";
+                  const foto = isGroup
+                    ? (c?.foto_grupo ?? null)
+                    : (c?.foto_perfil ?? c?.foto_perfil_contato_cache ?? c?.cliente?.foto_perfil ?? c?.clientes?.foto_perfil ?? null);
+                  const telLinha = isGroup
+                    ? null
+                    : safeString(c?.telefone_exibivel ?? c?.telefoneExibivel ?? c?.telefone);
                   const atNome = safeString(c?.atendente_nome ?? c?.atendenteNome).trim();
                   const atMail = safeString(c?.atendente_email ?? c?.atendenteEmail).trim();
                   const atendenteTitle = [atNome ? `Atendente: ${atNome}` : "", atMail]
@@ -228,24 +257,26 @@ export default function ForwardModal({
                         onClick={() => !forwardSending && onToggleForwardConversaSelect?.(c.id)}
                         disabled={forwardSending}
                       >
-                        <Avatar name={n} size={34} />
+                        <Avatar name={n} size={34} foto={foto} />
                         <div className="wa-forwardItem-info">
                           <div className="wa-forwardItem-name">{n}</div>
-                          {telLinha ? (
+                          {isGroup ? (
+                            <span className="wa-forwardBadge wa-forwardBadge--group">Grupo</span>
+                          ) : telLinha ? (
                             <div className="wa-forwardItem-sub">{telLinha}</div>
                           ) : null}
-                          {atNome ? (
+                          {!isGroup && atNome ? (
                             <div
                               className="wa-forwardItem-atendente"
                               title={atendenteTitle || undefined}
                             >
                               {atNome}
                             </div>
-                          ) : (
+                          ) : !isGroup ? (
                             <div className="wa-forwardItem-atendente wa-forwardItem-atendente--empty">
                               Sem atendente
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       </button>
                       <button
@@ -291,7 +322,7 @@ export default function ForwardModal({
                       title={`Encaminhar para ${n}`}
                       disabled={forwardSending}
                     >
-                      <Avatar name={n} />
+                      <Avatar name={n} foto={c?.foto_perfil ?? null} />
                       <div className="wa-forwardItem-info">
                         <div className="wa-forwardItem-name">{n}</div>
                         {c?.telefone ? (

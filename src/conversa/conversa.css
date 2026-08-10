@@ -7411,6 +7411,14 @@ html:not([data-theme="dark"]) .wa-bubble-out .wa-audioPlayer {
   font-weight: 700;
   flex-shrink: 0;
   letter-spacing: 0.02em;
+  overflow: hidden;
+}
+
+.wa-forwardAvatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .wa-forwardItem-info {
@@ -7435,6 +7443,11 @@ html:not([data-theme="dark"]) .wa-bubble-out .wa-audioPlayer {
 .wa-forwardBadge--internal {
   background: color-mix(in srgb, var(--wa-green) 14%, transparent);
   color: var(--wa-green);
+}
+
+.wa-forwardBadge--group {
+  background: color-mix(in srgb, var(--wa-blue, #2f9ee2) 14%, transparent);
+  color: var(--wa-blue, #2f9ee2);
 }
 
 .wa-forwardEmpty {

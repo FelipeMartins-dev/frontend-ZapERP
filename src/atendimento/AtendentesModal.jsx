@@ -147,12 +147,7 @@ export default function AtendentesModal({ conversaId, participantes, podeAdicion
             {principal ? (
               <ParticipanteRow p={principal} onRemove={() => {}} removendo={null} />
             ) : (
-              <>
-                <div className="wa-atendentes-empty">Nenhum responsável ainda</div>
-                <div className="wa-atendentes-hint">
-                  Assuma a conversa antes de adicionar co-atendentes.
-                </div>
-              </>
+              <div className="wa-atendentes-empty">Nenhum responsável ainda</div>
             )}
           </div>
 
@@ -180,8 +175,8 @@ export default function AtendentesModal({ conversaId, participantes, podeAdicion
             <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 8 }}>{erro}</div>
           ) : null}
 
-          {/* Adicionar co-atendente — só disponível quando há responsável e permissão */}
-          {podeAdicionar && principal ? (
+          {/* Adicionar co-atendente */}
+          {podeAdicionar ? (
             <div className="wa-atendentes-addSection">
               <div className="wa-atendentesSection-label">Adicionar co-atendente</div>
               <div className="wa-atendentes-searchWrap">
@@ -222,12 +217,6 @@ export default function AtendentesModal({ conversaId, participantes, podeAdicion
                   </div>
                 ))
               )}
-            </div>
-          ) : podeAdicionar && !principal ? (
-            <div className="wa-atendentes-addSection">
-              <div className="wa-atendentes-hint">
-                Assuma a conversa antes de adicionar co-atendentes.
-              </div>
             </div>
           ) : null}
         </div>

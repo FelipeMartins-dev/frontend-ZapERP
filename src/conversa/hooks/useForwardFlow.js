@@ -116,12 +116,20 @@ export function useForwardFlow({ conversa, conversaId, user, showToast, exitSele
     const list = Array.isArray(useChatStore.getState().chats) ? useChatStore.getState().chats : [];
     const q = safeString(forwardQuery).toLowerCase();
     const byName = (c) => {
-      const n = safeString(c?.contato_nome || c?.nome || c?.cliente?.nome || c?.telefone);
+      if (!q) return true;
+      const n = safeString(
+        c?.nome_grupo ||
+        c?.contato_nome ||
+        c?.nome_contato_cache ||
+        c?.cliente_nome ||
+        c?.nome ||
+        c?.cliente?.nome ||
+        c?.telefone
+      );
       const at = safeString(c?.atendente_nome ?? c?.atendenteNome);
       const atMail = safeString(c?.atendente_email ?? c?.atendenteEmail);
       const tel = safeString(c?.telefone);
       const telEx = safeString(c?.telefone_exibivel ?? c?.telefoneExibivel);
-      if (!q) return true;
       const hay = `${n} ${at} ${atMail} ${tel} ${telEx}`.toLowerCase();
       return hay.includes(q);
     };
