@@ -14155,6 +14155,11 @@ html:not([data-theme="dark"]) .wa-sendBtn:hover:not(:disabled) {
 .wa-sendSplit-arrow.isOpen svg {
   transform: rotate(180deg);
 }
+@media (max-width: 768px) {
+  .wa-sendSplit-arrow {
+    width: 22px;
+  }
+}
 
 /* ---- Nota mode — amber pill ---- */
 .wa-sendSplit--nota {
