@@ -8,6 +8,7 @@ import {
   HTTP_TIMEOUT_UPLOAD_MIN_MS,
   HTTP_TIMEOUT_UPLOAD_MAX_MS,
   resolveUploadTimeoutMs,
+  HTTP_TIMEOUT_LARGE_VIDEO_MAX_MS,
   resolveRequestTimeoutMs,
 } from "../src/api/httpTimeouts.js";
 import {
@@ -43,6 +44,14 @@ assert(HTTP_TIMEOUT_TEXT_MS === 55_000, "texto 55s");
 assert(resolveUploadTimeoutMs(10_000) === HTTP_TIMEOUT_UPLOAD_MIN_MS, "upload pequeno ≥ 3min");
 assert(resolveUploadTimeoutMs(50 * 1024 * 1024) <= HTTP_TIMEOUT_UPLOAD_MAX_MS, "vídeo ≤ 15min");
 assert(resolveUploadTimeoutMs(50 * 1024 * 1024) > HTTP_TIMEOUT_UPLOAD_MIN_MS, "vídeo > 3min");
+assert(
+  resolveUploadTimeoutMs({ size: 80 * 1024 * 1024, type: "video/mp4", name: "camera.mp4" }) > HTTP_TIMEOUT_UPLOAD_MAX_MS,
+  "vídeo-fonte grande ganha tempo para upload e compactação"
+);
+assert(
+  resolveUploadTimeoutMs({ size: 128 * 1024 * 1024, type: "video/mp4", name: "camera.mp4" }) <= HTTP_TIMEOUT_LARGE_VIDEO_MAX_MS,
+  "vídeo-fonte grande respeita teto de 30min"
+);
 assert(
   resolveRequestTimeoutMs({ url: "/chats/1/mensagens", timeout: undefined }) === HTTP_TIMEOUT_DEFAULT_MS,
   "request texto usa default"

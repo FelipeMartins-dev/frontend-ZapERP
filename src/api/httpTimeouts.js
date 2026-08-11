@@ -3,12 +3,13 @@ export const HTTP_TIMEOUT_DEFAULT_MS = 55_000;
 export const HTTP_TIMEOUT_TEXT_MS = 55_000;
 export const HTTP_TIMEOUT_UPLOAD_MIN_MS = 180_000; // 3 min
 export const HTTP_TIMEOUT_UPLOAD_MAX_MS = 900_000; // 15 min
+export const HTTP_TIMEOUT_LARGE_VIDEO_MAX_MS = 1_800_000; // 30 min (upload + compactação no servidor)
 /** Throughput conservador para estimar upload em rede lenta (~50 KB/s). */
 const UPLOAD_BYTES_PER_SEC = 50 * 1024;
 
 /**
  * Timeout de upload proporcional ao tamanho do arquivo.
- * Piso 3 min (imagem/doc), teto 15 min (vídeo grande / rede lenta).
+ * Piso 3 min; teto 15 min em uploads comuns e 30 min para vídeo-fonte acima de 32 MB.
  */
 export function resolveUploadTimeoutMs(fileOrSize) {
   const size =
@@ -16,7 +17,13 @@ export function resolveUploadTimeoutMs(fileOrSize) {
       ? fileOrSize
       : Number(fileOrSize?.size ?? fileOrSize?.tamanho ?? fileOrSize?.tamanho_bytes) || 0;
   const estimated = Math.ceil(size / UPLOAD_BYTES_PER_SEC) * 1000 + 60_000;
-  return Math.min(HTTP_TIMEOUT_UPLOAD_MAX_MS, Math.max(HTTP_TIMEOUT_UPLOAD_MIN_MS, estimated));
+  const mime = typeof fileOrSize === "object" ? String(fileOrSize?.type || "").toLowerCase() : "";
+  const name = typeof fileOrSize === "object" ? String(fileOrSize?.name || "").toLowerCase() : "";
+  const isLargeVideo =
+    size > 32 * 1024 * 1024 &&
+    (mime.startsWith("video/") || /\.(mp4|mov|m4v|webm|avi|mkv|3gp|mpeg|mpg|ogv)$/i.test(name));
+  const maxTimeout = isLargeVideo ? HTTP_TIMEOUT_LARGE_VIDEO_MAX_MS : HTTP_TIMEOUT_UPLOAD_MAX_MS;
+  return Math.min(maxTimeout, Math.max(HTTP_TIMEOUT_UPLOAD_MIN_MS, estimated));
 }
 
 function formDataTotalFileBytes(formData) {
