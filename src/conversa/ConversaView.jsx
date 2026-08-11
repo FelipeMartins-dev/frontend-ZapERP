@@ -370,6 +370,10 @@ function ConversaViewBody() {
     conversa?.mensagens_bloqueadas,
   ]);
 
+  // Hook de participantes — aqui pois podeEnviar precisa saber se user é co-atendente
+  const { participantes: atendentesParticipantes, total: totalAtendentes, reload: reloadAtendentes } =
+    useConversaParticipantes(isGroup ? null : conversaId, conversa?.atendente_id ?? null);
+
   const podeEnviar = useMemo(() => {
     if (!user?.id || !conversa?.id) return false;
     /** Grupos: qualquer usuário pode enviar sem assumir atendimento (modelo WhatsApp). */
@@ -387,7 +391,11 @@ function ConversaViewBody() {
       }
       return conversaElegivelAutoAssumir;
     }
-    return String(atendenteId) === String(user.id);
+    // Principal OU co-atendente ativo podem enviar
+    if (String(atendenteId) === String(user.id)) return true;
+    return atendentesParticipantes.some(
+      (p) => p.tipo === "participante" && Number(p.usuario_id) === Number(user.id)
+    );
   }, [
     user?.id,
     user?.atendimento_modo_simples,
@@ -405,6 +413,7 @@ function ConversaViewBody() {
     conversa?.atendente_id,
     conversaElegivelAutoAssumir,
     conversaElegivelAutoReabrir,
+    atendentesParticipantes,
   ]);
 
   const [showTimeline, setShowTimeline] = useState(false);
@@ -659,10 +668,6 @@ function ConversaViewBody() {
     !!conversaId &&
     !isGroup;
   const podeAnotar = !isGroup && !!conversaId && canNotaInterna(user);
-
-  // Hook de participantes — re-carrega quando o responsável muda (cobre "Assumir")
-  const { participantes: atendentesParticipantes, total: totalAtendentes, reload: reloadAtendentes } =
-    useConversaParticipantes(isGroup ? null : conversaId, conversa?.atendente_id ?? null);
 
   // Nunca exibir LID (lid:xxx) como nome ou número — identificador interno do WhatsApp
   const isLidValue = (v) => v != null && String(v).trim().toLowerCase().startsWith("lid:");
@@ -1067,7 +1072,9 @@ function ConversaViewBody() {
     };
 
     scheduleAfterInitialPaint(() => run("presence"), 700);
-    scheduleAfterInitialPaint(() => run("status"), 2600);
+    if (!opts.skipPendingStatusRefresh) {
+      scheduleAfterInitialPaint(() => run("status"), 2600);
+    }
   }, []);
 
   const applyOutgoingStatusOptimistic = useCallback(() => {
@@ -1900,6 +1907,7 @@ function ConversaViewBody() {
       arquivoEnvioInFlightRef.current.add(flightKey);
 
       const legenda = String(opts.caption ?? "").trim();
+      const isVideoSend = isVideoFile(file);
       // Retry por item: reusa o tempId (⇒ mesmo client_temp_id) para o back-end deduplicar e
       // não gerar áudio duplicado. Remove a bolha de erro antiga antes de reanexar a nova (pending).
       const optimisticMsg = buildOptimisticOutgoingMessage({
@@ -1942,6 +1950,9 @@ function ConversaViewBody() {
         formData.append("tipo", "sticker");
       } else if (opts.tipo === "voice" || opts.tipo === "audio") {
         formData.append("tipo", opts.tipo);
+      } else if (isVideoSend) {
+        // Contrato explícito: impede MIME genérico de celular/browser de cair como documento.
+        formData.append("tipo", "video");
       }
       if (opts.tipo === "voice" || opts.tipo === "audio" || isAudioFile(file)) {
         const audioDurationMs = Number(file?.__zaperpAudioDurationMs || 0);
@@ -1981,7 +1992,9 @@ function ConversaViewBody() {
         await previousAudioUpload;
       }
 
-      setSendingTracked(true);
+      // Vídeos grandes continuam em background sem bloquear o composer inteiro.
+      // A bolha otimista + lock por arquivo já impedem duplo envio do mesmo vídeo.
+      if (!isVideoSend) setSendingTracked(true);
       try {
         const { data } = await api.post(`/chats/${conversaId}/arquivo`, formData, {
           timeout: resolveUploadTimeoutMs(file),
@@ -2015,7 +2028,12 @@ function ConversaViewBody() {
           ...(Array.isArray(data?.ids) ? data.ids : []),
           ...(Array.isArray(data?.results) ? data.results.map((r) => r?.id) : []),
         ];
-        scheduleArquivoSendConsistencyCheck(conversaId, [tempId], { knownIds });
+        scheduleArquivoSendConsistencyCheck(conversaId, [tempId], {
+          knownIds,
+          // O status chega por socket. Refazer toda a conversa após 2,6 s durante um
+          // upload de vídeo era a principal fonte de pulo/travada visual.
+          skipPendingStatusRefresh: isVideoSend,
+        });
         // Enviado (persistido no back-end): não precisa mais reter o File para retry.
         if (isAudioSend) audioRetryFilesRef.current.delete(tempId);
       } catch (err) {
@@ -2042,7 +2060,7 @@ function ConversaViewBody() {
       } finally {
         releaseAudioUpload?.();
         arquivoEnvioInFlightRef.current.delete(flightKey);
-        setSendingTracked(false);
+        if (!isVideoSend) setSendingTracked(false);
         focusMessageInput();
       }
     },

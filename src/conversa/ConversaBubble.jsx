@@ -813,6 +813,8 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
   useEffect(() => {
     const el = audioRef.current;
     if (!el || !activeSrc) return;
+    // Captura posição antes de load() para restaurar após o stall watchdog recarregar a fonte.
+    const resumeAt = Number(el.currentTime) || 0;
     applyFreshSrc(el);
     try {
       el.load();
@@ -824,15 +826,28 @@ function AudioWavePlayer({ src, candidates, msgKey, avatarUrl, avatarLabel, init
     // clique — o atendente clicava, nada acontecia, e só o clique seguinte tocava.
     // Só entra aqui dentro da janela aberta por um clique: nunca toca sozinho sem o usuário pedir.
     if (autoPlayRef.current.ate <= Date.now()) return;
+    let restaurarPosicao = null;
+    if (resumeAt > 0.25) {
+      restaurarPosicao = () => {
+        el.removeEventListener("loadedmetadata", restaurarPosicao);
+        try { el.currentTime = resumeAt; } catch { /* ignore */ }
+      };
+      el.addEventListener("loadedmetadata", restaurarPosicao);
+    }
     const tocarQuandoPronto = () => {
       el.removeEventListener("canplay", tocarQuandoPronto);
       autoPlayRef.current.ate = 0;
-      void Promise.resolve(el.play()).catch(() => {
-        /* o handler de erro decide o próximo candidato */
+      void Promise.resolve(el.play()).catch((err) => {
+        if (import.meta.env.DEV && err?.name !== "NotAllowedError" && err?.name !== "AbortError") {
+          console.warn("[AudioWavePlayer] play() rejeitado na retomada:", err?.name, err?.message);
+        }
       });
     };
     el.addEventListener("canplay", tocarQuandoPronto);
-    return () => el.removeEventListener("canplay", tocarQuandoPronto);
+    return () => {
+      el.removeEventListener("canplay", tocarQuandoPronto);
+      if (restaurarPosicao) el.removeEventListener("loadedmetadata", restaurarPosicao);
+    };
   }, [activeSrc, reloadNonce, applyFreshSrc]);
 
   // Progresso mais fluido (rAF com throttle leve) enquanto toca
@@ -2028,7 +2043,7 @@ const Bubble = memo(function Bubble({
                 <div className="wa-bubble-mediaStack">
                   <button
                     type="button"
-                    className="wa-bubble-videoLink"
+                    className={`wa-bubble-videoLink${msg?._optimisticBlobUrl ? " isOptimistic" : ""}`}
                     onPointerDown={handleMediaPointerDown}
                     onPointerUp={(e) => handleMediaPointerUp(e, videoPlaybackUrl || mediaUrl, "video")}
                     onClick={(e) => handleMediaClick(e, videoPlaybackUrl || mediaUrl, "video")}
@@ -2100,7 +2115,7 @@ const Bubble = memo(function Bubble({
             <div className="wa-bubble-mediaStack">
               <button
                 type="button"
-                className="wa-bubble-videoLink"
+                className={`wa-bubble-videoLink${msg?._optimisticBlobUrl ? " isOptimistic" : ""}`}
                 onPointerDown={handleMediaPointerDown}
                 onPointerUp={(e) => handleMediaPointerUp(e, videoPlaybackUrl || mediaUrl, "video")}
                 onClick={(e) => handleMediaClick(e, videoPlaybackUrl || mediaUrl, "video")}
