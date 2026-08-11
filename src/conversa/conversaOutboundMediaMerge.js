@@ -1,5 +1,30 @@
 /** Merge/dedupe de mensagens — módulo puro (sem React/socket) para store + testes. */
-function cleanupOptimisticBlobFields(merged) { return merged }
+function cleanupOptimisticBlobFields(merged) {
+  if (!merged || typeof merged !== "object") return merged
+
+  const tipo = String(merged.tipo || "").toLowerCase().trim()
+  if (tipo !== "video" && tipo !== "vídeo") return merged
+
+  const persistedUrl = [
+    merged.url,
+    merged.url_absoluta,
+    merged.media_url,
+    merged.mediaUrl,
+    merged.file_url,
+    merged.fileUrl,
+  ].find((value) => {
+    const url = String(value || "").trim()
+    return url && !url.startsWith("blob:")
+  })
+
+  // `_optimisticBlobUrl` representa somente o preview local durante o POST. Depois que
+  // API/socket entregam uma URL persistida, mantê-lo faz VideoBubblePreview exibir
+  // "Enviando vídeo..." para sempre e ainda prioriza o blob sobre /uploads no player.
+  if (!persistedUrl || !merged._optimisticBlobUrl) return merged
+  const next = { ...merged }
+  delete next._optimisticBlobUrl
+  return next
+}
 
 /** Logs técnicos pesados só em desenvolvimento. */
 function isDebugRuntime() {

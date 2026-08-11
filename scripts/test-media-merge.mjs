@@ -122,6 +122,10 @@ for (const tipo of ["video", "arquivo"]) {
   );
   assert(list.length === 1, `${tipo} unico sem client_temp_id deve reconciliar, obteve ${list.length}`);
   assert(list[0].tempId === `tmp-${tipo}`, `${tipo} reconciliado deve preservar tempId`);
+  if (tipo === "video") {
+    assert(!list[0]._optimisticBlobUrl, "video confirmado deve encerrar o preview otimista");
+    assert(String(list[0].url).includes("/uploads/801.mp4"), "video confirmado deve usar a URL persistida");
+  }
 }
 
 // 6) Nunca reconciliar midia entre conversas diferentes.
