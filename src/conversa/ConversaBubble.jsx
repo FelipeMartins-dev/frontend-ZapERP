@@ -120,6 +120,66 @@ function BubbleImage({ msg, alt, className }) {
   );
 }
 
+/** Preview estavel de video: evita salto de layout e oferece affordance clara no mobile. */
+function VideoBubblePreview({ msg, src, onPointerDown, onPointerUp, onClick }) {
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [durationSec, setDurationSec] = useState(0);
+  const optimistic = !!msg?._optimisticBlobUrl;
+
+  useEffect(() => {
+    setReady(false);
+    setFailed(false);
+    setDurationSec(0);
+  }, [src]);
+
+  const handleLoadedMetadata = useCallback((event) => {
+    const duration = Number(event?.currentTarget?.duration || 0);
+    if (Number.isFinite(duration) && duration > 0) setDurationSec(duration);
+    setReady(true);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      className={[
+        "wa-bubble-videoLink",
+        optimistic ? "isOptimistic" : "",
+        ready ? "isReady" : "isLoading",
+        failed ? "hasError" : "",
+      ].filter(Boolean).join(" ")}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onClick={onClick}
+      aria-label={failed ? "Abrir arquivo de video" : "Reproduzir video"}
+    >
+      <video
+        src={src}
+        playsInline
+        muted
+        preload="metadata"
+        className="wa-bubble-videoEl"
+        onLoadedMetadata={handleLoadedMetadata}
+        onLoadedData={() => setReady(true)}
+        onError={() => setFailed(true)}
+      />
+      <span className="wa-videoPreviewShade" aria-hidden="true" />
+      <span className="wa-videoPreviewAction" aria-hidden="true">
+        {optimistic ? (
+          <span className="wa-videoPreviewSpinner" />
+        ) : (
+          <span className="wa-videoPreviewPlay"><IconPlay width="22" height="22" /></span>
+        )}
+      </span>
+      {durationSec > 0 && !failed ? (
+        <span className="wa-videoPreviewDuration" aria-hidden="true">{formatMmSs(durationSec)}</span>
+      ) : null}
+      {optimistic ? <span className="wa-videoPreviewStatus">Enviando video...</span> : null}
+      {failed ? <span className="wa-videoPreviewError">Previa indisponivel</span> : null}
+    </button>
+  );
+}
+
 function MessageTicks({ msg, isGroup }) {
   const out = isOutgoingMessage(msg);
   if (!out) return null;
@@ -2041,20 +2101,13 @@ const Bubble = memo(function Bubble({
                 </div>
               ) : isVideo ? (
                 <div className="wa-bubble-mediaStack">
-                  <button
-                    type="button"
-                    className={`wa-bubble-videoLink${msg?._optimisticBlobUrl ? " isOptimistic" : ""}`}
+                  <VideoBubblePreview
+                    msg={msg}
+                    src={videoPlaybackUrl || mediaUrl}
                     onPointerDown={handleMediaPointerDown}
                     onPointerUp={(e) => handleMediaPointerUp(e, videoPlaybackUrl || mediaUrl, "video")}
                     onClick={(e) => handleMediaClick(e, videoPlaybackUrl || mediaUrl, "video")}
-                  >
-                    <video
-                      src={videoPlaybackUrl || mediaUrl}
-                      playsInline
-                      preload="metadata"
-                      className="wa-bubble-videoEl"
-                    />
-                  </button>
+                  />
                   {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}
                 </div>
               ) : isFile ? (
@@ -2113,15 +2166,13 @@ const Bubble = memo(function Bubble({
             </div>
           ) : isVideo && mediaUrl ? (
             <div className="wa-bubble-mediaStack">
-              <button
-                type="button"
-                className={`wa-bubble-videoLink${msg?._optimisticBlobUrl ? " isOptimistic" : ""}`}
+              <VideoBubblePreview
+                msg={msg}
+                src={videoPlaybackUrl || mediaUrl}
                 onPointerDown={handleMediaPointerDown}
                 onPointerUp={(e) => handleMediaPointerUp(e, videoPlaybackUrl || mediaUrl, "video")}
                 onClick={(e) => handleMediaClick(e, videoPlaybackUrl || mediaUrl, "video")}
-              >
-                <video src={videoPlaybackUrl || mediaUrl} playsInline className="wa-bubble-videoEl" />
-              </button>
+              />
               {showCaption ? <div className="wa-bubble-caption">{renderTextWithLinks(texto)}</div> : null}
             </div>
           ) : isAudioOrVoice && mediaUrl ? (
