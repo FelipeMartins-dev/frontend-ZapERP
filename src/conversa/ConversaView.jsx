@@ -3278,7 +3278,7 @@ function ConversaViewBody() {
         showToast({
           type: "error",
           title: "Falha ao abrir conversa",
-          message: e.response?.data?.error || e.message || "Não foi possível abrir a conversa com este contato.",
+          message: e.response?.data?.error || e.response?.data?.erro || e.message || "Não foi possível abrir a conversa com este contato.",
         });
       } finally {
         contactConversationOpeningRef.current = false;

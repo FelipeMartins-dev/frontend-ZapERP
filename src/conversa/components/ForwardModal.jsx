@@ -95,6 +95,7 @@ export default function ForwardModal({
   if (!open || !forwardMsgs?.length) return null;
 
   const selCount = forwardSelectedConversaIds.length;
+  const hasQuery = safeString(forwardQuery).trim().length > 0;
 
   return createPortal(
     <div
@@ -153,47 +154,6 @@ export default function ForwardModal({
               aria-label="Buscar contato"
               autoFocus
             />
-          </div>
-
-          {/* Colaboradores */}
-          <div className="wa-forwardSection">
-            <div className="wa-forwardSectionTitle">
-              <IconUsers size={12} strokeWidth={2} aria-hidden="true" />
-              Colaboradores
-            </div>
-            {forwardColaboradoresLoading ? (
-              <div className="wa-muted wa-forwardEmpty">Carregando…</div>
-            ) : forwardColaboradoresFiltered.length === 0 ? (
-              <div className="wa-muted wa-forwardEmpty">Nenhum colaborador disponível.</div>
-            ) : (
-              <div className="wa-forwardList">
-                {forwardColaboradoresFiltered.map((colab) => {
-                  const uid = colab?.id ?? colab?.user_id ?? colab?.usuario_id;
-                  const nome =
-                    safeString(colab?.nome ?? colab?.name ?? colab?.full_name) || "Colaborador";
-                  const email = safeString(colab?.email);
-                  return (
-                    <button
-                      key={`colab-${uid != null ? String(uid) : nome}`}
-                      type="button"
-                      className="wa-forwardItem"
-                      onClick={() => onConfirmForwardToColaborador?.(colab)}
-                      title={`Encaminhar para ${nome} (chat interno)`}
-                      disabled={forwardSending || uid == null}
-                    >
-                      <Avatar name={nome} />
-                      <div className="wa-forwardItem-info">
-                        <div className="wa-forwardItem-name">{nome}</div>
-                        {email ? <div className="wa-forwardItem-sub">{email}</div> : null}
-                        <span className="wa-forwardBadge wa-forwardBadge--internal">
-                          Chat interno
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Conversas */}
@@ -335,6 +295,49 @@ export default function ForwardModal({
               </div>
             )}
           </div>
+
+          {/* Colaboradores — só aparece quando o usuário busca */}
+          {hasQuery && (
+            <div className="wa-forwardSection">
+              <div className="wa-forwardSectionTitle">
+                <IconUsers size={12} strokeWidth={2} aria-hidden="true" />
+                Colaboradores
+              </div>
+              {forwardColaboradoresLoading ? (
+                <div className="wa-muted wa-forwardEmpty">Carregando…</div>
+              ) : forwardColaboradoresFiltered.length === 0 ? (
+                <div className="wa-muted wa-forwardEmpty">Nenhum colaborador encontrado.</div>
+              ) : (
+                <div className="wa-forwardList">
+                  {forwardColaboradoresFiltered.map((colab) => {
+                    const uid = colab?.id ?? colab?.user_id ?? colab?.usuario_id;
+                    const nome =
+                      safeString(colab?.nome ?? colab?.name ?? colab?.full_name) || "Colaborador";
+                    const email = safeString(colab?.email);
+                    return (
+                      <button
+                        key={`colab-${uid != null ? String(uid) : nome}`}
+                        type="button"
+                        className="wa-forwardItem"
+                        onClick={() => onConfirmForwardToColaborador?.(colab)}
+                        title={`Encaminhar para ${nome} (chat interno)`}
+                        disabled={forwardSending || uid == null}
+                      >
+                        <Avatar name={nome} />
+                        <div className="wa-forwardItem-info">
+                          <div className="wa-forwardItem-name">{nome}</div>
+                          {email ? <div className="wa-forwardItem-sub">{email}</div> : null}
+                          <span className="wa-forwardBadge wa-forwardBadge--internal">
+                            Chat interno
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

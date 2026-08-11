@@ -16,7 +16,7 @@ function useDebounce(value, delay = 250) {
 export const ChatListSearchBox = memo(
   forwardRef(function ChatListSearchBox({ onDebounced, clearNonce, className, placeholder }, ref) {
     const [value, setValue] = useState("");
-    const debounced = useDebounce(value, 180);
+    const debounced = useDebounce(value, 350);
     const onDebouncedRef = useRef(onDebounced);
     onDebouncedRef.current = onDebounced;
     useEffect(() => {
