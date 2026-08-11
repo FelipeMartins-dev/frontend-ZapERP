@@ -370,9 +370,13 @@ function ConversaViewBody() {
     conversa?.mensagens_bloqueadas,
   ]);
 
-  // Hook de participantes — aqui pois podeEnviar precisa saber se user é co-atendente
+  // Hook de participantes — antes de podeEnviar pois co-atendentes também podem enviar
+  // Usa expressões inline (conversaId e isGroup ainda não declarados aqui)
   const { participantes: atendentesParticipantes, total: totalAtendentes, reload: reloadAtendentes } =
-    useConversaParticipantes(isGroup ? null : conversaId, conversa?.atendente_id ?? null);
+    useConversaParticipantes(
+      isGroupConversation(conversa) ? null : (conversa?.id || null),
+      conversa?.atendente_id ?? null
+    );
 
   const podeEnviar = useMemo(() => {
     if (!user?.id || !conversa?.id) return false;
