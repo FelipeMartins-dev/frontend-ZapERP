@@ -4391,12 +4391,13 @@ html:not([data-theme="dark"]) .wa-bubble-out {
   transition: color 0.15s ease, text-decoration 0.15s ease;
 }
 
-.wa-bubble-fileAction:hover:not(:disabled) {
+.wa-bubble-fileAction:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--ds-accent-hover);
   text-decoration: underline;
 }
 
-.wa-bubble-fileAction:disabled {
+.wa-bubble-fileAction:disabled,
+.wa-bubble-fileAction[aria-disabled="true"] {
   cursor: default;
   opacity: 0.6;
 }

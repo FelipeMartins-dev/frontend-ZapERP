@@ -299,18 +299,34 @@ function FileBubbleContent({ msg, mediaUrl, selectMode, onOpenMedia, isGroup, ou
         </span>
       </div>
       <div className="wa-bubble-fileActions">
-        <button
-          type="button"
-          className="wa-bubble-fileAction"
-          disabled={!!selectMode}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!selectMode && openHref) onOpenMedia?.(openHref, "arquivo", nome);
-          }}
-        >
-          Abrir
-        </button>
+        {ext === "PDF" ? (
+          <a
+            href={selectMode ? undefined : openHref}
+            target="_blank"
+            rel="noreferrer"
+            className="wa-bubble-fileAction"
+            aria-disabled={selectMode || !openHref}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (selectMode || !openHref) e.preventDefault();
+            }}
+          >
+            Abrir
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="wa-bubble-fileAction"
+            disabled={!!selectMode}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!selectMode && openHref) onOpenMedia?.(openHref, "arquivo", nome);
+            }}
+          >
+            Abrir
+          </button>
+        )}
         {mediaUrl ? (
           <>
             <span className="wa-bubble-fileActionSep" aria-hidden="true">·</span>
