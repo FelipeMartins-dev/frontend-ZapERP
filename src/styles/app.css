@@ -529,39 +529,49 @@ body {
   --sidebar-v2-divider-color: var(--light-border);
   --sidebar-v2-unread-ring: var(--light-sidebar-bg);
 
-  width: 52px;
-  min-width: 52px;
-  background: var(--sidebar-v2-bg);
+  width: 58px;
+  min-width: 58px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sidebar-v2-bg) 96%, white 4%), var(--sidebar-v2-bg));
   border-right: 1px solid var(--sidebar-v2-border);
-  padding: 10px 0 8px;
+  padding: 12px 0 10px;
   gap: 2px;
+  box-shadow: 8px 0 24px rgba(15, 23, 42, 0.035);
+  isolation: isolate;
+  position: relative;
+  z-index: 40;
 }
 
 [data-theme="dark"] .sidebar--v2 {
-  --sidebar-v2-bg: #0d1017;
-  --sidebar-v2-border: rgba(255, 255, 255, 0.06);
-  --sidebar-v2-icon: #4e5470;
-  --sidebar-v2-icon-hover-bg: #1a1e2d;
-  --sidebar-v2-icon-hover: #9095ae;
-  --sidebar-v2-active-bg: #1b3a3a;
-  --sidebar-v2-active-color: #2dd4aa;
-  --sidebar-v2-divider-color: rgba(255, 255, 255, 0.08);
-  --sidebar-v2-unread-ring: #0d1017;
+  --sidebar-v2-bg: #0a111b;
+  --sidebar-v2-border: rgba(148, 163, 184, 0.1);
+  --sidebar-v2-icon: #77839d;
+  --sidebar-v2-icon-hover-bg: rgba(148, 163, 184, 0.1);
+  --sidebar-v2-icon-hover: #d4dbea;
+  --sidebar-v2-active-bg: rgba(20, 184, 166, 0.17);
+  --sidebar-v2-active-color: #45e0c2;
+  --sidebar-v2-divider-color: rgba(148, 163, 184, 0.11);
+  --sidebar-v2-unread-ring: #0a111b;
 }
 
 .sidebar--v2 .sidebar-nav--v2 {
-  gap: 4px;
+  gap: 5px;
 }
 
 .sidebar--v2 .sidebar-nav-item,
 .sidebar--v2 .sidebar-logout,
 .sidebar--v2 .sidebar-theme-toggle {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   color: var(--sidebar-v2-icon);
   background: transparent;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
 }
 
 .sidebar--v2 .sidebar-nav-item:hover,
@@ -569,25 +579,85 @@ body {
 .sidebar--v2 .sidebar-theme-toggle:hover {
   background: var(--sidebar-v2-icon-hover-bg);
   color: var(--sidebar-v2-icon-hover);
+  transform: translateY(-1px);
 }
 
 .sidebar--v2 .sidebar-nav-item.active {
-  background: var(--sidebar-v2-active-bg);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--sidebar-v2-active-bg) 88%, white 12%), var(--sidebar-v2-active-bg));
   color: var(--sidebar-v2-active-color);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--sidebar-v2-active-color) 20%, transparent),
+    0 7px 18px color-mix(in srgb, var(--sidebar-v2-active-color) 12%, transparent);
+}
+
+.sidebar--v2 .sidebar-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  width: 3px;
+  height: 18px;
+  border-radius: 0 4px 4px 0;
+  background: var(--sidebar-v2-active-color);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--sidebar-v2-active-color) 60%, transparent);
+}
+
+.sidebar--v2 .sidebar-nav-item--crm.active {
+  --sidebar-v2-active-color: #2dd4bf;
 }
 
 .sidebar--v2 .sidebar-nav-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 17px;
-  height: 17px;
+  width: 19px;
+  height: 19px;
 }
 
 .sidebar--v2 .sidebar-nav-icon svg {
-  width: 17px;
-  height: 17px;
+  width: 19px;
+  height: 19px;
   display: block;
+}
+
+/* Tooltip imediato no desktop: mantém o rail compacto sem esconder o destino. */
+@media (min-width: 769px) {
+  .sidebar--v2 .sidebar-nav-label {
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    z-index: 1000;
+    display: block;
+    width: max-content;
+    max-width: 190px;
+    padding: 7px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 8px;
+    background: #111827;
+    color: #f8fafc;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-4px, -50%);
+    visibility: hidden;
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s ease;
+  }
+
+  .sidebar--v2 .sidebar-nav-item:hover .sidebar-nav-label,
+  .sidebar--v2 .sidebar-nav-item:focus-visible .sidebar-nav-label,
+  .sidebar--v2 .sidebar-theme-toggle:hover .sidebar-nav-label,
+  .sidebar--v2 .sidebar-theme-toggle:focus-visible .sidebar-nav-label,
+  .sidebar--v2 .sidebar-logout:hover .sidebar-nav-label,
+  .sidebar--v2 .sidebar-logout:focus-visible .sidebar-nav-label {
+    opacity: 1;
+    transform: translate(0, -50%);
+    visibility: visible;
+  }
 }
 
 .sidebar--v2 .sidebar-nav-unreadDot {
@@ -613,10 +683,10 @@ body {
 }
 
 .sidebar--v2 .sidebar-user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #2f5af0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #3768f5, #2447cc);
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -627,6 +697,8 @@ body {
   flex-shrink: 0;
   user-select: none;
   cursor: default;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 5px 14px rgba(47, 90, 240, 0.24);
 }
 
 @media (max-width: 768px) {
@@ -957,9 +1029,12 @@ body {
   }
 }
 
-/* Desktop / tablet largo: rótulo "Sair" só na barra mobile */
-.sidebar-footer--compact .sidebar-nav-label {
-  display: none;
+/* Sidebars compactas antigas mantêm os rótulos ocultos no desktop. No rail V2,
+   os mesmos rótulos formam os tooltips definidos acima. */
+@media (min-width: 769px) {
+  .sidebar-footer--compact:not(.sidebar-footer--v2) .sidebar-nav-label {
+    display: none;
+  }
 }
 
 /* Login — visual premium com mesh, orbs e glassmorphism */

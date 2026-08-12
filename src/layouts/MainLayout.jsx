@@ -3,8 +3,8 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   IconBook2,
   IconChartBar,
+  IconEye,
   IconFilter,
-  IconGridDots,
   IconHeadset,
   IconLogout,
   IconMessage2,
@@ -29,8 +29,8 @@ import { useInternalChatNotifyStore, selectInternalChatUnreadTotal } from "../in
 import "../components/layout/skip-link.css";
 
 const THEME_KEY = "theme";
-const SIDEBAR_ICON_SIZE = 17;
-const SIDEBAR_ICON_STROKE = 1.75;
+const SIDEBAR_ICON_SIZE = 19;
+const SIDEBAR_ICON_STROKE = 1.8;
 
 function getStoredTheme() {
   try {
@@ -113,9 +113,9 @@ export default function MainLayout() {
         },
         {
           to: "/supervisao",
-          label: "Filtros",
-          title: "Filtros / Supervisão",
-          icon: IconFilter,
+          label: "Supervisão",
+          title: "Supervisão de atendimentos",
+          icon: IconEye,
           show: canAccessSupervisao,
         },
         {
@@ -127,10 +127,11 @@ export default function MainLayout() {
         },
         {
           to: "/crm",
-          label: "Apps",
-          title: "Apps / CRM",
-          icon: IconGridDots,
+          label: "CRM",
+          title: "CRM — Funil de vendas",
+          icon: IconFilter,
           show: true,
+          accent: "crm",
         },
         {
           to: "/configuracoes",
@@ -265,13 +266,15 @@ export default function MainLayout() {
   );
 }
 
-function SidebarNavItem({ to, label, title, icon: Icon, unreadDot }) {
+function SidebarNavItem({ to, label, title, icon: Icon, unreadDot, accent }) {
   const linkTitle = unreadDot && title ? `${title} — mensagens não lidas` : title ?? label;
 
   return (
     <NavLink
       to={to}
-      className={({ isActive }) => `sidebar-nav-item${isActive ? " active" : ""}`}
+      className={({ isActive }) =>
+        `sidebar-nav-item${isActive ? " active" : ""}${accent ? ` sidebar-nav-item--${accent}` : ""}`
+      }
       title={linkTitle}
       aria-label={label}
     >

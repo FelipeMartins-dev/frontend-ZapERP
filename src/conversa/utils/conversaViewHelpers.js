@@ -609,6 +609,9 @@ export function needsProxiedMediaPlayback(absUrl) {
   if (!/^https?:\/\//i.test(abs)) return false;
   try {
     const u = new URL(abs);
+    // Uma URL que já é do proxy nunca deve virar o destino de outro proxy.
+    // Isso também cobre URLs gravadas com um host antigo da API.
+    if (u.pathname === "/media/proxy" || u.pathname === "/api/media/proxy") return false;
     const baseRaw = getApiBaseUrl().replace(/\/$/, "");
     const api = new URL(baseRaw.startsWith("http") ? baseRaw : `https://${baseRaw}`);
     // A URL já autenticada do proxy é uma fonte final. Enviá-la novamente ao próprio proxy
@@ -630,11 +633,55 @@ export function needsProxiedMediaPlayback(absUrl) {
 export function getMediaPlaybackUrl(url, urlAbsoluta) {
   const abs = getMediaUrl(url, urlAbsoluta);
   if (!abs) return "";
+  const normalizedProxy = normalizeExistingMediaProxyUrl(abs);
+  if (normalizedProxy) return normalizedProxy;
   if (!needsProxiedMediaPlayback(abs)) return abs;
   const token = getAuthTokenFromStorage();
   const q = new URLSearchParams({ url: abs });
   if (token) q.set("access_token", token);
   return `${getApiBaseUrl().replace(/\/$/, "")}/media/proxy?${q.toString()}`;
+}
+
+function isMediaProxyPath(pathname) {
+  return pathname === "/media/proxy" || pathname === "/api/media/proxy";
+}
+
+/**
+ * Reaponta uma URL de proxy antiga para a API atual e remove proxy-do-proxy.
+ * Se o destino real já for /uploads da API atual, devolve o arquivo diretamente.
+ */
+function normalizeExistingMediaProxyUrl(rawUrl, filename, disposition) {
+  const raw = String(rawUrl || "").trim();
+  if (!raw || !/^https?:\/\//i.test(raw)) return "";
+
+  try {
+    const original = new URL(raw);
+    if (!isMediaProxyPath(original.pathname)) return "";
+
+    let current = original;
+    let target = current.searchParams.get("url");
+    for (let i = 0; i < 3 && target; i += 1) {
+      const parsedTarget = new URL(target);
+      if (!isMediaProxyPath(parsedTarget.pathname)) break;
+      current = parsedTarget;
+      target = current.searchParams.get("url");
+    }
+    if (!target) return raw;
+
+    const targetUrl = resolveMediaUrlForPlayback(target);
+    if (!needsProxiedMediaPlayback(targetUrl)) return targetUrl;
+
+    const q = new URLSearchParams({ url: targetUrl });
+    const effectiveFilename = filename || original.searchParams.get("filename");
+    const effectiveDisposition = disposition || original.searchParams.get("disposition");
+    if (effectiveFilename) q.set("filename", effectiveFilename);
+    if (effectiveDisposition) q.set("disposition", effectiveDisposition);
+    const token = getAuthTokenFromStorage();
+    if (token) q.set("access_token", token);
+    return `${getApiBaseUrl().replace(/\/$/, "")}/media/proxy?${q.toString()}`;
+  } catch {
+    return raw;
+  }
 }
 
 /**
@@ -779,21 +826,9 @@ function buildMediaAccessHref(rawUrl, rawUrlAbsoluta, filename, disposition) {
   const abs = getMediaUrl(rawUrl, rawUrlAbsoluta);
   if (!abs) return abs;
 
-  // Proxy já está na URL: apenas completa os metadados de abertura/download.
-  if (!needsProxiedMediaPlayback(abs) && abs.includes("/media/proxy")) {
-    try {
-      const base =
-        typeof window !== "undefined" && window.location?.href
-          ? window.location.href
-          : `${getApiBaseUrl().replace(/\/$/, "")}/`;
-      const u = new URL(abs, base);
-      if (filename) u.searchParams.set("filename", filename);
-      u.searchParams.set("disposition", disposition);
-      return u.toString();
-    } catch {
-      return abs;
-    }
-  }
+  // Proxy já está na URL: normaliza host/camadas e completa os metadados.
+  const normalizedProxy = normalizeExistingMediaProxyUrl(abs, filename, disposition);
+  if (normalizedProxy) return normalizedProxy;
 
   // URL local (/uploads ou same-origin) — não precisa de proxy.
   if (!needsProxiedMediaPlayback(abs)) return abs;

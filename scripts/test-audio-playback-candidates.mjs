@@ -71,8 +71,12 @@ const BLOB = "blob:http://app.local/abc-123";
 {
   const proxy =
     "https://api.teste.local/media/proxy?url=https%3A%2F%2Fcdn.ultramsg.com%2Fdocs%2Fa.pdf&access_token=token";
-  const playback = getMediaPlaybackUrl(proxy, null);
-  checar("proxy existente não vira proxy do proxy", playback === proxy, playback);
+  const playback = new URL(getMediaPlaybackUrl(proxy, null));
+  checar(
+    "proxy existente não vira proxy do proxy",
+    playback.searchParams.get("url") === "https://cdn.ultramsg.com/docs/a.pdf",
+    playback.href
+  );
 }
 
 // 7) Abertura de documento externo inclui filename/MIME hint e usa disposition inline.
@@ -88,8 +92,27 @@ const BLOB = "blob:http://app.local/abc-123";
   checar("abertura preserva filename", parsed.searchParams.get("filename") === "Relatório final.pdf", href);
 }
 
+// 8) Proxy gravado com host antigo é reapontado para a API atual, sem proxy-do-proxy.
+{
+  const provider = "https://ultramsgmedia.s3.amazonaws.com/instance15/documento.pdf";
+  const antigo =
+    `https://api-antiga.teste.local/media/proxy?url=${encodeURIComponent(provider)}`;
+  const playback = new URL(getMediaPlaybackUrl(antigo, null));
+  checar("proxy antigo usa o host atual", playback.origin === "https://api.teste.local", playback.href);
+  checar("proxy antigo preserva o destino real", playback.searchParams.get("url") === provider, playback.href);
+}
+
+// 9) Proxy cujo destino real já é /uploads abre o arquivo local diretamente.
+{
+  const localPdf = "https://api.teste.local/uploads/inbound-c15-m330132-file.pdf";
+  const proxy =
+    `https://api-antiga.teste.local/media/proxy?url=${encodeURIComponent(localPdf)}`;
+  const playback = getMediaPlaybackUrl(proxy, null);
+  checar("PDF persistido não passa pelo proxy", playback === localPdf, playback);
+}
+
 if (falhas > 0) {
   console.error(`\n${falhas} verificação(ões) falharam.`);
   process.exit(1);
 }
-console.log("OK — regressão de mídia/arquivos passou (7 cenários).");
+console.log("OK — regressão de mídia/arquivos passou (9 cenários).");
