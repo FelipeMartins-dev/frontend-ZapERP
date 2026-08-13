@@ -25,6 +25,7 @@ const Mensagens = lazy(() => import("../pages/Mensagens"));
 const Atalhos = lazy(() => import("../pages/Atalhos"));
 const InternalChat = lazy(() => import("../pages/InternalChat"));
 const Supervisao = lazy(() => import("../pages/Supervisao"));
+const HelpDesk = lazy(() => import("../pages/HelpDesk"));
 
 const CrmAvancadoRedirect = lazy(() => import("../crm/CrmAvancadoRedirect"));
 const CrmDashboard = lazy(() => import("../crm/pages/CrmDashboard"));
@@ -73,6 +74,7 @@ export default function AppRoutes() {
   const canAccessChatbot_ = can("chatbot_acessar", user);
   const canAccessUsers = can("usuarios_acessar", user);
   const canAccessSupervisao = isSupervisorOrAdmin(user);
+  const canAccessHelpDesk = Number(user?.company_id) === 1;
 
   if (!token) {
     return (
@@ -138,6 +140,14 @@ export default function AppRoutes() {
                 <LazyPage>
                   <Supervisao />
                 </LazyPage>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/helpdesk"
+            element={
+              <ProtectedRoute canAccess={canAccessHelpDesk} redirectTo="/atendimento">
+                <LazyPage><HelpDesk /></LazyPage>
               </ProtectedRoute>
             }
           />

@@ -15,6 +15,7 @@ import {
   IconMoon,
   IconSun,
   IconUsers,
+  IconTicket,
 } from "@tabler/icons-react";
 import { useAuthStore } from "../auth/authStore";
 import { usePermissoesStore } from "../auth/permissoesStore";
@@ -76,6 +77,7 @@ export default function MainLayout() {
   const canAccessChatbot_ = can("chatbot_acessar", user);
   const canAccessUsers = can("usuarios_acessar", user);
   const canAccessSupervisao = isSupervisorOrAdmin(user);
+  const canAccessHelpDesk = Number(user?.company_id) === 1;
   const [darkMode, setDarkMode] = useState(() => getStoredTheme() === "dark");
 
   const navItems = useMemo(
@@ -110,6 +112,13 @@ export default function MainLayout() {
           icon: IconMessage2,
           show: true,
           unreadDot: showInternalChatUnreadDot,
+        },
+        {
+          to: "/helpdesk",
+          label: "HelpDesk",
+          title: "Central de chamados",
+          icon: IconTicket,
+          show: canAccessHelpDesk,
         },
         {
           to: "/supervisao",
