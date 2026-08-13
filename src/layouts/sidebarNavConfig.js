@@ -6,5 +6,6 @@ export function isSidebarNavActive(to, pathname) {
   if (to === "/atendimento") return path === "/atendimento" || path.startsWith("/atendimento/");
   if (to === "/crm") return path.startsWith("/crm");
   if (to === "/ia") return path === "/ia" || path.startsWith("/ia/");
+  if (to === "/helpdesk") return path === "/helpdesk" || path.startsWith("/helpdesk/");
   return path === to || path.startsWith(`${to}/`);
 }
