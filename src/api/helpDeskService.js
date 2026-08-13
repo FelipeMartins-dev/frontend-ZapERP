@@ -35,3 +35,8 @@ export async function transferTicket(id, payload) {
   const { data } = await api.post(`${BASE}/tickets/${id}/transfer`, payload)
   return data
 }
+
+export async function assumeTicket(id) {
+  const { data } = await api.post(`${BASE}/tickets/${id}/assume`)
+  return data
+}
