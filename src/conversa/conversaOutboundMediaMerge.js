@@ -1751,11 +1751,20 @@ function pickOutgoingMergedCriadoEmIso(existing, incoming) {
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
 function sortMensagensChronological(arr) {
   return [...(arr || [])].sort((a, b) => {
+    const seqa = Number(a?._stableInsertSeq)
+    const seqb = Number(b?._stableInsertSeq)
+    // Mensagens que entraram ao vivo nesta sessão (otimistas + recebidas) carregam uma
+    // sequência de chegada global monotônica (>= RUNTIME_INSERT_SEQ_BASE). Para elas, a ordem
+    // de chegada no cliente é a verdade — imune a clock skew entre relógio local (bolha enviada)
+    // e relógio do servidor (recebida), que embaralhava a posição. O `criado_em` só governa o
+    // histórico vindo da API (seq pequeno de índice de lote).
+    const bothRuntime =
+      Number.isFinite(seqa) && seqa >= RUNTIME_INSERT_SEQ_BASE &&
+      Number.isFinite(seqb) && seqb >= RUNTIME_INSERT_SEQ_BASE
+    if (bothRuntime && seqa !== seqb) return seqa - seqb
     const ta = toMillis(a?.criado_em) || 0
     const tb = toMillis(b?.criado_em) || 0
     if (ta !== tb) return ta - tb
-    const seqa = Number(a?._stableInsertSeq)
-    const seqb = Number(b?._stableInsertSeq)
     if (Number.isFinite(seqa) && Number.isFinite(seqb) && seqa !== seqb) return seqa - seqb
     const ida = Number(a?.id)
     const idb = Number(b?.id)
@@ -2133,6 +2142,7 @@ export {
   stableSyntheticMessageKey,
   mapDedupeKey,
   getMessageListReactKey,
+  allocStableInsertSeq,
   isPendingOutgoingTemp,
   clearStaleOutboundWaitFlags,
   normalizeMsgForStore,

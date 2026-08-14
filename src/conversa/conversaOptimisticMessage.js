@@ -2,6 +2,7 @@ import { useChatStore } from "../chats/chatsStore";
 import { useConversaStore } from "./conversaStore";
 import { useAuthStore } from "../auth/authStore";
 import { isGroupConversation } from "../utils/conversaUtils";
+import { allocStableInsertSeq } from "./conversaOutboundMediaMerge";
 import {
   fileToPreviewURL,
   getAudioFilename,
@@ -15,15 +16,20 @@ export function createOptimisticTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const OPTIMISTIC_INSERT_SEQ_BASE = 10_000_000;
 let optimisticOrderCounter = 0;
 
-/** Timestamp + seq monotônicos — envios rápidos não colidem na ordenação/dedupe. */
+/**
+ * Timestamp + seq monotônicos — envios rápidos não colidem na ordenação/dedupe.
+ * O `_stableInsertSeq` vem do MESMO alocador global das mensagens recebidas ao vivo
+ * (allocStableInsertSeq), garantindo uma ordem de chegada única entre enviadas e recebidas.
+ * Antes eram dois contadores independentes começando no mesmo valor, então a sequência não
+ * refletia a ordem real entre bolhas out/in e a posição “pulava”.
+ */
 function nextOptimisticInsertTiming() {
   const ord = optimisticOrderCounter++;
   return {
     criado_em: new Date(Date.now() + ord).toISOString(),
-    _stableInsertSeq: OPTIMISTIC_INSERT_SEQ_BASE + ord,
+    _stableInsertSeq: allocStableInsertSeq(),
   };
 }
 
