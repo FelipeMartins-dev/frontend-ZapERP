@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { IconArrowRight, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
+import { IconArrowRight, IconCircleCheck, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
 import { useAuthStore } from '../auth/authStore'
 import { getDepartamentos, getUsuarios } from '../api/configService'
 import {
@@ -59,6 +59,27 @@ function formatElapsed(value, now = Date.now()) {
   const hours = Math.floor((totalMinutes % 1440) / 60)
   const minutes = totalMinutes % 60
 
+  if (days > 0) return `${days}d${hours > 0 ? ` ${hours}h` : ''}`
+  if (hours > 0) return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`
+  return `${minutes}min`
+}
+
+function formatBytes(value) {
+  const bytes = Number(value)
+  if (!Number.isFinite(bytes) || bytes < 0) return 'Não informado'
+  if (bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const amount = bytes / (1024 ** unitIndex)
+  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(amount)} ${units[unitIndex]}`
+}
+
+function formatUptime(value) {
+  const totalSeconds = Number(value)
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return 'Não informado'
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
   if (days > 0) return `${days}d${hours > 0 ? ` ${hours}h` : ''}`
   if (hours > 0) return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`
   return `${minutes}min`
@@ -241,12 +262,24 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
   const [internal, setInternal] = useState(false)
   const [sending, setSending] = useState(false)
   const [assuming, setAssuming] = useState(false)
+  const [closing, setClosing] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const timeline = useMemo(() => [
     ...(ticket.mensagens || []).map((item) => ({ ...item, kind: 'message' })),
     ...(ticket.transferencias || []).map((item) => ({ ...item, kind: 'transfer' })),
   ].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime()), [ticket.mensagens, ticket.transferencias])
+  const hasEnvironmentInfo = [
+    ticket.sistema_operacional,
+    ticket.nome_maquina,
+    ticket.versao_sistema,
+    ticket.memoria_ram_bytes,
+    ticket.processador_nome,
+    ticket.processadores_logicos,
+    ticket.tempo_atividade_segundos,
+    ticket.espaco_disponivel_disco_c_bytes,
+    ticket.espaco_total_disco_c_bytes,
+  ].some((value) => value !== null && value !== undefined && value !== '')
 
   async function sendMessage(event) {
     event.preventDefault()
@@ -277,27 +310,59 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
     }
   }
 
+  async function closeTicket() {
+    try {
+      setClosing(true)
+      onError('')
+      await updateTicket(ticket.id, { status: 'resolvido' })
+      await onChanged()
+    } catch (err) {
+      onError(helpDeskApiError(err))
+    } finally {
+      setClosing(false)
+    }
+  }
+
   return (
     <div className="helpdesk-detail">
       <div className="helpdesk-detail-head">
         <div><span>Chamado</span><h2>{ticket.titulo}</h2></div>
         <div className="helpdesk-detail-actions">
           {ticket.status === 'aberto' && !ticket.responsavel_id ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={assuming} onClick={assume}><IconUserCheck size={18} /> {assuming ? 'Assumindo…' : 'Assumir'}</button> : null}
+          {ticket.status === 'em_atendimento' ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={closing} onClick={closeTicket}><IconCircleCheck size={18} /> {closing ? 'Encerrando…' : 'Encerrar'}</button> : null}
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEdit(true)}><IconEdit size={18} /> Editar</button>
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowTransfer(true)}><IconArrowRight size={18} /> Transferir</button>
         </div>
       </div>
       <section className="helpdesk-customer-card">
-        <div><span>Empresa</span><strong>{ticket.empresa_nome || 'Não informada'}</strong></div>
+        <div><span>Nome fantasia</span><strong>{ticket.empresa_nome || 'Não informado'}</strong></div>
+        <div><span>Razão social</span><strong>{ticket.empresa_razao || 'Não informada'}</strong></div>
         <div><span>CNPJ</span><strong>{ticket.cnpj || 'Não informado'}</strong></div>
         <div><span>Usuário</span><strong>{ticket.solicitante_nome || 'Não informado'}</strong></div>
         <div><span>Telefone</span><strong>{ticket.telefone || 'Não informado'}</strong></div>
       </section>
+      {hasEnvironmentInfo ? (
+        <section className="helpdesk-environment">
+          <h3>Ambiente do cliente</h3>
+          <div className="helpdesk-customer-card helpdesk-environment-card">
+            <div><span>Sistema operacional</span><strong>{ticket.sistema_operacional || 'Não informado'}</strong></div>
+            <div><span>Nome da máquina</span><strong>{ticket.nome_maquina || 'Não informado'}</strong></div>
+            <div><span>Versão do sistema</span><strong>{ticket.versao_sistema || 'Não informada'}</strong></div>
+            <div><span>Memória RAM</span><strong>{formatBytes(ticket.memoria_ram_bytes)}</strong></div>
+            <div><span>Processador</span><strong>{ticket.processador_nome || 'Não informado'}</strong></div>
+            <div><span>Processadores lógicos</span><strong>{ticket.processadores_logicos ?? 'Não informado'}</strong></div>
+            <div><span>Tempo de atividade</span><strong>{formatUptime(ticket.tempo_atividade_segundos)}</strong></div>
+            <div><span>Espaço disponível no disco C:</span><strong>{formatBytes(ticket.espaco_disponivel_disco_c_bytes)}</strong></div>
+            <div><span>Espaço total no disco C:</span><strong>{formatBytes(ticket.espaco_total_disco_c_bytes)}</strong></div>
+          </div>
+        </section>
+      ) : null}
       <div className="helpdesk-meta-grid">
         <div><span>Status</span><strong>{STATUS_LABEL[ticket.status] || ticket.status}</strong></div>
         <div><span>Prioridade</span><strong>{PRIORITY_LABEL[ticket.prioridade]}</strong></div>
         <div><span>Departamento</span><strong>{ticket.departamento || 'Sem departamento'}</strong></div>
         <div><span>Responsável</span><strong>{ticket.responsavel_nome || userMap[ticket.responsavel_id] || 'Não atribuído'}</strong></div>
+        <div><span>Avaliação</span><strong className={Number(ticket.avaliacao) > 0 ? 'helpdesk-rating' : undefined}>{Number(ticket.avaliacao) > 0 ? `${'★'.repeat(Number(ticket.avaliacao))}${'☆'.repeat(5 - Number(ticket.avaliacao))} (${ticket.avaliacao}/5)` : 'Não avaliado'}</strong></div>
       </div>
       <article className="helpdesk-description"><span>Descrição</span><p>{ticket.descricao}</p></article>
       <section className="helpdesk-timeline">
@@ -305,7 +370,7 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
         {timeline.length === 0 ? <p className="helpdesk-empty">Ainda não há movimentações neste chamado.</p> : null}
         {timeline.map((item) => item.kind === 'message' ? (
           <article className={`helpdesk-message${item.interna ? ' is-internal' : ''}`} key={`message-${item.id}`}>
-            <div><strong>{userMap[item.autor_usuario_id] || 'Usuário'}</strong>{item.interna ? <span>Nota interna</span> : null}<time>{formatDate(item.criado_em)}</time></div>
+            <div><strong>{item.autor_nome || item.solicitante_nome || userMap[item.autor_usuario_id] || ticket.solicitante_nome || 'Usuário'}</strong>{item.interna ? <span>Nota interna</span> : null}<time>{formatDate(item.criado_em)}</time></div>
             <p>{item.mensagem}</p>
           </article>
         ) : (
