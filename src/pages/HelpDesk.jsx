@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { IconArrowRight, IconEdit, IconMessagePlus, IconRefresh, IconTicket } from '@tabler/icons-react'
+import { IconArrowRight, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
 import { useAuthStore } from '../auth/authStore'
-import { isSupervisorOrAdmin } from '../auth/permissions'
 import { getDepartamentos, getUsuarios } from '../api/configService'
 import {
   addTicketMessage,
+  assumeTicket,
   getTicket,
   helpDeskApiError,
   listTickets,
@@ -50,7 +50,6 @@ function formatDate(value) {
 
 export default function HelpDesk() {
   const user = useAuthStore((state) => state.user)
-  const canTransfer = isSupervisorOrAdmin(user)
   const initialFilters = useMemo(() => loadStoredFilters(user), [user?.company_id, user?.id])
   const [tickets, setTickets] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -67,7 +66,6 @@ export default function HelpDesk() {
   const [departments, setDepartments] = useState([])
   const [users, setUsers] = useState([])
 
-  const departmentMap = useMemo(() => Object.fromEntries(departments.map((item) => [item.id, item.nome])), [departments])
   const userMap = useMemo(() => Object.fromEntries(users.map((item) => [item.id, item.nome])), [users])
 
   const loadTickets = useCallback(async () => {
@@ -184,7 +182,7 @@ export default function HelpDesk() {
                 </div>
                 <strong>{ticket.titulo}</strong>
                 <span className="helpdesk-client-name">{ticket.empresa_nome || 'Empresa não informada'}</span>
-                {ticket.status === 'em_atendimento' ? <span>Atendente: {userMap[ticket.responsavel_id] || 'Não atribuído'}</span> : null}
+                {ticket.status === 'em_atendimento' ? <span>Atendente: {ticket.responsavel_nome || userMap[ticket.responsavel_id] || 'Não atribuído'}</span> : null}
                 <div className="helpdesk-ticket-footer">
                   <span className={`helpdesk-status helpdesk-status--${ticket.status}`}>{STATUS_LABEL[ticket.status] || ticket.status}</span>
                   <time>{formatDate(ticket.atualizado_em)}</time>
@@ -202,10 +200,8 @@ export default function HelpDesk() {
           ) : (
             <TicketDetail
               ticket={detail}
-              canTransfer={canTransfer}
               departments={departments}
               users={users}
-              departmentMap={departmentMap}
               userMap={userMap}
               onChanged={refreshSelected}
               onError={setError}
@@ -218,10 +214,11 @@ export default function HelpDesk() {
   )
 }
 
-function TicketDetail({ ticket, canTransfer, departments, users, departmentMap, userMap, onChanged, onError }) {
+function TicketDetail({ ticket, departments, users, userMap, onChanged, onError }) {
   const [message, setMessage] = useState('')
   const [internal, setInternal] = useState(false)
   const [sending, setSending] = useState(false)
+  const [assuming, setAssuming] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
 
@@ -241,13 +238,27 @@ function TicketDetail({ ticket, canTransfer, departments, users, departmentMap, 
     }
   }
 
+  async function assume() {
+    try {
+      setAssuming(true)
+      onError('')
+      await assumeTicket(ticket.id)
+      await onChanged()
+    } catch (err) {
+      onError(helpDeskApiError(err))
+    } finally {
+      setAssuming(false)
+    }
+  }
+
   return (
     <div className="helpdesk-detail">
       <div className="helpdesk-detail-head">
         <div><span>Chamado</span><h2>{ticket.titulo}</h2></div>
         <div className="helpdesk-detail-actions">
+          {ticket.status === 'aberto' && !ticket.responsavel_id ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={assuming} onClick={assume}><IconUserCheck size={18} /> {assuming ? 'Assumindo…' : 'Assumir'}</button> : null}
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEdit(true)}><IconEdit size={18} /> Editar</button>
-          {canTransfer ? <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowTransfer(true)}><IconArrowRight size={18} /> Transferir</button> : null}
+          <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowTransfer(true)}><IconArrowRight size={18} /> Transferir</button>
         </div>
       </div>
       <section className="helpdesk-customer-card">
@@ -259,7 +270,7 @@ function TicketDetail({ ticket, canTransfer, departments, users, departmentMap, 
       <div className="helpdesk-meta-grid">
         <div><span>Status</span><strong>{STATUS_LABEL[ticket.status] || ticket.status}</strong></div>
         <div><span>Prioridade</span><strong>{PRIORITY_LABEL[ticket.prioridade]}</strong></div>
-        <div><span>Departamento</span><strong>{departmentMap[ticket.departamento_id] || 'Sem departamento'}</strong></div>
+        <div><span>Departamento</span><strong>{ticket.departamento || 'Sem departamento'}</strong></div>
         <div><span>Responsável</span><strong>{userMap[ticket.responsavel_id] || 'Não atribuído'}</strong></div>
       </div>
       <article className="helpdesk-description"><span>Descrição</span><p>{ticket.descricao}</p></article>
@@ -286,7 +297,9 @@ function TicketDetail({ ticket, canTransfer, departments, users, departmentMap, 
 function EditTicketModal({ ticket, departments, onClose, onSaved, onError }) {
   const [status, setStatus] = useState(ticket.status)
   const [priority, setPriority] = useState(ticket.prioridade)
-  const [departmentId, setDepartmentId] = useState(ticket.departamento_id || '')
+  const [departmentId, setDepartmentId] = useState(
+    departments.find((item) => item.nome === ticket.departamento)?.id || ''
+  )
   const [saving, setSaving] = useState(false)
 
   async function submit(event) {
@@ -310,7 +323,9 @@ function EditTicketModal({ ticket, departments, onClose, onSaved, onError }) {
 }
 
 function TransferModal({ ticket, departments, users, onClose, onSaved }) {
-  const [departmentId, setDepartmentId] = useState(ticket.departamento_id || '')
+  const [departmentId, setDepartmentId] = useState(
+    departments.find((item) => item.nome === ticket.departamento)?.id || ''
+  )
   const [assigneeId, setAssigneeId] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
