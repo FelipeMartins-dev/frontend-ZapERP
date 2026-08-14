@@ -48,6 +48,22 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
+function formatElapsed(value, now = Date.now()) {
+  const startedAt = new Date(value).getTime()
+  if (!Number.isFinite(startedAt)) return 'tempo não informado'
+
+  const totalMinutes = Math.max(0, Math.floor((now - startedAt) / 60000))
+  if (totalMinutes < 1) return 'menos de 1 min'
+
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+
+  if (days > 0) return `${days}d${hours > 0 ? ` ${hours}h` : ''}`
+  if (hours > 0) return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`
+  return `${minutes}min`
+}
+
 export default function HelpDesk() {
   const user = useAuthStore((state) => state.user)
   const initialFilters = useMemo(() => loadStoredFilters(user), [user?.company_id, user?.id])
@@ -65,6 +81,7 @@ export default function HelpDesk() {
   const [endDate, setEndDate] = useState(() => initialFilters.endDate)
   const [departments, setDepartments] = useState([])
   const [users, setUsers] = useState([])
+  const [now, setNow] = useState(() => Date.now())
 
   const userMap = useMemo(() => Object.fromEntries(users.map((item) => [item.id, item.nome])), [users])
 
@@ -123,6 +140,10 @@ export default function HelpDesk() {
       })
       .catch(() => {})
   }, [])
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   async function refreshSelected() {
     await Promise.all([loadTickets(), loadDetail(selectedId)])
@@ -180,8 +201,9 @@ export default function HelpDesk() {
                 <div className="helpdesk-ticket-topline">
                   <span className={`helpdesk-priority helpdesk-priority--${ticket.prioridade}`}>{PRIORITY_LABEL[ticket.prioridade]}</span>
                 </div>
-                <strong>{ticket.titulo}</strong>
-                <span className="helpdesk-client-name">{ticket.empresa_nome || 'Empresa não informada'}</span>
+                <strong>{ticket.empresa_nome || 'Empresa não informada'}</strong>
+                <span className="helpdesk-ticket-subject">{ticket.titulo}</span>
+                {ticket.status === 'aberto' && !ticket.responsavel_id ? <span className="helpdesk-ticket-wait">Aguardando há {formatElapsed(ticket.criado_em, now)}</span> : null}
                 {ticket.status === 'em_atendimento' ? <span>Atendente: {ticket.responsavel_nome || userMap[ticket.responsavel_id] || 'Não atribuído'}</span> : null}
                 <div className="helpdesk-ticket-footer">
                   <span className={`helpdesk-status helpdesk-status--${ticket.status}`}>{STATUS_LABEL[ticket.status] || ticket.status}</span>
@@ -221,6 +243,10 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
   const [assuming, setAssuming] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const timeline = useMemo(() => [
+    ...(ticket.mensagens || []).map((item) => ({ ...item, kind: 'message' })),
+    ...(ticket.transferencias || []).map((item) => ({ ...item, kind: 'transfer' })),
+  ].sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime()), [ticket.mensagens, ticket.transferencias])
 
   async function sendMessage(event) {
     event.preventDefault()
@@ -271,16 +297,26 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
         <div><span>Status</span><strong>{STATUS_LABEL[ticket.status] || ticket.status}</strong></div>
         <div><span>Prioridade</span><strong>{PRIORITY_LABEL[ticket.prioridade]}</strong></div>
         <div><span>Departamento</span><strong>{ticket.departamento || 'Sem departamento'}</strong></div>
-        <div><span>Responsável</span><strong>{userMap[ticket.responsavel_id] || 'Não atribuído'}</strong></div>
+        <div><span>Responsável</span><strong>{ticket.responsavel_nome || userMap[ticket.responsavel_id] || 'Não atribuído'}</strong></div>
       </div>
       <article className="helpdesk-description"><span>Descrição</span><p>{ticket.descricao}</p></article>
       <section className="helpdesk-timeline">
         <h3>Histórico</h3>
-        {(ticket.mensagens || []).length === 0 ? <p className="helpdesk-empty">Ainda não há mensagens neste chamado.</p> : null}
-        {(ticket.mensagens || []).map((item) => (
-          <article className={`helpdesk-message${item.interna ? ' is-internal' : ''}`} key={item.id}>
+        {timeline.length === 0 ? <p className="helpdesk-empty">Ainda não há movimentações neste chamado.</p> : null}
+        {timeline.map((item) => item.kind === 'message' ? (
+          <article className={`helpdesk-message${item.interna ? ' is-internal' : ''}`} key={`message-${item.id}`}>
             <div><strong>{userMap[item.autor_usuario_id] || 'Usuário'}</strong>{item.interna ? <span>Nota interna</span> : null}<time>{formatDate(item.criado_em)}</time></div>
             <p>{item.mensagem}</p>
+          </article>
+        ) : (
+          <article className="helpdesk-message helpdesk-transfer-event" key={`transfer-${item.id}`}>
+            <div><strong>{item.transferido_por_nome || userMap[item.transferido_por] || 'Usuário'}</strong><span>Transferência</span><time>{formatDate(item.criado_em)}</time></div>
+            <p>
+              Departamento: {item.de_departamento_nome || 'Sem departamento'} → {item.para_departamento_nome || 'Sem departamento'}
+              <br />
+              Responsável: {item.de_responsavel_nome || 'Não atribuído'} → {item.para_responsavel_nome || 'Não atribuído'}
+              {item.motivo ? <><br />Motivo: {item.motivo}</> : null}
+            </p>
           </article>
         ))}
       </section>
