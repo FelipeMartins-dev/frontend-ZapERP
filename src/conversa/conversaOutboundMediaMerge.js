@@ -51,9 +51,22 @@ function mergeStableSeq(existingMsg, incomingMsg, fallbackOrd) {
   return Math.min(...nums)
 }
 
+/** Igual à exibição: ISO sem timezone (Supabase, ex.: "2026-08-14T20:31:00") é tratado como UTC. */
+function toUtcNormalizedIso(s) {
+  const noTzIso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/
+  const hasTz = /(Z|[+-]\d{2}:\d{2})$/.test(s)
+  return !hasTz && noTzIso.test(s) ? `${s}Z` : s
+}
+
 function toMillis(value) {
   if (!value) return NaN
-  const ms = new Date(value).getTime()
+  // ⚠️ Alinhado a parseToDate/formatHora (conversaViewHelpers): sem esta normalização, um
+  // timestamp do servidor SEM timezone é lido por `new Date` como horário LOCAL, enquanto a
+  // exibição o trata como UTC. Essa divergência deslocava mensagens recebidas pelo offset local
+  // (ex.: −3h no Brasil vira +3h no valor ordenado), jogando-as para o fim da lista mesmo com
+  // a hora exibida correta. A ordenação precisa usar a MESMA base de tempo da exibição.
+  const raw = typeof value === "string" ? toUtcNormalizedIso(value.trim()) : value
+  const ms = new Date(raw).getTime()
   return Number.isFinite(ms) ? ms : NaN
 }
 
@@ -1742,19 +1755,8 @@ function hasRuntimeLocalOrder(msg) {
   return Number.isFinite(seq) && seq >= RUNTIME_INSERT_SEQ_BASE
 }
 
-/**
- * Timestamp de ordenação da bolha outbound ao reconciliar.
- *
- * Enquanto PENDENTE (só relógio local), mantém a âncora local para a bolha ficar no rodapé
- * sem pular. Assim que o servidor CONFIRMA (id/whatsapp_id + criado_em válido), adota o horário
- * do servidor: com isso a ordem ao vivo passa a usar o MESMO relógio das mensagens recebidas e
- * do histórico, batendo com a ordem após atualizar a página. Antes a bolha ficava presa ao
- * relógio local — se ele divergisse do servidor, enviadas e recebidas apareciam fora de ordem.
- */
+/** Mantém a âncora visual local em rajadas outbound enquanto socket/API reconciliam fora de ordem. */
 function pickOutgoingMergedCriadoEmIso(existing, incoming) {
-  const incomingConfirmedServerTime =
-    hasPersistedMessageIdentity(incoming) && Number.isFinite(toMillis(incoming?.criado_em))
-  if (incomingConfirmedServerTime) return incoming.criado_em
   if (hasRuntimeLocalOrder(existing) && existing?.criado_em) return existing.criado_em
   return pickLaterCriadoEmIso(existing, incoming)
 }
