@@ -210,6 +210,11 @@ function buildArquivoReconcileRow(row, conversaId) {
 
   const trustedUrl = pickTrustedMediaUrl(row);
   const fileLastModified = pickFileLastModified(row);
+  // Horário do servidor (quando a resposta do envio já o traz) para a bolha adotar a mesma
+  // base de ordenação das recebidas/histórico — corrige posição fora de ordem sem esperar o
+  // eco do socket. normalizeMsgForStore aceita criado_em/created_at/data_hora.
+  const serverCriadoEm =
+    row.criado_em ?? row.created_at ?? row.data_hora ?? row.data_criacao ?? row.timestamp ?? null;
 
   return {
     ...(id != null && String(id).trim() !== "" ? { id } : {}),
@@ -217,6 +222,7 @@ function buildArquivoReconcileRow(row, conversaId) {
     direcao: row.direcao ?? "out",
     status: row.status ?? row.status_mensagem ?? "pending",
     status_mensagem: row.status_mensagem ?? row.status ?? "pending",
+    ...(serverCriadoEm != null && String(serverCriadoEm).trim() !== "" ? { criado_em: serverCriadoEm } : {}),
     ...(row.tipo ? { tipo: row.tipo } : {}),
     ...(trustedUrl ? { url: trustedUrl, url_absoluta: trustedUrl } : {}),
     ...(row.nome_arquivo ? { nome_arquivo: row.nome_arquivo } : {}),

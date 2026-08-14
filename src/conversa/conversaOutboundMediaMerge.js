@@ -1742,8 +1742,19 @@ function hasRuntimeLocalOrder(msg) {
   return Number.isFinite(seq) && seq >= RUNTIME_INSERT_SEQ_BASE
 }
 
-/** Mantém a âncora visual local em rajadas outbound enquanto socket/API reconciliam fora de ordem. */
+/**
+ * Timestamp de ordenação da bolha outbound ao reconciliar.
+ *
+ * Enquanto PENDENTE (só relógio local), mantém a âncora local para a bolha ficar no rodapé
+ * sem pular. Assim que o servidor CONFIRMA (id/whatsapp_id + criado_em válido), adota o horário
+ * do servidor: com isso a ordem ao vivo passa a usar o MESMO relógio das mensagens recebidas e
+ * do histórico, batendo com a ordem após atualizar a página. Antes a bolha ficava presa ao
+ * relógio local — se ele divergisse do servidor, enviadas e recebidas apareciam fora de ordem.
+ */
 function pickOutgoingMergedCriadoEmIso(existing, incoming) {
+  const incomingConfirmedServerTime =
+    hasPersistedMessageIdentity(incoming) && Number.isFinite(toMillis(incoming?.criado_em))
+  if (incomingConfirmedServerTime) return incoming.criado_em
   if (hasRuntimeLocalOrder(existing) && existing?.criado_em) return existing.criado_em
   return pickLaterCriadoEmIso(existing, incoming)
 }
@@ -1751,20 +1762,16 @@ function pickOutgoingMergedCriadoEmIso(existing, incoming) {
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
 function sortMensagensChronological(arr) {
   return [...(arr || [])].sort((a, b) => {
-    const seqa = Number(a?._stableInsertSeq)
-    const seqb = Number(b?._stableInsertSeq)
-    // Mensagens que entraram ao vivo nesta sessão (otimistas + recebidas) carregam uma
-    // sequência de chegada global monotônica (>= RUNTIME_INSERT_SEQ_BASE). Para elas, a ordem
-    // de chegada no cliente é a verdade — imune a clock skew entre relógio local (bolha enviada)
-    // e relógio do servidor (recebida), que embaralhava a posição. O `criado_em` só governa o
-    // histórico vindo da API (seq pequeno de índice de lote).
-    const bothRuntime =
-      Number.isFinite(seqa) && seqa >= RUNTIME_INSERT_SEQ_BASE &&
-      Number.isFinite(seqb) && seqb >= RUNTIME_INSERT_SEQ_BASE
-    if (bothRuntime && seqa !== seqb) return seqa - seqb
+    // Ordem primária = relógio do SERVIDOR (`criado_em`) — a mesma usada ao recarregar a página.
+    // Assim a ordem AO VIVO bate com a ordem APÓS atualizar. `_stableInsertSeq` é só desempate
+    // quando os timestamps coincidem (rajadas no mesmo segundo). A ordem de chegada no cliente
+    // NÃO pode ser a chave primária: mídias/recebidas podem chegar via socket fora de ordem
+    // (ex.: áudio de 17:12 entregue depois de mensagens de 17:15) e cairiam na posição errada.
     const ta = toMillis(a?.criado_em) || 0
     const tb = toMillis(b?.criado_em) || 0
     if (ta !== tb) return ta - tb
+    const seqa = Number(a?._stableInsertSeq)
+    const seqb = Number(b?._stableInsertSeq)
     if (Number.isFinite(seqa) && Number.isFinite(seqb) && seqa !== seqb) return seqa - seqb
     const ida = Number(a?.id)
     const idb = Number(b?.id)
