@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconArrowRight, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
+import { IconArrowLeft, IconArrowRight, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
 import { useAuthStore } from '../auth/authStore'
 import { getDepartamentos, getUsuarios } from '../api/configService'
 import {
@@ -50,6 +50,62 @@ function loadStoredFilters(user) {
 function formatDate(value) {
   if (!value) return '—'
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
+}
+
+function formatFilterDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '')
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : ''
+}
+
+function maskFilterDate(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
+function parseFilterDate(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
+  if (!match) return null
+
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null
+
+  return `${match[3]}-${match[2]}-${match[1]}`
+}
+
+function DateFilterInput({ value, onChange, ariaLabel }) {
+  const [displayValue, setDisplayValue] = useState(() => formatFilterDate(value))
+
+  useEffect(() => {
+    setDisplayValue(formatFilterDate(value))
+  }, [value])
+
+  function handleChange(event) {
+    const maskedValue = maskFilterDate(event.target.value)
+    setDisplayValue(maskedValue)
+    if (!maskedValue) onChange('')
+    else {
+      const parsedValue = parseFilterDate(maskedValue)
+      if (parsedValue) onChange(parsedValue)
+    }
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      maxLength={10}
+      placeholder="dd/mm/aaaa"
+      aria-label={ariaLabel}
+      value={displayValue}
+      onChange={handleChange}
+    />
+  )
 }
 
 function formatElapsed(value, now = Date.now()) {
@@ -108,6 +164,8 @@ export default function HelpDesk() {
   const [users, setUsers] = useState([])
   const [now, setNow] = useState(() => Date.now())
   const backgroundRefreshRunning = useRef(false)
+  const listScrollTop = useRef(0)
+  const listScrollElement = useRef(null)
 
   const userMap = useMemo(() => Object.fromEntries(users.map((item) => [item.id, item.nome])), [users])
 
@@ -126,7 +184,7 @@ export default function HelpDesk() {
       })
       const items = data?.items || []
       setTickets(items)
-      setSelectedId((current) => (current && items.some((item) => item.id === current) ? current : items[0]?.id || null))
+      setSelectedId((current) => (current && items.some((item) => item.id === current) ? current : null))
     } catch (err) {
       setError(helpDeskApiError(err))
     } finally {
@@ -216,13 +274,25 @@ export default function HelpDesk() {
     await Promise.all([loadTickets(), loadDetail(selectedId)])
   }
 
+  function openTicket(id) {
+    listScrollTop.current = listScrollElement.current?.scrollTop || 0
+    setSelectedId(id)
+  }
+
+  function returnToList() {
+    setSelectedId(null)
+    window.requestAnimationFrame(() => {
+      if (listScrollElement.current) listScrollElement.current.scrollTop = listScrollTop.current
+    })
+  }
+
   return (
     <section className="helpdesk-page">
       <header className="helpdesk-header">
         <div>
           <p className="helpdesk-eyebrow">Central de suporte</p>
           <h1>HelpDesk</h1>
-          <p>Organize solicitações internas, acompanhe conversas e direcione cada chamado à equipe certa.</p>
+          <p>Acompanhe chamados, identifique rapidamente cada contato e direcione a solicitação à equipe certa.</p>
         </div>
         <div className="helpdesk-header-actions">
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={refreshSelected}>
@@ -233,71 +303,116 @@ export default function HelpDesk() {
 
       {error ? <div className="helpdesk-error" role="alert">{error}</div> : null}
 
-      <div className="helpdesk-workspace">
-        <aside className="helpdesk-list-panel">
-          <details className="helpdesk-filter-panel">
-            <summary>Filtros</summary>
-            <div className="helpdesk-filters">
-            <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filtrar por status">
-              <option value="">Todos os status</option>
-              {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-            <select value={priority} onChange={(event) => setPriority(event.target.value)} aria-label="Filtrar por prioridade">
-              <option value="">Todas as prioridades</option>
-              {Object.entries(PRIORITY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ID, empresa ou CNPJ" aria-label="Filtrar por ID do chamado, nome da empresa ou CNPJ" />
-              <label className="helpdesk-my-queue"><input type="checkbox" checked={myQueue} onChange={(event) => setMyQueue(event.target.checked)} /><span>Somente minha fila</span></label>
-              <div className="helpdesk-filter-dates">
-                <label className="helpdesk-filter-date"><span>De</span><input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
-                <label className="helpdesk-filter-date"><span>Até</span><input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+      <div className={`helpdesk-workspace ${selectedId ? 'is-detail-view' : 'is-list-view'}`}>
+        {!selectedId ? (
+          <section className="helpdesk-ticket-list-view">
+            <details className="helpdesk-filter-panel">
+              <summary>Filtros</summary>
+              <div className="helpdesk-filters">
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome da empresa ou CNPJ" aria-label="Buscar por nome da empresa ou CNPJ" />
+                <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filtrar por status">
+                  <option value="">Todos os status</option>
+                  {Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                <select value={priority} onChange={(event) => setPriority(event.target.value)} aria-label="Filtrar por prioridade">
+                  <option value="">Todas as prioridades</option>
+                  {Object.entries(PRIORITY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                <label className="helpdesk-my-queue"><input type="checkbox" checked={myQueue} onChange={(event) => setMyQueue(event.target.checked)} /><span>Somente minha fila</span></label>
+                <div className="helpdesk-filter-dates">
+                  <label className="helpdesk-filter-date"><span>De</span><DateFilterInput value={startDate} onChange={setStartDate} ariaLabel="Data inicial no formato dia, mês e ano" /></label>
+                  <label className="helpdesk-filter-date"><span>Até</span><DateFilterInput value={endDate} onChange={setEndDate} ariaLabel="Data final no formato dia, mês e ano" /></label>
+                </div>
               </div>
+            </details>
+
+            <div className="helpdesk-table-summary">
+              <strong>{tickets.length} {tickets.length === 1 ? 'chamado' : 'chamados'}</strong>
+              <span>Clique em uma linha para abrir o atendimento</span>
             </div>
-          </details>
 
-          <div className="helpdesk-list" aria-busy={loading}>
-            {loading ? <p className="helpdesk-empty">Carregando chamados…</p> : null}
-            {!loading && tickets.length === 0 ? <p className="helpdesk-empty">Nenhum chamado encontrado.</p> : null}
-            {tickets.map((ticket) => (
-              <button
-                type="button"
-                key={ticket.id}
-                className={`helpdesk-ticket-card${selectedId === ticket.id ? ' is-active' : ''}`}
-                onClick={() => setSelectedId(ticket.id)}
-              >
-                <div className="helpdesk-ticket-topline">
-                  <span className="helpdesk-ticket-id">Chamado #{ticket.id}</span>
-                  <span className={`helpdesk-priority helpdesk-priority--${ticket.prioridade}`}>{PRIORITY_LABEL[ticket.prioridade]}</span>
-                </div>
-                <strong>{ticket.empresa_nome || 'Empresa não informada'}</strong>
-                <span className="helpdesk-ticket-subject">{ticket.titulo}</span>
-                {ticket.status === 'aberto' && !ticket.responsavel_id ? <span className="helpdesk-ticket-wait">Aguardando há {formatElapsed(ticket.criado_em, now)}</span> : null}
-                {ticket.status === 'em_atendimento' ? <span>Atendente: {ticket.responsavel_nome || userMap[ticket.responsavel_id] || 'Não atribuído'}</span> : null}
-                <div className="helpdesk-ticket-footer">
-                  <span className={`helpdesk-status helpdesk-status--${ticket.status}`}>{STATUS_LABEL[ticket.status] || ticket.status}</span>
-                  <time>{formatDate(ticket.atualizado_em)}</time>
-                </div>
+            <div className="helpdesk-ticket-table-wrap" ref={listScrollElement} aria-busy={loading}>
+              {loading ? <p className="helpdesk-empty">Carregando chamados…</p> : null}
+              {!loading && tickets.length === 0 ? <p className="helpdesk-empty">Nenhum chamado encontrado.</p> : null}
+              {!loading && tickets.length > 0 ? (
+                <table className="helpdesk-ticket-table">
+                  <thead>
+                    <tr>
+                      <th>Nº</th>
+                      <th>Assunto</th>
+                      <th>Contato</th>
+                      <th>Empresa</th>
+                      <th>Atendimento</th>
+                      <th>Criado em</th>
+                      <th>Atualizado</th>
+                      <th>Prioridade</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tickets.map((ticket) => (
+                      <tr
+                        key={ticket.id}
+                        className="helpdesk-ticket-row"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openTicket(ticket.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            openTicket(ticket.id)
+                          }
+                        }}
+                      >
+                        <td data-label="Chamado" className="helpdesk-table-id">#{ticket.id}</td>
+                        <td data-label="Assunto" className="helpdesk-table-subject">
+                          <strong>{ticket.titulo}</strong>
+                          {ticket.status === 'aberto' && !ticket.responsavel_id ? <span className="helpdesk-ticket-wait">Aguardando há {formatElapsed(ticket.criado_em, now)}</span> : null}
+                        </td>
+                        <td data-label="Contato" className="helpdesk-table-contact">
+                          <strong>{ticket.solicitante_nome || 'Não informado'}</strong>
+                          <span>{ticket.telefone || 'Sem telefone'}</span>
+                        </td>
+                        <td data-label="Empresa" className="helpdesk-table-company">
+                          <strong>{ticket.empresa_nome || 'Não informada'}</strong>
+                          <span>{ticket.cnpj || 'CNPJ não informado'}</span>
+                        </td>
+                        <td data-label="Atendimento" className="helpdesk-table-assignee">
+                          <strong>{ticket.responsavel_nome || userMap[ticket.responsavel_id] || 'Não atribuído'}</strong>
+                          <span>{ticket.departamento || 'Sem departamento'}</span>
+                        </td>
+                        <td data-label="Criado em"><time>{formatDate(ticket.criado_em)}</time></td>
+                        <td data-label="Atualizado"><span>Há {formatElapsed(ticket.atualizado_em, now)}</span></td>
+                        <td data-label="Prioridade"><span className={`helpdesk-priority helpdesk-priority--${ticket.prioridade}`}>{PRIORITY_LABEL[ticket.prioridade]}</span></td>
+                        <td data-label="Status"><span className={`helpdesk-status helpdesk-status--${ticket.status}`}>{STATUS_LABEL[ticket.status] || ticket.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+            </div>
+          </section>
+        ) : (
+          <main className="helpdesk-detail-panel">
+            <div className="helpdesk-detail-toolbar">
+              <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={returnToList}>
+                <IconArrowLeft size={18} /> Voltar aos chamados
               </button>
-            ))}
-          </div>
-        </aside>
-
-        <main className="helpdesk-detail-panel">
-          {!selectedId ? (
-            <div className="helpdesk-detail-empty"><IconTicket size={42} /><h2>Selecione um chamado</h2><p>O histórico e as ações aparecerão aqui.</p></div>
-          ) : detailLoading || !detail ? (
-            <div className="helpdesk-detail-empty"><p>Carregando detalhes…</p></div>
-          ) : (
-            <TicketDetail
-              ticket={detail}
-              departments={departments}
-              users={users}
-              userMap={userMap}
-              onChanged={refreshSelected}
-              onError={setError}
-            />
-          )}
-        </main>
+            </div>
+            {detailLoading || !detail ? (
+              <div className="helpdesk-detail-empty"><IconTicket size={42} /><p>Carregando detalhes…</p></div>
+            ) : (
+              <TicketDetail
+                ticket={detail}
+                departments={departments}
+                users={users}
+                userMap={userMap}
+                onChanged={refreshSelected}
+                onError={setError}
+              />
+            )}
+          </main>
+        )}
       </div>
 
     </section>
@@ -430,7 +545,7 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
 }
 
 function OperationalInfoModal({ ticket, onClose }) {
-  return <Modal title={`Informações operacionais — chamado #${ticket.id}`} onClose={onClose}>
+  return <Modal title={`Informações operacionais`} onClose={onClose}>
     <div className="helpdesk-operational-grid">
       <div><span>Sistema operacional</span><strong>{ticket.sistema_operacional || 'Não informado'}</strong></div>
       <div><span>Nome da máquina</span><strong>{ticket.nome_maquina || 'Não informado'}</strong></div>
