@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { IconArrowRight, IconCircleCheck, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { IconArrowRight, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
 import { useAuthStore } from '../auth/authStore'
 import { getDepartamentos, getUsuarios } from '../api/configService'
 import {
@@ -11,6 +11,7 @@ import {
   transferTicket,
   updateTicket,
 } from '../api/helpDeskService'
+import { getSocket } from '../socket/socket'
 import './helpDesk.css'
 import './helpDeskTheme.css'
 
@@ -22,6 +23,9 @@ const STATUS_LABEL = {
 
 const PRIORITY_LABEL = { baixa: 'Baixa', normal: 'Normal', alta: 'Alta', urgente: 'Urgente' }
 const FILTER_STORAGE_PREFIX = 'zaperp_helpdesk_filters'
+const HELPDESK_CHANGED_EVENT = 'helpdesk:ticket_changed'
+const BACKGROUND_REFRESH_MS = 60000
+const SOCKET_REFRESH_DEBOUNCE_MS = 300
 
 function loadStoredFilters(user) {
   const defaults = { status: '', priority: '', search: '', myQueue: false, startDate: '', endDate: '' }
@@ -103,12 +107,13 @@ export default function HelpDesk() {
   const [departments, setDepartments] = useState([])
   const [users, setUsers] = useState([])
   const [now, setNow] = useState(() => Date.now())
+  const backgroundRefreshRunning = useRef(false)
 
   const userMap = useMemo(() => Object.fromEntries(users.map((item) => [item.id, item.nome])), [users])
 
-  const loadTickets = useCallback(async () => {
+  const loadTickets = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError('')
       const data = await listTickets({
         status: status || undefined,
@@ -125,26 +130,40 @@ export default function HelpDesk() {
     } catch (err) {
       setError(helpDeskApiError(err))
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [endDate, myQueue, priority, search, startDate, status, user?.id])
 
-  const loadDetail = useCallback(async (id) => {
+  const loadDetail = useCallback(async (id, { silent = false } = {}) => {
     if (!id) {
       setDetail(null)
       return
     }
     try {
-      setDetailLoading(true)
+      if (!silent) setDetailLoading(true)
       setError('')
       setDetail(await getTicket(id))
     } catch (err) {
       setError(helpDeskApiError(err))
       setDetail(null)
     } finally {
-      setDetailLoading(false)
+      if (!silent) setDetailLoading(false)
     }
   }, [])
+
+  const backgroundRefresh = useCallback(async (changedTicketId = null) => {
+    if (backgroundRefreshRunning.current) return
+    backgroundRefreshRunning.current = true
+    try {
+      const tasks = [loadTickets({ silent: true })]
+      if (selectedId && (!changedTicketId || Number(changedTicketId) === Number(selectedId))) {
+        tasks.push(loadDetail(selectedId, { silent: true }))
+      }
+      await Promise.all(tasks)
+    } finally {
+      backgroundRefreshRunning.current = false
+    }
+  }, [loadDetail, loadTickets, selectedId])
 
   useEffect(() => { loadTickets() }, [loadTickets])
   useEffect(() => { loadDetail(selectedId) }, [loadDetail, selectedId])
@@ -165,6 +184,33 @@ export default function HelpDesk() {
     const timer = window.setInterval(() => setNow(Date.now()), 60000)
     return () => window.clearInterval(timer)
   }, [])
+  useEffect(() => {
+    const socket = getSocket()
+    let socketTimer = null
+    const onTicketChanged = (payload = {}) => {
+      if (Number(payload.company_id) !== Number(user?.company_id)) return
+      window.clearTimeout(socketTimer)
+      socketTimer = window.setTimeout(
+        () => void backgroundRefresh(payload.ticket_id),
+        SOCKET_REFRESH_DEBOUNCE_MS
+      )
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void backgroundRefresh()
+    }
+    const pollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void backgroundRefresh()
+    }, BACKGROUND_REFRESH_MS)
+
+    socket?.on(HELPDESK_CHANGED_EVENT, onTicketChanged)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.clearTimeout(socketTimer)
+      window.clearInterval(pollTimer)
+      socket?.off(HELPDESK_CHANGED_EVENT, onTicketChanged)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [backgroundRefresh, user?.company_id])
 
   async function refreshSelected() {
     await Promise.all([loadTickets(), loadDetail(selectedId)])
@@ -200,7 +246,7 @@ export default function HelpDesk() {
               <option value="">Todas as prioridades</option>
               {Object.entries(PRIORITY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Empresa ou CNPJ" aria-label="Filtrar por nome da empresa ou CNPJ" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ID, empresa ou CNPJ" aria-label="Filtrar por ID do chamado, nome da empresa ou CNPJ" />
               <label className="helpdesk-my-queue"><input type="checkbox" checked={myQueue} onChange={(event) => setMyQueue(event.target.checked)} /><span>Somente minha fila</span></label>
               <div className="helpdesk-filter-dates">
                 <label className="helpdesk-filter-date"><span>De</span><input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
@@ -220,6 +266,7 @@ export default function HelpDesk() {
                 onClick={() => setSelectedId(ticket.id)}
               >
                 <div className="helpdesk-ticket-topline">
+                  <span className="helpdesk-ticket-id">Chamado #{ticket.id}</span>
                   <span className={`helpdesk-priority helpdesk-priority--${ticket.prioridade}`}>{PRIORITY_LABEL[ticket.prioridade]}</span>
                 </div>
                 <strong>{ticket.empresa_nome || 'Empresa não informada'}</strong>
@@ -265,6 +312,7 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
   const [closing, setClosing] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showEnvironment, setShowEnvironment] = useState(false)
   const timeline = useMemo(() => [
     ...(ticket.mensagens || []).map((item) => ({ ...item, kind: 'message' })),
     ...(ticket.transferencias || []).map((item) => ({ ...item, kind: 'transfer' })),
@@ -326,10 +374,11 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
   return (
     <div className="helpdesk-detail">
       <div className="helpdesk-detail-head">
-        <div><span>Chamado</span><h2>{ticket.titulo}</h2></div>
+        <div><span>Chamado #{ticket.id}</span><h2>{ticket.titulo}</h2></div>
         <div className="helpdesk-detail-actions">
           {ticket.status === 'aberto' && !ticket.responsavel_id ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={assuming} onClick={assume}><IconUserCheck size={18} /> {assuming ? 'Assumindo…' : 'Assumir'}</button> : null}
           {ticket.status === 'em_atendimento' ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={closing} onClick={closeTicket}><IconCircleCheck size={18} /> {closing ? 'Encerrando…' : 'Encerrar'}</button> : null}
+          {hasEnvironmentInfo ? <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEnvironment(true)}><IconDeviceDesktop size={18} /> Informações</button> : null}
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEdit(true)}><IconEdit size={18} /> Editar</button>
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowTransfer(true)}><IconArrowRight size={18} /> Transferir</button>
         </div>
@@ -341,22 +390,6 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
         <div><span>Usuário</span><strong>{ticket.solicitante_nome || 'Não informado'}</strong></div>
         <div><span>Telefone</span><strong>{ticket.telefone || 'Não informado'}</strong></div>
       </section>
-      {hasEnvironmentInfo ? (
-        <section className="helpdesk-environment">
-          <h3>Ambiente do cliente</h3>
-          <div className="helpdesk-customer-card helpdesk-environment-card">
-            <div><span>Sistema operacional</span><strong>{ticket.sistema_operacional || 'Não informado'}</strong></div>
-            <div><span>Nome da máquina</span><strong>{ticket.nome_maquina || 'Não informado'}</strong></div>
-            <div><span>Versão do sistema</span><strong>{ticket.versao_sistema || 'Não informada'}</strong></div>
-            <div><span>Memória RAM</span><strong>{formatBytes(ticket.memoria_ram_bytes)}</strong></div>
-            <div><span>Processador</span><strong>{ticket.processador_nome || 'Não informado'}</strong></div>
-            <div><span>Processadores lógicos</span><strong>{ticket.processadores_logicos ?? 'Não informado'}</strong></div>
-            <div><span>Tempo de atividade</span><strong>{formatUptime(ticket.tempo_atividade_segundos)}</strong></div>
-            <div><span>Espaço disponível no disco C:</span><strong>{formatBytes(ticket.espaco_disponivel_disco_c_bytes)}</strong></div>
-            <div><span>Espaço total no disco C:</span><strong>{formatBytes(ticket.espaco_total_disco_c_bytes)}</strong></div>
-          </div>
-        </section>
-      ) : null}
       <div className="helpdesk-meta-grid">
         <div><span>Status</span><strong>{STATUS_LABEL[ticket.status] || ticket.status}</strong></div>
         <div><span>Prioridade</span><strong>{PRIORITY_LABEL[ticket.prioridade]}</strong></div>
@@ -391,8 +424,25 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
       </form>
       {showTransfer ? <TransferModal ticket={ticket} departments={departments} users={users} onClose={() => setShowTransfer(false)} onSaved={async () => { setShowTransfer(false); await onChanged() }} /> : null}
       {showEdit ? <EditTicketModal ticket={ticket} departments={departments} onClose={() => setShowEdit(false)} onSaved={async () => { setShowEdit(false); await onChanged() }} onError={onError} /> : null}
+      {showEnvironment ? <OperationalInfoModal ticket={ticket} onClose={() => setShowEnvironment(false)} /> : null}
     </div>
   )
+}
+
+function OperationalInfoModal({ ticket, onClose }) {
+  return <Modal title={`Informações operacionais — chamado #${ticket.id}`} onClose={onClose}>
+    <div className="helpdesk-operational-grid">
+      <div><span>Sistema operacional</span><strong>{ticket.sistema_operacional || 'Não informado'}</strong></div>
+      <div><span>Nome da máquina</span><strong>{ticket.nome_maquina || 'Não informado'}</strong></div>
+      <div><span>Versão do sistema</span><strong>{ticket.versao_sistema || 'Não informada'}</strong></div>
+      <div><span>Memória RAM</span><strong>{formatBytes(ticket.memoria_ram_bytes)}</strong></div>
+      <div><span>Processador</span><strong>{ticket.processador_nome || 'Não informado'}</strong></div>
+      <div><span>Processadores lógicos</span><strong>{ticket.processadores_logicos ?? 'Não informado'}</strong></div>
+      <div><span>Tempo de atividade</span><strong>{formatUptime(ticket.tempo_atividade_segundos)}</strong></div>
+      <div><span>Espaço disponível no disco C:</span><strong>{formatBytes(ticket.espaco_disponivel_disco_c_bytes)}</strong></div>
+      <div><span>Espaço total no disco C:</span><strong>{formatBytes(ticket.espaco_total_disco_c_bytes)}</strong></div>
+    </div>
+  </Modal>
 }
 
 function EditTicketModal({ ticket, departments, onClose, onSaved, onError }) {
