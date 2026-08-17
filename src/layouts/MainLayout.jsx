@@ -22,11 +22,16 @@ import { usePermissoesStore } from "../auth/permissoesStore";
 import { can, canGerenciarRespostasSalvas, isSupervisorOrAdmin } from "../auth/permissions";
 import GlobalNotifications from "../notifications/GlobalNotifications";
 import PushPermissionPrompt from "../push/PushPermissionPrompt";
-import { getOpenConversationNotificationEventName } from "../notifications/desktopNotificationService";
+import {
+  getOpenConversationNotificationEventName,
+  getOpenHelpDeskNotificationEventName,
+} from "../notifications/desktopNotificationService";
 import { useChatStore } from "../chats/chatsStore";
 import { useMatchMedia } from "../hooks/useMatchMedia";
 import InternalChatGlobalSocketBridge from "../internal-chat/InternalChatGlobalSocketBridge";
 import { useInternalChatNotifyStore, selectInternalChatUnreadTotal } from "../internal-chat/internalChatNotifyStore";
+import HelpDeskGlobalSocketBridge from "../helpdesk/HelpDeskGlobalSocketBridge";
+import { useHelpDeskNotifyStore, selectHelpDeskUnreadTotal } from "../helpdesk/helpDeskNotifyStore";
 import "../components/layout/skip-link.css";
 
 const THEME_KEY = "theme";
@@ -68,6 +73,7 @@ export default function MainLayout() {
   const showAtendimentoUnreadDot = isMobileBottomNav && unreadAtendimentoTotal > 0;
   const internalChatUnreadTotal = useInternalChatNotifyStore(selectInternalChatUnreadTotal);
   const showInternalChatUnreadDot = internalChatUnreadTotal > 0;
+  const helpDeskUnreadTotal = useHelpDeskNotifyStore(selectHelpDeskUnreadTotal);
   // Subscrição reativa: can() lê o store via getState(); sem isto, menus não refletem
   // GET /usuarios/me/permissoes ao resolver após login/F5 (só no próximo re-render).
   usePermissoesStore((s) => s.permissoes);
@@ -119,6 +125,8 @@ export default function MainLayout() {
           title: "Central de chamados",
           icon: IconTicket,
           show: canAccessHelpDesk,
+          unreadDot: helpDeskUnreadTotal > 0,
+          unreadCount: helpDeskUnreadTotal,
         },
         {
           to: "/supervisao",
@@ -175,10 +183,12 @@ export default function MainLayout() {
       canAccessChatbot_,
       canAccessConfig,
       canAccessDashboard_,
+      canAccessHelpDesk,
       canAccessRespostasSalvas,
       canAccessSupervisao,
       canAccessUsers,
       showAtendimentoUnreadDot,
+      helpDeskUnreadTotal,
       showInternalChatUnreadDot,
     ]
   );
@@ -210,6 +220,17 @@ export default function MainLayout() {
     return () => window.removeEventListener(eventName, onOpenFromDesktopNotification);
   }, [navigate]);
 
+  useEffect(() => {
+    const eventName = getOpenHelpDeskNotificationEventName();
+    const onOpenHelpDeskFromDesktopNotification = (event) => {
+      const ticketId = Number(event?.detail?.ticketId);
+      if (!Number.isInteger(ticketId) || ticketId <= 0) return;
+      navigate(`/helpdesk?ticket=${ticketId}`);
+    };
+    window.addEventListener(eventName, onOpenHelpDeskFromDesktopNotification);
+    return () => window.removeEventListener(eventName, onOpenHelpDeskFromDesktopNotification);
+  }, [navigate]);
+
   function handleLogout() {
     logout();
     navigate("/login");
@@ -229,6 +250,7 @@ export default function MainLayout() {
       <GlobalNotifications />
       <PushPermissionPrompt />
       <InternalChatGlobalSocketBridge />
+      <HelpDeskGlobalSocketBridge />
       <aside className="sidebar sidebar--compact sidebar--v2" aria-label="Menu">
         <nav className="sidebar-nav sidebar-nav--compact sidebar-nav--v2">
           {navItems.map((item) => (
@@ -275,8 +297,11 @@ export default function MainLayout() {
   );
 }
 
-function SidebarNavItem({ to, label, title, icon: Icon, unreadDot, accent }) {
-  const linkTitle = unreadDot && title ? `${title} — mensagens não lidas` : title ?? label;
+function SidebarNavItem({ to, label, title, icon: Icon, unreadDot, unreadCount, accent }) {
+  const numericUnread = Math.max(0, Number(unreadCount) || 0);
+  const linkTitle = unreadDot && title
+    ? `${title} — ${numericUnread || "novas"} notificações não lidas`
+    : title ?? label;
 
   return (
     <NavLink
@@ -292,7 +317,13 @@ function SidebarNavItem({ to, label, title, icon: Icon, unreadDot, accent }) {
           <span className="sidebar-nav-icon" aria-hidden>
             <Icon size={SIDEBAR_ICON_SIZE} stroke={SIDEBAR_ICON_STROKE} />
           </span>
-          <span className="sidebar-nav-unreadDot" title="Novas mensagens" aria-hidden="true" />
+          {numericUnread > 0 ? (
+            <span className="sidebar-nav-unreadBadge" title={`${numericUnread} notificações não lidas`} aria-hidden="true">
+              {numericUnread > 99 ? "99+" : numericUnread}
+            </span>
+          ) : (
+            <span className="sidebar-nav-unreadDot" title="Novas mensagens" aria-hidden="true" />
+          )}
         </span>
       ) : (
         <span className="sidebar-nav-icon" aria-hidden>

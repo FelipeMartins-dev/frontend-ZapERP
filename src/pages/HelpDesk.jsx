@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IconArrowLeft, IconArrowRight, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
 import { getDepartamentos, getUsuarios } from '../api/configService'
 import {
@@ -8,10 +9,12 @@ import {
   getTicket,
   helpDeskApiError,
   listTickets,
+  markHelpDeskTicketNotificationsRead,
   transferTicket,
   updateTicket,
 } from '../api/helpDeskService'
 import { getSocket } from '../socket/socket'
+import { useHelpDeskNotifyStore } from '../helpdesk/helpDeskNotifyStore'
 import './helpDesk.css'
 import './helpDeskTheme.css'
 
@@ -22,13 +25,27 @@ const STATUS_LABEL = {
 }
 
 const PRIORITY_LABEL = { baixa: 'Baixa', normal: 'Normal', alta: 'Alta', urgente: 'Urgente' }
+const SORT_LABEL = {
+  atualizado: 'Atualizado há',
+  criado: 'Criado há',
+  status: 'Status',
+  empresa: 'Empresa',
+  numero: 'Número do chamado',
+}
+const SORT_DIRECTION_LABEL = {
+  atualizado: { asc: 'Há mais tempo', desc: 'Mais recente' },
+  criado: { asc: 'Mais antigo', desc: 'Mais recente' },
+  status: { asc: 'Aberto primeiro', desc: 'Resolvido primeiro' },
+  empresa: { asc: 'A–Z', desc: 'Z–A' },
+  numero: { asc: 'Menor primeiro', desc: 'Maior primeiro' },
+}
 const FILTER_STORAGE_PREFIX = 'zaperp_helpdesk_filters'
 const HELPDESK_CHANGED_EVENT = 'helpdesk:ticket_changed'
 const BACKGROUND_REFRESH_MS = 60000
 const SOCKET_REFRESH_DEBOUNCE_MS = 300
 
 function loadStoredFilters(user) {
-  const defaults = { status: '', priority: '', search: '', myQueue: false, startDate: '', endDate: '' }
+  const defaults = { status: '', priority: '', search: '', myQueue: false, startDate: '', endDate: '', orderBy: 'atualizado', orderDirection: 'desc' }
   if (typeof window === 'undefined') return defaults
   try {
     const key = `${FILTER_STORAGE_PREFIX}:${user?.company_id || 'unknown'}:${user?.id || 'unknown'}`
@@ -41,6 +58,8 @@ function loadStoredFilters(user) {
       myQueue: stored.myQueue === true,
       startDate: typeof stored.startDate === 'string' ? stored.startDate : '',
       endDate: typeof stored.endDate === 'string' ? stored.endDate : '',
+      orderBy: SORT_LABEL[stored.orderBy] ? stored.orderBy : 'atualizado',
+      orderDirection: stored.orderDirection === 'asc' ? 'asc' : 'desc',
     }
   } catch {
     return defaults
@@ -52,57 +71,20 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
-function formatFilterDate(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '')
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : ''
-}
-
-function maskFilterDate(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 8)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-}
-
-function parseFilterDate(value) {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
-  if (!match) return null
-
-  const day = Number(match[1])
-  const month = Number(match[2])
-  const year = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null
-
-  return `${match[3]}-${match[2]}-${match[1]}`
-}
-
 function DateFilterInput({ value, onChange, ariaLabel }) {
-  const [displayValue, setDisplayValue] = useState(() => formatFilterDate(value))
-
-  useEffect(() => {
-    setDisplayValue(formatFilterDate(value))
-  }, [value])
-
   function handleChange(event) {
-    const maskedValue = maskFilterDate(event.target.value)
-    setDisplayValue(maskedValue)
-    if (!maskedValue) onChange('')
-    else {
-      const parsedValue = parseFilterDate(maskedValue)
-      if (parsedValue) onChange(parsedValue)
-    }
+    const nextValue = event.target.value
+    if (!nextValue || /^\d{4}-\d{2}-\d{2}$/.test(nextValue)) onChange(nextValue)
   }
 
   return (
     <input
-      type="text"
-      inputMode="numeric"
-      autoComplete="off"
-      maxLength={10}
-      placeholder="dd/mm/aaaa"
+      type="date"
+      lang="pt-BR"
+      min="1000-01-01"
+      max="9999-12-31"
       aria-label={ariaLabel}
-      value={displayValue}
+      value={value}
       onChange={handleChange}
     />
   )
@@ -147,6 +129,8 @@ function formatUptime(value) {
 
 export default function HelpDesk() {
   const user = useAuthStore((state) => state.user)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTicketParam = searchParams.get('ticket')
   const initialFilters = useMemo(() => loadStoredFilters(user), [user?.company_id, user?.id])
   const [tickets, setTickets] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -160,6 +144,8 @@ export default function HelpDesk() {
   const [myQueue, setMyQueue] = useState(() => initialFilters.myQueue)
   const [startDate, setStartDate] = useState(() => initialFilters.startDate)
   const [endDate, setEndDate] = useState(() => initialFilters.endDate)
+  const [orderBy, setOrderBy] = useState(() => initialFilters.orderBy)
+  const [orderDirection, setOrderDirection] = useState(() => initialFilters.orderDirection)
   const [departments, setDepartments] = useState([])
   const [users, setUsers] = useState([])
   const [now, setNow] = useState(() => Date.now())
@@ -180,17 +166,18 @@ export default function HelpDesk() {
         responsavel_id: myQueue ? user?.id : undefined,
         data_inicio: startDate || undefined,
         data_fim: endDate || undefined,
+        ordenar_por: orderBy,
+        ordem: orderDirection,
         limit: 100,
       })
       const items = data?.items || []
       setTickets(items)
-      setSelectedId((current) => (current && items.some((item) => item.id === current) ? current : null))
     } catch (err) {
       setError(helpDeskApiError(err))
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [endDate, myQueue, priority, search, startDate, status, user?.id])
+  }, [endDate, myQueue, orderBy, orderDirection, priority, search, startDate, status, user?.id])
 
   const loadDetail = useCallback(async (id, { silent = false } = {}) => {
     if (!id) {
@@ -226,10 +213,18 @@ export default function HelpDesk() {
   useEffect(() => { loadTickets() }, [loadTickets])
   useEffect(() => { loadDetail(selectedId) }, [loadDetail, selectedId])
   useEffect(() => {
+    const ticketId = Number(requestedTicketParam)
+    if (!Number.isInteger(ticketId) || ticketId <= 0) return
+    setSelectedId(ticketId)
+    markHelpDeskTicketNotificationsRead(ticketId)
+      .then((result) => useHelpDeskNotifyStore.getState().markTicketRead(ticketId, result?.updated))
+      .catch(() => {})
+  }, [requestedTicketParam])
+  useEffect(() => {
     if (typeof window === 'undefined' || !user?.id || !user?.company_id) return
     const key = `${FILTER_STORAGE_PREFIX}:${user.company_id}:${user.id}`
-    window.localStorage.setItem(key, JSON.stringify({ status, priority, search, myQueue, startDate, endDate }))
-  }, [endDate, myQueue, priority, search, startDate, status, user?.company_id, user?.id])
+    window.localStorage.setItem(key, JSON.stringify({ status, priority, search, myQueue, startDate, endDate, orderBy, orderDirection }))
+  }, [endDate, myQueue, orderBy, orderDirection, priority, search, startDate, status, user?.company_id, user?.id])
   useEffect(() => {
     Promise.all([getDepartamentos(), getUsuarios()])
       .then(([deps, people]) => {
@@ -277,10 +272,12 @@ export default function HelpDesk() {
   function openTicket(id) {
     listScrollTop.current = listScrollElement.current?.scrollTop || 0
     setSelectedId(id)
+    setSearchParams({ ticket: String(id) }, { replace: true })
   }
 
   function returnToList() {
     setSelectedId(null)
+    setSearchParams({}, { replace: true })
     window.requestAnimationFrame(() => {
       if (listScrollElement.current) listScrollElement.current.scrollTop = listScrollTop.current
     })
@@ -319,6 +316,21 @@ export default function HelpDesk() {
                   {Object.entries(PRIORITY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
                 <label className="helpdesk-my-queue"><input type="checkbox" checked={myQueue} onChange={(event) => setMyQueue(event.target.checked)} /><span>Somente minha fila</span></label>
+                <div className="helpdesk-sort-controls">
+                  <label>
+                    <span>Ordenar por</span>
+                    <select value={orderBy} onChange={(event) => setOrderBy(event.target.value)} aria-label="Ordenar chamados por">
+                      {Object.entries(SORT_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Ordem</span>
+                    <select value={orderDirection} onChange={(event) => setOrderDirection(event.target.value)} aria-label="Definir ordem dos chamados">
+                      <option value="desc">{SORT_DIRECTION_LABEL[orderBy].desc}</option>
+                      <option value="asc">{SORT_DIRECTION_LABEL[orderBy].asc}</option>
+                    </select>
+                  </label>
+                </div>
                 <div className="helpdesk-filter-dates">
                   <label className="helpdesk-filter-date"><span>De</span><DateFilterInput value={startDate} onChange={setStartDate} ariaLabel="Data inicial no formato dia, mês e ano" /></label>
                   <label className="helpdesk-filter-date"><span>Até</span><DateFilterInput value={endDate} onChange={setEndDate} ariaLabel="Data final no formato dia, mês e ano" /></label>
