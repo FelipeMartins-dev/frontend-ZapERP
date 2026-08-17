@@ -23,6 +23,7 @@
     "test:mic-stream": "node --import ./scripts/vite-env-shim.mjs scripts/test-mic-stream-service.mjs",
     "test:audio-recording-lifecycle": "node --import ./scripts/vite-env-shim.mjs scripts/test-audio-recording-lifecycle.mjs",
     "test:offline-outbox": "node scripts/test-offline-outbox.mjs",
+    "test:atendimento-scroll": "node scripts/test-atendimento-actions-scroll.mjs",
     "test:deploy-recovery": "node scripts/test-deploy-recovery-and-finalization.mjs",
     "test:e2e": "playwright test",
     "test:e2e:audio": "playwright test audio-playback",

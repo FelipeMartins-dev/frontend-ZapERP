@@ -416,6 +416,51 @@ export const useConversaStore = create((set, get) => {
     scheduleMicrotaskSafe(takeAndApplyAnexarBatch)
   }
 
+  /**
+   * Executa uma ação de atendimento (assumir/encerrar/reabrir/aguardar/retomar/transferir)
+   * mantendo o histórico visualmente parado.
+   *
+   * Estas ações trocam elementos que ocupam altura dentro do container de scroll:
+   * o banner "atendimento encerrado" (sticky, mas em fluxo — entra/sai no topo da thread)
+   * e a linha de aviso do composer ("Assuma esta conversa…" / "Reabra o atendimento…").
+   * Como `.wa-messages` usa `overflow-anchor: none`, o browser não compensa a mudança e as
+   * mensagens saltam dezenas de px. Aqui capturamos a âncora antes da 1ª mutação e
+   * reancoramos ao longo dos frames em que o layout assenta (patch otimista → resposta do
+   * servidor → remedição do virtualizer), libertando o auto-scroll no fim.
+   */
+  async function withMessagesScrollPreserved(run) {
+    const preserve = get()._messagesScrollPreserve
+    if (typeof preserve?.begin !== "function") return run()
+
+    preserve.begin()
+
+    const restore = () => get()._messagesScrollPreserve?.end?.()
+    const release = () => get()._messagesScrollPreserve?.release?.()
+    /*
+     * Reancorar só no `finally` não chega: o patch otimista pinta o banner/aviso muito antes
+     * de o servidor responder, e o salto ficava visível durante toda a viagem à rede. Por
+     * isso corremos as reancoragens nos frames a seguir a CADA mutação (otimista e resposta);
+     * `end` é idempotente, repetir é barato e cobre a remedição do virtualizer.
+     */
+    const settle = () => {
+      restore()
+      if (typeof queueMicrotask === "function") queueMicrotask(restore)
+      if (typeof window === "undefined") return
+      window.requestAnimationFrame?.(restore)
+      window.setTimeout(restore, 0)
+      window.setTimeout(restore, 80)
+    }
+
+    settle()
+    try {
+      return await run()
+    } finally {
+      settle()
+      if (typeof window !== "undefined") window.setTimeout(release, 200)
+      else release()
+    }
+  }
+
   return {
     selectedId: null,
     conversa: null,
@@ -1429,8 +1474,8 @@ export const useConversaStore = create((set, get) => {
 
     setTags: (tags) => set({ tags: tags || [] }),
 
-    assumirConversa: async (conversaId) => {
-      const preserve = get()._messagesScrollPreserve
+    assumirConversa: async (conversaId) =>
+      withMessagesScrollPreserved(async () => {
       const chatStore = useChatStore.getState()
       const row = (chatStore.chats || []).find((c) => String(c.id) === String(conversaId))
       const openConv = get().conversa
@@ -1444,24 +1489,6 @@ export const useConversaStore = create((set, get) => {
         mensagens_bloqueadas: false,
         atendente_nome: me?.nome ?? null,
         ...(me?.id != null ? { atendente_id: me.id } : {}),
-      }
-      preserve?.begin?.()
-      const schedulePreserveEnd = () => {
-        const run = (phase) => {
-          const handlers = get()._messagesScrollPreserve
-          if (phase === "restore") handlers?.end?.()
-          else if (phase === "release") handlers?.release?.()
-        }
-        run("restore")
-        if (typeof queueMicrotask === "function") queueMicrotask(() => run("restore"))
-        if (typeof window !== "undefined") {
-          window.requestAnimationFrame?.(() => run("restore"))
-          window.setTimeout(() => run("restore"), 0)
-          window.setTimeout(() => run("restore"), 80)
-          window.setTimeout(() => run("release"), 200)
-        } else {
-          run("release")
-        }
       }
       get().patchConversa(optimistic)
       chatStore.updateChat(optimistic)
@@ -1488,19 +1515,24 @@ export const useConversaStore = create((set, get) => {
           useChatStore.getState().updateChat(revert)
         }
         throw err
-      } finally {
-        schedulePreserveEnd()
       }
-    },
+      }),
 
-    transferirConversa: async (conversaId, novoAtendenteId, observacao = null) => {
-      await transferirChat(conversaId, Number(novoAtendenteId), observacao)
-      await get().refresh()
-      useChatStore.getState().requestChatListResync()
-      set({ atendimentosLoadedFor: null })
-    },
+    /**
+     * `refresh` silencioso: o refresh normal liga `loading`, o que faz o thread mostrar
+     * skeleton e o useAutoScroll re-snapar ao fim quando volta a false — o atendente que
+     * estava a ler histórico era atirado para a última mensagem só por transferir.
+     */
+    transferirConversa: async (conversaId, novoAtendenteId, observacao = null) =>
+      withMessagesScrollPreserved(async () => {
+        await transferirChat(conversaId, Number(novoAtendenteId), observacao)
+        await get().refresh({ silent: true })
+        useChatStore.getState().requestChatListResync()
+        set({ atendimentosLoadedFor: null })
+      }),
 
-    encerrarConversa: async (conversaId) => {
+    encerrarConversa: async (conversaId) =>
+      withMessagesScrollPreserved(async () => {
       const chatStore = useChatStore.getState()
       const row = (chatStore.chats || []).find((c) => String(c.id) === String(conversaId))
       const openConv = get().conversa
@@ -1563,9 +1595,10 @@ export const useConversaStore = create((set, get) => {
         }
         throw err
       }
-    },
+      }),
 
-    reabrirConversa: async (conversaId) => {
+    reabrirConversa: async (conversaId) =>
+      withMessagesScrollPreserved(async () => {
       const chatStore = useChatStore.getState()
       const row = (chatStore.chats || []).find((c) => String(c.id) === String(conversaId))
       const openConv = get().conversa
@@ -1627,9 +1660,10 @@ export const useConversaStore = create((set, get) => {
         }
         throw err
       }
-    },
+      }),
 
-    marcarAguardandoClienteConversa: async (conversaId) => {
+    marcarAguardandoClienteConversa: async (conversaId) =>
+      withMessagesScrollPreserved(async () => {
       const chatStore = useChatStore.getState()
       const chats = chatStore.chats || []
       const row = chats.find((c) => String(c.id) === String(conversaId))
@@ -1670,9 +1704,10 @@ export const useConversaStore = create((set, get) => {
         }
         throw err
       }
-    },
+      }),
 
-    marcarAguardandoPagamentoConversa: async (conversaId, prazoOpts) => {
+    marcarAguardandoPagamentoConversa: async (conversaId, prazoOpts) =>
+      withMessagesScrollPreserved(async () => {
       const optimistic = buildPatchAguardandoPagamentoOptimista(conversaId, prazoOpts)
       const chatStore = useChatStore.getState()
       const chats = chatStore.chats || []
@@ -1709,9 +1744,10 @@ export const useConversaStore = create((set, get) => {
         }
         throw err
       }
-    },
+      }),
 
-    retomarAtendimentoConversa: async (conversaId) => {
+    retomarAtendimentoConversa: async (conversaId) =>
+      withMessagesScrollPreserved(async () => {
       const chatStore = useChatStore.getState()
       const chats = chatStore.chats || []
       const row = chats.find((c) => String(c.id) === String(conversaId))
@@ -1769,7 +1805,7 @@ export const useConversaStore = create((set, get) => {
         }
         throw err
       }
-    },
+      }),
 
     carregarAtendimentos: async (conversaId) => {
       const id = conversaId ?? get().selectedId

@@ -625,11 +625,17 @@ export default function ChatList() {
       previousBaseKey === filterRequestBaseKey &&
       String(previousSearch || "") !== String(debouncedSearch || "");
     const hasRowsToPreserve = (useChatStore.getState().chats?.length ?? 0) > 0;
-    const preserveRowsDuringMobileSearch = isMobileLayout && onlySearchChanged && hasRowsToPreserve;
+    /*
+     * Digitar na busca só troca o termo — a aba e os filtros continuam os mesmos. Limpar as
+     * linhas e mostrar esqueleto a cada lote de teclas fazia a lista piscar no desktop a
+     * cada 350 ms. Mantemos as linhas atuais até a resposta chegar (o `load` corre em
+     * background e substitui-as); o esqueleto fica reservado a mudanças reais de filtro/aba.
+     */
+    const preserveRowsDuringSearch = onlySearchChanged && hasRowsToPreserve;
     filterRequestKeyRef.current = filterRequestKey;
     filterRequestBaseKeyRef.current = filterRequestBaseKey;
     filterRequestSearchRef.current = debouncedSearch;
-    setZapFilterSkeleton(!preserveRowsDuringMobileSearch);
+    setZapFilterSkeleton(!preserveRowsDuringSearch);
     setActiveListTotalCount(null);
     setChatListPage({
       hasMore: false,
@@ -640,13 +646,13 @@ export default function ChatList() {
       loading: false,
       error: "",
     });
-    if (!preserveRowsDuringMobileSearch) {
+    if (!preserveRowsDuringSearch) {
       setChats([]);
     }
-    if (tab === "minha_fila" && !preserveRowsDuringMobileSearch) {
+    if (tab === "minha_fila" && !preserveRowsDuringSearch) {
       setMinhaFilaList(null);
     }
-  }, [filterRequestKey, filterRequestBaseKey, debouncedSearch, tab, setChats, isMobileLayout]);
+  }, [filterRequestKey, filterRequestBaseKey, debouncedSearch, tab, setChats]);
 
   /** Hidratação antes da pintura: lista + Minha fila + filtros auxiliares (F5). */
   useLayoutEffect(() => {

@@ -185,7 +185,12 @@ export default function Atendimento() {
     const q = searchParams.get("conversa");
     if (q) {
       carregarConversa(q);
-      navigate({ pathname: "/atendimento", search: "", replace: true });
+      /*
+       * `replace` é opção do 2.º argumento — dentro do objeto de destino era ignorado e cada
+       * abertura por ?conversa= empilhava uma entrada no histórico: o «voltar» do browser
+       * caía outra vez no URL com o parâmetro e reabria a conversa em ciclo.
+       */
+      navigate({ pathname: "/atendimento", search: "" }, { replace: true });
     }
   }, [searchParams, carregarConversa, navigate]);
 

@@ -1140,21 +1140,45 @@ function ConversaViewBody() {
     };
   }, [conversa, conversaId, fromChat, isGroup]);
 
+  /*
+   * Âncora usada pelas ações de atendimento (assumir/encerrar/reabrir/aguardar/retomar/
+   * transferir) enquanto o banner de encerrado e o aviso do composer entram/saem do layout.
+   *
+   * Quem já estava colado ao fim (caso normal ao clicar Encerrar) fica colado ao fim: manter
+   * um scrollTop absoluto aqui deixaria a última mensagem meio cortada porque o virtualizer
+   * ainda remede as bolhas. Quem está a ler histórico mantém o mesmo trecho visível.
+   */
   useEffect(() => {
     const begin = () => {
       const el = messagesContainerRef.current;
-      messagesScrollPreserveSnapRef.current = captureMessagesScrollAnchor(el);
+      const snap = captureMessagesScrollAnchor(el);
+      messagesScrollPreserveSnapRef.current = snap
+        ? { ...snap, atBottom: el ? isNearBottom(el, 120) : true }
+        : null;
       suppressAutoScrollRef.current = true;
       shouldStickToBottomRef.current = false;
     };
     const end = () => {
       const snap = messagesScrollPreserveSnapRef.current;
       const el = messagesContainerRef.current;
-      if (snap && el) restoreMessagesScrollAnchor(el, snap);
+      if (!snap || !el) return;
+      if (snap.atBottom) {
+        snapThreadToBottom(el, virtualThreadRef, { min: true, followUpFrame: false });
+        return;
+      }
+      restoreMessagesScrollAnchor(el, snap);
     };
     const release = () => {
+      const snap = messagesScrollPreserveSnapRef.current;
+      const el = messagesContainerRef.current;
       messagesScrollPreserveSnapRef.current = null;
       suppressAutoScrollRef.current = false;
+      /*
+       * `begin` desligou a âncora inferior para o snap não competir com o restauro.
+       * Sem repor aqui, a conversa ficava sem auto-scroll até o próximo evento de scroll:
+       * o atendente encerrava, recebia mensagem e ela nascia fora do ecrã.
+       */
+      if (el) shouldStickToBottomRef.current = snap?.atBottom ? true : isNearBottom(el, 120);
     };
     useConversaStore.getState().registerMessagesScrollPreserve({ begin, end, release });
     return () => useConversaStore.getState().registerMessagesScrollPreserve(null);
@@ -1719,32 +1743,43 @@ function ConversaViewBody() {
     };
   }, [scrollThreadId, releaseStickToBottom, lockUserScroll, scheduleUserScrollUnlock]);
 
-  useEffect(() => {
-    if (loadingMore) return;
+  /*
+   * Reancoragem após carregar histórico antigo. Corre em `useLayoutEffect` e sem esperar
+   * frames: o lote anterior é prepended no mesmo commit em que `loadingMore` volta a false,
+   * e o antigo `rAF(rAF(restore))` deixava 2 frames pintados com o histórico já inserido mas
+   * o scroll ainda na posição velha — era esse o salto ao chegar ao topo da conversa.
+   * O reajuste tardio (rAF) continua, agora só para acomodar a remedição do virtualizer.
+   */
+  useLayoutEffect(() => {
+    if (loadingMore) return undefined;
     const anchor = loadMoreAnchorRef.current;
     const fallback = loadMoreScrollRef.current;
     const hadCapture =
       anchor != null || (fallback.top !== 0 && fallback.height !== 0);
-    if (!hadCapture) return;
+    if (!hadCapture) return undefined;
 
+    /* Lê o valor do render atual: o ref homónimo só é atualizado num layout effect posterior. */
     const prepended =
-      mensagensComSeparadoresRef.current.length - loadMorePrevSeparatorCountRef.current;
+      mensagensComSeparadores.length - loadMorePrevSeparatorCountRef.current;
     const el = messagesContainerRef.current;
 
-    const restore = () => {
-      lockUserScroll();
+    const applyAnchor = () => {
       if (anchor && prepended > 0 && virtualThreadRef.current?.restoreAfterPrepend) {
         virtualThreadRef.current.restoreAfterPrepend(anchor, prepended);
       } else if (el && fallback.height > 0) {
         const diff = el.scrollHeight - fallback.height;
         if (diff > 0) el.scrollTop = fallback.top + diff;
       }
-      loadMoreAnchorRef.current = null;
-      loadMoreScrollRef.current = { top: 0, height: 0 };
-      scheduleUserScrollUnlock(headerCompact ? 280 : 220);
     };
 
-    requestAnimationFrame(() => requestAnimationFrame(restore));
+    lockUserScroll();
+    applyAnchor();
+    loadMoreAnchorRef.current = null;
+    loadMoreScrollRef.current = { top: 0, height: 0 };
+    const frame = requestAnimationFrame(applyAnchor);
+    scheduleUserScrollUnlock(headerCompact ? 280 : 220);
+
+    return () => cancelAnimationFrame(frame);
   }, [loadingMore]);
 
   /** Mesma estratégia do scroll ao topo: grava âncora antes do `loadMore` para restaurar posição após o lote. */

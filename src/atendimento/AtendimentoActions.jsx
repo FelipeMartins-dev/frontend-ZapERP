@@ -216,20 +216,37 @@ export default function AtendimentoActions({
       setOverflowMenuPos(null);
       return undefined;
     }
+    /*
+     * `scroll` em captura recebe também o scroll da thread de mensagens. Sem comparar o
+     * resultado, cada frame de rolagem fazia setState e re-renderizava a barra de ações
+     * inteira (com o portal do menu) — o scroll ficava a "arrastar" com o menu aberto.
+     */
+    let frame = 0;
     const updatePos = () => {
       const r = overflowTriggerRef.current?.getBoundingClientRect();
       if (!r) return;
-      setOverflowMenuPos({
+      const next = {
         top: Math.round(r.bottom + 6),
         right: Math.max(8, Math.round(window.innerWidth - r.right)),
+      };
+      setOverflowMenuPos((prev) =>
+        prev && prev.top === next.top && prev.right === next.right ? prev : next
+      );
+    };
+    const scheduleUpdatePos = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updatePos();
       });
     };
     updatePos();
-    window.addEventListener("resize", updatePos);
-    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", scheduleUpdatePos);
+    window.addEventListener("scroll", scheduleUpdatePos, true);
     return () => {
-      window.removeEventListener("resize", updatePos);
-      window.removeEventListener("scroll", updatePos, true);
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", scheduleUpdatePos);
+      window.removeEventListener("scroll", scheduleUpdatePos, true);
     };
   }, [menuOpen]);
 
