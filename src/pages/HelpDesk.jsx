@@ -39,6 +39,11 @@ const SORT_DIRECTION_LABEL = {
   empresa: { asc: 'A–Z', desc: 'Z–A' },
   numero: { asc: 'Menor primeiro', desc: 'Maior primeiro' },
 }
+const HELPDESK_DEPARTAMENTO_NOMES = new Set([
+  'Suporte',
+  'Financeiro',
+  'Comercial',
+])
 const FILTER_STORAGE_PREFIX = 'zaperp_helpdesk_filters'
 const HELPDESK_CHANGED_EVENT = 'helpdesk:ticket_changed'
 const BACKGROUND_REFRESH_MS = 60000
@@ -228,7 +233,9 @@ export default function HelpDesk() {
   useEffect(() => {
     Promise.all([getDepartamentos(), getUsuarios()])
       .then(([deps, people]) => {
-        setDepartments(Array.isArray(deps) ? deps : [])
+        setDepartments(
+          (Array.isArray(deps) ? deps : []).filter((department) =>
+          HELPDESK_DEPARTAMENTO_NOMES.has(String(department.nome || '').trim())))
         setUsers((Array.isArray(people) ? people : []).filter((item) => item.ativo !== false))
       })
       .catch(() => {})
