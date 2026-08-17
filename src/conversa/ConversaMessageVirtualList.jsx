@@ -28,14 +28,24 @@ function estimateThreadRowSize(item, mobileThread) {
   if (isInternalMovementEstimate(item)) return mobileThread ? 116 : 98;
   const tipo = String(item.tipo || "").toLowerCase();
   if (tipo === "sticker") return mobileThread ? 132 : 140;
-  /* Alinhado à caixa reservada da imagem (width + aspect-ratio no CSS): reduz a correção
-     do measureElement na abertura, que era parte do "pulo". */
-  if (["imagem", "image", "video"].includes(tipo)) return mobileThread ? 300 : 320;
+  /* Imagem usa uma moldura quadrada estável e vídeo usa 16:9. A estimativa fica perto da
+     caixa real para reduzir o trabalho de correção quando a linha entra no overscan. */
+  if (["imagem", "image"].includes(tipo)) return mobileThread ? 356 : 372;
+  if (tipo === "video") return mobileThread ? 230 : 246;
   if (["audio", "ptt", "voice"].includes(tipo)) return mobileThread ? 72 : 68;
   if (["documento", "document", "arquivo", "file"].includes(tipo)) return mobileThread ? 76 : 72;
   const text = String(item.texto ?? item.conteudo ?? item.message ?? item.body ?? "");
   const lines = Math.max(1, Math.ceil(text.length / (mobileThread ? 38 : 44)));
   return Math.min(mobileThread ? 320 : 360, (mobileThread ? 52 : 48) + lines * (mobileThread ? 18 : 20));
+}
+
+function getVirtualRowKey(item, index, conversaId) {
+  if (!item) return `row-${index}`;
+  /* Separadores podem mudar de índice quando uma página é inserida no início. */
+  if (item.__type === "day") return `day-${String(item.label ?? item.id ?? index)}`;
+  if (conversaId != null && conversaId !== "") return getMessageListReactKey(item, conversaId);
+  const id = item.id ?? item.tempId ?? item.whatsapp_id ?? index;
+  return `msg-${String(id)}`;
 }
 
 /**
@@ -52,6 +62,9 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
   const isScrollingRef = useRef(false);
   const pendingScrollMarginRef = useRef(null);
   const applyMarginFnRef = useRef(null);
+  const contentResizePendingRef = useRef(false);
+  const contentResizeFrameRef = useRef(0);
+  const flushContentResizeRef = useRef(null);
   const count = Array.isArray(items) ? items.length : 0;
 
   const virtualizer = useVirtualizer({
@@ -64,19 +77,11 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     scrollPaddingEnd: 16,
     isScrollingResetDelay: mobileThread ? 280 : 200,
     useAnimationFrameWithResizeObserver: mobileThread,
-    getItemKey: (index) => {
-      const item = items[index];
-      if (!item) return `row-${index}`;
-      if (item.__type === "day") return `day-${item.id}-${index}`;
-      if (conversaId != null && conversaId !== "") return getMessageListReactKey(item, conversaId);
-      const id = item.id ?? item.tempId ?? item.whatsapp_id ?? index;
-      return `msg-${String(id)}-${index}`;
-    },
+    getItemKey: (index) => getVirtualRowKey(items[index], index, conversaId),
   });
 
   useLayoutEffect(() => {
-    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) => {
-      if (isScrollingRef.current || instance.isScrolling) return false;
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item) => {
       const scrollEl = scrollRef?.current;
       if (!scrollEl) return false;
       const margin = scrollMarginRef.current;
@@ -85,6 +90,12 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
       const distanceToBottom = scrollEl.scrollHeight - viewportBottom;
       const readingHistory = distanceToBottom > 120;
       if (readingHistory) {
+        /*
+         * Esta compensação também precisa ocorrer DURANTE wheel/touch. É justamente
+         * nesse momento que linhas de mídia entram no overscan e trocam a estimativa
+         * pela altura medida. Bloqueá-la enquanto `isScrolling` fazia cada diferença
+         * acumulada deslocar o conteúdo para uma posição aparentemente aleatória.
+         */
         const itemBottom = item.end + margin;
         return itemBottom <= scrollTop;
       }
@@ -185,11 +196,17 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
         if (!scrollEl || !virtualItems.length) return null;
         const margin = scrollMarginRef.current;
         const scrollTop = scrollEl.scrollTop;
+        const visibleItems = virtualItems.filter((item) => item.end + margin >= scrollTop + 1);
+        /* Mensagem tem identidade estável; separador de dia pode mover-se quando o lote
+           novo começa no mesmo dia do lote anterior. */
         const first =
-          virtualItems.find((item) => item.end + margin >= scrollTop + 1) ??
+          visibleItems.find((item) => items[item.index]?.__type !== "day") ??
+          visibleItems[0] ??
           virtualItems[0];
         return {
           index: first.index,
+          key: getVirtualRowKey(items[first.index], first.index, conversaId),
+          offset: first.start + margin - scrollEl.scrollTop,
           scrollTop: scrollEl.scrollTop,
           itemStart: first.start,
           margin,
@@ -197,10 +214,21 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
       },
       restoreAfterPrepend: (anchor, prependedCount) => {
         const scrollEl = scrollRef?.current;
-        if (!scrollEl || !anchor || prependedCount <= 0) return;
-        const newIndex = anchor.index + prependedCount;
-        if (newIndex < 0 || newIndex >= count) return;
-        const prevOffsetInViewport = anchor.itemStart + anchor.margin - anchor.scrollTop;
+        if (!scrollEl || !anchor || prependedCount <= 0) return false;
+        let newIndex = -1;
+        if (anchor.key != null) {
+          for (let index = 0; index < count; index += 1) {
+            if (getVirtualRowKey(items[index], index, conversaId) === anchor.key) {
+              newIndex = index;
+              break;
+            }
+          }
+        }
+        if (newIndex < 0) newIndex = anchor.index + prependedCount;
+        if (newIndex < 0 || newIndex >= count) return false;
+        const prevOffsetInViewport = Number.isFinite(Number(anchor.offset))
+          ? Number(anchor.offset)
+          : anchor.itemStart + anchor.margin - anchor.scrollTop;
         virtualizer.scrollToIndex(newIndex, { align: "start", behavior: "auto" });
         const apply = () => {
           const row = virtualizer.getVirtualItems().find((v) => v.index === newIndex);
@@ -209,11 +237,13 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
           scrollEl.scrollTop = Math.max(0, row.start + margin - prevOffsetInViewport);
         };
         apply();
+        /* Uma confirmação no frame seguinte cobre a montagem do novo range. As
+           remedições posteriores são preservadas pelo callback de size change acima. */
         requestAnimationFrame(apply);
-        requestAnimationFrame(apply);
+        return true;
       },
     }),
-    [virtualizer, count]
+    [virtualizer, count, items, conversaId]
   );
 
   useEffect(() => {
@@ -226,6 +256,7 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
         applyMarginFnRef.current?.(pendingScrollMarginRef.current);
         pendingScrollMarginRef.current = null;
       }
+      flushContentResizeRef.current?.();
     };
 
     const onScroll = () => {
@@ -267,20 +298,32 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     const el = innerRootRef.current;
     if (!el || typeof ResizeObserver === "undefined") return undefined;
 
-    const run = () => { onVirtualContentResize(); };
     const schedule = () => {
       /*
-       * ResizeObserver roda após o layout e antes do paint. Reancorar aqui evita
-       * expor 1–2 frames com espaço vazio; o antigo duplo rAF tornava o salto visível.
+       * Uma página com dezenas de mídias pode emitir várias notificações no mesmo
+       * frame. Consolidá-las evita snaps/reflows repetidos disputando o scroll.
        */
-      run();
+      contentResizePendingRef.current = true;
+      if (isScrollingRef.current || contentResizeFrameRef.current) return;
+      contentResizeFrameRef.current = requestAnimationFrame(() => {
+        contentResizeFrameRef.current = 0;
+        if (!contentResizePendingRef.current) return;
+        contentResizePendingRef.current = false;
+        onVirtualContentResize();
+      });
     };
+
+    flushContentResizeRef.current = schedule;
 
     const ro = new ResizeObserver(schedule);
     ro.observe(el);
     schedule();
     return () => {
       ro.disconnect();
+      cancelAnimationFrame(contentResizeFrameRef.current);
+      contentResizeFrameRef.current = 0;
+      contentResizePendingRef.current = false;
+      if (flushContentResizeRef.current === schedule) flushContentResizeRef.current = null;
     };
   }, [onVirtualContentResize, count, mobileThread]);
 
@@ -312,14 +355,6 @@ export const ConversaMessageVirtualList = forwardRef(function ConversaMessageVir
     </div>
   );
 });
-
-function getStaticItemKey(item, index, conversaId) {
-  if (!item) return `row-${index}`;
-  if (item.__type === "day") return `day-${item.id}-${index}`;
-  if (conversaId != null && conversaId !== "") return getMessageListReactKey(item, conversaId);
-  const id = item.id ?? item.tempId ?? item.whatsapp_id ?? index;
-  return `msg-${String(id)}-${index}`;
-}
 
 /**
  * Lista natural para mobile: evita transforms/medição dinâmica da virtualização durante toque.
@@ -385,9 +420,14 @@ export const ConversaMessageStaticList = forwardRef(function ConversaMessageStat
         if (!scrollEl || !root) return null;
         const viewport = scrollEl.getBoundingClientRect();
         const rows = Array.from(root.children || []);
+        const visibleRows = rows.filter(
+          (row) => row.getBoundingClientRect().bottom >= viewport.top + 1
+        );
         const first =
-          rows.find((row) => row.getBoundingClientRect().bottom >= viewport.top + 1) ??
-          rows[0];
+          visibleRows.find((row) => {
+            const index = Number(row.getAttribute("data-index"));
+            return items[index]?.__type !== "day";
+          }) ?? visibleRows[0] ?? rows[0];
         if (!first) return null;
         return {
           index: Number(first.getAttribute("data-index")) || 0,
@@ -399,9 +439,18 @@ export const ConversaMessageStaticList = forwardRef(function ConversaMessageStat
       },
       restoreAfterPrepend: (anchor, prependedCount) => {
         const scrollEl = scrollRef?.current;
-        if (!scrollEl || !anchor || prependedCount <= 0) return;
-        const newIndex = anchor.index + prependedCount;
-        if (newIndex < 0 || newIndex >= count) return;
+        if (!scrollEl || !anchor || prependedCount <= 0) return false;
+        let newIndex = -1;
+        if (anchor.key != null) {
+          for (let index = 0; index < count; index += 1) {
+            if (getVirtualRowKey(items[index], index, conversaId) === anchor.key) {
+              newIndex = index;
+              break;
+            }
+          }
+        }
+        if (newIndex < 0) newIndex = anchor.index + prependedCount;
+        if (newIndex < 0 || newIndex >= count) return false;
         const apply = () => {
           const row = getRowByKey(anchor.key) || getRowByIndex(newIndex);
           if (!row) return;
@@ -412,9 +461,10 @@ export const ConversaMessageStaticList = forwardRef(function ConversaMessageStat
         apply();
         requestAnimationFrame(apply);
         requestAnimationFrame(apply);
+        return true;
       },
     }),
-    [count, scrollRef]
+    [count, scrollRef, items, conversaId]
   );
 
   useLayoutEffect(() => {
@@ -435,7 +485,7 @@ export const ConversaMessageStaticList = forwardRef(function ConversaMessageStat
     <div ref={rootRef} className="wa-messages-static-root">
       {visibleItems.map((item, i) => {
         const absIndex = offset + i;
-        const rowKey = getStaticItemKey(item, absIndex, conversaId);
+        const rowKey = getVirtualRowKey(item, absIndex, conversaId);
         return (
           <div
             key={rowKey}

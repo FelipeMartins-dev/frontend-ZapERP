@@ -2175,6 +2175,12 @@ html:not([data-theme="dark"]) .wa-actions .wa-btn-danger {
   opacity: 0;
 }
 
+/* Não mantém o grande glow animado competindo por composição enquanto a thread rola. */
+.wa-messages.is-scrolling::before,
+.wa-messages.is-scrolling::after {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wa-messages .wa-bubble.zap-message-enter {
     animation: none !important;
@@ -3937,8 +3943,9 @@ html:not([data-theme="dark"]) .wa-bubble-out {
 
 .wa-bubble.image-message .wa-bubble-imgLink {
   margin: 0;
-  width: fit-content;
+  width: min(340px, calc(100vw - 56px));
   max-width: min(420px, calc(100vw - 72px));
+  aspect-ratio: 1 / 1;
   background: rgba(11, 20, 26, 0.06);
   contain: layout paint;
 }
@@ -3956,19 +3963,15 @@ html:not([data-theme="dark"]) .wa-bubble-out {
 .wa-bubble.image-message .wa-bubble-img {
   display: block;
   /*
-   * Espaço reservado estável (evita o "pulo" ao carregar mídia).
-   * Largura fixa responsiva + aspect-ratio dão à caixa uma altura definida ANTES do
-   * pixel chegar. O `auto` faz o navegador usar a proporção NATURAL assim que a imagem
-   * carrega — e imediatamente para imagens já em cache (img.complete), caso dominante
-   * após a 1ª visualização e após restaurar o cache de mensagens → zero deslocamento.
-   * O 3/4 é só a proporção de reserva enquanto não há dimensão (1ª carga de imagem nova).
-   * Antes: caixa cinza de 240px que colapsava para a altura real (empurrava as mensagens).
+   * Moldura quadrada estável: a altura não muda quando o arquivo termina de decodificar.
+   * Fotos retrato/paisagem usam object-fit:contain dentro da moldura, portanto não são
+   * cortadas e também não deslocam dezenas de mensagens durante a rolagem.
    */
-  width: min(340px, calc(100vw - 56px));
-  height: auto;
-  aspect-ratio: auto var(--wa-img-ar, 3 / 4);
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
   max-width: 100%;
-  max-height: min(460px, 74vh);
+  max-height: none;
   object-fit: contain;
   object-position: center;
   vertical-align: bottom;

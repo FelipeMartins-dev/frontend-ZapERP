@@ -1513,14 +1513,15 @@ function ConversaViewBody() {
 
   const captureLoadMoreAnchor = useCallback(() => {
     loadMorePrevSeparatorCountRef.current = mensagensComSeparadoresRef.current.length;
+    const el = messagesContainerRef.current;
+    if (el) {
+      /* Fallback capturado mesmo quando há âncora virtual. Assim uma troca
+         estática→virtual no mobile ainda consegue preservar a posição. */
+      loadMoreScrollRef.current = { top: el.scrollTop, height: el.scrollHeight };
+    }
     const anchor = virtualThreadRef.current?.getScrollAnchor?.();
     if (anchor) {
       loadMoreAnchorRef.current = anchor;
-      return;
-    }
-    const el = messagesContainerRef.current;
-    if (el) {
-      loadMoreScrollRef.current = { top: el.scrollTop, height: el.scrollHeight };
     }
   }, []);
 
@@ -1764,9 +1765,11 @@ function ConversaViewBody() {
     const el = messagesContainerRef.current;
 
     const applyAnchor = () => {
+      let restored = false;
       if (anchor && prepended > 0 && virtualThreadRef.current?.restoreAfterPrepend) {
-        virtualThreadRef.current.restoreAfterPrepend(anchor, prepended);
-      } else if (el && fallback.height > 0) {
+        restored = virtualThreadRef.current.restoreAfterPrepend(anchor, prepended) === true;
+      }
+      if (!restored && el && fallback.height > 0) {
         const diff = el.scrollHeight - fallback.height;
         if (diff > 0) el.scrollTop = fallback.top + diff;
       }
@@ -1776,10 +1779,7 @@ function ConversaViewBody() {
     applyAnchor();
     loadMoreAnchorRef.current = null;
     loadMoreScrollRef.current = { top: 0, height: 0 };
-    const frame = requestAnimationFrame(applyAnchor);
     scheduleUserScrollUnlock(headerCompact ? 280 : 220);
-
-    return () => cancelAnimationFrame(frame);
   }, [loadingMore]);
 
   /** Mesma estratégia do scroll ao topo: grava âncora antes do `loadMore` para restaurar posição após o lote. */

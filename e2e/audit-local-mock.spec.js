@@ -784,6 +784,49 @@ test("historico com muitas midias abre e envia sem saltos tardios", async ({ pag
   expect(renderedCount).toBeGreaterThan(0);
   expect(renderedCount).toBeLessThan(80);
 
+  /* Regressão principal: ao subir, novas linhas de imagem/áudio entram no overscan e
+     trocam a altura estimada pela medida. A mesma mensagem visível deve continuar no
+     mesmo pixel enquanto essas medições tardias terminam. */
+  const historyProbe = await messages.evaluate(async (element) => {
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
+    /* Marca intenção humana para o auto-scroll não reancorar ao fim durante a sonda. */
+    element.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, bubbles: true }));
+    element.scrollTop = Math.round(maxTop * 0.62);
+    await frame();
+    for (let step = 0; step < 6; step += 1) {
+      element.scrollTop = Math.max(0, element.scrollTop - 36);
+      await frame();
+    }
+
+    const viewport = element.getBoundingClientRect();
+    const rows = Array.from(
+      element.querySelectorAll(".wa-messages-virtual-root > [data-index]")
+    );
+    const anchor = rows.find((row) => {
+      const rect = row.getBoundingClientRect();
+      return rect.top >= viewport.top + 8 && rect.bottom <= viewport.bottom - 8;
+    });
+    if (!anchor) return { found: false, delta: Number.POSITIVE_INFINITY };
+    const index = anchor.getAttribute("data-index");
+    const before = anchor.getBoundingClientRect().top - viewport.top;
+    await pause(850);
+    const current = element.querySelector(
+      `.wa-messages-virtual-root > [data-index="${index}"]`
+    );
+    if (!current) return { found: false, delta: Number.POSITIVE_INFINITY };
+    const after = current.getBoundingClientRect().top - element.getBoundingClientRect().top;
+    return { found: true, delta: Math.abs(after - before) };
+  });
+  expect(historyProbe.found).toBe(true);
+  expect(historyProbe.delta).toBeLessThanOrEqual(4);
+
+  await messages.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await page.waitForTimeout(120);
+
   const composer = page.locator(".wa-input");
   await composer.fill("Mensagem apos historico pesado");
   await page.getByRole("button", { name: "Enviar mensagem" }).click();
