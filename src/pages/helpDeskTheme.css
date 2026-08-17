@@ -237,8 +237,28 @@
 }
 
 .helpdesk-ticket-list-view .helpdesk-filters {
-  grid-template-columns: minmax(240px, 2fr) minmax(150px, .8fr) minmax(150px, .8fr) minmax(160px, .8fr) minmax(270px, 1.2fr);
+  grid-template-columns: minmax(240px, 2fr) minmax(145px, .8fr) minmax(145px, .8fr) minmax(155px, .8fr) minmax(290px, 1.35fr) minmax(270px, 1.2fr);
   align-items: end;
+}
+
+.helpdesk-sort-controls {
+  display: grid;
+  grid-template-columns: minmax(145px, 1.25fr) minmax(125px, 1fr);
+  gap: 6px;
+  min-width: 0;
+}
+
+.helpdesk-sort-controls label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ds-text-tertiary);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.helpdesk-sort-controls select {
+  width: 100%;
 }
 
 .helpdesk-table-summary {
@@ -406,6 +426,10 @@
   .helpdesk-ticket-list-view .helpdesk-filter-dates {
     grid-column: span 2;
   }
+
+  .helpdesk-ticket-list-view .helpdesk-sort-controls {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 900px) {
@@ -420,6 +444,7 @@
   }
 
   .helpdesk-ticket-list-view .helpdesk-filters > input:first-child,
+  .helpdesk-ticket-list-view .helpdesk-sort-controls,
   .helpdesk-ticket-list-view .helpdesk-filter-dates {
     grid-column: 1 / -1;
   }
@@ -502,6 +527,10 @@
   .helpdesk-ticket-list-view .helpdesk-filter-dates,
   .helpdesk-ticket-row .helpdesk-table-subject {
     grid-column: auto;
+  }
+
+  .helpdesk-sort-controls {
+    grid-template-columns: 1fr;
   }
 
   .helpdesk-table-summary span {
