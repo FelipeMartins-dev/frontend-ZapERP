@@ -7,7 +7,7 @@ import {
   isModoSimplesAguardandoCliente,
 } from "../utils/conversaUtils";
 import { getDisplayName, getPhone } from "./chatListDisplay";
-import { getLastMessage, isConversaAguardandoFuncionario, getChatListSortTimestampMs, sortChatListByRecent } from "./chatListRowAtendimento";
+import { getLastMessage, isConversaAguardandoFuncionario, getChatListSortTimestampMs, sortChatListByRecent, sortChatRowsBySearchRelevance } from "./chatListRowAtendimento";
 import { chatListsStoreEquivalent, chatListIdsInOrder } from "./chatListStoreCompare";
 
 export function digitsOnly(v) {
@@ -404,6 +404,12 @@ export function computeChatsFiltrados({
   if (!adminPorFuncionario && !searchBypassesTabFilters && tab === "minha_fila") {
     list = clearGrupoSetorAutoPinNaMinhaFila(list);
     list = applyCotacaoFixadaNaMinhaFila(list, user);
+  }
+
+  // Busca ativa: prioriza match em nome/telefone (busca_rank do backend) e mantém a ordem
+  // de relevância; sem isso, o sort por recência abaixo afogaria o contato entre matches de texto.
+  if (searchBypassesTabFilters) {
+    return sortChatRowsBySearchRelevance(list);
   }
 
   // ordenação: apenas por data (mais recente no topo) — contador de não lidas no item não altera a ordem

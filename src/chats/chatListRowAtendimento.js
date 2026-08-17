@@ -237,6 +237,27 @@ export function sortChatListByRecent(arr) {
   );
 }
 
+/**
+ * Ordena RESULTADOS DE BUSCA por relevância (estilo WhatsApp):
+ *   1) fixadas primeiro;
+ *   2) match em nome/telefone (busca_rank=0) antes de match só no texto (busca_rank=1);
+ *   3) recência dentro de cada faixa.
+ * O `busca_rank` vem do backend; na ausência dele, cai para recência pura.
+ */
+export function sortChatRowsBySearchRelevance(arr) {
+  if (!Array.isArray(arr) || arr.length <= 1) return arr;
+  const rank = (c) => (Number.isFinite(Number(c?.busca_rank)) ? Number(c.busca_rank) : 0);
+  return [...arr].sort((a, b) => {
+    const ap = a?.fixada === true ? 1 : 0;
+    const bp = b?.fixada === true ? 1 : 0;
+    if (ap !== bp) return bp - ap;
+    const ar = rank(a);
+    const br = rank(b);
+    if (ar !== br) return ar - br;
+    return getChatListSortTimestampMs(b) - getChatListSortTimestampMs(a);
+  });
+}
+
 export function isConversaAguardandoCliente(c, user) {
   if (!c) return false;
   if (isModoSimplesAguardandoCliente(c, user)) return true;
