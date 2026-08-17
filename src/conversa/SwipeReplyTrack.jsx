@@ -65,13 +65,18 @@ export function SwipeReplyTrack({ enabled, outgoing, onCommit, gestureBlocked, c
       if (e.button !== 0) return;
       if (shouldIgnoreSwipeTarget(e.target)) return;
 
+      /*
+         Sem setState aqui: um toque na bolha é quase sempre início de rolagem vertical, e
+         desligar a mola já no pointerdown re-renderizava a linha a cada dedo pousado (e
+         outra vez no pointerup, ao repor a mola) — trabalho de React no meio do gesto de
+         scroll. A mola só estorva quando o eixo trava em horizontal; é lá que a desligamos.
+      */
       dragRef.current = {
         pointerId: e.pointerId,
         x0: e.clientX,
         y0: e.clientY,
         axis: null,
       };
-      setSpring(false);
     },
     [enabled, gestureBlocked]
   );
@@ -92,6 +97,7 @@ export function SwipeReplyTrack({ enabled, outgoing, onCommit, gestureBlocked, c
         }
         if (Math.abs(dx) > HORIZ_LOCK_PX && Math.abs(dx) >= Math.abs(dy) * HORIZ_RATIO) {
           d.axis = "h";
+          setSpring(false);
           try {
             e.currentTarget.setPointerCapture(e.pointerId);
           } catch (_) {}
@@ -170,7 +176,7 @@ export function SwipeReplyTrack({ enabled, outgoing, onCommit, gestureBlocked, c
       style={{ touchAction: "pan-y" }}
     >
       <div
-        className={`wa-swipeReplyShift ${spring ? "wa-swipeReplyShift--spring" : ""}`}
+        className={`wa-swipeReplyShift ${spring ? "wa-swipeReplyShift--spring" : "wa-swipeReplyShift--dragging"}`}
         style={{
           transform: `translateX(${shift}px)`,
         }}

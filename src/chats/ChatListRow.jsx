@@ -1353,11 +1353,16 @@ function ChatRow({
     >
       <div className="chat-list-avatar" style={{ background: showAvatarImg ? "transparent" : color }} aria-hidden="true">
         {showAvatarImg ? (
+          /* decoding="async": era o único <img> da lista sem isto, e a descodificação corria
+             na main thread ao entrar a linha — ou seja, durante o scroll. Sem loading="lazy":
+             as linhas já são virtualizadas (só montam perto do ecrã) e adiar mais faria a
+             foto piscar ao rolar. */
           <img
             src={avatarUrl}
             alt=""
             className="chat-list-avatar-img"
             referrerPolicy="no-referrer"
+            decoding="async"
             onError={() => setImgError(true)}
           />
         ) : (

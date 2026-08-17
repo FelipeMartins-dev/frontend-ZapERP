@@ -1834,7 +1834,12 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
   .chat-list-row--atendimento-tech::after {
     animation: none !important;
     opacity: 0.38;
-    will-change: auto;
+    /* Precisa de `!important`: a regra base fica MAIS ABAIXO no ficheiro com a mesma
+       especificidade e reimpunha `will-change: opacity`. Resultado: a animação parava aqui,
+       mas cada cartão "em atendimento" continuava promovido a camada de composição própria
+       para uma animação que nunca corre — camadas de GPU a mais na lista, que é onde o
+       scroll do telemóvel engasga. */
+    will-change: auto !important;
   }
 
   [data-theme="dark"] .chat-list-row--atendimento-tech::after {
@@ -2000,7 +2005,12 @@ html:not([data-theme="dark"]) .chat-list-row.zap-conversation-card.is-active {
   .chat-list-row--atendimento-tech::after {
     animation: none !important;
     opacity: 0.38;
-    will-change: auto;
+    /* Precisa de `!important`: a regra base fica MAIS ABAIXO no ficheiro com a mesma
+       especificidade e reimpunha `will-change: opacity`. Resultado: a animação parava aqui,
+       mas cada cartão "em atendimento" continuava promovido a camada de composição própria
+       para uma animação que nunca corre — camadas de GPU a mais na lista, que é onde o
+       scroll do telemóvel engasga. */
+    will-change: auto !important;
   }
 
   html:not([data-theme="dark"]) .chat-list-row.chat-list-row--await-staff-premium::after,

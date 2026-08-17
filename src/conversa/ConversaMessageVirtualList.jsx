@@ -2,15 +2,23 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, u
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { getMessageListReactKey } from "./conversaStore";
 
+/*
+ * Chamado pelo `estimateSize` \u2014 ou seja, por item, a cada passagem de medi\u00e7\u00e3o do
+ * virtualizador. Ver a nota g\u00e9mea em ThreadRow.jsx: recorta a 1.\u00aa linha sem partir o corpo
+ * todo e s\u00f3 faz `normalize("NFD")` se a linha j\u00e1 contiver "movimenta".
+ */
 function isInternalMovementEstimate(item) {
   if (!item) return false;
   if (item?.mensagem_interna === true) return true;
   if (String(item?.tipo || "").toLowerCase() === "movimentacao_interna_atendimento") return true;
-  const firstLine = String(item?.texto ?? item?.conteudo ?? "").trim().split(/\r?\n/)[0] || "";
-  return firstLine
+  const raw = String(item?.texto ?? item?.conteudo ?? "").trim();
+  if (!raw) return false;
+  const nl = raw.indexOf("\n");
+  const lower = (nl === -1 ? raw : raw.slice(0, nl)).toLowerCase();
+  if (!lower.includes("movimenta")) return false;
+  return lower
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
     .includes("movimentacao interna");
 }
 

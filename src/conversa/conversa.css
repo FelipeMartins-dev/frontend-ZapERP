@@ -2664,7 +2664,6 @@ html:not([data-theme="dark"]) .wa-closedAttendance-reopenBtn {
 }
 
 .wa-swipeReplyShift {
-  will-change: transform;
   position: relative;
   flex: 0 1 auto;
   /* auto = não encolher abaixo do conteúdo (“Boa tarde” em uma linha) */
@@ -2687,6 +2686,17 @@ html:not([data-theme="dark"]) .wa-closedAttendance-reopenBtn {
 
 .wa-swipeReplyShift.wa-swipeReplyShift--spring {
   transition: transform 0.22s cubic-bezier(0.22, 0.82, 0.22, 1);
+}
+
+/*
+ * `will-change: transform` fica só durante o arrasto. Fixo na regra base, promovia TODAS as
+ * bolhas montadas a camada de composição própria — memória de GPU por mensagem, num gesto
+ * que 99% das vezes nem acontece. O arrasto é um por vez: promover só esse chega.
+ * (Seguro: quem posiciona os menus/reações é o `position: relative` desta mesma regra, e o
+ * menu da bolha sai por portal — nada depende do bloco de contenção criado pelo will-change.)
+ */
+.wa-swipeReplyShift.wa-swipeReplyShift--dragging {
+  will-change: transform;
 }
 
 .wa-swipeReplyTrack:has(.wa-bubble.image-message) .wa-swipeReplyShift,

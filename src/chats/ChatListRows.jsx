@@ -133,21 +133,33 @@ const ChatListRows = memo(function ChatListRows({
     },
   });
 
+  /*
+   * Aplica a posição ANTES do paint e repete no frame seguinte. Antes era só
+   * `requestAnimationFrame`: ao voltar da conversa no mobile a lista aparecia um frame
+   * inteiro no topo e só depois saltava para onde o atendente estava — o "pulo" ao usar o
+   * voltar do aparelho. O frame extra fica como rede de segurança, para o caso de a altura
+   * do virtualizador ainda não estar assente quando a coluna deixa de estar `display:none`.
+   */
   useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el) return undefined;
+
+    const aplicarScroll = (top) => {
+      const alvo = scrollRef.current;
+      if (alvo) alvo.scrollTop = top;
+    };
 
     const n = chatListScrollToTopNonce;
     if (n !== scrollTopNoncePrevRef.current) {
       scrollTopNoncePrevRef.current = n;
+      prevMobileSelectedRef.current = mobileSelectedId;
       if (n > 0) {
         scrollSaveRef.current = 0;
-        requestAnimationFrame(() => {
-          if (scrollRef.current) scrollRef.current.scrollTop = 0;
-        });
+        aplicarScroll(0);
+        const frame = requestAnimationFrame(() => aplicarScroll(0));
+        return () => cancelAnimationFrame(frame);
       }
-      prevMobileSelectedRef.current = mobileSelectedId;
-      return;
+      return undefined;
     }
 
     const prevMobile = prevMobileSelectedRef.current;
@@ -156,10 +168,12 @@ const ChatListRows = memo(function ChatListRows({
     /* Só restaura scroll ao voltar da conversa no mobile — não a cada update da lista. */
     if (isMobileLayout && prevMobile != null && mobileSelectedId == null) {
       const saved = scrollSaveRef.current;
-      requestAnimationFrame(() => {
-        if (scrollRef.current) scrollRef.current.scrollTop = saved;
-      });
+      aplicarScroll(saved);
+      const frame = requestAnimationFrame(() => aplicarScroll(saved));
+      return () => cancelAnimationFrame(frame);
     }
+
+    return undefined;
   }, [
     chatListScrollToTopNonce,
     mobileSelectedId,

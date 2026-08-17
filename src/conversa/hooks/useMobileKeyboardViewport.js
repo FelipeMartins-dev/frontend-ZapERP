@@ -207,7 +207,27 @@ export function useMobileKeyboardViewport({
       vv.addEventListener("scroll", onVv);
     }
 
-    const onInputFocusBlur = () => scheduleSyncHeaderLayout();
+    /*
+     * `focusin`/`focusout` disparam para QUALQUER elemento focável — cada toque num botão
+     * da conversa (anexos, emoji, menu da bolha, ações do cabeçalho) desencadeava o burst
+     * completo (sync + rAF + 3 timers), e cada sync faz `offsetHeight` +
+     * `getBoundingClientRect` + 2 `querySelector`, ou seja, reflow forçado. Só campos de
+     * texto abrem o teclado virtual — é só para esses que o burst é preciso; para o resto
+     * o `visualViewport` já cobre qualquer mudança real de viewport.
+     */
+    const abreTecladoVirtual = (el) => {
+      if (!el || el.nodeType !== 1) return false;
+      if (el.isContentEditable) return true;
+      const tag = el.tagName;
+      if (tag === "TEXTAREA") return true;
+      if (tag !== "INPUT") return false;
+      const type = String(el.getAttribute("type") || "text").toLowerCase();
+      return !["button", "submit", "reset", "checkbox", "radio", "file", "image", "range", "color"].includes(type);
+    };
+    const onInputFocusBlur = (e) => {
+      if (!abreTecladoVirtual(e.target)) return;
+      scheduleSyncHeaderLayout();
+    };
     document.addEventListener("focusin", onInputFocusBlur);
     document.addEventListener("focusout", onInputFocusBlur);
 
