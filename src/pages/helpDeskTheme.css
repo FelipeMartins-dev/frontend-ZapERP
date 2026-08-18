@@ -35,6 +35,18 @@
   border-bottom: 0;
 }
 
+/* Cores exclusivas do botão Encerrar. Altere estes valores sem afetar os demais botões. */
+.helpdesk-btn--close {
+  border-color: #fb0000;
+  background: #ff0000;
+  color: #fff;
+}
+
+[data-theme="dark"] .helpdesk-btn--close {
+  border-color: #fb0000;
+  background: #ff0000;
+  color: #fff;
+}
 .helpdesk-filters select {
   min-width: 0;
 }
@@ -167,6 +179,28 @@
 .helpdesk-customer-card strong {
   overflow-wrap: anywhere;
   font-size: .9rem;
+}
+
+.helpdesk-whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, #22c55e 45%, var(--ds-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, #22c55e 10%, var(--ds-surface-1));
+  color: color-mix(in srgb, #22c55e 78%, var(--ds-text-primary));
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.helpdesk-whatsapp-link:hover {
+  border-color: #22c55e;
+  background: color-mix(in srgb, #22c55e 18%, var(--ds-surface-1));
 }
 
 .helpdesk-operational-grid {

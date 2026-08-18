@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconArrowLeft, IconArrowRight, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
-import { useSearchParams } from 'react-router-dom'
+import { IconArrowLeft, IconArrowRight, IconBrandWhatsapp, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
 import { getDepartamentos, getUsuarios } from '../api/configService'
 import {
@@ -15,6 +15,7 @@ import {
 } from '../api/helpDeskService'
 import { getSocket } from '../socket/socket'
 import { useHelpDeskNotifyStore } from '../helpdesk/helpDeskNotifyStore'
+import { abrirConversaPorTelefone } from '../chats/chatService'
 import './helpDesk.css'
 import './helpDeskTheme.css'
 
@@ -50,13 +51,14 @@ const BACKGROUND_REFRESH_MS = 60000
 const SOCKET_REFRESH_DEBOUNCE_MS = 300
 
 function loadStoredFilters(user) {
-  const defaults = { status: '', priority: '', search: '', myQueue: false, startDate: '', endDate: '', orderBy: 'atualizado', orderDirection: 'desc' }
+  const defaults = { filtersOpen: false, status: '', priority: '', search: '', myQueue: false, startDate: '', endDate: '', orderBy: 'atualizado', orderDirection: 'desc' }
   if (typeof window === 'undefined') return defaults
   try {
     const key = `${FILTER_STORAGE_PREFIX}:${user?.company_id || 'unknown'}:${user?.id || 'unknown'}`
     const stored = JSON.parse(window.localStorage.getItem(key) || 'null')
     if (!stored || typeof stored !== 'object') return defaults
     return {
+      filtersOpen: stored.filtersOpen === true,
       status: stored.status && STATUS_LABEL[stored.status] ? stored.status : '',
       priority: stored.priority && PRIORITY_LABEL[stored.priority] ? stored.priority : '',
       search: typeof stored.search === 'string' ? stored.search : '',
@@ -134,6 +136,7 @@ function formatUptime(value) {
 
 export default function HelpDesk() {
   const user = useAuthStore((state) => state.user)
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTicketParam = searchParams.get('ticket')
   const initialFilters = useMemo(() => loadStoredFilters(user), [user?.company_id, user?.id])
@@ -143,6 +146,7 @@ export default function HelpDesk() {
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(() => initialFilters.filtersOpen)
   const [status, setStatus] = useState(() => initialFilters.status)
   const [priority, setPriority] = useState(() => initialFilters.priority)
   const [search, setSearch] = useState(() => initialFilters.search)
@@ -228,8 +232,8 @@ export default function HelpDesk() {
   useEffect(() => {
     if (typeof window === 'undefined' || !user?.id || !user?.company_id) return
     const key = `${FILTER_STORAGE_PREFIX}:${user.company_id}:${user.id}`
-    window.localStorage.setItem(key, JSON.stringify({ status, priority, search, myQueue, startDate, endDate, orderBy, orderDirection }))
-  }, [endDate, myQueue, orderBy, orderDirection, priority, search, startDate, status, user?.company_id, user?.id])
+    window.localStorage.setItem(key, JSON.stringify({ filtersOpen, status, priority, search, myQueue, startDate, endDate, orderBy, orderDirection }))
+  }, [endDate, filtersOpen, myQueue, orderBy, orderDirection, priority, search, startDate, status, user?.company_id, user?.id])
   useEffect(() => {
     Promise.all([getDepartamentos(), getUsuarios()])
       .then(([deps, people]) => {
@@ -290,6 +294,29 @@ export default function HelpDesk() {
     })
   }
 
+  async function openWhatsappAttendance(ticket) {
+    try {
+      setError('')
+      const result = await abrirConversaPorTelefone(
+        ticket.solicitante_nome || ticket.empresa_nome || 'Contato',
+        ticket.telefone,
+      )
+      const conversation = result?.conversa
+      if (!conversation?.id) {
+        setError('Não foi possível abrir ou iniciar o atendimento no WhatsApp')
+        return
+      }
+      navigate('/atendimento', { state: { openConversaId: conversation.id } })
+    } catch (err) {
+      setError(
+        err?.response?.data?.error
+          || err?.response?.data?.detalhe
+          || err?.message
+          || 'Não foi possível abrir ou iniciar o atendimento no WhatsApp',
+      )
+    }
+  }
+
   return (
     <section className="helpdesk-page">
       <header className="helpdesk-header">
@@ -310,7 +337,11 @@ export default function HelpDesk() {
       <div className={`helpdesk-workspace ${selectedId ? 'is-detail-view' : 'is-list-view'}`}>
         {!selectedId ? (
           <section className="helpdesk-ticket-list-view">
-            <details className="helpdesk-filter-panel">
+            <details
+              className="helpdesk-filter-panel"
+              open={filtersOpen}
+              onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+            >
               <summary>Filtros</summary>
               <div className="helpdesk-filters">
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome da empresa ou CNPJ" aria-label="Buscar por nome da empresa ou CNPJ" />
@@ -428,6 +459,7 @@ export default function HelpDesk() {
                 userMap={userMap}
                 onChanged={refreshSelected}
                 onError={setError}
+                onOpenWhatsapp={openWhatsappAttendance}
               />
             )}
           </main>
@@ -438,7 +470,7 @@ export default function HelpDesk() {
   )
 }
 
-function TicketDetail({ ticket, departments, users, userMap, onChanged, onError }) {
+function TicketDetail({ ticket, departments, users, userMap, onChanged, onError, onOpenWhatsapp }) {
   const [message, setMessage] = useState('')
   const [internal, setInternal] = useState(false)
   const [sending, setSending] = useState(false)
@@ -511,7 +543,7 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
         <div><span>Chamado #{ticket.id}</span><h2>{ticket.titulo}</h2></div>
         <div className="helpdesk-detail-actions">
           {ticket.status === 'aberto' && !ticket.responsavel_id ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={assuming} onClick={assume}><IconUserCheck size={18} /> {assuming ? 'Assumindo…' : 'Assumir'}</button> : null}
-          {ticket.status === 'em_atendimento' ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={closing} onClick={closeTicket}><IconCircleCheck size={18} /> {closing ? 'Encerrando…' : 'Encerrar'}</button> : null}
+          {ticket.status === 'em_atendimento' ? <button className="helpdesk-btn helpdesk-btn--close" type="button" disabled={closing} onClick={closeTicket}><IconCircleCheck size={18} /> {closing ? 'Encerrando…' : 'Encerrar'}</button> : null}
           {hasEnvironmentInfo ? <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEnvironment(true)}><IconDeviceDesktop size={18} /> Informações</button> : null}
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEdit(true)}><IconEdit size={18} /> Editar</button>
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowTransfer(true)}><IconArrowRight size={18} /> Transferir</button>
@@ -522,7 +554,23 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
         <div><span>Razão social</span><strong>{ticket.empresa_razao || 'Não informada'}</strong></div>
         <div><span>CNPJ</span><strong>{ticket.cnpj || 'Não informado'}</strong></div>
         <div><span>Usuário</span><strong>{ticket.solicitante_nome || 'Não informado'}</strong></div>
-        <div><span>Telefone</span><strong>{ticket.telefone || 'Não informado'}</strong></div>
+        <div>
+          <span>Telefone</span>
+          <div className="helpdesk-phone-row">
+            <strong>{ticket.telefone || 'Não informado'}</strong>
+            {ticket.telefone ? (
+              <button
+                className="helpdesk-whatsapp-link"
+                type="button"
+                title="Abrir ou iniciar atendimento no WhatsApp"
+                aria-label="Abrir ou iniciar atendimento no WhatsApp"
+                onClick={() => onOpenWhatsapp(ticket)}
+              >
+                <IconBrandWhatsapp size={16} />
+              </button>
+            ) : null}
+          </div>
+        </div>
       </section>
       <div className="helpdesk-meta-grid">
         <div><span>Status</span><strong>{STATUS_LABEL[ticket.status] || ticket.status}</strong></div>
