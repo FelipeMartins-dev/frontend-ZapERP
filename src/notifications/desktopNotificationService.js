@@ -1,10 +1,12 @@
 import { makeIncomingDedupeKey } from "./chatNotificationService"
 
 const OPEN_CONVERSATION_EVENT = "zaperp:open-conversation-from-notification"
+const OPEN_HELPDESK_TICKET_EVENT = "zaperp:open-helpdesk-ticket-from-notification"
 
 /** Segunda linha de defesa se notify for chamado duas vezes para o mesmo evento (TTL curto). */
 const DESKTOP_EXTRA_DEDUPE_MS = 8000
 const desktopShownKeys = new Map()
+const helpDeskShownKeys = new Map()
 const MAX_DESKTOP_KEYS = 400
 
 function normalize(value) {
@@ -44,6 +46,22 @@ function tryClaimDesktopSlot(msg) {
   return true
 }
 
+function tryClaimHelpDeskDesktopSlot(notification) {
+  const id = normalize(notification?.id)
+  const ticketId = normalize(notification?.ticket_id)
+  const tipo = normalize(notification?.tipo)
+  const key = id ? `helpdesk-${id}` : `helpdesk-${ticketId}-${tipo}`
+  const now = Date.now()
+  const exp = helpDeskShownKeys.get(key)
+  if (exp && exp > now) return false
+  helpDeskShownKeys.set(key, now + DESKTOP_EXTRA_DEDUPE_MS)
+  if (helpDeskShownKeys.size > MAX_DESKTOP_KEYS) {
+    const oldest = helpDeskShownKeys.keys().next().value
+    if (oldest) helpDeskShownKeys.delete(oldest)
+  }
+  return true
+}
+
 export function hasDesktopNotificationSupport() {
   return typeof window !== "undefined" && "Notification" in window
 }
@@ -77,6 +95,17 @@ function dispatchOpenConversation(conversaId) {
   window.dispatchEvent(
     new CustomEvent(OPEN_CONVERSATION_EVENT, {
       detail: { conversaId: id },
+    })
+  )
+}
+
+function dispatchOpenHelpDeskTicket(ticketId) {
+  if (typeof window === "undefined") return
+  const id = normalize(ticketId)
+  if (!id) return
+  window.dispatchEvent(
+    new CustomEvent(OPEN_HELPDESK_TICKET_EVENT, {
+      detail: { ticketId: id },
     })
   )
 }
@@ -205,6 +234,69 @@ export async function notifyIncomingDesktopMessage({ msg, contatoNome, avatarUrl
   }
 }
 
+/** Exibe no Windows o evento do HelpDesk usando o mesmo mecanismo das mensagens do WhatsApp. */
+export async function notifyHelpDeskDesktopNotification({ notification }) {
+  if (!hasDesktopNotificationSupport()) {
+    return { shown: false, reason: "unsupported" }
+  }
+
+  const ticketId = normalize(notification?.ticket_id)
+  if (!ticketId) return { shown: false, reason: "missing_ticket" }
+  if (Notification.permission === "denied") {
+    return { shown: false, reason: "permission_denied" }
+  }
+  if (Notification.permission === "default") {
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== "granted") {
+        return { shown: false, reason: permission === "denied" ? "permission_denied" : "permission_blocked" }
+      }
+    } catch {
+      return { shown: false, reason: "permission_failed" }
+    }
+  }
+  if (!tryClaimHelpDeskDesktopSlot(notification)) {
+    return { shown: false, reason: "duplicate_desktop_guard" }
+  }
+
+  const title = normalize(notification?.titulo) || "Atualização no HelpDesk"
+  const body = normalize(notification?.mensagem) || `Chamado #${ticketId}`
+  const tag = `zaperp-helpdesk-${normalize(notification?.id) || `${ticketId}-${normalize(notification?.tipo)}`}`
+  const openUrl = `/helpdesk?ticket=${encodeURIComponent(ticketId)}`
+  const data = { ticketId, openUrl, url: openUrl }
+  const options = {
+    body,
+    icon: "/brand/pwa-192.png",
+    tag,
+    renotify: false,
+    requireInteraction: false,
+    silent: false,
+    data,
+  }
+
+  try {
+    const desktopNotification = new Notification(title, options)
+    desktopNotification.onclick = () => {
+      focusAppWindow()
+      dispatchOpenHelpDeskTicket(ticketId)
+      try {
+        desktopNotification.close()
+      } catch (_) {}
+    }
+    scheduleAutoClose(() => {
+      try {
+        desktopNotification.close()
+      } catch (_) {}
+    }, NOTIFICATION_AUTO_CLOSE_MS)
+    return { shown: true, reason: "ok" }
+  } catch {
+    const shownViaSw = await tryShowViaServiceWorker(title, options)
+    return shownViaSw
+      ? { shown: true, reason: "ok_service_worker" }
+      : { shown: false, reason: "creation_failed" }
+  }
+}
+
 async function tryShowViaServiceWorker(title, { body, icon, tag, data }) {
   try {
     if (typeof navigator === "undefined" || !navigator.serviceWorker) return false
@@ -239,4 +331,8 @@ async function tryShowViaServiceWorker(title, { body, icon, tag, data }) {
 
 export function getOpenConversationNotificationEventName() {
   return OPEN_CONVERSATION_EVENT
+}
+
+export function getOpenHelpDeskNotificationEventName() {
+  return OPEN_HELPDESK_TICKET_EVENT
 }

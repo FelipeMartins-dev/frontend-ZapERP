@@ -40,3 +40,18 @@ export async function assumeTicket(id) {
   const { data } = await api.post(`${BASE}/tickets/${id}/assume`)
   return data
 }
+
+export async function listHelpDeskNotifications(params = {}) {
+  const { data } = await api.get(`${BASE}/notifications`, { params })
+  return data
+}
+
+export async function markHelpDeskTicketNotificationsRead(ticketId) {
+  const { data } = await api.post(`${BASE}/notifications/tickets/${ticketId}/read`)
+  return data
+}
+
+export async function markAllHelpDeskNotificationsRead() {
+  const { data } = await api.post(`${BASE}/notifications/read-all`)
+  return data
+}

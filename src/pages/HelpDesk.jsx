@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconArrowLeft, IconArrowRight, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
+import { IconArrowLeft, IconArrowRight, IconBrandWhatsapp, IconCircleCheck, IconDeviceDesktop, IconEdit, IconMessagePlus, IconRefresh, IconTicket, IconUserCheck } from '@tabler/icons-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
 import { getDepartamentos, getUsuarios } from '../api/configService'
 import {
@@ -8,10 +9,13 @@ import {
   getTicket,
   helpDeskApiError,
   listTickets,
+  markHelpDeskTicketNotificationsRead,
   transferTicket,
   updateTicket,
 } from '../api/helpDeskService'
 import { getSocket } from '../socket/socket'
+import { useHelpDeskNotifyStore } from '../helpdesk/helpDeskNotifyStore'
+import { abrirConversaPorTelefone } from '../chats/chatService'
 import './helpDesk.css'
 import './helpDeskTheme.css'
 
@@ -22,25 +26,47 @@ const STATUS_LABEL = {
 }
 
 const PRIORITY_LABEL = { baixa: 'Baixa', normal: 'Normal', alta: 'Alta', urgente: 'Urgente' }
+const SORT_LABEL = {
+  atualizado: 'Atualizado há',
+  criado: 'Criado há',
+  status: 'Status',
+  empresa: 'Empresa',
+  numero: 'Número do chamado',
+}
+const SORT_DIRECTION_LABEL = {
+  atualizado: { asc: 'Há mais tempo', desc: 'Mais recente' },
+  criado: { asc: 'Mais antigo', desc: 'Mais recente' },
+  status: { asc: 'Aberto primeiro', desc: 'Resolvido primeiro' },
+  empresa: { asc: 'A–Z', desc: 'Z–A' },
+  numero: { asc: 'Menor primeiro', desc: 'Maior primeiro' },
+}
+const HELPDESK_DEPARTAMENTO_NOMES = new Set([
+  'Suporte',
+  'Financeiro',
+  'Comercial',
+])
 const FILTER_STORAGE_PREFIX = 'zaperp_helpdesk_filters'
 const HELPDESK_CHANGED_EVENT = 'helpdesk:ticket_changed'
 const BACKGROUND_REFRESH_MS = 60000
 const SOCKET_REFRESH_DEBOUNCE_MS = 300
 
 function loadStoredFilters(user) {
-  const defaults = { status: '', priority: '', search: '', myQueue: false, startDate: '', endDate: '' }
+  const defaults = { filtersOpen: false, status: '', priority: '', search: '', myQueue: false, startDate: '', endDate: '', orderBy: 'atualizado', orderDirection: 'desc' }
   if (typeof window === 'undefined') return defaults
   try {
     const key = `${FILTER_STORAGE_PREFIX}:${user?.company_id || 'unknown'}:${user?.id || 'unknown'}`
     const stored = JSON.parse(window.localStorage.getItem(key) || 'null')
     if (!stored || typeof stored !== 'object') return defaults
     return {
+      filtersOpen: stored.filtersOpen === true,
       status: stored.status && STATUS_LABEL[stored.status] ? stored.status : '',
       priority: stored.priority && PRIORITY_LABEL[stored.priority] ? stored.priority : '',
       search: typeof stored.search === 'string' ? stored.search : '',
       myQueue: stored.myQueue === true,
       startDate: typeof stored.startDate === 'string' ? stored.startDate : '',
       endDate: typeof stored.endDate === 'string' ? stored.endDate : '',
+      orderBy: SORT_LABEL[stored.orderBy] ? stored.orderBy : 'atualizado',
+      orderDirection: stored.orderDirection === 'asc' ? 'asc' : 'desc',
     }
   } catch {
     return defaults
@@ -52,57 +78,20 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 
-function formatFilterDate(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '')
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : ''
-}
-
-function maskFilterDate(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 8)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-}
-
-function parseFilterDate(value) {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
-  if (!match) return null
-
-  const day = Number(match[1])
-  const month = Number(match[2])
-  const year = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null
-
-  return `${match[3]}-${match[2]}-${match[1]}`
-}
-
 function DateFilterInput({ value, onChange, ariaLabel }) {
-  const [displayValue, setDisplayValue] = useState(() => formatFilterDate(value))
-
-  useEffect(() => {
-    setDisplayValue(formatFilterDate(value))
-  }, [value])
-
   function handleChange(event) {
-    const maskedValue = maskFilterDate(event.target.value)
-    setDisplayValue(maskedValue)
-    if (!maskedValue) onChange('')
-    else {
-      const parsedValue = parseFilterDate(maskedValue)
-      if (parsedValue) onChange(parsedValue)
-    }
+    const nextValue = event.target.value
+    if (!nextValue || /^\d{4}-\d{2}-\d{2}$/.test(nextValue)) onChange(nextValue)
   }
 
   return (
     <input
-      type="text"
-      inputMode="numeric"
-      autoComplete="off"
-      maxLength={10}
-      placeholder="dd/mm/aaaa"
+      type="date"
+      lang="pt-BR"
+      min="1000-01-01"
+      max="9999-12-31"
       aria-label={ariaLabel}
-      value={displayValue}
+      value={value}
       onChange={handleChange}
     />
   )
@@ -147,6 +136,9 @@ function formatUptime(value) {
 
 export default function HelpDesk() {
   const user = useAuthStore((state) => state.user)
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTicketParam = searchParams.get('ticket')
   const initialFilters = useMemo(() => loadStoredFilters(user), [user?.company_id, user?.id])
   const [tickets, setTickets] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -154,12 +146,15 @@ export default function HelpDesk() {
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(() => initialFilters.filtersOpen)
   const [status, setStatus] = useState(() => initialFilters.status)
   const [priority, setPriority] = useState(() => initialFilters.priority)
   const [search, setSearch] = useState(() => initialFilters.search)
   const [myQueue, setMyQueue] = useState(() => initialFilters.myQueue)
   const [startDate, setStartDate] = useState(() => initialFilters.startDate)
   const [endDate, setEndDate] = useState(() => initialFilters.endDate)
+  const [orderBy, setOrderBy] = useState(() => initialFilters.orderBy)
+  const [orderDirection, setOrderDirection] = useState(() => initialFilters.orderDirection)
   const [departments, setDepartments] = useState([])
   const [users, setUsers] = useState([])
   const [now, setNow] = useState(() => Date.now())
@@ -180,17 +175,18 @@ export default function HelpDesk() {
         responsavel_id: myQueue ? user?.id : undefined,
         data_inicio: startDate || undefined,
         data_fim: endDate || undefined,
+        ordenar_por: orderBy,
+        ordem: orderDirection,
         limit: 100,
       })
       const items = data?.items || []
       setTickets(items)
-      setSelectedId((current) => (current && items.some((item) => item.id === current) ? current : null))
     } catch (err) {
       setError(helpDeskApiError(err))
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [endDate, myQueue, priority, search, startDate, status, user?.id])
+  }, [endDate, myQueue, orderBy, orderDirection, priority, search, startDate, status, user?.id])
 
   const loadDetail = useCallback(async (id, { silent = false } = {}) => {
     if (!id) {
@@ -226,14 +222,24 @@ export default function HelpDesk() {
   useEffect(() => { loadTickets() }, [loadTickets])
   useEffect(() => { loadDetail(selectedId) }, [loadDetail, selectedId])
   useEffect(() => {
+    const ticketId = Number(requestedTicketParam)
+    if (!Number.isInteger(ticketId) || ticketId <= 0) return
+    setSelectedId(ticketId)
+    markHelpDeskTicketNotificationsRead(ticketId)
+      .then((result) => useHelpDeskNotifyStore.getState().markTicketRead(ticketId, result?.updated))
+      .catch(() => {})
+  }, [requestedTicketParam])
+  useEffect(() => {
     if (typeof window === 'undefined' || !user?.id || !user?.company_id) return
     const key = `${FILTER_STORAGE_PREFIX}:${user.company_id}:${user.id}`
-    window.localStorage.setItem(key, JSON.stringify({ status, priority, search, myQueue, startDate, endDate }))
-  }, [endDate, myQueue, priority, search, startDate, status, user?.company_id, user?.id])
+    window.localStorage.setItem(key, JSON.stringify({ filtersOpen, status, priority, search, myQueue, startDate, endDate, orderBy, orderDirection }))
+  }, [endDate, filtersOpen, myQueue, orderBy, orderDirection, priority, search, startDate, status, user?.company_id, user?.id])
   useEffect(() => {
     Promise.all([getDepartamentos(), getUsuarios()])
       .then(([deps, people]) => {
-        setDepartments(Array.isArray(deps) ? deps : [])
+        setDepartments(
+          (Array.isArray(deps) ? deps : []).filter((department) =>
+          HELPDESK_DEPARTAMENTO_NOMES.has(String(department.nome || '').trim())))
         setUsers((Array.isArray(people) ? people : []).filter((item) => item.ativo !== false))
       })
       .catch(() => {})
@@ -277,13 +283,38 @@ export default function HelpDesk() {
   function openTicket(id) {
     listScrollTop.current = listScrollElement.current?.scrollTop || 0
     setSelectedId(id)
+    setSearchParams({ ticket: String(id) }, { replace: true })
   }
 
   function returnToList() {
     setSelectedId(null)
+    setSearchParams({}, { replace: true })
     window.requestAnimationFrame(() => {
       if (listScrollElement.current) listScrollElement.current.scrollTop = listScrollTop.current
     })
+  }
+
+  async function openWhatsappAttendance(ticket) {
+    try {
+      setError('')
+      const result = await abrirConversaPorTelefone(
+        ticket.solicitante_nome || ticket.empresa_nome || 'Contato',
+        ticket.telefone,
+      )
+      const conversation = result?.conversa
+      if (!conversation?.id) {
+        setError('Não foi possível abrir ou iniciar o atendimento no WhatsApp')
+        return
+      }
+      navigate('/atendimento', { state: { openConversaId: conversation.id } })
+    } catch (err) {
+      setError(
+        err?.response?.data?.error
+          || err?.response?.data?.detalhe
+          || err?.message
+          || 'Não foi possível abrir ou iniciar o atendimento no WhatsApp',
+      )
+    }
   }
 
   return (
@@ -306,7 +337,11 @@ export default function HelpDesk() {
       <div className={`helpdesk-workspace ${selectedId ? 'is-detail-view' : 'is-list-view'}`}>
         {!selectedId ? (
           <section className="helpdesk-ticket-list-view">
-            <details className="helpdesk-filter-panel">
+            <details
+              className="helpdesk-filter-panel"
+              open={filtersOpen}
+              onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+            >
               <summary>Filtros</summary>
               <div className="helpdesk-filters">
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome da empresa ou CNPJ" aria-label="Buscar por nome da empresa ou CNPJ" />
@@ -319,6 +354,21 @@ export default function HelpDesk() {
                   {Object.entries(PRIORITY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
                 <label className="helpdesk-my-queue"><input type="checkbox" checked={myQueue} onChange={(event) => setMyQueue(event.target.checked)} /><span>Somente minha fila</span></label>
+                <div className="helpdesk-sort-controls">
+                  <label>
+                    <span>Ordenar por</span>
+                    <select value={orderBy} onChange={(event) => setOrderBy(event.target.value)} aria-label="Ordenar chamados por">
+                      {Object.entries(SORT_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Ordem</span>
+                    <select value={orderDirection} onChange={(event) => setOrderDirection(event.target.value)} aria-label="Definir ordem dos chamados">
+                      <option value="desc">{SORT_DIRECTION_LABEL[orderBy].desc}</option>
+                      <option value="asc">{SORT_DIRECTION_LABEL[orderBy].asc}</option>
+                    </select>
+                  </label>
+                </div>
                 <div className="helpdesk-filter-dates">
                   <label className="helpdesk-filter-date"><span>De</span><DateFilterInput value={startDate} onChange={setStartDate} ariaLabel="Data inicial no formato dia, mês e ano" /></label>
                   <label className="helpdesk-filter-date"><span>Até</span><DateFilterInput value={endDate} onChange={setEndDate} ariaLabel="Data final no formato dia, mês e ano" /></label>
@@ -409,6 +459,7 @@ export default function HelpDesk() {
                 userMap={userMap}
                 onChanged={refreshSelected}
                 onError={setError}
+                onOpenWhatsapp={openWhatsappAttendance}
               />
             )}
           </main>
@@ -419,7 +470,7 @@ export default function HelpDesk() {
   )
 }
 
-function TicketDetail({ ticket, departments, users, userMap, onChanged, onError }) {
+function TicketDetail({ ticket, departments, users, userMap, onChanged, onError, onOpenWhatsapp }) {
   const [message, setMessage] = useState('')
   const [internal, setInternal] = useState(false)
   const [sending, setSending] = useState(false)
@@ -492,7 +543,7 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
         <div><span>Chamado #{ticket.id}</span><h2>{ticket.titulo}</h2></div>
         <div className="helpdesk-detail-actions">
           {ticket.status === 'aberto' && !ticket.responsavel_id ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={assuming} onClick={assume}><IconUserCheck size={18} /> {assuming ? 'Assumindo…' : 'Assumir'}</button> : null}
-          {ticket.status === 'em_atendimento' ? <button className="helpdesk-btn helpdesk-btn--primary" type="button" disabled={closing} onClick={closeTicket}><IconCircleCheck size={18} /> {closing ? 'Encerrando…' : 'Encerrar'}</button> : null}
+          {ticket.status === 'em_atendimento' ? <button className="helpdesk-btn helpdesk-btn--close" type="button" disabled={closing} onClick={closeTicket}><IconCircleCheck size={18} /> {closing ? 'Encerrando…' : 'Encerrar'}</button> : null}
           {hasEnvironmentInfo ? <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEnvironment(true)}><IconDeviceDesktop size={18} /> Informações</button> : null}
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowEdit(true)}><IconEdit size={18} /> Editar</button>
           <button className="helpdesk-btn helpdesk-btn--ghost" type="button" onClick={() => setShowTransfer(true)}><IconArrowRight size={18} /> Transferir</button>
@@ -503,7 +554,23 @@ function TicketDetail({ ticket, departments, users, userMap, onChanged, onError 
         <div><span>Razão social</span><strong>{ticket.empresa_razao || 'Não informada'}</strong></div>
         <div><span>CNPJ</span><strong>{ticket.cnpj || 'Não informado'}</strong></div>
         <div><span>Usuário</span><strong>{ticket.solicitante_nome || 'Não informado'}</strong></div>
-        <div><span>Telefone</span><strong>{ticket.telefone || 'Não informado'}</strong></div>
+        <div>
+          <span>Telefone</span>
+          <div className="helpdesk-phone-row">
+            <strong>{ticket.telefone || 'Não informado'}</strong>
+            {ticket.telefone ? (
+              <button
+                className="helpdesk-whatsapp-link"
+                type="button"
+                title="Abrir ou iniciar atendimento no WhatsApp"
+                aria-label="Abrir ou iniciar atendimento no WhatsApp"
+                onClick={() => onOpenWhatsapp(ticket)}
+              >
+                <IconBrandWhatsapp size={16} />
+              </button>
+            ) : null}
+          </div>
+        </div>
       </section>
       <div className="helpdesk-meta-grid">
         <div><span>Status</span><strong>{STATUS_LABEL[ticket.status] || ticket.status}</strong></div>

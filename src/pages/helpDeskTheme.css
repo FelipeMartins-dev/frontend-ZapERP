@@ -35,6 +35,18 @@
   border-bottom: 0;
 }
 
+/* Cores exclusivas do botão Encerrar. Altere estes valores sem afetar os demais botões. */
+.helpdesk-btn--close {
+  border-color: #fb0000;
+  background: #ff0000;
+  color: #fff;
+}
+
+[data-theme="dark"] .helpdesk-btn--close {
+  border-color: #fb0000;
+  background: #ff0000;
+  color: #fff;
+}
 .helpdesk-filters select {
   min-width: 0;
 }
@@ -169,6 +181,28 @@
   font-size: .9rem;
 }
 
+.helpdesk-whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, #22c55e 45%, var(--ds-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, #22c55e 10%, var(--ds-surface-1));
+  color: color-mix(in srgb, #22c55e 78%, var(--ds-text-primary));
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.helpdesk-whatsapp-link:hover {
+  border-color: #22c55e;
+  background: color-mix(in srgb, #22c55e 18%, var(--ds-surface-1));
+}
+
 .helpdesk-operational-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -237,8 +271,28 @@
 }
 
 .helpdesk-ticket-list-view .helpdesk-filters {
-  grid-template-columns: minmax(240px, 2fr) minmax(150px, .8fr) minmax(150px, .8fr) minmax(160px, .8fr) minmax(270px, 1.2fr);
+  grid-template-columns: minmax(240px, 2fr) minmax(145px, .8fr) minmax(145px, .8fr) minmax(155px, .8fr) minmax(290px, 1.35fr) minmax(270px, 1.2fr);
   align-items: end;
+}
+
+.helpdesk-sort-controls {
+  display: grid;
+  grid-template-columns: minmax(145px, 1.25fr) minmax(125px, 1fr);
+  gap: 6px;
+  min-width: 0;
+}
+
+.helpdesk-sort-controls label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ds-text-tertiary);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.helpdesk-sort-controls select {
+  width: 100%;
 }
 
 .helpdesk-table-summary {
@@ -406,6 +460,10 @@
   .helpdesk-ticket-list-view .helpdesk-filter-dates {
     grid-column: span 2;
   }
+
+  .helpdesk-ticket-list-view .helpdesk-sort-controls {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 900px) {
@@ -420,6 +478,7 @@
   }
 
   .helpdesk-ticket-list-view .helpdesk-filters > input:first-child,
+  .helpdesk-ticket-list-view .helpdesk-sort-controls,
   .helpdesk-ticket-list-view .helpdesk-filter-dates {
     grid-column: 1 / -1;
   }
@@ -502,6 +561,10 @@
   .helpdesk-ticket-list-view .helpdesk-filter-dates,
   .helpdesk-ticket-row .helpdesk-table-subject {
     grid-column: auto;
+  }
+
+  .helpdesk-sort-controls {
+    grid-template-columns: 1fr;
   }
 
   .helpdesk-table-summary span {

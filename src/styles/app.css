@@ -372,6 +372,26 @@ body {
   animation: zapUnreadDotPulse 2.5s ease-in-out infinite;
 }
 
+.sidebar-nav-unreadBadge {
+  position: absolute;
+  top: -8px;
+  right: -12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--ds-error, #dc2626);
+  box-shadow: 0 0 0 2px var(--ds-surface-1);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
 @keyframes zapUnreadDotPulse {
   0%,
   100% {
@@ -403,6 +423,13 @@ body {
     right: -3px;
     width: 8px;
     height: 8px;
+  }
+
+  .app-layout--crm .sidebar-nav-unreadBadge {
+    top: -7px;
+    right: -10px;
+    min-width: 16px;
+    height: 16px;
   }
 }
 
