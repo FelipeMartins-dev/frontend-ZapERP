@@ -38,8 +38,9 @@ import "./chatList.chips-premium.css";
 import "../styles/zap-animations.css";
 import NovoContatoModal from "./NovoContatoModal";
 import { ZAPERP_FOCUS_CHAT_SEARCH_EVENT } from "../atendimento/atendimentoUiEvents";
+import { getDisplayName, pickPreferredAvatarUrl } from "./chatListDisplay";
 const ProdutoConsultaPanel = lazy(() => import("../conversa/ProdutoConsultaPanel"));
-export { getDisplayName } from "./chatListDisplay";
+export { getDisplayName };
 import {
   getLastMessage,
   isConversaAguardandoCliente,
@@ -1328,15 +1329,16 @@ export default function ChatList() {
           }
           const nomeJaExiste = (existing?.contato_nome || existing?.nome || "").trim();
           const contato_nome = nomeApi || nomeJaExiste || nomeContatoCache || nomeCliente || existing?.contato_nome || c?.contato_nome || c?.nome;
-          const fotoApi = c?.foto_perfil != null && String(c.foto_perfil).trim().startsWith("http") ? String(c.foto_perfil).trim() : null;
-          const fotoExisting = existing?.foto_perfil && String(existing.foto_perfil).trim().startsWith("http") ? String(existing.foto_perfil).trim() : null;
-          const foto_perfil = fotoApi ?? (c?.foto_perfil === null ? null : fotoExisting);
+          // Respostas parciais podem voltar com foto_perfil=null. Isso não significa remoção:
+          // preservamos a última URL válida e também aceitamos cache/nested/paths relativos.
+          const foto_perfil = pickPreferredAvatarUrl(c, existing);
           const mergedRow = mergeChatRowListaAtividade(
             {
               ...c,
               contato_nome,
               foto_perfil,
               nome_grupo: c?.nome_grupo || existing?.nome_grupo,
+              foto_grupo: c?.foto_grupo || existing?.foto_grupo,
               cliente: c?.cliente || existing?.cliente,
             },
             existing

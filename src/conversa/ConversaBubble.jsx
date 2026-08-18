@@ -67,12 +67,19 @@ function BubbleImage({ msg, alt, className }) {
   ]);
   const [idx, setIdx] = useState(0);
   const [exhausted, setExhausted] = useState(false);
+  const [retryRound, setRetryRound] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef(null);
+  const retryTimerRef = useRef(null);
 
   useEffect(() => {
     setIdx(0);
     setExhausted(false);
+    setRetryRound(0);
+    if (retryTimerRef.current != null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
     // Quando a lista de fontes muda mas a fonte exibida (candidates[0]) continua a mesma
     // — caso da reconciliação otimista, em que o servidor apenas ANEXA a URL definitiva
     // depois do blob local —, o <img> NÃO redispara `onLoad` (o src não mudou). Sem herdar
@@ -88,16 +95,24 @@ function BubbleImage({ msg, alt, className }) {
     }
   }, [candidates.join("\u0001")]);
 
+  useEffect(
+    () => () => {
+      if (retryTimerRef.current != null) window.clearTimeout(retryTimerRef.current);
+    },
+    []
+  );
+
   const src = candidates[idx] || "";
   if (!src || exhausted) return <span className="wa-bubble-text wa-muted">(imagem)</span>;
 
   return (
     <img
+      key={`${src}:${retryRound}`}
       ref={imgRef}
       src={src}
       alt={alt}
       className={`${className || ""} ${loaded ? "is-loaded" : "is-loading"}`.trim()}
-      loading="lazy"
+      loading="eager"
       decoding="async"
       referrerPolicy="no-referrer"
       onLoad={(e) => {
@@ -110,11 +125,19 @@ function BubbleImage({ msg, alt, className }) {
       }}
       onError={() => {
         setLoaded(false);
-        setIdx((cur) => {
-          if (cur + 1 < candidates.length) return cur + 1;
-          setExhausted(true);
-          return cur;
-        });
+        if (idx + 1 < candidates.length) {
+          setIdx(idx + 1);
+          return;
+        }
+        setExhausted(true);
+        if (retryRound < 1 && retryTimerRef.current == null) {
+          retryTimerRef.current = window.setTimeout(() => {
+            retryTimerRef.current = null;
+            setRetryRound((round) => round + 1);
+            setIdx(0);
+            setExhausted(false);
+          }, 700);
+        }
       }}
     />
   );
@@ -386,7 +409,8 @@ function ContactBubbleContent({
               alt=""
               className="wa-bubble-contactAvatar"
               referrerPolicy="no-referrer"
-              loading="lazy"
+              loading="eager"
+              decoding="async"
             />
           ) : (
             <span className="wa-bubble-contactInitials" aria-hidden="true">{iniciais}</span>

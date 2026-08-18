@@ -1241,6 +1241,8 @@ function ChatRow({
   const avatarSeed = displayName || phone || id || clienteId;
   const color = getAvatarColor(avatarSeed);
   const [imgError, setImgError] = useState(false);
+  const [avatarAttempt, setAvatarAttempt] = useState(0);
+  const avatarRetryTimerRef = useRef(null);
   const [opening, setOpening] = useState(false);
   const showAvatarImg = Boolean(avatarUrl && !imgError);
   const setorLabelNome =
@@ -1263,8 +1265,29 @@ function ChatRow({
   const atendimentoAssigneeLabel = atendimentoAssigneeNames.join(", ");
 
   useEffect(() => {
+    if (avatarRetryTimerRef.current != null) {
+      window.clearTimeout(avatarRetryTimerRef.current);
+      avatarRetryTimerRef.current = null;
+    }
     setImgError(false);
+    setAvatarAttempt(0);
+    return () => {
+      if (avatarRetryTimerRef.current != null) {
+        window.clearTimeout(avatarRetryTimerRef.current);
+        avatarRetryTimerRef.current = null;
+      }
+    };
   }, [avatarUrl]);
+
+  const handleAvatarError = useCallback(() => {
+    setImgError(true);
+    if (avatarAttempt >= 2 || avatarRetryTimerRef.current != null) return;
+    avatarRetryTimerRef.current = window.setTimeout(() => {
+      avatarRetryTimerRef.current = null;
+      setAvatarAttempt((attempt) => attempt + 1);
+      setImgError(false);
+    }, avatarAttempt === 0 ? 350 : 900);
+  }, [avatarAttempt]);
 
   useEffect(() => {
     if (active) setOpening(false);
@@ -1358,12 +1381,13 @@ function ChatRow({
              as linhas já são virtualizadas (só montam perto do ecrã) e adiar mais faria a
              foto piscar ao rolar. */
           <img
+            key={`${avatarUrl}:${avatarAttempt}`}
             src={avatarUrl}
             alt=""
             className="chat-list-avatar-img"
             referrerPolicy="no-referrer"
             decoding="async"
-            onError={() => setImgError(true)}
+            onError={handleAvatarError}
           />
         ) : (
           <span className="chat-list-avatar-text">

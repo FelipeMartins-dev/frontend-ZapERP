@@ -364,6 +364,17 @@ function normalizeNovaMensagemPayload(raw) {
     if (normalized.conteudo == null || String(normalized.conteudo).trim() === "") normalized.conteudo = texto
   }
 
+  const canonicalTimestamp =
+    normalized.message_timestamp ??
+    normalized.sent_at ??
+    normalized.received_at ??
+    normalized.criado_em ??
+    normalized.created_at ??
+    normalized.timestamp
+  if (canonicalTimestamp != null && canonicalTimestamp !== "") {
+    normalized.message_timestamp = canonicalTimestamp
+  }
+
   // Direção/autor pode vir como from_me/isFromMe; sem direção a UI pode classificar errado.
   const fromMeRaw = normalized.fromMe ?? normalized.from_me ?? normalized.isFromMe ?? normalized.is_from_me
   const fromMe =
@@ -643,6 +654,14 @@ function logSocketMessageBoundary(eventName, payload) {
     cliente_id: payload?.cliente_id,
     phone: payload?.phone ?? payload?.telefone ?? payload?.remetente_telefone ?? payload?.chatId,
     message_id: payload?.id ?? payload?.mensagem_id ?? payload?.message_id ?? payload?.whatsapp_id,
+    whatsapp_id: payload?.whatsapp_id ?? null,
+    reference_id: payload?.client_temp_id ?? payload?.clientTempId ?? null,
+    tipo: payload?.tipo ?? payload?.type ?? null,
+    has_media: Boolean(payload?.url ?? payload?.media_url ?? payload?.mediaUrl),
+    message_timestamp: payload?.message_timestamp ?? null,
+    criado_em: payload?.criado_em ?? null,
+    received_at: new Date().toISOString(),
+    reason: "socket_event",
     selected_conversation_id: useConversaStore.getState().selectedId,
   })
 }

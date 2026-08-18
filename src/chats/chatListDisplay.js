@@ -1,4 +1,55 @@
 import { isGroupConversation } from "../utils/conversaUtils";
+import { getApiBaseUrl } from "../api/baseUrl";
+
+/**
+ * Aceita tanto URLs absolutas quanto caminhos devolvidos pela API.
+ * Algumas integrações persistem a foto como `/uploads/...` ou `uploads/...`;
+ * descartar esses valores fazia o card cair nas iniciais mesmo com foto válida.
+ */
+export function resolveAvatarUrl(raw) {
+  const value = raw == null ? "" : String(raw).trim();
+  if (!value || value.toLowerCase() === "null" || value.toLowerCase() === "undefined") return null;
+  if (/^https?:\/\//i.test(value) || value.startsWith("blob:") || value.startsWith("data:image/")) {
+    return value;
+  }
+  if (value.startsWith("//")) {
+    const protocol = typeof window !== "undefined" && window.location?.protocol
+      ? window.location.protocol
+      : "https:";
+    return `${protocol}${value}`;
+  }
+  const base = getApiBaseUrl().replace(/\/$/, "");
+  return `${base}${value.startsWith("/") ? value : `/${value}`}`;
+}
+
+function getAvatarCandidates(chat) {
+  const isGroup = isGroupConversation(chat);
+  return isGroup
+    ? [chat?.foto_grupo, chat?.group_photo, chat?.photo_url, chat?.avatar_url]
+    : [
+        chat?.foto_perfil,
+        chat?.foto_perfil_contato_cache,
+        chat?.cliente?.foto_perfil,
+        chat?.clientes?.foto_perfil,
+        chat?.foto,
+        chat?.photo_url,
+        chat?.avatar_url,
+        chat?.avatar,
+      ];
+}
+
+function firstAvatarUrl(chat) {
+  for (const candidate of getAvatarCandidates(chat)) {
+    const resolved = resolveAvatarUrl(candidate);
+    if (resolved) return resolved;
+  }
+  return null;
+}
+
+/** Mantém a foto já carregada quando um refresh parcial da lista volta sem esse campo. */
+export function pickPreferredAvatarUrl(incoming, existing) {
+  return firstAvatarUrl(incoming) ?? firstAvatarUrl(existing) ?? null;
+}
 
 /** Uma só fonte: telefone no topo. Nunca exibir LID (lid:xxx) — backend envia telefone_exibivel null nesses casos. */
 export function getPhone(chat) {
@@ -53,23 +104,13 @@ export function getContactDisplay(chat) {
   const isGroup = isGroupConversation(chat);
   const displayName = getDisplayName(chat);
   const phone = formatPhoneForDisplay(chat?.telefone_exibivel ?? chat?.telefone ?? chat?.cliente_telefone ?? chat?.numero ?? "");
-  const rawFoto = isGroup
-    ? (chat?.foto_grupo ?? null)
-    : (
-        chat?.foto_perfil ??
-        chat?.foto_perfil_contato_cache ??
-        chat?.cliente?.foto_perfil ??
-        chat?.clientes?.foto_perfil ??
-        null
-      );
-  const avatarUrl = rawFoto != null && String(rawFoto).trim().startsWith("http") ? String(rawFoto).trim() : null;
+  const avatarUrl = firstAvatarUrl(chat);
   return { displayName, avatarUrl, phone, isGroup };
 }
 
-/** True se a string é URL http(s) utilizável no <img> do card. */
+/** True se o valor pode ser normalizado para uma fonte utilizável no <img> do card. */
 export function isHttpAvatarUrl(url) {
-  const s = url != null ? String(url).trim() : "";
-  return s.length > 0 && /^https?:\/\//i.test(s) && s.toLowerCase() !== "null";
+  return Boolean(resolveAvatarUrl(url));
 }
 
 /**
@@ -84,7 +125,7 @@ export function isHttpAvatarUrl(url) {
  */
 export function lockCardAvatarUrl(locked, identity, incomingUrl) {
   const id = identity != null ? String(identity) : "";
-  const next = isHttpAvatarUrl(incomingUrl) ? String(incomingUrl).trim() : null;
+  const next = resolveAvatarUrl(incomingUrl);
   if (!id) return { identity: "", url: next };
   if (!locked || locked.identity !== id) {
     return { identity: id, url: next };

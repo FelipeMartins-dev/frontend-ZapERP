@@ -27,8 +27,10 @@ let optimisticOrderCounter = 0;
  */
 function nextOptimisticInsertTiming() {
   const ord = optimisticOrderCounter++;
+  const timestamp = new Date(Date.now() + ord).toISOString();
   return {
-    criado_em: new Date(Date.now() + ord).toISOString(),
+    criado_em: timestamp,
+    message_timestamp: timestamp,
     _stableInsertSeq: allocStableInsertSeq(),
   };
 }
@@ -96,6 +98,7 @@ export function buildOptimisticOutgoingMessage(params) {
     status: "pending",
     status_mensagem: "pending",
     criado_em: timing.criado_em,
+    message_timestamp: timing.message_timestamp,
     _stableInsertSeq: timing._stableInsertSeq,
     reply_meta: params?.replyMeta || undefined,
     ...currentUserAuthorFields(),
@@ -221,6 +224,8 @@ function buildArquivoReconcileRow(row, conversaId) {
     ...(trustedUrl ? { url: trustedUrl, url_absoluta: trustedUrl } : {}),
     ...(row.nome_arquivo ? { nome_arquivo: row.nome_arquivo } : {}),
     ...(row.texto != null ? { texto: row.texto, conteudo: row.conteudo ?? row.texto } : {}),
+    ...(row.message_timestamp ? { message_timestamp: row.message_timestamp } : {}),
+    ...(row.criado_em ? { criado_em: row.criado_em } : {}),
     ...(wa ? { whatsapp_id: wa } : {}),
     ...(clientTempId ? { client_temp_id: clientTempId } : {}),
     ...(row.tamanho != null ? { tamanho: row.tamanho } : {}),

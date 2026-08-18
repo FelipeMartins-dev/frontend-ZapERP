@@ -45,7 +45,7 @@ import {
 import { INTERNAL_NOTE_MAX_LEN } from "./internalNote";
 import { IconNote as TablerNote, IconEyeOff as TablerEyeOff } from "@tabler/icons-react";
 
-const WA_INPUT_MAX_HEIGHT_PX = 160;
+const WA_INPUT_FALLBACK_MAX_HEIGHT_PX = 240;
 const COMPOSER_DRAFT_SAVE_MS = 220;
 const STICKER_RECENTS_LIMIT = 36;
 const AUTO_CORRECT_CONTEXT_WINDOW = 12;
@@ -454,14 +454,21 @@ const ConversaComposer = forwardRef(function ConversaComposer(
     if (!el || el.tagName !== "TEXTAREA") return;
     if (!String(el.value || "").trim()) {
       el.style.height = "";
+      delete el.dataset.scrollable;
+      delete el.dataset.multiline;
       return;
     }
     el.style.height = "auto";
-    const maxPx = parseFloat(getComputedStyle(el).maxHeight);
-    const cap =
-      Number.isFinite(maxPx) && maxPx > 0 ? Math.min(maxPx, WA_INPUT_MAX_HEIGHT_PX) : WA_INPUT_MAX_HEIGHT_PX;
-    const next = Math.min(el.scrollHeight, cap);
+    const computed = getComputedStyle(el);
+    const maxPx = parseFloat(computed.maxHeight);
+    const minPx = parseFloat(computed.minHeight);
+    const cap = Number.isFinite(maxPx) && maxPx > 0 ? maxPx : WA_INPUT_FALLBACK_MAX_HEIGHT_PX;
+    const floor = Number.isFinite(minPx) && minPx > 0 ? minPx : 44;
+    const contentHeight = Math.ceil(el.scrollHeight);
+    const next = Math.max(floor, Math.min(contentHeight, cap));
     el.style.height = `${next}px`;
+    el.dataset.scrollable = contentHeight > cap + 1 ? "true" : "false";
+    el.dataset.multiline = contentHeight > floor + 2 ? "true" : "false";
   }, []);
 
   const emitTypingStop = useCallback(() => {

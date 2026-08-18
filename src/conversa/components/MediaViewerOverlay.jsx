@@ -73,6 +73,7 @@ export default function MediaViewerOverlay({
               controls
               autoPlay
               playsInline
+              preload="auto"
               className="wa-mediaViewer-video"
             />
             <p className="wa-mediaViewer-videoPrintHint" role="note">
@@ -92,6 +93,9 @@ export default function MediaViewerOverlay({
                   src={mediaViewer.url}
                   alt={mediaViewer.fileName || "Arquivo"}
                   className="wa-mediaViewer-img"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
                 />
               );
             }
@@ -148,6 +152,9 @@ export default function MediaViewerOverlay({
             src={mediaViewer.url}
             alt={mediaViewer.type === "figurinha" ? "Figurinha" : "Imagem"}
             className="wa-mediaViewer-img"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
         )}
       </div>

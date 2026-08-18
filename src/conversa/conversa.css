@@ -9868,7 +9868,8 @@ html:not([data-theme="dark"]) .wa-footer .wa-iconBtn:hover:not(:disabled) {
   min-width: 80px;
   width: 100%;
   min-height: 44px;
-  max-height: 160px;
+  max-height: min(240px, 56vh);
+  max-height: min(240px, 56dvh);
   height: auto;
   padding: 10px 16px;
   border-radius: 22px;
@@ -9915,6 +9916,29 @@ html:not([data-theme="dark"]) .wa-input:focus {
   width: 0;
   height: 0;
   display: none;
+}
+
+/* Texto longo continua legível: o campo cresce mais e, ao atingir o limite da
+   viewport, mostra uma rolagem discreta em vez de parecer que o conteúdo sumiu. */
+.wa-input[data-multiline="true"] {
+  border-radius: 18px;
+}
+
+.wa-input[data-scrollable="true"] {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--wa-text-muted) 55%, transparent) transparent;
+  padding-right: 10px;
+}
+
+.wa-input[data-scrollable="true"]::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  display: block;
+}
+
+.wa-input[data-scrollable="true"]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--wa-text-muted) 48%, transparent);
+  border-radius: 999px;
 }
 
 .wa-input::placeholder {
