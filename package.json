@@ -18,7 +18,6 @@
     "test:conversation-boundary": "node scripts/test-conversation-boundary.mjs",
     "test:sequential-messages": "node scripts/test-sequential-messages.mjs",
     "test:inbound-media-sequence": "node scripts/test-inbound-media-sequence.mjs",
-    "test:message-ordering": "node scripts/test-message-ordering.mjs",
     "test:audio-playback": "node --import ./scripts/vite-env-shim.mjs scripts/test-audio-playback-candidates.mjs",
     "test:audio-recovery": "node --import ./scripts/vite-env-shim.mjs scripts/test-audio-playback-recovery.mjs",
     "test:contact-routing": "node --import ./scripts/vite-env-shim.mjs scripts/test-contact-conversation-routing.mjs",

@@ -279,15 +279,16 @@ list = mergeMessageIntoListForTest(list, CONV, {
 });
 assert(list.length === 2, `manual repetido: esperado 2, obteve ${list.length}`);
 
-// 10) Mesmo timestamp: o id sequencial do banco é o desempate oficial e determinístico.
+// 10) Realtime: confirmacoes podem chegar com ids fora da ordem visual local no mesmo timestamp.
+// A ordenacao deve preservar _stableInsertSeq para evitar salto ate atualizar a pagina.
 const sameTs = new Date().toISOString();
 const sortedSameTimestamp = sortMensagensChronological([
   { id: 902, conversa_id: CONV, direcao: "out", tipo: "texto", texto: "primeira", criado_em: sameTs, _stableInsertSeq: 1 },
   { id: 901, conversa_id: CONV, direcao: "out", tipo: "texto", texto: "segunda", criado_em: sameTs, _stableInsertSeq: 2 },
 ]);
 assert(
-  sortedSameTimestamp.map((m) => m.texto).join("|") === "segunda|primeira",
-  "mensagens persistidas com mesmo timestamp devem desempatar por id crescente"
+  sortedSameTimestamp.map((m) => m.texto).join("|") === "primeira|segunda",
+  "mensagens com mesmo timestamp devem preservar ordem local estavel mesmo com ids fora de ordem"
 );
 
 // 11) Dois envios otimistas com texto IGUAL, em sequencia, antes de qualquer confirmacao,

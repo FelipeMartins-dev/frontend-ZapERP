@@ -1103,14 +1103,6 @@ export const useConversaStore = create((set, get) => {
         cliente_id: prepared.cliente_id,
         phone: prepared.phone ?? prepared.telefone ?? prepared.remetente_telefone,
         message_id: prepared.id ?? prepared.mensagem_id ?? prepared.whatsapp_id ?? prepared.tempId,
-        whatsapp_id: prepared.whatsapp_id ?? null,
-        reference_id: prepared.client_temp_id ?? prepared.tempId ?? null,
-        tipo: prepared.tipo ?? null,
-        has_media: Boolean(prepared.url ?? prepared.url_absoluta),
-        message_timestamp: prepared.message_timestamp ?? null,
-        criado_em: prepared.criado_em ?? null,
-        received_at: new Date().toISOString(),
-        reason: "insert_or_merge",
       })
       pendingAnexar.push(prepared)
       scheduleAnexarFlush()
@@ -1127,14 +1119,6 @@ export const useConversaStore = create((set, get) => {
         cliente_id: prepared.cliente_id,
         phone: prepared.phone ?? prepared.telefone ?? prepared.remetente_telefone,
         message_id: prepared.id ?? prepared.mensagem_id ?? prepared.whatsapp_id ?? prepared.tempId,
-        whatsapp_id: prepared.whatsapp_id ?? null,
-        reference_id: prepared.client_temp_id ?? prepared.tempId ?? null,
-        tipo: prepared.tipo ?? null,
-        has_media: Boolean(prepared.url ?? prepared.url_absoluta),
-        message_timestamp: prepared.message_timestamp ?? null,
-        criado_em: prepared.criado_em ?? null,
-        received_at: new Date().toISOString(),
-        reason: "optimistic_insert",
       })
       pendingAnexar.push(prepared)
       takeAndApplyAnexarBatch()
@@ -1195,14 +1179,6 @@ export const useConversaStore = create((set, get) => {
             phone: realMsg?.phone ?? realMsg?.telefone ?? realMsg?.remetente_telefone,
             message_id: realMsg?.id ?? realMsg?.mensagem_id ?? realMsg?.whatsapp_id,
             temp_id: tempId,
-            whatsapp_id: realMsg?.whatsapp_id ?? null,
-            reference_id: realMsg?.client_temp_id ?? tempId,
-            tipo: realMsg?.tipo ?? null,
-            has_media: Boolean(realMsg?.url ?? realMsg?.url_absoluta),
-            message_timestamp: realMsg?.message_timestamp ?? null,
-            criado_em: realMsg?.criado_em ?? null,
-            received_at: new Date().toISOString(),
-            reason: "replace_optimistic",
           })
           return { mensagens: finalizeMensagensList(next) }
         }

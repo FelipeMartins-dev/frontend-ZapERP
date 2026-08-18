@@ -1,9 +1,3 @@
-import {
-  compareMessagesChronologically,
-  normalizeMessageChronology,
-  parseMessageTimestampMillis,
-} from "./messageChronology.js"
-
 /** Merge/dedupe de mensagens — módulo puro (sem React/socket) para store + testes. */
 function cleanupOptimisticBlobFields(merged) {
   if (!merged || typeof merged !== "object") return merged
@@ -58,8 +52,36 @@ function mergeStableSeq(existingMsg, incomingMsg, fallbackOrd) {
 }
 
 /** Igual à exibição: ISO sem timezone (Supabase, ex.: "2026-08-14T20:31:00") é tratado como UTC. */
+function toUtcNormalizedIso(s) {
+  const noTzIso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/
+  const hasTz = /(Z|[+-]\d{2}:\d{2})$/.test(s)
+  return !hasTz && noTzIso.test(s) ? `${s}Z` : s
+}
+
 function toMillis(value) {
-  return parseMessageTimestampMillis(value)
+  if (!value) return NaN
+  // ⚠️ Alinhado a parseToDate/formatHora (conversaViewHelpers): sem esta normalização, um
+  // timestamp do servidor SEM timezone é lido por `new Date` como horário LOCAL, enquanto a
+  // exibição o trata como UTC. Essa divergência deslocava mensagens recebidas pelo offset local
+  // (ex.: −3h no Brasil vira +3h no valor ordenado), jogando-as para o fim da lista mesmo com
+  // a hora exibida correta. A ordenação precisa usar a MESMA base de tempo da exibição.
+  const raw = typeof value === "string" ? toUtcNormalizedIso(value.trim()) : value
+  const ms = new Date(raw).getTime()
+  return Number.isFinite(ms) ? ms : NaN
+}
+
+/** ISO/string → ms; número ou dígitos puros: < 1e11 = segundos Unix, senão ms. */
+function resolveTimestampToMillis(value) {
+  if (value == null || value === "") return NaN
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 1e11 ? value * 1000 : value
+  }
+  const raw = String(value).trim()
+  if (/^\d+$/.test(raw)) {
+    const n = Number(raw)
+    if (Number.isFinite(n)) return n < 1e11 ? n * 1000 : n
+  }
+  return toMillis(value)
 }
 
 /** Reconciliação por texto só para bolhas de chat — evita fundir "(áudio)"/mídia na mensagem de texto errada. */
@@ -980,7 +1002,15 @@ function normalizeMsgForStore(msg) {
     const wa = n.wamid ?? n.wa_message_id ?? n.whatsapp_message_id
     if (wa != null && String(wa).trim() !== "") n.whatsapp_id = wa
   }
-  return normalizeMessageChronology(n)
+  const altTs = n.created_at ?? n.timestamp ?? n.data_criacao ?? n.ts
+  let ms = resolveTimestampToMillis(n.criado_em)
+  if (!Number.isFinite(ms)) ms = resolveTimestampToMillis(altTs)
+  if (!Number.isFinite(ms)) {
+    n.criado_em = new Date().toISOString()
+  } else if (!n.criado_em || !String(n.criado_em).trim()) {
+    n.criado_em = new Date(ms).toISOString()
+  }
+  return n
 }
 
 /**
@@ -1734,18 +1764,19 @@ function pickOutgoingMergedCriadoEmIso(existing, incoming) {
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
 function sortMensagensChronological(arr) {
   return [...(arr || [])].sort((a, b) => {
-    // Ordem primária = relógio canônico do SERVIDOR (`message_timestamp`) — a mesma usada no SQL.
-    // Assim a ordem AO VIVO bate com a ordem APÓS atualizar. IDs persistidos são o desempate
-    // oficial; `_stableInsertSeq` cobre apenas itens otimistas ainda sem ID. A ordem de chegada
-    // no cliente NÃO pode ser a chave primária: mídias podem chegar via socket fora de ordem
+    // Ordem primária = relógio do SERVIDOR (`criado_em`) — a mesma usada ao recarregar a página.
+    // Assim a ordem AO VIVO bate com a ordem APÓS atualizar. `_stableInsertSeq` é só desempate
+    // quando os timestamps coincidem (rajadas no mesmo segundo). A ordem de chegada no cliente
+    // NÃO pode ser a chave primária: mídias/recebidas podem chegar via socket fora de ordem
     // (ex.: áudio de 17:12 entregue depois de mensagens de 17:15) e cairiam na posição errada.
-    const chronological = compareMessagesChronologically(a, b)
-    if (chronological !== 0) return chronological
+    const ta = toMillis(a?.criado_em) || 0
+    const tb = toMillis(b?.criado_em) || 0
+    if (ta !== tb) return ta - tb
     const seqa = Number(a?._stableInsertSeq)
     const seqb = Number(b?._stableInsertSeq)
     if (Number.isFinite(seqa) && Number.isFinite(seqb) && seqa !== seqb) return seqa - seqb
-    const ida = a?.id == null || a?.id === "" ? NaN : Number(a.id)
-    const idb = b?.id == null || b?.id === "" ? NaN : Number(b.id)
+    const ida = Number(a?.id)
+    const idb = Number(b?.id)
     if (Number.isFinite(ida) && Number.isFinite(idb) && ida !== idb) return ida - idb
     const sid = String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
     if (sid !== 0) return sid
