@@ -84,6 +84,39 @@ function resolveTimestampToMillis(value) {
   return toMillis(value)
 }
 
+/*
+ * Distingue uma mensagem que realmente trouxe horario de uma mensagem para a qual o
+ * cliente precisou criar um horario de recepcao. O marcador nao e enumeravel: ele serve
+ * somente durante o merge atual e nunca vaza para o estado React/API.
+ */
+const FALLBACK_TIMESTAMP = Symbol("fallback-message-timestamp")
+
+function hasExplicitMessageTimestamp(msg) {
+  if (!msg || typeof msg !== "object") return false
+  const values = [
+    msg.criado_em,
+    msg.created_at,
+    msg.timestamp,
+    msg.data_criacao,
+    msg.ts,
+  ]
+  return values.some((value) => Number.isFinite(resolveTimestampToMillis(value)))
+}
+
+function markFallbackTimestamp(msg) {
+  try {
+    Object.defineProperty(msg, FALLBACK_TIMESTAMP, {
+      value: true,
+      configurable: true,
+    })
+  } catch (_) {}
+  return msg
+}
+
+function hasFallbackTimestamp(msg) {
+  return msg?.[FALLBACK_TIMESTAMP] === true
+}
+
 /** Reconciliação por texto só para bolhas de chat — evita fundir "(áudio)"/mídia na mensagem de texto errada. */
 function isTipoTextoParaReconciliarPorConteudo(msg) {
   const t = String(msg?.tipo ?? "").toLowerCase().trim()
@@ -990,6 +1023,7 @@ function sanitizePersistedMessageIdentity(msg) {
 
 function normalizeMsgForStore(msg) {
   if (!msg || typeof msg !== "object") return msg
+  const explicitTimestamp = hasExplicitMessageTimestamp(msg)
   let n = sanitizePersistedMessageIdentity({ ...msg })
   const idMissing = n.id == null || String(n.id).trim() === ""
   if (idMissing) {
@@ -1007,9 +1041,13 @@ function normalizeMsgForStore(msg) {
   if (!Number.isFinite(ms)) ms = resolveTimestampToMillis(altTs)
   if (!Number.isFinite(ms)) {
     n.criado_em = new Date().toISOString()
-  } else if (!n.criado_em || !String(n.criado_em).trim()) {
+    markFallbackTimestamp(n)
+  } else {
+    // Uma unica representacao canonica evita que Unix em segundos, ISO sem fuso e ISO com
+    // offset sejam ordenados de maneiras diferentes entre Socket.IO e o carregamento da API.
     n.criado_em = new Date(ms).toISOString()
   }
+  if (!explicitTimestamp) markFallbackTimestamp(n)
   return n
 }
 
@@ -1023,6 +1061,7 @@ function stripTempIdWhenPersisted(msg) {
   const waOk = msg.whatsapp_id != null && String(msg.whatsapp_id).trim() !== ""
   if (!idOk && !waOk) return msg
   const next = { ...msg }
+  if (hasFallbackTimestamp(msg)) markFallbackTimestamp(next)
   delete next.tempId
   return next
 }
@@ -1578,6 +1617,7 @@ function mergeIncomingClientMediaAtIndex(list, convId, mergeIdx, msg) {
   if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
   if (msg.status != null) merged.status = msg.status
   if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
+  merged.criado_em = pickCanonicalMergedCriadoEm(existing, msg)
   merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
   const next = [...list]
   next[mergeIdx] = finalizeMergedMessageRow(existing, merged)
@@ -1739,26 +1779,40 @@ function preserveLocalMediaFields(prev, merged) {
   return next
 }
 
-/** Evita que `criado_em` do servidor (às vezes mais antigo que o relógio local) empurre a bolha para cima na ordenação. */
-function pickLaterCriadoEmIso(existing, incoming) {
-  const te = toMillis(existing?.criado_em)
-  const ti = toMillis(incoming?.criado_em)
-  if (!Number.isFinite(te)) return incoming?.criado_em ?? existing?.criado_em
-  if (!Number.isFinite(ti)) return existing?.criado_em ?? incoming?.criado_em
-  return new Date(Math.max(te, ti)).toISOString()
+/**
+ * Depois que existe identidade persistida, o horario do servidor e a fonte de verdade.
+ * A ancora otimista so vale enquanto ainda nao chegou uma confirmacao com timestamp real.
+ * Eventos parciais (ACK/midia sem horario) preservam o horario canonico ja conhecido.
+ */
+function pickCanonicalMergedCriadoEm(existing, incoming) {
+  const te = resolveTimestampToMillis(existing?.criado_em)
+  const ti = resolveTimestampToMillis(incoming?.criado_em)
+  const incomingHasCanonicalTime = !hasFallbackTimestamp(incoming) && Number.isFinite(ti)
+
+  if (hasPersistedMessageIdentity(incoming) && incomingHasCanonicalTime) {
+    return new Date(ti).toISOString()
+  }
+  if (Number.isFinite(te)) return new Date(te).toISOString()
+  if (Number.isFinite(ti)) return new Date(ti).toISOString()
+  return incoming?.criado_em ?? existing?.criado_em
 }
 
-function hasRuntimeLocalOrder(msg) {
-  if (!msg) return false
-  if (msg.tempId || msg.client_temp_id || msg.clientTempId) return true
-  const seq = Number(msg._stableInsertSeq)
-  return Number.isFinite(seq) && seq >= RUNTIME_INSERT_SEQ_BASE
-}
-
-/** Mantém a âncora visual local em rajadas outbound enquanto socket/API reconciliam fora de ordem. */
-function pickOutgoingMergedCriadoEmIso(existing, incoming) {
-  if (hasRuntimeLocalOrder(existing) && existing?.criado_em) return existing.criado_em
-  return pickLaterCriadoEmIso(existing, incoming)
+function comparePersistedMessageIds(a, b) {
+  // Mensagens internas usam atendimento_id; e a mesma chave adotada pelo backend ao
+  // intercalar essas linhas com mensagens comuns no historico carregado por GET.
+  const aid = a?.atendimento_id ?? a?.id
+  const bid = b?.atendimento_id ?? b?.id
+  const sa = aid != null ? String(aid).trim() : ""
+  const sb = bid != null ? String(bid).trim() : ""
+  if (!sa || !sb || sa === sb) return 0
+  if (/^\d+$/.test(sa) && /^\d+$/.test(sb)) {
+    try {
+      const ia = BigInt(sa)
+      const ib = BigInt(sb)
+      return ia < ib ? -1 : ia > ib ? 1 : 0
+    } catch (_) {}
+  }
+  return sa.localeCompare(sb, undefined, { numeric: true })
 }
 
 /** Ordem cronológica estável (evita “sumir” / saltos quando timestamps coincidem). */
@@ -1772,12 +1826,18 @@ function sortMensagensChronological(arr) {
     const ta = toMillis(a?.criado_em) || 0
     const tb = toMillis(b?.criado_em) || 0
     if (ta !== tb) return ta - tb
+
+    // O GET /chats ordena por `criado_em DESC, id DESC` e depois inverte o lote. Logo,
+    // para timestamps iguais, a ordem canonica exibida apos F5 e `id ASC`. Eventos de
+    // socket podem chegar fora de sequencia (midia e webhook sao assincronos), portanto
+    // a ordem de chegada local nao pode vencer o id persistido.
+    const persistedIdOrder = comparePersistedMessageIds(a, b)
+    if (persistedIdOrder !== 0) return persistedIdOrder
+
+    // Somente mensagens ainda sem dois ids persistidos dependem da sequencia local.
     const seqa = Number(a?._stableInsertSeq)
     const seqb = Number(b?._stableInsertSeq)
     if (Number.isFinite(seqa) && Number.isFinite(seqb) && seqa !== seqb) return seqa - seqb
-    const ida = Number(a?.id)
-    const idb = Number(b?.id)
-    if (Number.isFinite(ida) && Number.isFinite(idb) && ida !== idb) return ida - idb
     const sid = String(a?.id ?? "").localeCompare(String(b?.id ?? ""))
     if (sid !== 0) return sid
     const wa = String(a?.whatsapp_id || "").localeCompare(String(b?.whatsapp_id || ""))
@@ -1854,9 +1914,7 @@ function applyAnexarOneToList(list, convId, msg) {
     if (msg.whatsapp_id && !existing.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
     if (msg.status != null) merged.status = msg.status
     if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-    if (isOutgoingLike(existing) && isOutgoingLike(msg)) {
-      merged.criado_em = pickOutgoingMergedCriadoEmIso(existing, msg)
-    }
+    merged.criado_em = pickCanonicalMergedCriadoEm(existing, msg)
     merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
     const next = [...list]
     next[existingIdx] = finalizeMergedMessageRow(existing, merged)
@@ -1877,7 +1935,7 @@ function applyAnexarOneToList(list, convId, msg) {
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
       if (msg.status != null) merged.status = msg.status
       if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-      merged.criado_em = pickOutgoingMergedCriadoEmIso(m, msg)
+      merged.criado_em = pickCanonicalMergedCriadoEm(m, msg)
       merged._stableInsertSeq = mergeStableSeq(m, msg, null)
       const next = [...list]
       next[i] = finalizeMergedMessageRow(m, merged)
@@ -1909,7 +1967,7 @@ function applyAnexarOneToList(list, convId, msg) {
         if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
         if (msg.status != null) merged.status = msg.status
         if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-        merged.criado_em = pickOutgoingMergedCriadoEmIso(existing, msg)
+        merged.criado_em = pickCanonicalMergedCriadoEm(existing, msg)
         merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
         const next = [...list]
         next[byClientOnly] = finalizeMergedMessageRow(existing, merged)
@@ -1954,7 +2012,7 @@ function applyAnexarOneToList(list, convId, msg) {
       if (msg.whatsapp_id) merged.whatsapp_id = msg.whatsapp_id
       if (msg.status != null) merged.status = msg.status
       if (msg.status_mensagem != null) merged.status_mensagem = msg.status_mensagem
-      merged.criado_em = pickOutgoingMergedCriadoEmIso(existing, msg)
+      merged.criado_em = pickCanonicalMergedCriadoEm(existing, msg)
       merged._stableInsertSeq = mergeStableSeq(existing, msg, null)
       const next = [...list]
       next[replaceIdx] = finalizeMergedMessageRow(existing, merged)
@@ -1976,7 +2034,7 @@ function applyAnexarOneToList(list, convId, msg) {
       const textoMatch = (m.texto || m.conteudo || "").toString().trim() === textoParaCenarioId
       if (m.whatsapp_id && !m.id && textoMatch) {
         const merged = preserveLocalMediaFields(m, { ...m, ...msg, conversa_id: convId })
-        if (isOutgoingLike(m) && isOutgoingLike(msg)) merged.criado_em = pickOutgoingMergedCriadoEmIso(m, msg)
+        if (isOutgoingLike(m) && isOutgoingLike(msg)) merged.criado_em = pickCanonicalMergedCriadoEm(m, msg)
         const order = { pending: 0, sent: 1, delivered: 2, read: 3, played: 4 }
         const mVal = order[String(m?.status_mensagem || m?.status || "").toLowerCase()] ?? 0
         const msgVal = order[String(msg?.status_mensagem || msg?.status || "").toLowerCase()] ?? 0
@@ -1992,7 +2050,9 @@ function applyAnexarOneToList(list, convId, msg) {
     }
   }
 
+  const msgHadFallbackTimestamp = hasFallbackTimestamp(msg)
   const newMsg = normalizeMsgForStore({ ...msg })
+  if (msgHadFallbackTimestamp) markFallbackTimestamp(newMsg)
   if (convId) newMsg.conversa_id = convId
   const semChavePersistida =
     (newMsg.id == null || String(newMsg.id).trim() === "") &&
@@ -2012,9 +2072,7 @@ function applyAnexarOneToList(list, convId, msg) {
         prevRow,
         mergeMsgPreferringTombstone(prevRow, { ...prevRow, ...candNew })
       )
-      if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
-        mergedNew.criado_em = pickOutgoingMergedCriadoEmIso(prevRow, candNew)
-      }
+      mergedNew.criado_em = pickCanonicalMergedCriadoEm(prevRow, candNew)
       mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
       const next = [...list]
       next[dupIdx] = finalizeMergedMessageRow(prevRow, mergedNew)
@@ -2081,9 +2139,7 @@ function applyAnexarOneToList(list, convId, msg) {
       prevRow,
       mergeMsgPreferringTombstone(prevRow, { ...prevRow, ...candNew })
     )
-    if (isOutgoingLike(prevRow) && isOutgoingLike(candNew)) {
-      mergedNew.criado_em = pickOutgoingMergedCriadoEmIso(prevRow, candNew)
-    }
+    mergedNew.criado_em = pickCanonicalMergedCriadoEm(prevRow, candNew)
     mergedNew._stableInsertSeq = mergeStableSeq(prevRow, candNew, null)
     const next = [...list]
     next[crossIdx] = finalizeMergedMessageRow(prevRow, mergedNew)
@@ -2104,9 +2160,7 @@ function applyAnexarOneToList(list, convId, msg) {
 function mergeDedupeRows(prev, incoming, ord) {
   const cand = prev ? { ...prev, ...incoming } : incoming
   let merged = preserveLocalMediaFields(prev, mergeMsgPreferringTombstone(prev, cand))
-  if (prev && isOutgoingLike(prev) && isOutgoingLike(incoming)) {
-    merged.criado_em = pickOutgoingMergedCriadoEmIso(prev, incoming)
-  }
+  if (prev) merged.criado_em = pickCanonicalMergedCriadoEm(prev, incoming)
   merged._stableInsertSeq = mergeStableSeq(prev || null, incoming, ord)
   merged = clearStaleOutboundWaitFlags(merged)
   return prev ? finalizeMergedMessageRow(prev, merged) : stripTempIdWhenPersisted(merged)
@@ -2162,6 +2216,7 @@ export {
   preserveLocalMediaFields,
   mergeMsgPreferringTombstone,
   mergeStableSeq,
+  pickCanonicalMergedCriadoEm,
   dedupeRowsByPersistedIdentity,
   finalizeMergedMessageRow,
   hasRenderableUrl,

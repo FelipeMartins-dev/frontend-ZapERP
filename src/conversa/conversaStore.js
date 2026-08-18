@@ -32,6 +32,7 @@ import {
   preserveLocalMediaFields,
   mergeMsgPreferringTombstone,
   mergeStableSeq,
+  pickCanonicalMergedCriadoEm,
   finalizeMergedMessageRow,
   clearStaleOutboundWaitFlags,
   hasRenderableUrl,
@@ -1166,7 +1167,7 @@ export const useConversaStore = create((set, get) => {
             flat = preserveLocalMediaFields(prevRow, flat)
           }
           if (isOutgoingLike(prevRow) && isOutgoingLike(mergedRec)) {
-            flat.criado_em = prevRow.criado_em ?? flat.criado_em
+            flat.criado_em = pickCanonicalMergedCriadoEm(prevRow, mergedRec)
           }
           let tomb = mergeMsgPreferringTombstone(prevRow, flat)
           tomb._stableInsertSeq = mergeStableSeq(prevRow, flat, null)

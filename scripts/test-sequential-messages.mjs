@@ -279,16 +279,16 @@ list = mergeMessageIntoListForTest(list, CONV, {
 });
 assert(list.length === 2, `manual repetido: esperado 2, obteve ${list.length}`);
 
-// 10) Realtime: confirmacoes podem chegar com ids fora da ordem visual local no mesmo timestamp.
-// A ordenacao deve preservar _stableInsertSeq para evitar salto ate atualizar a pagina.
+// 10) Realtime: eventos podem chegar fora de sequencia no mesmo timestamp (comum em midia).
+// Persistidas devem usar o mesmo desempate id ASC do backend/F5, nao a ordem de chegada local.
 const sameTs = new Date().toISOString();
 const sortedSameTimestamp = sortMensagensChronological([
   { id: 902, conversa_id: CONV, direcao: "out", tipo: "texto", texto: "primeira", criado_em: sameTs, _stableInsertSeq: 1 },
   { id: 901, conversa_id: CONV, direcao: "out", tipo: "texto", texto: "segunda", criado_em: sameTs, _stableInsertSeq: 2 },
 ]);
 assert(
-  sortedSameTimestamp.map((m) => m.texto).join("|") === "primeira|segunda",
-  "mensagens com mesmo timestamp devem preservar ordem local estavel mesmo com ids fora de ordem"
+  sortedSameTimestamp.map((m) => m.id).join("|") === "901|902",
+  "mensagens persistidas com mesmo timestamp devem seguir id ASC como o backend/F5"
 );
 
 // 11) Dois envios otimistas com texto IGUAL, em sequencia, antes de qualquer confirmacao,
